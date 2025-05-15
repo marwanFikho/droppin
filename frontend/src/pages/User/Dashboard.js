@@ -49,7 +49,7 @@ const UserDashboard = () => {
     <div className="dashboard-container">
       <div className="dashboard-sidebar">
         <div className="sidebar-header">
-          <h2>Dropin</h2>
+          <h2>Droppin</h2>
           <p>User Portal</p>
         </div>
         

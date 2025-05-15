@@ -57,7 +57,7 @@ const Login = () => {
     <div className="auth-container">
       <div className="auth-form-container">
         <div className="auth-header">
-          <h2>Login to Dropin</h2>
+          <h2>Login to Droppin</h2>
           <p>Enter your credentials to access your account</p>
         </div>
         

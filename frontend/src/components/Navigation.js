@@ -1,7 +1,6 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import logo from '../assets/images/logo.svg';
 
 const Navigation = () => {
   const { currentUser, logout } = useAuth();
@@ -32,9 +31,8 @@ const Navigation = () => {
     <nav className="main-nav">
       <div className="nav-container">
         <div className="nav-logo">
-          <Link to="/" className="logo-container">
-            <img src={logo} alt="Droppin Delivery" className="logo-image" />
-            <div className="tagline">Zip it.Ship it.Drop it</div>
+          <Link to="/">
+            <span className="logo-text">Droppin</span>
           </Link>
         </div>
 
@@ -49,8 +47,8 @@ const Navigation = () => {
             </>
           ) : (
             <>
-              <Link to="/login" className="nav-link btn btn-outline">Login</Link>
-              <Link to="/register" className="nav-link btn btn-primary">Register</Link>
+              <Link to="/login" className="nav-link">Login</Link>
+              <Link to="/register" className="nav-link">Register</Link>
             </>
           )}
         </div>

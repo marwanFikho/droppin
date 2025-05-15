@@ -93,7 +93,7 @@ module.exports = (sequelize, DataTypes) => {
     hooks: {
       beforeCreate: (package) => {
         if (!package.trackingNumber) {
-          const prefix = 'DP'; // Dropin prefix
+          const prefix = 'DP'; // Droppin prefix
           const timestamp = Math.floor(Date.now() / 1000).toString(16); // Unix timestamp in hex
           const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
           

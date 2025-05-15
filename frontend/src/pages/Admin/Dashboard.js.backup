@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { adminService, packageService } from '../../services/api';
+import { adminService } from '../../services/api';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faUser, faStore, faTruck, faBox, faSearch, faEye, faCheck, faTimes, faChartBar, faUserPlus, faTimes as faClose } from '@fortawesome/free-solid-svg-icons';
 import './AdminDashboard.css';
@@ -23,59 +23,7 @@ const AdminDashboard = () => {
     users: { total: 0, shops: 0, drivers: 0, customers: 0 },
     packages: { total: 0, pending: 0, inTransit: 0, delivered: 0 }
   });
-  const [shopPackages, setShopPackages] = useState([]);
-  const [isLoadingShopPackages, setIsLoadingShopPackages] = useState(false);
-  const [shopPackagesWithUnpaidMoney, setShopPackagesWithUnpaidMoney] = useState([]);
-  const [shopUnpaidTotal, setShopUnpaidTotal] = useState(0);
-  const [showConfirmationDialog, setShowConfirmationDialog] = useState(false);
-  const [confirmAction, setConfirmAction] = useState(null);
-  const [statusMessage, setStatusMessage] = useState(null);
-  const [confirmationDialogTitle, setConfirmationDialogTitle] = useState('');
-  const [confirmationDialogText, setConfirmationDialogText] = useState('');
 
-  // Function to fetch users of a specific role
-  const fetchUsers = async (role) => {
-    try {
-      console.log(`Fetching users with role: ${role}`);
-      setLoading(true);
-      
-      switch(role) {
-        case 'shops':
-          const shopsResponse = await adminService.getShops();
-          // Enhanced logging for shop financial data
-          const shopData = shopsResponse.data || [];
-          shopData.forEach(shop => {
-            console.log(`Shop ${shop.id} financial data:`, {
-              ToCollect: shop.ToCollect,
-              TotalCollected: shop.TotalCollected,
-              rawToCollect: shop.rawToCollect,
-              rawTotalCollected: shop.rawTotalCollected
-            });
-          });
-          setUsers(shopData);
-          break;
-        case 'drivers':
-          const driversResponse = await adminService.getDrivers();
-          setUsers(driversResponse.data || []);
-          break;
-        case 'user':
-          const usersResponse = await adminService.getUsers({ role: 'user' });
-          setUsers(usersResponse.data || []);
-          break;
-        case 'pending':
-          const pendingResponse = await adminService.getPendingApprovals();
-          setUsers(pendingResponse.data || []);
-          break;
-        default:
-          break;
-      }
-    } catch (error) {
-      console.error(`Error fetching ${role} data:`, error);
-    } finally {
-      setLoading(false);
-    }
-  };
-  
   // Load data based on active tab
   useEffect(() => {
     const fetchData = async () => {
@@ -92,11 +40,28 @@ const AdminDashboard = () => {
         // Load appropriate data based on active tab
         switch (activeTab) {
           case 'pending':
+            console.log('Fetching pending approvals...');
+            const pendingResponse = await adminService.getPendingApprovals();
+            console.log('Pending approvals received:', pendingResponse.data);
+            setUsers(pendingResponse.data || []);
+            break;
           case 'users':
+            console.log('Fetching users...');
+            const usersResponse = await adminService.getUsers({ role: 'user' });
+            console.log('Users received:', usersResponse.data);
+            setUsers(usersResponse.data || []);
+            break;
           case 'shops':
+            console.log('Fetching shops...');
+            const shopsResponse = await adminService.getShops();
+            console.log('Shops received:', shopsResponse.data);
+            setUsers(shopsResponse.data || []);
+            break;
           case 'drivers':
-            // Use our new fetchUsers function to get the data
-            await fetchUsers(activeTab === 'users' ? 'user' : activeTab);
+            console.log('Fetching drivers...');
+            const driversResponse = await adminService.getDrivers();
+            console.log('Drivers received:', driversResponse.data);
+            setUsers(driversResponse.data || []);
             break;
           case 'packages':
             console.log('Fetching packages...');
@@ -290,7 +255,7 @@ const AdminDashboard = () => {
                     <div 
                       key={driver.id} 
                       className="driver-item"
-                      onClick={() => assignDriverToPackage(driver.driverId)}
+                      onClick={() => assignDriverToPackage(driver.id)}
                     >
                       <div className="driver-info">
                         <div className="driver-name">{driver.name}</div>
@@ -362,9 +327,10 @@ const AdminDashboard = () => {
       const search = searchTerm.toLowerCase();
       filtered = filtered.filter(pkg => 
         pkg.trackingNumber?.toLowerCase().includes(search) ||
-        pkg.pickupContactName?.toLowerCase().includes(search) ||
-        (pkg.shop?.businessName || '').toLowerCase().includes(search) ||
-        pkg.status?.toLowerCase().includes(search)
+        pkg.packageDescription?.toLowerCase().includes(search) ||
+        pkg.status?.toLowerCase().includes(search) ||
+        pkg.pickupAddress?.contactName?.toLowerCase().includes(search) ||
+        pkg.deliveryAddress?.contactName?.toLowerCase().includes(search)
       );
     }
 
@@ -387,151 +353,9 @@ const AdminDashboard = () => {
 
   // View entity details
   const viewDetails = (entity, type) => {
-    console.log('Viewing details for:', entity, type);
-    entity.entityType = type;
-    setSelectedEntity(entity);
+    // Store both the entity and its type
+    setSelectedEntity({ ...entity, entityType: type});
     setShowDetailsModal(true);
-    
-    // Reset shop packages when viewing a new entity
-    setShopPackages([]);
-    setShopPackagesWithUnpaidMoney([]);
-    setShopUnpaidTotal(0);
-  };
-  
-  // Load packages for a shop to prepare for settlement
-  const loadShopPackages = async (shopId) => {
-    setIsLoadingShopPackages(true);
-    setShopPackages([]);
-    setShopPackagesWithUnpaidMoney([]);
-    setShopUnpaidTotal(0);
-    
-    try {
-      console.log(`Loading financial data for shop ID ${shopId}`);
-      
-      // Use our new direct shop endpoint to get the latest financial data
-      const shopResponse = await adminService.getShopById(shopId);
-      
-      if (!shopResponse?.data) {
-        throw new Error('Failed to fetch shop financial data');
-      }
-      
-      const shopData = shopResponse.data;
-      console.log('Shop direct data retrieved:', shopData);
-      
-      // Use TotalCollected directly from database
-      const totalCollected = parseFloat(shopData.TotalCollected || 0);
-      console.log(`Shop TotalCollected from database: $${totalCollected.toFixed(2)}`);
-      
-      // Get packages for this shop (just to display them in the settlement dialog)
-      const packagesResponse = await adminService.getShopPackages(shopId);
-      const packages = packagesResponse?.data || [];
-      console.log(`Loaded ${packages.length} packages for shop ID ${shopId}`);
-      
-      // Set all packages for display
-      setShopPackages(packages);
-      
-      // Filter packages that have money to be settled
-      const packagesWithMoney = packages.filter(pkg => 
-        pkg.codAmount > 0 && 
-        pkg.isPaid === true && 
-        pkg.status === 'delivered'
-      );
-      
-      console.log(`Found ${packagesWithMoney.length} packages with money to settle`);
-      
-      // IMPORTANT: Use the TotalCollected value from database as the settlement amount
-      setShopPackagesWithUnpaidMoney(packagesWithMoney);
-      setShopUnpaidTotal(totalCollected);
-      
-      console.log(`Total amount to settle (from database): $${totalCollected.toFixed(2)}`);
-    } catch (error) {
-      console.error('Error loading shop data:', error);
-      alert(`Error: ${error.message}`);
-      setShopPackages([]);
-    } finally {
-      setIsLoadingShopPackages(false);
-    }
-  };
-  
-  // Prepare settlement dialog for shop payments
-  const prepareSettleShopPayment = (shopId) => {
-    // Create the action function to be executed when confirmed
-    const action = async () => {
-      try {        
-        // Get IDs of packages to mark as settled
-        const packageIds = shopPackagesWithUnpaidMoney.map(pkg => pkg.id);
-        
-        console.log(`Attempting to settle ${packageIds.length} packages for shop ID ${shopId}`);
-        
-        // Call API to process the settlement
-        const response = await adminService.settleShopPayments(shopId, { packageIds });
-        
-        console.log('Settlement response:', response);
-        
-        // Calculate the total amount that was settled
-        const totalAmount = shopUnpaidTotal;
-        
-        // Update the UI with a success message
-        setStatusMessage({
-          type: 'success',
-          text: `Successfully processed payment of $${totalAmount.toFixed(2)} to shop`
-        });
-        
-        // Clear the unpaid packages and reset collected money UI
-        setShopPackagesWithUnpaidMoney([]);
-        setShopUnpaidTotal(0);
-        
-        // Update the shop's TotalCollected value in the UI immediately
-        updateShopFinancialData(shopId, totalAmount);
-        
-        // Refresh the shops data after a short delay
-        setTimeout(() => {
-          fetchUsers('shop');
-        }, 1000);
-      } catch (error) {
-        console.error('Error settling shop payments:', error);
-        setStatusMessage({
-          type: 'error',
-          text: `Error processing shop payment: ${error.response?.data?.message || error.message || 'Unknown error'}`
-        });
-      } finally {
-        // Close the confirmation dialog
-        setShowConfirmationDialog(false);
-      }
-    };
-    
-    // Set confirmation dialog content
-    setConfirmationDialogTitle('Confirm Settlement');
-    setConfirmationDialogText(`Are you sure you want to settle payments for this shop? This will mark all selected packages as paid out.`);
-    setConfirmAction(() => action);
-    setShowConfirmationDialog(true);
-  };
-  
-  // Helper function to update shop's financial data in the UI after settlement
-  const updateShopFinancialData = (shopId, settledAmount) => {
-    // Update users list
-    setUsers(prevUsers => {
-      return prevUsers.map(user => {
-        // If this is the shop we're updating
-        if (user.role === 'shop' && (user.id === shopId || user.shopId === shopId)) {
-          console.log(`Updating shop ${shopId} in local state: TotalCollected -> 0`);
-          // Reset the collected amount
-          return {
-            ...user,
-            // Reset database column values in local state
-            TotalCollected: 0,
-            financialData: {
-              ...user.financialData,
-              totalCollected: 0
-            }
-          };
-        }
-        return user;
-      });
-    });
-    
-    // No need to update additional shops list - we'll just refresh data when needed
-    console.log(`Shop ${shopId} financial data updated in users list. TotalCollected set to 0.`);
   };
 
   // Render users table
@@ -554,18 +378,6 @@ const AdminDashboard = () => {
             <th>Email</th>
             <th>Role</th>
             <th>Status</th>
-            {activeTab === 'shops' && (
-              <>
-                <th>To Collect ($)</th>
-                <th>Collected ($)</th>
-              </>
-            )}
-            {activeTab === 'drivers' && (
-              <>
-                <th>Assigned Packages</th>
-                <th>Delivered</th>
-              </>
-            )}
             <th>Actions</th>
           </tr>
         </thead>
@@ -586,26 +398,6 @@ const AdminDashboard = () => {
                   {user.isApproved ? 'Approved' : 'Pending'}
                 </span>
               </td>
-              {activeTab === 'shops' && (
-                <>
-                  <td className="financial-cell">
-                    ${parseFloat(user.ToCollect || 0).toFixed(2)}
-                  </td>
-                  <td className="financial-cell">
-                    ${parseFloat(user.TotalCollected || 0).toFixed(2)}
-                  </td>
-                </>
-              )}
-              {activeTab === 'drivers' && (
-                <>
-                  <td className="count-cell">
-                    {user.stats?.assignedPackages || 0}
-                  </td>
-                  <td className="count-cell">
-                    {user.stats?.deliveredPackages || 0}
-                  </td>
-                </>
-              )}
               <td className="actions-cell">
                 {!user.isApproved && (
                   <>
@@ -675,8 +467,6 @@ const AdminDashboard = () => {
             <th>Status</th>
             <th>From</th>
             <th>To</th>
-            <th>COD Amount</th>
-            <th>Driver</th>
             <th>Actions</th>
           </tr>
         </thead>
@@ -692,12 +482,6 @@ const AdminDashboard = () => {
               </td>
               <td>{pkg.pickupContactName || 'N/A'}</td>
               <td>{pkg.deliveryContactName || 'N/A'}</td>
-              <td className="financial-cell">${parseFloat(pkg.codAmount || 0).toFixed(2)}
-                {pkg.codAmount > 0 && <span className={`payment-status ${pkg.isPaid ? 'paid' : 'unpaid'}`}>
-                  {pkg.isPaid ? ' (Paid)' : ' (Unpaid)'}
-                </span>}
-              </td>
-              <td>{pkg.driver ? pkg.driver.contact?.name || `Driver #${pkg.driver.id}` : 'Not Assigned'}</td>
               <td className="actions-cell">
                 <button 
                   className="action-btn view-btn"
@@ -820,122 +604,27 @@ const AdminDashboard = () => {
             
             {/* Additional details for shop */}
             {isShop && (
-              <>
-                <div className="detail-item full-width">
-                  <span className="label">Business Information:</span>
-                  <div className="nested-details">
-                    <div className="nested-detail">
-                      <span className="nested-label">Business Name:</span>
-                      <span>{selectedEntity.businessName || 'N/A'}</span>
-                    </div>
-                    <div className="nested-detail">
-                      <span className="nested-label">Business Type:</span>
-                      <span>{selectedEntity.businessType || 'N/A'}</span>
-                    </div>
-                    <div className="nested-detail">
-                      <span className="nested-label">Registration #:</span>
-                      <span>{selectedEntity.registrationNumber || 'N/A'}</span>
-                    </div>
-                    <div className="nested-detail">
-                      <span className="nested-label">Tax ID:</span>
-                      <span>{selectedEntity.taxId || 'N/A'}</span>
-                    </div>
+              <div className="detail-item full-width">
+                <span className="label">Business Information:</span>
+                <div className="nested-details">
+                  <div className="nested-detail">
+                    <span className="nested-label">Business Name:</span>
+                    <span>{selectedEntity.businessName || 'N/A'}</span>
+                  </div>
+                  <div className="nested-detail">
+                    <span className="nested-label">Business Type:</span>
+                    <span>{selectedEntity.businessType || 'N/A'}</span>
+                  </div>
+                  <div className="nested-detail">
+                    <span className="nested-label">Registration #:</span>
+                    <span>{selectedEntity.registrationNumber || 'N/A'}</span>
+                  </div>
+                  <div className="nested-detail">
+                    <span className="nested-label">Tax ID:</span>
+                    <span>{selectedEntity.taxId || 'N/A'}</span>
                   </div>
                 </div>
-                
-                {/* Financial information */}
-                <div className="detail-item full-width">
-                  <span className="label">Financial Summary:</span>
-                  <div className="nested-details">
-                    <div className="nested-detail">
-                      <span className="nested-label">Total to Collect:</span>
-                      <span className="financial-value">
-                        ${parseFloat(selectedEntity.ToCollect || 0).toFixed(2)}
-                      </span>
-                    </div>
-                    <div className="nested-detail">
-                      <span className="nested-label">Total Collected:</span>
-                      <span className="financial-value">
-                        ${parseFloat(selectedEntity.TotalCollected || 0).toFixed(2)}
-                      </span>
-                    </div>
-                    <div className="nested-detail">
-                      <span className="nested-label">Package Count:</span>
-                      <span>{selectedEntity.financialData?.packageCount || 0}</span>
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Shop packages section */}
-                {selectedEntity.shopId && (
-                  <div className="detail-item full-width">
-                    <span className="label">Recent Packages:</span>
-                    <button 
-                      className="load-packages-btn"
-                      onClick={() => loadShopPackages(selectedEntity.shopId)}
-                    >
-                      Load Packages
-                    </button>
-                    
-                    {shopPackages.length > 0 && (
-                      <div className="shop-packages-table">
-                        <table>
-                          <thead>
-                            <tr>
-                              <th>Tracking #</th>
-                              <th>Status</th>
-                              <th>COD Amount</th>
-                              <th>Payment Status</th>
-                              <th>Actions</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {shopPackages.map(pkg => (
-                              <tr key={pkg.id}>
-                                <td>{pkg.trackingNumber}</td>
-                                <td>
-                                  <span className={`status-badge status-${pkg.status}`}>
-                                    {pkg.status}
-                                  </span>
-                                </td>
-                                <td className="financial-cell">${parseFloat(pkg.codAmount || 0).toFixed(2)}</td>
-                                <td>
-                                  <span className={`payment-status ${pkg.isPaid ? 'paid' : 'unpaid'}`}>
-                                    {pkg.isPaid ? 'Paid' : 'Unpaid'}
-                                  </span>
-                                </td>
-                                <td>
-                                  <button 
-                                    className="action-btn view-btn"
-                                    onClick={() => viewDetails(pkg, 'package')}
-                                    title="View Details"
-                                  >
-                                    <FontAwesomeIcon icon={faEye} />
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                        
-                        {/* Shop payment settlement */}
-                        {shopPackagesWithUnpaidMoney.length > 0 && (
-                          <div className="settlement-section">
-                            <div className="settlement-title">Settle Payments with Shop</div>
-                            <div className="settlement-amount">Total amount to pay to shop: ${parseFloat(shopUnpaidTotal).toFixed(2)}</div>
-                            <button 
-                              className="settle-btn" 
-                              onClick={() => prepareSettleShopPayment(selectedEntity.shopId)}
-                            >
-                              Mark as Settled
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </>
+              </div>
             )}
             
             {/* Additional details for driver */}
@@ -1066,47 +755,6 @@ const AdminDashboard = () => {
                 </div>
               </div>
             </div>
-            
-            {/* Driver details - show only if package has been assigned to a driver */}
-            {false && (
-              <div className="detail-item full-width driver-details-section">
-                <span className="label">Assigned Driver:</span>
-                <div className="nested-details">
-                  {selectedEntity.Driver ? (
-                    <>
-                      <div className="nested-detail">
-                        <span className="nested-label">Name:</span>
-                        <span>{selectedEntity.Driver.User ? selectedEntity.Driver.User.name : 'N/A'}</span>
-                      </div>
-                      <div className="nested-detail">
-                        <span className="nested-label">Phone:</span>
-                        <span>{selectedEntity.Driver.User ? selectedEntity.Driver.User.phone : 'N/A'}</span>
-                      </div>
-                      <div className="nested-detail">
-                        <span className="nested-label">Email:</span>
-                        <span>{selectedEntity.Driver.User ? selectedEntity.Driver.User.email : 'N/A'}</span>
-                      </div>
-                      <div className="nested-detail">
-                        <span className="nested-label">Vehicle:</span>
-                        <span>
-                          {selectedEntity.Driver.vehicleType ? 
-                            `${selectedEntity.Driver.vehicleType}${selectedEntity.Driver.model ? ` - ${selectedEntity.Driver.model}` : ''}${selectedEntity.Driver.color ? ` (${selectedEntity.Driver.color})` : ''}` : 
-                            'N/A'}
-                        </span>
-                      </div>
-                      <div className="nested-detail">
-                        <span className="nested-label">License:</span>
-                        <span>{selectedEntity.Driver.driverLicense || 'N/A'}</span>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="nested-detail">
-                      <span>Driver ID: {selectedEntity.driverId} (Details not available)</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
           </div>
         )}
         
@@ -1170,55 +818,8 @@ const AdminDashboard = () => {
 
 
 
-  // Render confirmation dialog
-  const renderConfirmationDialog = () => {
-    if (!showConfirmationDialog) return null;
-    
-    return (
-      <div className="confirmation-overlay">
-        <div className="confirmation-dialog">
-          <h3>Confirm Action</h3>
-          <p>Are you sure you want to mark these payments as settled with the shop?</p>
-          <div className="confirmation-buttons">
-            <button 
-              className="btn-secondary"
-              onClick={() => setShowConfirmationDialog(false)}
-            >
-              Cancel
-            </button>
-            <button 
-              className="btn-primary"
-              onClick={() => confirmAction && confirmAction()}
-            >
-              Confirm
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  };
-  
-  // Render status message
-  const renderStatusMessage = () => {
-    if (!statusMessage) return null;
-    
-    return (
-      <div className={`status-message ${statusMessage.type}`}>
-        <p>{statusMessage.text}</p>
-        <button 
-          className="close-btn"
-          onClick={() => setStatusMessage(null)}
-        >
-          ×
-        </button>
-      </div>
-    );
-  };
-
   return (
     <div className="admin-dashboard">
-      {renderStatusMessage()}
-      {renderConfirmationDialog()}
       <div className="dashboard-header">
         <h1>Admin Dashboard</h1>
         <div className="search-box">

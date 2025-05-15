@@ -58,6 +58,7 @@ export const packageService = {
   trackPackage: (trackingNumber) => {
     return api.get(`/packages/track/${trackingNumber}`);
   },
+  getShopProfile: () => api.get('/shops/profile')
 };
 
 // Shop service
@@ -87,6 +88,7 @@ export const adminService = {
   
   // Shop management
   getShops: (filters = {}) => api.get('/admin/shops', { params: filters }),
+  getShopById: (id) => api.get(`/admin/shops/${id}`),
   approveShop: (id, approved) => api.patch(`/admin/shops/${id}/approve`, { approved }),
   
   // Driver management
@@ -95,6 +97,12 @@ export const adminService = {
   
   // Package management
   getPackages: (filters = {}) => api.get('/admin/packages', { params: filters }),
+  assignDriverToPackage: (packageId, driverId) => api.post(`/admin/packages/${packageId}/assign-driver`, { driverId }),
+  
+  // Financial management
+  settleShopPayments: (shopId, data) => api.post(`/admin/shops/${shopId}/settle-payments`, data),
+  updatePackagePayment: (packageId, data) => api.patch(`/admin/packages/${packageId}/payment`, data),
+  getShopPackages: (shopId) => api.get(`/admin/packages`, { params: { shopId } }),
 };
 
 export default api;

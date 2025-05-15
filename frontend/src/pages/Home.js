@@ -26,7 +26,7 @@ const Home = () => {
     <div className="home-container">
       <div className="hero-section">
         <div className="hero-content">
-          <h1>Dropin Delivery</h1>
+          <h1>Droppin Delivery</h1>
           <h2>Fast & Reliable B2B Delivery Service</h2>
           <p>
             Connecting shops, drivers, and customers with a seamless delivery experience.
@@ -50,7 +50,7 @@ const Home = () => {
       </div>
 
       <div className="features-section">
-        <h2>Why Choose Dropin?</h2>
+        <h2>Why Choose Droppin?</h2>
         
         <div className="features-grid">
           <div className="feature-card">
@@ -84,7 +84,7 @@ const Home = () => {
 
       <footer className="home-footer">
         <div className="footer-content">
-          <div className="footer-logo">Dropin Delivery</div>
+          <div className="footer-logo">Droppin Delivery</div>
           <div className="footer-links">
             <Link to="/about">About Us</Link>
             <Link to="/contact">Contact</Link>
@@ -92,7 +92,7 @@ const Home = () => {
             <Link to="/privacy">Privacy Policy</Link>
           </div>
           <div className="footer-copyright">
-            &copy; {new Date().getFullYear()} Dropin Delivery. All rights reserved.
+            &copy; {new Date().getFullYear()} Droppin Delivery. All rights reserved.
           </div>
         </div>
       </footer>

@@ -1,3 +1,4 @@
+const { Op, QueryTypes } = require('sequelize');
 const { sequelize, User, Shop, Driver, Package } = require('../models/index');
 
 // Get dashboard statistics
@@ -90,6 +91,9 @@ exports.getUsers = async (req, res) => {
         if (driver) {
           userData.vehicleType = driver.vehicleType;
           userData.licensePlate = driver.licensePlate;
+          userData.model = driver.model;
+          userData.color = driver.color;
+          userData.driverLicense = driver.driverLicense;
           userData.driverId = driver.id;
         }
       }
@@ -132,6 +136,9 @@ exports.getPendingApprovals = async (req, res) => {
         if (driver) {
           userData.vehicleType = driver.vehicleType;
           userData.licensePlate = driver.licensePlate;
+          userData.model = driver.model;
+          userData.color = driver.color;
+          userData.driverLicense = driver.driverLicense;
           userData.driverId = driver.id;
         }
       }
@@ -148,28 +155,21 @@ exports.getPendingApprovals = async (req, res) => {
 
 // Approve or reject a user
 exports.approveUser = async (req, res) => {
-  const transaction = await sequelize.transaction();
-  
   try {
     const { id } = req.params;
     const { approved } = req.body;
     
     if (approved === undefined) {
-      await transaction.rollback();
       return res.status(400).json({ message: 'Approval status is required' });
     }
     
-    // Update user approval status
-    const user = await User.findByPk(id, { transaction });
+    const user = await User.findByPk(id);
     
     if (!user) {
-      await transaction.rollback();
       return res.status(404).json({ message: 'User not found' });
     }
     
-    await user.update({ isApproved: approved }, { transaction });
-    
-    await transaction.commit();
+    await user.update({ isApproved: approved });
     
     res.json({ 
       message: `User ${approved ? 'approved' : 'rejected'} successfully`,
@@ -182,7 +182,6 @@ exports.approveUser = async (req, res) => {
       }
     });
   } catch (error) {
-    await transaction.rollback();
     console.error('Error approving user:', error);
     res.status(500).json({ message: error.message });
   }
@@ -193,51 +192,155 @@ exports.getShops = async (req, res) => {
   try {
     const { isApproved, search } = req.query;
     
-    // Get all shop users
-    const shopUsers = await User.findAll({
-      where: { role: 'shop' },
-      attributes: { exclude: ['password'] }
-    });
+    // First, get all users with role 'shop'
+    const whereClause = { role: 'shop' };
     
-    // Get the shop details for each shop user
-    const shops = await Promise.all(shopUsers.map(async (user) => {
-      const shop = await Shop.findOne({ where: { userId: user.id } });
-      if (!shop) return null;
-      
-      return {
-        ...user.toJSON(),
-        shopId: shop.id,
-        businessName: shop.businessName,
-        businessType: shop.businessType,
-        address: shop.address,
-        registrationNumber: shop.registrationNumber,
-        taxId: shop.taxId
-      };
-    }));
-    
-    // Filter out null values (users without shop details)
-    const filteredShops = shops.filter(shop => shop !== null);
-    
-    // Apply filters if provided
-    let result = filteredShops;
-    
+    // Add approval status filter if provided
     if (isApproved !== undefined) {
-      const approvalStatus = isApproved === 'true';
-      result = result.filter(shop => shop.isApproved === approvalStatus);
+      whereClause.isApproved = isApproved === 'true';
     }
     
+    const shopUsers = await User.findAll({
+      where: whereClause,
+      attributes: { exclude: ['password'] },
+      order: [['createdAt', 'DESC']]
+    });
+    
+    // Get shop details for each user
+    const shops = await Promise.all(shopUsers.map(async (user) => {
+      const userData = user.toJSON();
+      const shop = await Shop.findOne({ where: { userId: user.id } });
+      
+      if (shop) {
+        // Get financial data directly with SQL to ensure accuracy
+        const [financialData] = await sequelize.query(
+          `SELECT id, ToCollect, TotalCollected FROM Shops WHERE id = :shopId`,
+          {
+            replacements: { shopId: shop.id },
+            type: QueryTypes.SELECT
+          }
+        );
+        
+        console.log(`Shop ${shop.id} financial data from SQL:`, financialData);
+        
+        // Use the database columns directly from the SQL result
+        const totalToCollect = parseFloat(financialData.ToCollect || 0);
+        const totalCollected = parseFloat(financialData.TotalCollected || 0);
+        
+        // Get package count for this shop
+        const packageCount = await Package.count({ where: { shopId: shop.id } });
+        
+        // Return shop data with financial values from the direct SQL query
+        return {
+          ...userData,
+          shopId: shop.id,
+          businessName: shop.businessName,
+          businessType: shop.businessType,
+          contactPersonName: shop.contactPersonName,
+          contactPersonPhone: shop.contactPersonPhone,
+          contactPersonEmail: shop.contactPersonEmail,
+          // Use the financial data directly from the SQL query
+          ToCollect: financialData.ToCollect,
+          TotalCollected: financialData.TotalCollected,
+          // Include raw values for compatibility
+          rawToCollect: financialData.ToCollect,
+          rawTotalCollected: financialData.TotalCollected,
+          financialData: {
+            totalToCollect,
+            totalCollected, 
+            totalSettled: 0,
+            packageCount: packageCount
+          }
+        };
+      }
+      
+      return userData;
+    }));
+    
+    // Apply search filter if provided
+    let result = shops;
     if (search) {
       const searchTerm = search.toLowerCase();
-      result = result.filter(shop => 
+      result = shops.filter(shop => 
         shop.name?.toLowerCase().includes(searchTerm) ||
         shop.email?.toLowerCase().includes(searchTerm) ||
-        shop.businessName?.toLowerCase().includes(searchTerm)
+        shop.businessName?.toLowerCase().includes(searchTerm) ||
+        shop.businessType?.toLowerCase().includes(searchTerm) ||
+        shop.address?.toLowerCase().includes(searchTerm) ||
+        shop.city?.toLowerCase().includes(searchTerm)
       );
     }
     
     res.json(result);
   } catch (error) {
     console.error('Error getting shops:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Get single shop by ID
+exports.getShopById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    console.log(`Getting shop data for ID: ${id}`);
+    
+    // First find the shop record
+    const shop = await Shop.findByPk(id);
+    
+    if (!shop) {
+      return res.status(404).json({ message: 'Shop not found' });
+    }
+    
+    // Get the user associated with this shop
+    const user = await User.findByPk(shop.userId, {
+      attributes: { exclude: ['password'] }
+    });
+    
+    if (!user) {
+      return res.status(404).json({ message: 'Shop user not found' });
+    }
+    
+    // Get shop's packages for stats
+    const packages = await Package.findAll({ where: { shopId: shop.id } });
+    
+    // Get exact database values for financial columns
+    const [financialData] = await sequelize.query(
+      `SELECT ToCollect, TotalCollected FROM Shops WHERE id = :shopId`,
+      {
+        replacements: { shopId: shop.id },
+        type: QueryTypes.SELECT
+      }
+    );
+    
+    console.log('Financial data from direct query:', financialData);
+    
+    // Prepare response with all shop data
+    const shopData = {
+      id: shop.id,
+      userId: shop.userId,
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      role: user.role,
+      isApproved: user.isApproved,
+      businessName: shop.businessName,
+      businessType: shop.businessType,
+      contactPersonName: shop.contactPersonName,
+      contactPersonPhone: shop.contactPersonPhone,
+      contactPersonEmail: shop.contactPersonEmail,
+      // Using direct SQL results for financial data
+      ToCollect: financialData.ToCollect,
+      TotalCollected: financialData.TotalCollected,
+      // Include package count
+      packageCount: packages.length,
+      createdAt: shop.createdAt,
+      updatedAt: shop.updatedAt
+    };
+    
+    res.json(shopData);
+  } catch (error) {
+    console.error(`Error getting shop with ID ${req.params.id}:`, error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -297,41 +400,69 @@ exports.getDrivers = async (req, res) => {
   try {
     const { isApproved, search } = req.query;
     
-    // Get all driver users
-    const driverUsers = await User.findAll({
-      where: { role: 'driver' },
-      attributes: { exclude: ['password'] }
-    });
+    // First, get all users with role 'driver'
+    const whereClause = { role: 'driver' };
     
-    // Get the driver details for each driver user
-    const drivers = await Promise.all(driverUsers.map(async (user) => {
-      const driver = await Driver.findOne({ where: { userId: user.id } });
-      if (!driver) return null;
-      
-      return {
-        ...user.toJSON(),
-        driverId: driver.id,
-        vehicleType: driver.vehicleType,
-        licensePlate: driver.licensePlate,
-        model: driver.model,
-        isAvailable: driver.isAvailable
-      };
-    }));
-    
-    // Filter out null values (users without driver details)
-    const filteredDrivers = drivers.filter(driver => driver !== null);
-    
-    // Apply filters if provided
-    let result = filteredDrivers;
-    
+    // Add approval status filter if provided
     if (isApproved !== undefined) {
-      const approvalStatus = isApproved === 'true';
-      result = result.filter(driver => driver.isApproved === approvalStatus);
+      whereClause.isApproved = isApproved === 'true';
     }
     
+    const driverUsers = await User.findAll({
+      where: whereClause,
+      attributes: { exclude: ['password'] },
+      order: [['createdAt', 'DESC']]
+    });
+    
+    // Get driver details for each user
+    const drivers = await Promise.all(driverUsers.map(async (user) => {
+      const userData = user.toJSON();
+      const driver = await Driver.findOne({ where: { userId: user.id } });
+      
+      if (driver) {
+        // Count assigned packages for this driver
+        const assignedPackagesCount = await Package.count({
+          where: {
+            driverId: driver.id,
+            status: {
+              [Op.notIn]: ['delivered', 'cancelled', 'returned']
+            }
+          }
+        });
+        
+        // Count all-time delivered packages
+        const deliveredPackagesCount = await Package.count({
+          where: {
+            driverId: driver.id,
+            status: 'delivered'
+          }
+        });
+        
+        return {
+          ...userData,
+          driverId: driver.id,
+          vehicleType: driver.vehicleType,
+          licensePlate: driver.licensePlate,
+          model: driver.model,
+          color: driver.color,
+          driverLicense: driver.driverLicense,
+          isAvailable: driver.isAvailable,
+          stats: {
+            assignedPackages: assignedPackagesCount,
+            deliveredPackages: deliveredPackagesCount,
+            totalPackages: assignedPackagesCount + deliveredPackagesCount
+          }
+        };
+      }
+      
+      return userData;
+    }));
+    
+    // Apply search filter if provided
+    let result = drivers;
     if (search) {
       const searchTerm = search.toLowerCase();
-      result = result.filter(driver => 
+      result = drivers.filter(driver => 
         driver.name?.toLowerCase().includes(searchTerm) ||
         driver.email?.toLowerCase().includes(searchTerm) ||
         driver.licensePlate?.toLowerCase().includes(searchTerm)
@@ -395,9 +526,80 @@ exports.approveDriver = async (req, res) => {
   }
 };
 
+// Assign driver to package
+exports.assignDriverToPackage = async (req, res) => {
+  const transaction = await sequelize.transaction();
+  
+  try {
+    const { packageId } = req.params;
+    const { driverId } = req.body;
+    
+    if (!driverId) {
+      await transaction.rollback();
+      return res.status(400).json({ message: 'Driver ID is required' });
+    }
+    
+    // Find the package
+    const package = await Package.findByPk(packageId, { transaction });
+    
+    if (!package) {
+      await transaction.rollback();
+      return res.status(404).json({ message: 'Package not found' });
+    }
+    
+    // Find the driver
+    const driver = await Driver.findByPk(driverId, { transaction });
+    
+    if (!driver) {
+      await transaction.rollback();
+      return res.status(404).json({ message: 'Driver not found' });
+    }
+    
+    // Check if driver is approved
+    const driverUser = await User.findByPk(driver.userId, { transaction });
+    
+    if (!driverUser || !driverUser.isApproved) {
+      await transaction.rollback();
+      return res.status(400).json({ message: 'Driver is not approved' });
+    }
+    
+    // Update package with driver ID and change status to 'assigned'
+    const statusHistory = JSON.parse(package.statusHistory || '[]');
+    statusHistory.push({
+      status: 'assigned',
+      timestamp: new Date(),
+      note: `Assigned to driver ID: ${driverId}`,
+      updatedBy: req.user.id
+    });
+    
+    await package.update({
+      driverId,
+      status: 'assigned',
+      statusHistory: JSON.stringify(statusHistory)
+    }, { transaction });
+    
+    await transaction.commit();
+    
+    res.json({
+      message: 'Driver assigned successfully',
+      package: {
+        id: package.id,
+        trackingNumber: package.trackingNumber,
+        status: package.status,
+        driverId
+      }
+    });
+  } catch (error) {
+    await transaction.rollback();
+    console.error('Error assigning driver to package:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
 // Get all packages (with optional filtering)
 exports.getPackages = async (req, res) => {
   try {
+    console.log('Getting packages with query:', req.query);
     const { status, shopId, search } = req.query;
     const whereClause = {};
     
@@ -413,9 +615,10 @@ exports.getPackages = async (req, res) => {
     
     // Add search filter if provided
     if (search) {
-      whereClause[sequelize.Op.or] = [
-        { trackingNumber: { [sequelize.Op.like]: `%${search}%` } },
-        { packageDescription: { [sequelize.Op.like]: `%${search}%` } }
+      // Use the Op object imported directly from sequelize to avoid issues
+      whereClause[Op.or] = [
+        { trackingNumber: { [Op.like]: `%${search}%` } },
+        { packageDescription: { [Op.like]: `%${search}%` } }
       ];
     }
     
@@ -475,6 +678,168 @@ exports.getPackages = async (req, res) => {
     res.json(enhancedPackages);
   } catch (error) {
     console.error('Error getting packages:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/**
+ * Update package payment details
+ * @param {Object} req - Request object
+ * @param {Object} res - Response object
+ */
+exports.updatePackagePayment = async (req, res) => {
+  try {
+    const { packageId } = req.params;
+    const { isPaid, paymentMethod, paymentNotes } = req.body;
+    
+    // Find package
+    const packageItem = await Package.findByPk(packageId);
+    
+    if (!packageItem) {
+      return res.status(404).json({ message: 'Package not found' });
+    }
+    
+    // Update payment details
+    const updates = {};
+    
+    if (isPaid !== undefined) {
+      updates.isPaid = isPaid;
+      
+      // If marking as paid, set payment date
+      if (isPaid) {
+        updates.paymentDate = new Date();
+      } else {
+        updates.paymentDate = null;
+      }
+    }
+    
+    if (paymentMethod) {
+      updates.paymentMethod = paymentMethod;
+    }
+    
+    if (paymentNotes) {
+      updates.paymentNotes = paymentNotes;
+    }
+    
+    // Apply updates
+    await packageItem.update(updates);
+    
+    res.json({ 
+      message: 'Package payment information updated successfully',
+      package: packageItem
+    });
+  } catch (error) {
+    console.error('Error updating package payment:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/**
+ * Settle payments with a shop (reset collected money)
+ * @param {Object} req - Request object
+ * @param {Object} res - Response object
+ */
+exports.settleShopPayments = async (req, res) => {
+  try {
+    const { shopId } = req.params;
+    const { packageIds } = req.body;
+    
+    if (!packageIds || !Array.isArray(packageIds) || packageIds.length === 0) {
+      return res.status(400).json({ message: 'Invalid package IDs provided' });
+    }
+    
+    console.log(`Attempting to settle payments for shop ID: ${shopId} with packages: ${JSON.stringify(packageIds)}`);
+    
+    // Find shop - first check if this is a shop ID or a user ID
+    let shop = await Shop.findByPk(shopId);
+    
+    // If not found directly, try to find by userId
+    if (!shop) {
+      shop = await Shop.findOne({ where: { userId: shopId } });
+    }
+    
+    if (!shop) {
+      console.error(`Shop not found with ID or userId: ${shopId}`);
+      return res.status(404).json({ message: 'Shop not found' });
+    }
+    
+    // Use the actual shop ID from now on
+    const actualShopId = shop.id;
+    
+    // Find packages to settle
+    const packages = await Package.findAll({
+      where: {
+        id: { [Op.in]: packageIds },
+        shopId: actualShopId,
+        isPaid: true  // Only settle packages that have been paid
+      }
+    });
+    
+    console.log(`Found ${packages.length} packages to settle for shop ID ${actualShopId}`);
+    
+    if (packages.length === 0) {
+      return res.status(404).json({ message: 'No valid packages found to settle' });
+    }
+    
+    // Calculate total amount settled
+    const totalSettled = packages.reduce((sum, pkg) => {
+      return sum + parseFloat(pkg.codAmount || 0);
+    }, 0);
+    
+    // IMPORTANT: Reset the TotalCollected field to 0 in the shop record
+    // First, get the current value for logging
+    const [currentShopData] = await sequelize.query(
+      `SELECT TotalCollected FROM Shops WHERE id = :shopId`,
+      {
+        replacements: { shopId: shop.id },
+        type: QueryTypes.SELECT
+      }
+    );
+    
+    const currentTotalCollected = parseFloat(currentShopData.TotalCollected || 0);
+    console.log(`Current TotalCollected value for shop ${shop.id}: ${currentTotalCollected}`);
+    
+    // Use direct SQL query to update the TotalCollected value to 0
+    // This avoids any potential issues with Sequelize formatting
+    await sequelize.query(
+      `UPDATE Shops SET TotalCollected = 0 WHERE id = :shopId`,
+      {
+        replacements: { shopId: shop.id },
+        type: QueryTypes.UPDATE
+      }
+    );
+    
+    // Verify the update was successful
+    const [verifiedShopData] = await sequelize.query(
+      `SELECT TotalCollected FROM Shops WHERE id = :shopId`,
+      {
+        replacements: { shopId: shop.id },
+        type: QueryTypes.SELECT
+      }
+    );
+    
+    console.log(`Shop ${shop.id} TotalCollected reset in database:`);
+    console.log(`Before: $${currentTotalCollected}`);
+    console.log(`After: $${verifiedShopData.TotalCollected}`);
+    
+    // Return success response with verification
+    res.json({
+      message: `Successfully processed settlement of $${totalSettled.toFixed(2)} for ${packages.length} packages with shop`,
+      totalSettled,
+      packageCount: packages.length,
+      packageIds: packages.map(pkg => pkg.id),
+      shopBalanceReset: true,
+      previousBalance: currentTotalCollected,
+      currentBalance: verifiedShopData.TotalCollected
+    });
+    
+    // Log detailed information about the settlement
+    console.log(`Settlement processed for shop ${shop.id} (userId: ${shop.userId})`);
+    console.log(`Total settled: $${totalSettled}`);
+    console.log(`TotalCollected reset from $${currentTotalCollected} to $0`);
+    console.log(`Packages: ${packageIds.join(', ')}`);
+  } catch (error) {
+    console.error('Error settling shop payments:', error);
     res.status(500).json({ message: error.message });
   }
 };

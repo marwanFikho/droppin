@@ -46,6 +46,12 @@ export const AuthProvider = ({ children }) => {
       
       const { token, ...userData } = response.data;
       
+      // Check if user is a shop and is approved
+      if (userData.role === 'shop' && !userData.isApproved) {
+        setError('Your shop account is pending approval. Please wait for an administrator to approve your account.');
+        throw new Error('Shop account pending approval');
+      }
+      
       localStorage.setItem('token', token);
       localStorage.setItem('currentUser', JSON.stringify(userData));
       setCurrentUser(userData);

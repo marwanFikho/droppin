@@ -88,7 +88,7 @@ exports.registerShop = async (req, res) => {
   
   try {
     const { 
-      name, email, password, phone, address,
+      email, password, phone,
       businessName, businessType, contactPerson, businessAddress,
       registrationNumber, taxId
     } = req.body;
@@ -105,18 +105,19 @@ exports.registerShop = async (req, res) => {
     }
 
     // Create user with shop role - shops need approval
+    // Use businessName as the name for the user record
     const user = await User.create({
-      name,
+      name: businessName, // Use business name as the primary name
       email,
       password,
-      phone,
+      phone, // This is now the business phone
       role: 'shop',
       isApproved: false, // Shops require approval
-      street: address?.street,
-      city: address?.city,
-      state: address?.state,
-      zipCode: address?.zipCode,
-      country: address?.country,
+      street: businessAddress?.street,
+      city: businessAddress?.city,
+      state: businessAddress?.state,
+      zipCode: businessAddress?.zipCode,
+      country: businessAddress?.country,
       isActive: true
     }, { transaction });
 
@@ -130,14 +131,6 @@ exports.registerShop = async (req, res) => {
         businessAddress.zipCode,
         businessAddress.country
       ].filter(Boolean).join(', ');
-    } else if (address) {
-      // Use personal address if business address is not provided
-      addressString = [
-        address.street, 
-        address.city && address.state ? `${address.city}, ${address.state}` : (address.city || address.state || ''),
-        address.zipCode,
-        address.country
-      ].filter(Boolean).join(', ');
     }
 
     // Create shop profile
@@ -148,6 +141,10 @@ exports.registerShop = async (req, res) => {
       address: addressString,
       registrationNumber,
       taxId,
+      contactPersonName: contactPerson?.name,
+      contactPersonPhone: contactPerson?.phone,
+      contactPersonEmail: contactPerson?.email,
+      isVerified: false
     }, { transaction });
 
     // Commit the transaction if successful
@@ -268,13 +265,9 @@ exports.registerDriver = async (req, res) => {
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
-    
-    console.log('Login attempt for:', email);
 
     // Find user by email
     const user = await User.findOne({ where: { email } });
-    
-    console.log('User found:', user ? `ID: ${user.id}, Role: ${user.role}` : 'No user found');
 
     if (!user) {
       return res.status(401).json({ message: 'Invalid email or password' });
@@ -302,16 +295,10 @@ exports.login = async (req, res) => {
     
     if (user.role === 'shop') {
       const shop = await Shop.findOne({ where: { userId: user.id } });
-      console.log('Shop found for user:', shop ? `Shop ID: ${shop.id}, Business Name: ${shop.businessName}` : 'No shop found');
-      
       if (shop) {
         profileData = {
           shopId: shop.id,
           businessName: shop.businessName,
-          contactName: shop.contactName,
-          contactEmail: shop.contactEmail,
-          contactPhoneNumber: shop.contactPhoneNumber,
-          isVerified: shop.isVerified
         };
       }
     } else if (user.role === 'driver') {

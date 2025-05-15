@@ -10,16 +10,13 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import ShopRegister from './pages/ShopRegister';
 import DriverRegister from './pages/DriverRegister';
-import ShopDashboard from './pages/ShopDashboard';
-import CreatePackage from './pages/CreatePackage';
-import EditPackage from './pages/EditPackage';
-import EditShopProfile from './pages/EditShopProfile';
+import RegistrationSuccess from './pages/RegistrationSuccess';
+import ShopDashboard from './pages/Shop/Dashboard';
 import DriverDashboard from './pages/Driver/Dashboard';
 import UserDashboard from './pages/User/Dashboard';
 import AdminDashboard from './pages/Admin/Dashboard';
 import PackageTracking from './pages/PackageTracking';
 import NotFound from './pages/NotFound';
-import RegistrationConfirmation from './pages/RegistrationConfirmation';
 
 // Protected route component
 const ProtectedRoute = ({ children, allowedRoles }) => {
@@ -53,7 +50,7 @@ function App() {
             <Route path="/register" element={<Register />} />
             <Route path="/register/shop" element={<ShopRegister />} />
             <Route path="/register/driver" element={<DriverRegister />} />
-            <Route path="/registration-confirmation" element={<RegistrationConfirmation />} />
+            <Route path="/registration-success" element={<RegistrationSuccess />} />
             <Route path="/track/:trackingNumber?" element={<PackageTracking />} />
             
             {/* Role-based protected routes */}
@@ -61,12 +58,7 @@ function App() {
               path="/shop/*" 
               element={
                 <ProtectedRoute allowedRoles={['shop', 'admin']}>
-                  <Routes>
-                    <Route path="/" element={<ShopDashboard />} />
-                    <Route path="package/create" element={<CreatePackage />} />
-                    <Route path="package/edit/:id" element={<EditPackage />} />
-                    <Route path="profile/edit" element={<EditShopProfile />} />
-                  </Routes>
+                  <ShopDashboard />
                 </ProtectedRoute>
               } 
             />

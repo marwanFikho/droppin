@@ -9,7 +9,7 @@ exports.getInfo = async (req, res) => {
     const packagesCount = await Package.count();
 
     res.json({
-      message: 'Dropin Delivery API is working',
+      message: 'Droppin Delivery API is working',
       counts: {
         users: usersCount,
         shops: shopsCount,

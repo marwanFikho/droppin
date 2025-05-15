@@ -4,7 +4,7 @@ const { sequelize } = require('../config/db.config');
 const Shop = sequelize.define('Shop', {
   userId: {
     type: DataTypes.INTEGER,
-    allowNull: true, // Making userId optional since we're not creating users for shops
+    allowNull: false,
     references: {
       model: 'Users',
       key: 'id'
@@ -22,6 +22,10 @@ const Shop = sequelize.define('Shop', {
     type: DataTypes.STRING,
     allowNull: true
   },
+  logo: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
   registrationNumber: {
     type: DataTypes.STRING,
     allowNull: true
@@ -30,29 +34,34 @@ const Shop = sequelize.define('Shop', {
     type: DataTypes.STRING,
     allowNull: true
   },
-  // Contact information fields
-  contactName: {
+  contactPersonName: {
     type: DataTypes.STRING,
     allowNull: true
   },
-  contactEmail: {
+  contactPersonPhone: {
     type: DataTypes.STRING,
     allowNull: true
   },
-  contactPhoneNumber: {
+  contactPersonEmail: {
     type: DataTypes.STRING,
     allowNull: true
   },
   isVerified: {
     type: DataTypes.BOOLEAN,
     defaultValue: false
+  },
+  ToCollect: {
+    type: DataTypes.DECIMAL(10, 2),
+    defaultValue: 0.00,
+    allowNull: false
+  },
+  TotalCollected: {
+    type: DataTypes.DECIMAL(10, 2),
+    defaultValue: 0.00,
+    allowNull: false
   }
 }, {
-  timestamps: true,
-  // Make Sequelize less strict about field validation
-  paranoid: false,
-  // Tell Sequelize to ignore fields in the database that aren't in the model
-  underscored: false
+  timestamps: true
 });
 
 module.exports = Shop;

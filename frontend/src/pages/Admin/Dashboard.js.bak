@@ -30,52 +30,14 @@ const AdminDashboard = () => {
   const [showConfirmationDialog, setShowConfirmationDialog] = useState(false);
   const [confirmAction, setConfirmAction] = useState(null);
   const [statusMessage, setStatusMessage] = useState(null);
-  const [confirmationDialogTitle, setConfirmationDialogTitle] = useState('');
-  const [confirmationDialogText, setConfirmationDialogText] = useState('');
+  const [shops, setShops] = useState([]);
+  const [allPackages, setAllPackages] = useState([]);
+  const [packagesToSettle, setPackagesToSettle] = useState([]);
+  const [shopToSettle, setShopToSettle] = useState(null);
+  const [showSettleModal, setShowSettleModal] = useState(false);
+  const [settleModalContent, setSettleModalContent] = useState({ title: '', packages: [], totalAmount: 0 });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Function to fetch users of a specific role
-  const fetchUsers = async (role) => {
-    try {
-      console.log(`Fetching users with role: ${role}`);
-      setLoading(true);
-      
-      switch(role) {
-        case 'shops':
-          const shopsResponse = await adminService.getShops();
-          // Enhanced logging for shop financial data
-          const shopData = shopsResponse.data || [];
-          shopData.forEach(shop => {
-            console.log(`Shop ${shop.id} financial data:`, {
-              ToCollect: shop.ToCollect,
-              TotalCollected: shop.TotalCollected,
-              rawToCollect: shop.rawToCollect,
-              rawTotalCollected: shop.rawTotalCollected
-            });
-          });
-          setUsers(shopData);
-          break;
-        case 'drivers':
-          const driversResponse = await adminService.getDrivers();
-          setUsers(driversResponse.data || []);
-          break;
-        case 'user':
-          const usersResponse = await adminService.getUsers({ role: 'user' });
-          setUsers(usersResponse.data || []);
-          break;
-        case 'pending':
-          const pendingResponse = await adminService.getPendingApprovals();
-          setUsers(pendingResponse.data || []);
-          break;
-        default:
-          break;
-      }
-    } catch (error) {
-      console.error(`Error fetching ${role} data:`, error);
-    } finally {
-      setLoading(false);
-    }
-  };
-  
   // Load data based on active tab
   useEffect(() => {
     const fetchData = async () => {
@@ -92,11 +54,28 @@ const AdminDashboard = () => {
         // Load appropriate data based on active tab
         switch (activeTab) {
           case 'pending':
+            console.log('Fetching pending approvals...');
+            const pendingResponse = await adminService.getPendingApprovals();
+            console.log('Pending approvals received:', pendingResponse.data);
+            setUsers(pendingResponse.data || []);
+            break;
           case 'users':
+            console.log('Fetching users...');
+            const usersResponse = await adminService.getUsers({ role: 'user' });
+            console.log('Users received:', usersResponse.data);
+            setUsers(usersResponse.data || []);
+            break;
           case 'shops':
+            console.log('Fetching shops...');
+            const shopsResponse = await adminService.getShops();
+            console.log('Shops received:', shopsResponse.data);
+            setUsers(shopsResponse.data || []);
+            break;
           case 'drivers':
-            // Use our new fetchUsers function to get the data
-            await fetchUsers(activeTab === 'users' ? 'user' : activeTab);
+            console.log('Fetching drivers...');
+            const driversResponse = await adminService.getDrivers();
+            console.log('Drivers received:', driversResponse.data);
+            setUsers(driversResponse.data || []);
             break;
           case 'packages':
             console.log('Fetching packages...');
@@ -398,56 +377,34 @@ const AdminDashboard = () => {
     setShopUnpaidTotal(0);
   };
   
-  // Load packages for a shop to prepare for settlement
+  // Load packages for a shop
   const loadShopPackages = async (shopId) => {
-    setIsLoadingShopPackages(true);
-    setShopPackages([]);
-    setShopPackagesWithUnpaidMoney([]);
-    setShopUnpaidTotal(0);
-    
     try {
-      console.log(`Loading financial data for shop ID ${shopId}`);
+      setIsLoadingShopPackages(true);
+      setShopPackages([]);
       
-      // Use our new direct shop endpoint to get the latest financial data
-      const shopResponse = await adminService.getShopById(shopId);
+      // Get packages for this shop
+      const response = await packageService.getPackagesForShop(shopId);
+      const packages = response.data || [];
       
-      if (!shopResponse?.data) {
-        throw new Error('Failed to fetch shop financial data');
-      }
-      
-      const shopData = shopResponse.data;
-      console.log('Shop direct data retrieved:', shopData);
-      
-      // Use TotalCollected directly from database
-      const totalCollected = parseFloat(shopData.TotalCollected || 0);
-      console.log(`Shop TotalCollected from database: $${totalCollected.toFixed(2)}`);
-      
-      // Get packages for this shop (just to display them in the settlement dialog)
-      const packagesResponse = await adminService.getShopPackages(shopId);
-      const packages = packagesResponse?.data || [];
-      console.log(`Loaded ${packages.length} packages for shop ID ${shopId}`);
-      
-      // Set all packages for display
-      setShopPackages(packages);
-      
-      // Filter packages that have money to be settled
+      // Filter packages that have COD amount and are delivered with payment collected
       const packagesWithMoney = packages.filter(pkg => 
         pkg.codAmount > 0 && 
         pkg.isPaid === true && 
         pkg.status === 'delivered'
       );
       
-      console.log(`Found ${packagesWithMoney.length} packages with money to settle`);
+      // Calculate total unpaid amount
+      const total = packagesWithMoney.reduce((sum, pkg) => {
+        return sum + parseFloat(pkg.codAmount || 0);
+      }, 0);
       
-      // IMPORTANT: Use the TotalCollected value from database as the settlement amount
+      // Set state
       setShopPackagesWithUnpaidMoney(packagesWithMoney);
-      setShopUnpaidTotal(totalCollected);
-      
-      console.log(`Total amount to settle (from database): $${totalCollected.toFixed(2)}`);
+      setShopUnpaidTotal(total);
     } catch (error) {
-      console.error('Error loading shop data:', error);
-      alert(`Error: ${error.message}`);
-      setShopPackages([]);
+      console.error('Error loading shop packages:', error);
+      alert('Error loading shop packages');
     } finally {
       setIsLoadingShopPackages(false);
     }
@@ -455,83 +412,108 @@ const AdminDashboard = () => {
   
   // Prepare settlement dialog for shop payments
   const prepareSettleShopPayment = (shopId) => {
-    // Create the action function to be executed when confirmed
-    const action = async () => {
-      try {        
-        // Get IDs of packages to mark as settled
-        const packageIds = shopPackagesWithUnpaidMoney.map(pkg => pkg.id);
-        
-        console.log(`Attempting to settle ${packageIds.length} packages for shop ID ${shopId}`);
-        
-        // Call API to process the settlement
-        const response = await adminService.settleShopPayments(shopId, { packageIds });
-        
-        console.log('Settlement response:', response);
-        
-        // Calculate the total amount that was settled
-        const totalAmount = shopUnpaidTotal;
-        
-        // Update the UI with a success message
-        setStatusMessage({
-          type: 'success',
-          text: `Successfully processed payment of $${totalAmount.toFixed(2)} to shop`
-        });
-        
-        // Clear the unpaid packages and reset collected money UI
-        setShopPackagesWithUnpaidMoney([]);
-        setShopUnpaidTotal(0);
-        
-        // Update the shop's TotalCollected value in the UI immediately
-        updateShopFinancialData(shopId, totalAmount);
-        
-        // Refresh the shops data after a short delay
-        setTimeout(() => {
-          fetchUsers('shop');
-        }, 1000);
-      } catch (error) {
-        console.error('Error settling shop payments:', error);
-        setStatusMessage({
-          type: 'error',
-          text: `Error processing shop payment: ${error.response?.data?.message || error.message || 'Unknown error'}`
-        });
-      } finally {
-        // Close the confirmation dialog
-        setShowConfirmationDialog(false);
-      }
-    };
+    // Find the shop by ID
+    const selectedShop = shops.find(shop => shop.shopId === shopId);
+    if (!selectedShop) {
+      console.error(`Shop not found with ID: ${shopId}`);
+      return;
+    }
     
-    // Set confirmation dialog content
-    setConfirmationDialogTitle('Confirm Settlement');
-    setConfirmationDialogText(`Are you sure you want to settle payments for this shop? This will mark all selected packages as paid out.`);
-    setConfirmAction(() => action);
-    setShowConfirmationDialog(true);
-  };
-  
-  // Helper function to update shop's financial data in the UI after settlement
-  const updateShopFinancialData = (shopId, settledAmount) => {
-    // Update users list
-    setUsers(prevUsers => {
-      return prevUsers.map(user => {
-        // If this is the shop we're updating
-        if (user.role === 'shop' && (user.id === shopId || user.shopId === shopId)) {
-          console.log(`Updating shop ${shopId} in local state: TotalCollected -> 0`);
-          // Reset the collected amount
-          return {
-            ...user,
-            // Reset database column values in local state
-            TotalCollected: 0,
-            financialData: {
-              ...user.financialData,
-              totalCollected: 0
-            }
-          };
-        }
-        return user;
-      });
+    // Set this as the shop to settle
+    setShopToSettle(selectedShop);
+    
+    // Get packages for this shop with COD that are delivered and paid
+    const packages = allPackages.filter(pkg => 
+      pkg.shopId === shopId && 
+      pkg.codAmount > 0 && 
+      pkg.isPaid === true && 
+      pkg.status === 'delivered'
+    );
+    
+    // Calculate total unpaid amount from these packages
+    const totalCollected = packages.reduce((sum, pkg) => sum + parseFloat(pkg.codAmount || 0), 0);
+    
+    // Set the packages and total in state
+    setPackagesToSettle(packages.map(pkg => pkg.id));
+    setShopUnpaidTotal(totalCollected);
+    
+    // Set the modal content
+    setSettleModalContent({
+      title: `Settle Payment with ${selectedShop.name || selectedShop.businessName}`,
+      packages: packages,
+      totalAmount: totalCollected,
     });
     
-    // No need to update additional shops list - we'll just refresh data when needed
-    console.log(`Shop ${shopId} financial data updated in users list. TotalCollected set to 0.`);
+    // Show the settlement modal
+    setShowSettleModal(true);
+  };
+  
+  // Handle the actual shop payment settlement
+  const handleSettleShopPayment = async () => {
+    try {
+      setIsSubmitting(true);
+      setStatusMessage(null);
+  
+      // Check if any packages are selected
+      if (!packagesToSettle.length) {
+        setStatusMessage({
+          type: 'error',
+          message: 'No packages available to settle'
+        });
+        return;
+      }
+  
+      console.log(`Settling ${packagesToSettle.length} packages for shop ID ${shopToSettle.shopId}`);
+      
+      // Call API to mark packages as settled
+      const response = await adminService.settleShopPayments(shopToSettle.shopId, { packageIds: packagesToSettle });
+      console.log('Settlement response:', response);
+      
+      // Get the amount that was reset from the response
+      const totalAmount = response.data.previousBalance || shopUnpaidTotal;
+      
+      // Update the UI with a success message
+      setStatusMessage({
+        type: 'success',
+        message: `Successfully settled ${packagesToSettle.length} packages totaling $${totalAmount.toFixed(2)}. Shop balance reset to $0.00`
+      });
+  
+      // Immediately update the shop in our local state to match the database
+      setShops(prevShops => {
+        return prevShops.map(shop => {
+          if (shop.shopId === shopToSettle.shopId) {
+            console.log(`Updating shop ${shop.shopId} in local state: TotalCollected -> 0`);
+            return {
+              ...shop,
+              // Reset database column value in local state
+              TotalCollected: 0,
+              // Also update financialData for backward compatibility
+              financialData: {
+                ...shop.financialData,
+                totalCollected: 0
+              }
+            };
+          }
+          return shop;
+        });
+      });
+  
+      // Close modal and refresh data after a short delay
+      setTimeout(() => {
+        handleCloseSettleModal();
+        
+        // Refresh the shops list to get the latest data from the server
+        fetchShops();
+      }, 2000);
+    } catch (error) {
+      console.error('Error settling shop payment:', error);
+      setStatusMessage({
+        type: 'error',
+        message: `Error: ${error.response?.data?.message || error.message || 'Failed to settle payment'}`
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // Render users table
@@ -589,10 +571,10 @@ const AdminDashboard = () => {
               {activeTab === 'shops' && (
                 <>
                   <td className="financial-cell">
-                    ${parseFloat(user.ToCollect || 0).toFixed(2)}
+                    {user.financialData ? parseFloat(user.financialData.totalToCollect || 0).toFixed(2) : '0.00'}
                   </td>
                   <td className="financial-cell">
-                    ${parseFloat(user.TotalCollected || 0).toFixed(2)}
+                    {user.financialData ? parseFloat(user.financialData.totalCollected || 0).toFixed(2) : '0.00'}
                   </td>
                 </>
               )}
@@ -850,13 +832,13 @@ const AdminDashboard = () => {
                     <div className="nested-detail">
                       <span className="nested-label">Total to Collect:</span>
                       <span className="financial-value">
-                        ${parseFloat(selectedEntity.ToCollect || 0).toFixed(2)}
+                        ${parseFloat(selectedEntity.ToCollect || selectedEntity.financialData?.totalToCollect || 0).toFixed(2)}
                       </span>
                     </div>
                     <div className="nested-detail">
                       <span className="nested-label">Total Collected:</span>
                       <span className="financial-value">
-                        ${parseFloat(selectedEntity.TotalCollected || 0).toFixed(2)}
+                        ${parseFloat(selectedEntity.TotalCollected || selectedEntity.financialData?.totalCollected || 0).toFixed(2)}
                       </span>
                     </div>
                     <div className="nested-detail">
@@ -921,8 +903,8 @@ const AdminDashboard = () => {
                         {/* Shop payment settlement */}
                         {shopPackagesWithUnpaidMoney.length > 0 && (
                           <div className="settlement-section">
-                            <div className="settlement-title">Settle Payments with Shop</div>
-                            <div className="settlement-amount">Total amount to pay to shop: ${parseFloat(shopUnpaidTotal).toFixed(2)}</div>
+                            <h3>Settle Payments with Shop</h3>
+                            <p>Total amount to pay to shop: ${shopUnpaidTotal.toFixed(2)}</p>
                             <button 
                               className="settle-btn" 
                               onClick={() => prepareSettleShopPayment(selectedEntity.shopId)}

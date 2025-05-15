@@ -1,24 +1,20 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { useAuth } from '../context/AuthContext';
 
 const ShopRegister = () => {
   const [formData, setFormData] = useState({
-    // Business Information
     businessName: '',
-    businessType: '',
-    
-    // Account Information
-    username: '',
+    email: '', // This will be the login email
     password: '',
     confirmPassword: '',
-    
-    // Contact Information
-    contactName: '',
-    contactEmail: '',
-    contactPhoneNumber: '',
-    
-    // Address Information
+    phone: '', // Business phone
+    businessType: '',
+    contactPerson: {
+      name: '', // Contact person's name
+      phone: '',
+      email: ''
+    },
     businessAddress: {
       street: '',
       city: '',
@@ -26,14 +22,13 @@ const ShopRegister = () => {
       zipCode: '',
       country: ''
     },
-    
-    // Business Verification Information
     registrationNumber: '',
     taxId: ''
   });
   const [formError, setFormError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   
+  const { register } = useAuth();
   const navigate = useNavigate();
 
   const handleChange = (e) => {
@@ -59,98 +54,35 @@ const ShopRegister = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Validations
-    if (!formData.username) {
-      setFormError('Username is required');
-      return;
-    }
-    
-    if (!formData.password) {
-      setFormError('Password is required');
-      return;
-    }
-    
+    // Validation
     if (formData.password !== formData.confirmPassword) {
       setFormError('Passwords do not match');
       return;
     }
     
-    if (!formData.contactEmail) {
-      setFormError('Contact email is required');
-      return;
-    }
-    
-    if (!formData.businessName) {
-      setFormError('Business name is required');
+    if (formData.password.length < 6) {
+      setFormError('Password must be at least 6 characters');
       return;
     }
     
     try {
       setIsSubmitting(true);
-      
-      // Format address string from the businessAddress object
-      let addressString = '';
-      if (formData.businessAddress) {
-        addressString = [
-          formData.businessAddress.street,
-          formData.businessAddress.city && formData.businessAddress.state ? 
-            `${formData.businessAddress.city}, ${formData.businessAddress.state}` : 
-            (formData.businessAddress.city || formData.businessAddress.state || ''),
-          formData.businessAddress.zipCode,
-          formData.businessAddress.country
-        ].filter(Boolean).join(', ');
-      }
-      
-      // Prepare shop data for submission
+      // Create a new object with businessName as name
       const shopData = {
-        businessName: formData.businessName,
-        businessType: formData.businessType,
-        address: addressString,
-        contactName: formData.contactName,
-        contactEmail: formData.contactEmail,
-        contactPhoneNumber: formData.contactPhoneNumber,
-        registrationNumber: formData.registrationNumber,
-        taxId: formData.taxId,
-        username: formData.username,
-        password: formData.password
+        ...formData,
+        name: formData.businessName // Add name field using businessName
       };
       
-      // Send shop registration directly to the API
-      // Make sure we're using the full URL with http://localhost:5000 prefix
-      const API_URL = 'http://localhost:5000';
-      const response = await axios.post(`${API_URL}/api/shops/register`, shopData);
-      
-      // Set the shop as logged in if registration is successful
-      if (response.data.token) {
-        localStorage.setItem('token', response.data.token);
-        localStorage.setItem('user', JSON.stringify({
-          id: response.data.shop.id,
-          role: 'shop',
-          businessName: response.data.shop.businessName
-        }));
-        navigate('/registration-confirmation');
-      }
+      await register(shopData, 'shop');
+      // Redirect to a success page instead of the shop dashboard
+      navigate('/registration-success', { 
+        state: { 
+          userType: 'shop', 
+          message: 'Your shop account has been registered successfully! An administrator will review your application. You will be able to sign in once your account has been approved.' 
+        } 
+      });
     } catch (error) {
-      console.error('Shop registration error:', error);
-      
-      // Extract and display the error message
-      let errorMessage = 'Registration failed. Please try again.';
-      
-      if (error.response) {
-        // The request was made and the server responded with a status code outside of 2xx
-        console.log('Error response details:', error.response.data);
-        errorMessage = error.response.data?.message || errorMessage;
-      } else if (error.request) {
-        // The request was made but no response was received
-        console.log('Error request:', error.request);
-        errorMessage = 'No response from server. Please check your connection.';
-      } else {
-        // Something happened in setting up the request
-        console.log('Error message:', error.message);
-        errorMessage = error.message || errorMessage;
-      }
-      
-      setFormError(errorMessage);
+      setFormError(error.response?.data?.message || 'Registration failed. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -162,23 +94,51 @@ const ShopRegister = () => {
         <div className="auth-header">
           <h2>Register Your Shop</h2>
           <p>Create a shop account to manage your deliveries</p>
+          <div className="approval-notice">
+            <p><strong>Note:</strong> Shop accounts require administrator approval before you can sign in. You will be notified once your account has been approved.</p>
+          </div>
         </div>
         
         {formError && <div className="auth-error">{formError}</div>}
         
         <form onSubmit={handleSubmit} className="auth-form">
-          <h3>Account Information</h3>
-          <p className="form-note">Note: You will use your business email to sign in to your account.</p>
+          <h3>Business Information</h3>
+          <div className="form-group">
+            <label htmlFor="businessName">Business Name</label>
+            <input
+              type="text"
+              id="businessName"
+              name="businessName"
+              value={formData.businessName}
+              onChange={handleChange}
+              placeholder="Enter your business name"
+              required
+            />
+          </div>
+          
           <div className="form-row">
             <div className="form-group">
-              <label htmlFor="username">Username</label>
+              <label htmlFor="email">Email (Used in login)</label>
               <input
-                type="text"
-                id="username"
-                name="username"
-                value={formData.username}
+                type="email"
+                id="email"
+                name="email"
+                value={formData.email}
                 onChange={handleChange}
-                placeholder="Enter a username"
+                placeholder="Enter business email"
+                required
+              />
+            </div>
+            
+            <div className="form-group">
+              <label htmlFor="phone">Business Phone Number</label>
+              <input
+                type="tel"
+                id="phone"
+                name="phone"
+                value={formData.phone}
+                onChange={handleChange}
+                placeholder="Enter business phone number"
                 required
               />
             </div>
@@ -193,7 +153,7 @@ const ShopRegister = () => {
                 name="password"
                 value={formData.password}
                 onChange={handleChange}
-                placeholder="Enter password"
+                placeholder="Create a password"
                 required
               />
             </div>
@@ -206,91 +166,69 @@ const ShopRegister = () => {
                 name="confirmPassword"
                 value={formData.confirmPassword}
                 onChange={handleChange}
-                placeholder="Confirm password"
+                placeholder="Confirm your password"
                 required
               />
             </div>
           </div>
           
-          <h3>Business Information</h3>
-          <div className="form-row">
-            <div className="form-group">
-              <label htmlFor="businessName">Business Name</label>
-              <input
-                type="text"
-                id="businessName"
-                name="businessName"
-                value={formData.businessName}
-                onChange={handleChange}
-                placeholder="Enter your business name"
-                required
-              />
-            </div>
-            
-            <div className="form-group">
-              <label htmlFor="businessType">Business Type</label>
-              <select
-                id="businessType"
-                name="businessType"
-                value={formData.businessType}
-                onChange={handleChange}
-                required
-              >
-                <option value="">Select business type</option>
-                <option value="Retail">Retail</option>
-                <option value="Restaurant">Restaurant</option>
-                <option value="Grocery">Grocery</option>
-                <option value="Pharmacy">Pharmacy</option>
-                <option value="Electronics">Electronics</option>
-                <option value="Clothing">Clothing</option>
-                <option value="Other">Other</option>
-              </select>
-            </div>
-          </div>
-          
-          <h3>Contact Information</h3>
           <div className="form-group">
-            <label htmlFor="contactName">Contact Person Name</label>
+            <label htmlFor="businessType">Business Type</label>
             <input
               type="text"
-              id="contactName"
-              name="contactName"
-              value={formData.contactName}
+              id="businessType"
+              name="businessType"
+              value={formData.businessType}
               onChange={handleChange}
-              placeholder="Name of contact person"
+              placeholder="E.g., Retail, Restaurant, etc."
               required
             />
           </div>
           
+          <h4>Contact Person Information</h4>
+          <p className="form-info">Please provide details of the person we should contact regarding this account.</p>
           <div className="form-row">
             <div className="form-group">
-              <label htmlFor="contactEmail">Contact Email</label>
+              <label htmlFor="contactPerson.name">Contact Person Name</label>
               <input
-                type="email"
-                id="contactEmail"
-                name="contactEmail"
-                value={formData.contactEmail}
+                type="text"
+                id="contactPerson.name"
+                name="contactPerson.name"
+                value={formData.contactPerson.name}
                 onChange={handleChange}
-                placeholder="Contact email address"
+                placeholder="Contact person name"
                 required
               />
             </div>
             
             <div className="form-group">
-              <label htmlFor="contactPhoneNumber">Contact Phone</label>
+              <label htmlFor="contactPerson.phone">Contact Person Phone</label>
               <input
                 type="tel"
-                id="contactPhoneNumber"
-                name="contactPhoneNumber"
-                value={formData.contactPhoneNumber}
+                id="contactPerson.phone"
+                name="contactPerson.phone"
+                value={formData.contactPerson.phone}
                 onChange={handleChange}
-                placeholder="Contact phone number"
+                placeholder="Contact person phone"
                 required
               />
             </div>
           </div>
           
-          <h3>Business Address</h3>
+          <div className="form-group">
+            <label htmlFor="contactPerson.email">Contact Person Email</label>
+            <input
+              type="email"
+              id="contactPerson.email"
+              name="contactPerson.email"
+              value={formData.contactPerson.email}
+              onChange={handleChange}
+              placeholder="Contact person email"
+              required
+            />
+          </div>
+          
+          <h4>Business Address</h4>
           <div className="form-group">
             <label htmlFor="businessAddress.street">Street Address</label>
             <input
@@ -360,7 +298,6 @@ const ShopRegister = () => {
             </div>
           </div>
           
-          <h3>Business Verification</h3>
           <div className="form-row">
             <div className="form-group">
               <label htmlFor="registrationNumber">Business Registration Number</label>

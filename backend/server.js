@@ -38,7 +38,7 @@ app.use('/api/info', infoRoutes);
 
 // Default route
 app.get('/', (req, res) => {
-  res.send('Welcome to Dropin Delivery API');
+  res.send('Welcome to Droppin Delivery API');
 });
 
 // Create the database directory if it doesn't exist
@@ -58,10 +58,10 @@ const startServer = async () => {
     // Import all models to ensure they're loaded properly
     const { User, Shop, Driver, Package } = require('./models/index');
     
-    // Force sync to ensure all tables are recreated properly
+    // Sync database to alter existing tables
     // Only use force in development mode, not production
     console.log('Synchronizing database models...');
-    await sequelize.sync(); // Removed force:true to preserve data
+    await sequelize.sync({ alter: true });
     console.log('Database synchronized successfully');
     
     // Create default admin user if it doesn't exist

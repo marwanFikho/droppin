@@ -70,7 +70,13 @@ const DriverRegister = () => {
     try {
       setIsSubmitting(true);
       await register(formData, 'driver');
-      navigate('/driver'); // Redirect to driver dashboard after successful registration
+      // Redirect to a success page instead of the driver dashboard
+      navigate('/registration-success', { 
+        state: { 
+          userType: 'driver', 
+          message: 'Your driver account has been registered successfully! An administrator will review your application. You will be able to sign in once your account has been approved.' 
+        } 
+      });
     } catch (error) {
       setFormError(error.response?.data?.message || 'Registration failed. Please try again.');
     } finally {
@@ -84,6 +90,9 @@ const DriverRegister = () => {
         <div className="auth-header">
           <h2>Register as a Driver</h2>
           <p>Join our delivery team and start earning</p>
+          <div className="approval-notice">
+            <p><strong>Note:</strong> Driver accounts require administrator approval before you can sign in. You will be notified once your account has been approved.</p>
+          </div>
         </div>
         
         {formError && <div className="auth-error">{formError}</div>}

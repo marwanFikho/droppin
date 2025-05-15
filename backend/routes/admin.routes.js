@@ -16,6 +16,7 @@ router.patch('/users/:id/approve', adminController.approveUser);
 
 // Shop management
 router.get('/shops', adminController.getShops);
+router.get('/shops/:id', adminController.getShopById);
 router.patch('/shops/:id/approve', adminController.approveShop);
 
 // Driver management
@@ -24,5 +25,10 @@ router.patch('/drivers/:id/approve', adminController.approveDriver);
 
 // Package management
 router.get('/packages', adminController.getPackages);
+router.post('/packages/:packageId/assign-driver', adminController.assignDriverToPackage);
+router.patch('/packages/:packageId/payment', adminController.updatePackagePayment);
+
+// Financial management
+router.post('/shops/:shopId/settle-payments', adminController.settleShopPayments);
 
 module.exports = router;
