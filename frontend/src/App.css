@@ -1,7 +1,7 @@
 /* Global Styles */
 :root {
-  --primary-color: #4a6fff;
-  --secondary-color: #6c757d;
+  --primary-color: #FF6B00; /* Orange from DropIn logo */
+  --secondary-color: #235789; /* Dark light blue */
   --success-color: #28a745;
   --danger-color: #dc3545;
   --warning-color: #ffc107;
@@ -65,6 +65,14 @@ ul {
 .nav-logo a {
   display: flex;
   align-items: center;
+  gap: 10px;
+}
+
+.nav-logo-image {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
 }
 
 .logo-text {
@@ -102,7 +110,7 @@ ul {
 }
 
 .hero-section {
-  background: linear-gradient(to right, #4a6fff, #77a6f7);
+  background: linear-gradient(to right, var(--primary-color), #ff9248);
   color: white;
   padding: 4rem 1rem;
   text-align: center;

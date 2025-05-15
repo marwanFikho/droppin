@@ -324,6 +324,30 @@
   color: #333;
 }
 
+/* Warning dialog variant */
+.confirmation-dialog.warning-dialog {
+  border-top: 4px solid #dc3545;
+}
+
+.confirmation-dialog.warning-dialog h3 {
+  color: #dc3545;
+}
+
+.confirmation-dialog.warning-dialog p {
+  font-weight: 500;
+}
+
+/* Danger button */
+.btn-primary.danger {
+  background-color: #dc3545;
+  border-color: #dc3545;
+}
+
+.btn-primary.danger:hover {
+  background-color: #c82333;
+  border-color: #bd2130;
+}
+
 .confirmation-buttons {
   display: flex;
   justify-content: flex-end;

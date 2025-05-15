@@ -5,19 +5,30 @@ import { packageService } from '../../services/api';
 import CreatePackage from './CreatePackage';
 import './ShopDashboard.css';
 
+// Create a context to share the refresh function with child components
+export const ShopDashboardContext = React.createContext();
+
 const ShopDashboard = () => {
   const { currentUser, logout } = useAuth();
   const [packages, setPackages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [refreshData, setRefreshData] = useState(Date.now()); // Add timestamp for triggering refreshes
   const [financialStats, setFinancialStats] = useState({
     totalToCollect: 0,
     totalCollected: 0
   });
   const navigate = useNavigate();
+  
+  // Function to refresh dashboard data - can be called from any child component
+  const refreshDashboard = () => {
+    console.log('Dashboard refresh requested');
+    setRefreshData(Date.now());
+  };
 
   useEffect(() => {
-    // Fetch packages and shop details when component mounts
+    console.log('Dashboard data refresh triggered:', refreshData);
+    // Fetch packages and shop details when component mounts or refreshData changes
     const fetchData = async () => {
       try {
         setLoading(true);
@@ -81,7 +92,7 @@ const ShopDashboard = () => {
     };
 
     fetchData();
-  }, []);
+  }, [refreshData]); // Add refreshData to dependencies to trigger refresh when it changes
 
   const handleLogout = () => {
     logout();
@@ -89,12 +100,13 @@ const ShopDashboard = () => {
   };
 
   return (
-    <div className="dashboard-container">
-      <div className="dashboard-sidebar">
-        <div className="sidebar-header">
-          <h2>Droppin</h2>
-          <p>Shop Portal</p>
-        </div>
+    <ShopDashboardContext.Provider value={{ refreshDashboard }}>
+      <div className="dashboard-container">
+        <div className="dashboard-sidebar">
+          <div className="sidebar-header">
+            <h2>Droppin</h2>
+            <p>Shop Portal</p>
+          </div>
         
         <div className="sidebar-menu">
           <Link to="/shop" className="menu-item active">
@@ -250,7 +262,8 @@ const ShopDashboard = () => {
           </div>
         } />
       </Routes>
-    </div>
+      </div>
+    </ShopDashboardContext.Provider>
   );
 };
 

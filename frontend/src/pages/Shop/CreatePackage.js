@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { packageService } from '../../services/api';
+import { ShopDashboardContext } from './Dashboard'; // Import the ShopDashboardContext
 
 const CreatePackage = () => {
   const { currentUser } = useAuth();
@@ -9,6 +10,9 @@ const CreatePackage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  
+  // Get access to the dashboard refresh function
+  const { refreshDashboard } = useContext(ShopDashboardContext);
   
   const [formData, setFormData] = useState({
     packageDescription: '',
@@ -100,6 +104,12 @@ const CreatePackage = () => {
       
       setSuccess('Package created successfully!');
       
+      // Refresh the dashboard without logging out
+      if (refreshDashboard) {
+        console.log('Refreshing dashboard after package creation');
+        refreshDashboard();
+      }
+      
       // Reset form
       setFormData({
         packageDescription: '',
@@ -134,8 +144,9 @@ const CreatePackage = () => {
       });
       
       // Redirect to packages list after a short delay
+      // We'll show the success message briefly before redirecting
       setTimeout(() => {
-        navigate('/shop/packages');
+        navigate('/shop/packages', { replace: true }); // Use replace to avoid breaking browser history
       }, 2000);
       
     } catch (err) {

@@ -26,15 +26,36 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.ENUM('user', 'shop', 'driver', 'admin'),
       defaultValue: 'user'
     },
-    address: {
-      type: DataTypes.JSON,
-      defaultValue: {}
+    street: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    city: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    state: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    zipCode: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    country: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    isApproved: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false
     },
     isActive: {
       type: DataTypes.BOOLEAN,
       defaultValue: true
     }
   }, {
+    timestamps: true,
     hooks: {
       beforeCreate: async (user) => {
         if (user.password) {

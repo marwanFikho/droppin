@@ -1,154 +1,127 @@
-const mongoose = require('mongoose');
+const { DataTypes } = require('sequelize');
+const { sequelize } = require('../config/db.config');
 
-const packageSchema = new mongoose.Schema(
-  {
-    shopId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Shop',
-      required: true,
-    },
-    driverId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Driver',
-      default: null,
-    },
-    trackingNumber: {
-      type: String,
-      unique: true,
-      required: true,
-    },
-    packageDescription: {
-      type: String,
-      required: true,
-    },
-    weight: {
-      type: Number,
-      required: true,
-    },
-    dimensions: {
-      length: Number,
-      width: Number,
-      height: Number,
-    },
-    status: {
-      type: String,
-      enum: ['pending', 'assigned', 'pickedup', 'in-transit', 'delivered', 'cancelled', 'returned'],
-      default: 'pending',
-    },
-    statusHistory: [
-      {
-        status: {
-          type: String,
-          enum: ['pending', 'assigned', 'pickedup', 'in-transit', 'delivered', 'cancelled', 'returned'],
-        },
-        timestamp: {
-          type: Date,
-          default: Date.now,
-        },
-        note: String,
-        updatedBy: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: 'User',
-        },
-      },
-    ],
-    pickupAddress: {
-      contactName: String,
-      contactPhone: String,
-      street: String,
-      city: String,
-      state: String,
-      zipCode: String,
-      country: String,
-      location: {
-        lat: Number,
-        lng: Number,
-      },
-      instructions: String,
-    },
-    deliveryAddress: {
-      contactName: {
-        type: String,
-        required: true,
-      },
-      contactPhone: {
-        type: String,
-        required: true,
-      },
-      street: {
-        type: String,
-        required: true,
-      },
-      city: {
-        type: String,
-        required: true,
-      },
-      state: {
-        type: String,
-        required: true,
-      },
-      zipCode: {
-        type: String,
-        required: true,
-      },
-      country: {
-        type: String,
-        required: true,
-      },
-      location: {
-        lat: Number,
-        lng: Number,
-      },
-      instructions: String,
-    },
-    schedulePickupTime: {
-      type: Date,
-      required: true,
-    },
-    estimatedDeliveryTime: Date,
-    actualPickupTime: Date,
-    actualDeliveryTime: Date,
-    deliveryFee: {
-      type: Number,
-      default: 0,
-    },
-    priority: {
-      type: String,
-      enum: ['normal', 'express', 'same-day'],
-      default: 'normal',
-    },
-    paymentStatus: {
-      type: String,
-      enum: ['pending', 'paid', 'failed'],
-      default: 'pending',
-    },
-    notes: String,
-    signature: {
-      data: String,
-      timestamp: Date,
-    },
-    deliveryPhotos: [
-      {
-        url: String,
-        timestamp: Date,
-      },
-    ],
+const Package = sequelize.define('Package', {
+  shopId: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    references: {
+      model: 'Shops',
+      key: 'id'
+    }
   },
-  { timestamps: true }
-);
-
-// Generate unique tracking number
-packageSchema.pre('save', async function (next) {
-  if (!this.isNew) return next();
-  
-  const prefix = 'DP'; // Droppin prefix
-  const timestamp = Math.floor(Date.now() / 1000).toString(16); // Unix timestamp in hex
-  const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-  
-  this.trackingNumber = `${prefix}${timestamp}${random}`.toUpperCase();
-  next();
+  driverId: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: 'Drivers',
+      key: 'id'
+    }
+  },
+  userId: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: 'Users',
+      key: 'id'
+    }
+  },
+  trackingNumber: {
+    type: DataTypes.STRING,
+    unique: true,
+    allowNull: false
+  },
+  packageDescription: {
+    type: DataTypes.STRING,
+    allowNull: false
+  },
+  weight: {
+    type: DataTypes.FLOAT,
+    allowNull: false
+  },
+  dimensions: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  status: {
+    type: DataTypes.ENUM('pending', 'assigned', 'pickedup', 'in-transit', 'delivered', 'cancelled', 'returned'),
+    defaultValue: 'pending'
+  },
+  pickupContactName: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  pickupContactPhone: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  pickupAddress: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  deliveryContactName: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  deliveryContactPhone: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  deliveryAddress: {
+    type: DataTypes.STRING,
+    allowNull: false
+  },
+  schedulePickupTime: {
+    type: DataTypes.DATE,
+    allowNull: false
+  },
+  estimatedDeliveryTime: {
+    type: DataTypes.DATE,
+    allowNull: true
+  },
+  actualPickupTime: {
+    type: DataTypes.DATE,
+    allowNull: true
+  },
+  actualDeliveryTime: {
+    type: DataTypes.DATE,
+    allowNull: true
+  },
+  priority: {
+    type: DataTypes.ENUM('normal', 'express', 'same-day'),
+    defaultValue: 'normal'
+  },
+  paymentStatus: {
+    type: DataTypes.ENUM('pending', 'paid', 'failed'),
+    defaultValue: 'pending'
+  },
+  codAmount: {
+    type: DataTypes.DECIMAL(10, 2),
+    defaultValue: 0.00,
+    allowNull: false
+  },
+  isPaid: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
+  },
+  paymentDate: {
+    type: DataTypes.DATE,
+    allowNull: true
+  },
+  // No additional fields - model must match database exactly
+}, {
+  hooks: {
+    beforeCreate: (package) => {
+      if (!package.trackingNumber) {
+        const prefix = 'DP'; // Droppin prefix
+        const timestamp = Math.floor(Date.now() / 1000).toString(16); // Unix timestamp in hex
+        const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+        
+        package.trackingNumber = `${prefix}${timestamp}${random}`.toUpperCase();
+      }
+    }
+  },
+  timestamps: true
 });
-
-const Package = mongoose.model('Package', packageSchema);
 
 module.exports = Package;

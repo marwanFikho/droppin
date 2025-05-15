@@ -12,25 +12,37 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.ENUM('car', 'motorcycle', 'bicycle', 'van', 'truck'),
       allowNull: false
     },
-    vehicleDetails: {
-      type: DataTypes.JSON,
-      defaultValue: {}
-    },
-    licenseNumber: {
+    licensePlate: {
       type: DataTypes.STRING,
-      allowNull: false
+      allowNull: true
     },
-    idNumber: {
+    model: {
       type: DataTypes.STRING,
-      allowNull: false
+      allowNull: true
+    },
+    color: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    driverLicense: {
+      type: DataTypes.STRING,
+      allowNull: true
     },
     isAvailable: {
       type: DataTypes.BOOLEAN,
       defaultValue: true
     },
-    currentLocation: {
-      type: DataTypes.JSON,
-      defaultValue: {}
+    latitude: {
+      type: DataTypes.FLOAT,
+      allowNull: true
+    },
+    longitude: {
+      type: DataTypes.FLOAT,
+      allowNull: true
+    },
+    locationUpdatedAt: {
+      type: DataTypes.DATE,
+      allowNull: true
     },
     rating: {
       type: DataTypes.FLOAT,
@@ -43,11 +55,9 @@ module.exports = (sequelize, DataTypes) => {
     isVerified: {
       type: DataTypes.BOOLEAN,
       defaultValue: false
-    },
-    documents: {
-      type: DataTypes.JSON,
-      defaultValue: []
     }
+  }, {
+    timestamps: true
   });
 
   return Driver;

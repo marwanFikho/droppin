@@ -58,10 +58,10 @@ const startServer = async () => {
     // Import all models to ensure they're loaded properly
     const { User, Shop, Driver, Package } = require('./models/index');
     
-    // Sync database to alter existing tables
-    // Only use force in development mode, not production
+    // Sync database without altering existing tables to avoid validation issues
+    // Using a more conservative approach to prevent validation errors
     console.log('Synchronizing database models...');
-    await sequelize.sync({ alter: true });
+    await sequelize.sync({ force: false });
     console.log('Database synchronized successfully');
     
     // Create default admin user if it doesn't exist

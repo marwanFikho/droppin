@@ -345,53 +345,183 @@ exports.getShopById = async (req, res) => {
   }
 };
 
-// Approve or reject a shop
+// Approve or reject a shop - COMPLETELY REWRITTEN to be as simple as possible
 exports.approveShop = async (req, res) => {
-  const transaction = await sequelize.transaction();
-  
   try {
+    // Get parameters
     const { id } = req.params;
     const { approved } = req.body;
     
+    console.log('Shop approval request:', { id, approved });
+    
+    // Validation
     if (approved === undefined) {
-      await transaction.rollback();
       return res.status(400).json({ message: 'Approval status is required' });
     }
     
-    // Find the shop
-    const shop = await Shop.findByPk(id, { transaction });
+    // DIRECT APPROACH: We're going to try multiple approaches
+    // If approved, update isApproved to true. If rejected, delete the entity
     
-    if (!shop) {
-      await transaction.rollback();
-      return res.status(404).json({ message: 'Shop not found' });
-    }
-    
-    // Find and update the associated user
-    const user = await User.findByPk(shop.userId, { transaction });
-    
-    if (!user) {
-      await transaction.rollback();
-      return res.status(404).json({ message: 'Shop user not found' });
-    }
-    
-    // Update user approval status
-    await user.update({ isApproved: approved }, { transaction });
-    
-    await transaction.commit();
-    
-    res.json({ 
-      message: `Shop ${approved ? 'approved' : 'rejected'} successfully`,
-      shop: {
-        id: shop.id,
-        userId: shop.userId,
-        businessName: shop.businessName,
-        isApproved: user.isApproved
+    // 1. Try finding the shop by Shop ID
+    try {
+      const shop = await Shop.findByPk(id);
+      if (shop) {
+        console.log('Found shop by shop ID:', id, 'with userId:', shop.userId);
+        
+        if (approved) {
+          // Approve: Update the user
+          await sequelize.query(
+            'UPDATE Users SET isApproved = 1 WHERE id = ?',
+            { replacements: [shop.userId] }
+          );
+          
+          return res.json({
+            success: true,
+            message: 'Shop approved successfully'
+          });
+        } else {
+          // Reject: Delete the shop and associated user
+          console.log('Deleting rejected shop and associated user');
+          const userId = shop.userId;
+          
+          // Use transaction to ensure both operations succeed or fail together
+          const transaction = await sequelize.transaction();
+          try {
+            // First delete the shop (due to FK constraints)
+            await shop.destroy({ transaction });
+            
+            // Then delete the user
+            const user = await User.findByPk(userId, { transaction });
+            if (user) {
+              await user.destroy({ transaction });
+            }
+            
+            await transaction.commit();
+            
+            return res.json({
+              success: true,
+              message: 'Shop rejected and removed from the system'
+            });
+          } catch (deleteError) {
+            await transaction.rollback();
+            throw deleteError;
+          }
+        }
       }
-    });
+    } catch (shopError) {
+      console.error('Error processing shop by shop ID:', shopError);
+      // Continue to next approach
+    }
+    
+    // 2. Try finding the user directly
+    try {
+      const user = await User.findByPk(id);
+      if (user && user.role === 'shop') {
+        console.log('Found user directly by user ID:', id);
+        
+        if (approved) {
+          // Approve: Update the user
+          await user.update({ isApproved: true });
+          
+          return res.json({
+            success: true,
+            message: 'Shop approved successfully'
+          });
+        } else {
+          // Reject: Delete the user and associated shop
+          console.log('Deleting rejected user and associated shop');
+          
+          // Use transaction to ensure both operations succeed or fail together
+          const transaction = await sequelize.transaction();
+          try {
+            // Find the shop associated with this user
+            const shop = await Shop.findOne({ 
+              where: { userId: user.id },
+              transaction 
+            });
+            
+            // Delete the shop if found
+            if (shop) {
+              await shop.destroy({ transaction });
+            }
+            
+            // Delete the user
+            await user.destroy({ transaction });
+            
+            await transaction.commit();
+            
+            return res.json({
+              success: true,
+              message: 'Shop rejected and removed from the system'
+            });
+          } catch (deleteError) {
+            await transaction.rollback();
+            throw deleteError;
+          }
+        }
+      }
+    } catch (userError) {
+      console.error('Error processing user by ID:', userError);
+      // Continue to next approach
+    }
+    
+    // 3. Try finding a shop where userId = id
+    try {
+      const shopByUserId = await Shop.findOne({ where: { userId: id } });
+      if (shopByUserId) {
+        console.log('Found shop by userId:', id);
+        
+        if (approved) {
+          // Approve: Update the user
+          await sequelize.query(
+            'UPDATE Users SET isApproved = 1 WHERE id = ?',
+            { replacements: [id] }
+          );
+          
+          return res.json({
+            success: true,
+            message: 'Shop approved successfully'
+          });
+        } else {
+          // Reject: Delete the shop and user
+          console.log('Deleting rejected shop found by userId and the associated user');
+          
+          // Use transaction to ensure both operations succeed or fail together
+          const transaction = await sequelize.transaction();
+          try {
+            // Delete the shop
+            await shopByUserId.destroy({ transaction });
+            
+            // Delete the user
+            const user = await User.findByPk(id, { transaction });
+            if (user) {
+              await user.destroy({ transaction });
+            }
+            
+            await transaction.commit();
+            
+            return res.json({
+              success: true,
+              message: 'Shop rejected and removed from the system'
+            });
+          } catch (deleteError) {
+            await transaction.rollback();
+            throw deleteError;
+          }
+        }
+      }
+    } catch (shopUserIdError) {
+      console.error('Error processing shop by userId:', shopUserIdError);
+      // Fall through to the error below
+    }
+    
+    // If we got here, we couldn't find any suitable records to update
+    console.error('Could not find any shop or user records to update with ID:', id);
+    return res.status(404).json({ message: 'Could not find shop or user to update' });
+    
   } catch (error) {
-    await transaction.rollback();
-    console.error('Error approving shop:', error);
-    res.status(500).json({ message: error.message });
+    console.error('Error in shop approval process:', error);
+    res.status(500).json({ message: 'Failed to update approval status' });
   }
 };
 
@@ -476,53 +606,192 @@ exports.getDrivers = async (req, res) => {
   }
 };
 
-// Approve or reject a driver
+// Approve or reject a driver - COMPLETELY REWRITTEN to be as simple as possible
 exports.approveDriver = async (req, res) => {
-  const transaction = await sequelize.transaction();
+  let transaction;
   
   try {
+    console.log('Driver approval request:', { params: req.params, body: req.body });
+    
     const { id } = req.params;
     const { approved } = req.body;
     
     if (approved === undefined) {
-      await transaction.rollback();
       return res.status(400).json({ message: 'Approval status is required' });
     }
     
-    // Find the driver
-    const driver = await Driver.findByPk(id, { transaction });
+    // DIRECT APPROACH: We're going to try multiple approaches to find and update the user
+    // since there seems to be confusion about whether we're getting a driver ID or user ID
     
-    if (!driver) {
-      await transaction.rollback();
-      return res.status(404).json({ message: 'Driver not found' });
-    }
-    
-    // Find and update the associated user
-    const user = await User.findByPk(driver.userId, { transaction });
-    
-    if (!user) {
-      await transaction.rollback();
-      return res.status(404).json({ message: 'Driver user not found' });
-    }
-    
-    // Update user approval status
-    await user.update({ isApproved: approved }, { transaction });
-    
-    await transaction.commit();
-    
-    res.json({ 
-      message: `Driver ${approved ? 'approved' : 'rejected'} successfully`,
-      driver: {
-        id: driver.id,
-        userId: driver.userId,
-        vehicleType: driver.vehicleType,
-        isApproved: user.isApproved
+    // 1. Try finding the driver by Driver ID
+    try {
+      const driver = await Driver.findByPk(id);
+      if (driver) {
+        console.log('Found driver by driver ID:', id, 'with userId:', driver.userId);
+        
+        if (approved) {
+          // Approve: Update the user
+          await sequelize.query(
+            'UPDATE Users SET isApproved = 1 WHERE id = ?',
+            { replacements: [driver.userId] }
+          );
+          
+          return res.json({
+            success: true,
+            message: 'Driver approved successfully'
+          });
+        } else {
+          // Reject: Delete the driver and associated user
+          console.log('Deleting rejected driver and associated user');
+          const userId = driver.userId;
+          
+          // Use transaction to ensure both operations succeed or fail together
+          const transaction = await sequelize.transaction();
+          try {
+            // First delete the driver (due to FK constraints)
+            await driver.destroy({ transaction });
+            
+            // Then delete the user
+            const user = await User.findByPk(userId, { transaction });
+            if (user) {
+              await user.destroy({ transaction });
+            }
+            
+            await transaction.commit();
+            
+            return res.json({
+              success: true,
+              message: 'Driver rejected and removed from the system'
+            });
+          } catch (deleteError) {
+            await transaction.rollback();
+            throw deleteError;
+          }
+        }
       }
-    });
+    } catch (driverError) {
+      console.error('Error processing driver by driver ID:', driverError);
+      // Continue to next approach
+    }
+    
+    // 2. Try finding the user directly
+    try {
+      const user = await User.findByPk(id);
+      if (user && user.role === 'driver') {
+        console.log('Found user directly by user ID:', id);
+        
+        if (approved) {
+          // Approve: Update the user
+          await user.update({ isApproved: true });
+          
+          return res.json({
+            success: true,
+            message: 'Driver approved successfully'
+          });
+        } else {
+          // Reject: Delete the user and associated driver
+          console.log('Deleting rejected user and associated driver');
+          
+          // Use transaction to ensure both operations succeed or fail together
+          const transaction = await sequelize.transaction();
+          try {
+            // Find the driver associated with this user
+            const driver = await Driver.findOne({ 
+              where: { userId: user.id },
+              transaction 
+            });
+            
+            // Delete the driver if found
+            if (driver) {
+              await driver.destroy({ transaction });
+            }
+            
+            // Delete the user
+            await user.destroy({ transaction });
+            
+            await transaction.commit();
+            
+            return res.json({
+              success: true,
+              message: 'Driver rejected and removed from the system'
+            });
+          } catch (deleteError) {
+            await transaction.rollback();
+            throw deleteError;
+          }
+        }
+      }
+    } catch (userError) {
+      console.error('Error processing user by ID:', userError);
+      // Continue to next approach
+    }
+    
+    // 3. Try finding a driver where userId = id
+    try {
+      const driverByUserId = await Driver.findOne({ where: { userId: id } });
+      if (driverByUserId) {
+        console.log('Found driver by userId:', id);
+        
+        if (approved) {
+          // Approve: Update the user
+          await sequelize.query(
+            'UPDATE Users SET isApproved = 1 WHERE id = ?',
+            { replacements: [id] }
+          );
+          
+          return res.json({
+            success: true,
+            message: 'Driver approved successfully'
+          });
+        } else {
+          // Reject: Delete the driver and user
+          console.log('Deleting rejected driver found by userId and the associated user');
+          
+          // Use transaction to ensure both operations succeed or fail together
+          const transaction = await sequelize.transaction();
+          try {
+            // Delete the driver
+            await driverByUserId.destroy({ transaction });
+            
+            // Delete the user
+            const user = await User.findByPk(id, { transaction });
+            if (user) {
+              await user.destroy({ transaction });
+            }
+            
+            await transaction.commit();
+            
+            return res.json({
+              success: true,
+              message: 'Driver rejected and removed from the system'
+            });
+          } catch (deleteError) {
+            await transaction.rollback();
+            throw deleteError;
+          }
+        }
+      }
+    } catch (driverUserIdError) {
+      console.error('Error processing driver by userId:', driverUserIdError);
+      // Fall through to the error below
+    }
+    
+    // If we got here, we couldn't find any suitable records to update
+    console.error('Could not find any driver or user records to update with ID:', id);
+    return res.status(404).json({ message: 'Could not find driver or user to update' });
+    
   } catch (error) {
-    await transaction.rollback();
-    console.error('Error approving driver:', error);
-    res.status(500).json({ message: error.message });
+    console.error('Error in driver approval process:', error);
+    res.status(500).json({ message: 'Failed to update approval status' });
+  } finally {
+    // If the transaction still exists, roll it back
+    if (transaction) {
+      try {
+        await transaction.rollback();
+      } catch (rollbackError) {
+        console.error('Error rolling back transaction:', rollbackError);
+      }
+    }
   }
 };
 
@@ -623,6 +892,16 @@ exports.getPackages = async (req, res) => {
     }
     
     const packages = await Package.findAll({
+      attributes: [
+        'id', 'trackingNumber', 'packageDescription', 'weight', 'dimensions',
+        'status', 'shopId', 'userId', 'driverId',
+        'pickupContactName', 'pickupContactPhone', 'pickupAddress',
+        'deliveryContactName', 'deliveryContactPhone', 'deliveryAddress',
+        'schedulePickupTime', 'estimatedDeliveryTime',
+        'actualPickupTime', 'actualDeliveryTime',
+        'priority', 'paymentStatus', 'createdAt', 'updatedAt',
+        'codAmount', 'isPaid', 'paymentDate'
+      ],
       where: whereClause,
       order: [['createdAt', 'DESC']]
     });

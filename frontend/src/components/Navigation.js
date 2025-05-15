@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import logo from '../assets/images/logo.jpg';
 
 const Navigation = () => {
   const { currentUser, logout } = useAuth();
@@ -32,6 +33,7 @@ const Navigation = () => {
       <div className="nav-container">
         <div className="nav-logo">
           <Link to="/">
+            <img src={logo} alt="Droppin Logo" className="nav-logo-image" />
             <span className="logo-text">Droppin</span>
           </Link>
         </div>

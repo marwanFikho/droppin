@@ -12,7 +12,6 @@ exports.createPackage = async (req, res) => {
       deliveryAddress,
       schedulePickupTime,
       priority,
-      notes,
       // Financial fields
       codAmount
     } = req.body;
@@ -34,46 +33,48 @@ exports.createPackage = async (req, res) => {
     const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
     const trackingNumber = `${prefix}${timestamp}${random}`.toUpperCase();
 
-    // Format the dimensions as a string if provided
+    // Format the dimensions as a string if provided (e.g. '10x20x30')
     let dimensionsStr = null;
     if (dimensions && dimensions.length && dimensions.width && dimensions.height) {
       dimensionsStr = `${dimensions.length}x${dimensions.width}x${dimensions.height}`;
     }
 
-    // Create package
+    // Create package with proper handling of COD amount and contact information
     const package = await Package.create({
       shopId: shop.id,
       userId: req.user.id,
       trackingNumber,
       packageDescription,
       weight,
-      dimensions: dimensionsStr,
+      dimensions: dimensionsStr, // Store as string (e.g., '10x20x30')
       status: 'pending',
+      // Pickup information
       pickupContactName: pickupAddress?.contactName || req.user.name,
       pickupContactPhone: pickupAddress?.contactPhone || req.user.phone,
       pickupAddress: pickupAddress ? `${pickupAddress.street}, ${pickupAddress.city}, ${pickupAddress.state} ${pickupAddress.zipCode}, ${pickupAddress.country}` : null,
+      // Delivery information
       deliveryContactName: deliveryAddress.contactName,
       deliveryContactPhone: deliveryAddress.contactPhone,
       deliveryAddress: `${deliveryAddress.street}, ${deliveryAddress.city}, ${deliveryAddress.state} ${deliveryAddress.zipCode}, ${deliveryAddress.country}`,
       schedulePickupTime: new Date(schedulePickupTime),
       priority: priority || 'normal',
-      // Financial fields
-      codAmount: codAmount || 0.00,
+      // Financial information - COD amount and payment status
+      codAmount: parseFloat(codAmount) || 0,
       isPaid: false,
-      statusHistory: JSON.stringify([{
-        status: 'pending',
-        timestamp: new Date(),
-        note: 'Package created',
-        updatedBy: req.user.id
-      }])
+      paymentStatus: 'pending'
     });
+    
+    console.log(`Created package with ID ${package.id}, tracking number ${trackingNumber}`);
+    if (codAmount && parseFloat(codAmount) > 0) {
+      console.log(`Package has COD amount of ${codAmount}`);
+    }
 
     // Update the shop's ToCollect amount when package is created with COD
-    if (codAmount > 0) {
-      console.log(`Adding COD amount ${codAmount} to shop's ToCollect when creating package ${package.id}`);
+    if (package.codAmount > 0) {
+      console.log(`Adding COD amount ${package.codAmount} to shop's ToCollect when creating package ${package.id}`);
       
       const currentToCollect = parseFloat(shop.ToCollect || 0);
-      const newToCollect = currentToCollect + parseFloat(codAmount);
+      const newToCollect = currentToCollect + parseFloat(package.codAmount);
       
       await shop.update({
         ToCollect: newToCollect
@@ -152,8 +153,18 @@ exports.getPackages = async (req, res) => {
     const offset = (page - 1) * limit;
     const order = [[sort, 'DESC']];
     
-    // Execute the query with pagination
+    // Execute the query with pagination - explicitly specify only columns that exist in the database
     const { count, rows: packages } = await Package.findAndCountAll({
+      attributes: [
+        'id', 'trackingNumber', 'packageDescription', 'weight', 'dimensions',
+        'status', 'shopId', 'userId', 'driverId',
+        'pickupContactName', 'pickupContactPhone', 'pickupAddress',
+        'deliveryContactName', 'deliveryContactPhone', 'deliveryAddress',
+        'schedulePickupTime', 'estimatedDeliveryTime',
+        'actualPickupTime', 'actualDeliveryTime',
+        'priority', 'paymentStatus', 'createdAt', 'updatedAt',
+        'codAmount', 'isPaid', 'paymentDate'
+      ],
       where,
       limit: parseInt(limit),
       offset,
@@ -187,6 +198,16 @@ exports.getPackages = async (req, res) => {
 exports.getPackageById = async (req, res) => {
   try {
     const package = await Package.findByPk(req.params.id, {
+      attributes: [
+        'id', 'trackingNumber', 'packageDescription', 'weight', 'dimensions',
+        'status', 'shopId', 'userId', 'driverId',
+        'pickupContactName', 'pickupContactPhone', 'pickupAddress',
+        'deliveryContactName', 'deliveryContactPhone', 'deliveryAddress',
+        'schedulePickupTime', 'estimatedDeliveryTime',
+        'actualPickupTime', 'actualDeliveryTime',
+        'priority', 'paymentStatus', 'createdAt', 'updatedAt',
+        'codAmount', 'isPaid', 'paymentDate'
+      ],
       include: [
         {
           model: Shop,
@@ -317,29 +338,16 @@ exports.updatePackageStatus = async (req, res) => {
       }
     }
     
-    // Get existing status history or initialize empty array
-    let statusHistory = [];
-    if (package.statusHistory) {
-      try {
-        statusHistory = JSON.parse(package.statusHistory);
-      } catch (e) {
-        statusHistory = [];
-      }
-    }
-    
-    // Add status history entry
-    statusHistory.push({
-      status,
-      timestamp: new Date(),
-      note: note || '',
-      updatedBy: req.user.id
-    });
-    
-    // Update fields
+    // Update fields - status history has been removed from the schema
     const updateData = {
-      status,
-      statusHistory: JSON.stringify(statusHistory)
+      status
     };
+    
+    // Log status change for debugging
+    console.log(`Updating package ${id} status from ${package.status} to ${status} by ${req.user.id} (${req.user.role})`);
+    if (note) {
+      console.log(`Status change note: ${note}`);
+    }
     
     // Update timestamps for specific statuses
     if (status === 'pickedup') {
@@ -347,16 +355,17 @@ exports.updatePackageStatus = async (req, res) => {
     } else if (status === 'delivered') {
       updateData.actualDeliveryTime = new Date();
       
-      // Auto-mark COD as paid when package is delivered
+      // Auto-mark payment as paid when package is delivered if there's a COD amount
       if (package.codAmount > 0 && !package.isPaid) {
         updateData.isPaid = true;
         updateData.paymentDate = new Date();
-        updateData.paymentMethod = 'cash'; // Default to cash
-        updateData.paymentNotes = 'Payment collected on delivery';
+        
+        // Log payment status change
+        console.log(`Auto-marking payment as paid for package ${id} with COD amount ${package.codAmount}`);
       }
     }
     
-    // Save the original status and isPaid values before updating
+    // Save the original status and payment status values before updating
     const originalStatus = package.status;
     const originalIsPaid = package.isPaid;
     
@@ -372,25 +381,27 @@ exports.updatePackageStatus = async (req, res) => {
         console.log(`Package ${id} marked as delivered with payment collected. Updating shop financial data.`);
         
         // Move amount from ToCollect to TotalCollected
-        const codAmount = parseFloat(package.codAmount);
+        const codAmount = parseFloat(package.codAmount || 0);
         const currentToCollect = parseFloat(shop.ToCollect || 0);
         const currentTotalCollected = parseFloat(shop.TotalCollected || 0);
         
-        // Update the shop's financial columns in the database
-        await shop.update({
-          ToCollect: Math.max(0, currentToCollect - codAmount),
-          TotalCollected: currentTotalCollected + codAmount
-        });
+        // Calculate new amounts
+        const newToCollect = Math.max(0, currentToCollect - codAmount);
+        const newTotalCollected = currentTotalCollected + codAmount;
         
-        console.log(`Updated shop (${shop.id}) financial data in database:`);
-        console.log(`ToCollect: ${currentToCollect} -> ${Math.max(0, currentToCollect - codAmount)}`);
-        console.log(`TotalCollected: ${currentTotalCollected} -> ${currentTotalCollected + codAmount}`);
+        console.log(`Shop financial update: ToCollect ${currentToCollect} -> ${newToCollect}, TotalCollected ${currentTotalCollected} -> ${newTotalCollected}`);
+        
+        // Update shop
+        await shop.update({
+          ToCollect: newToCollect,
+          TotalCollected: newTotalCollected
+        });
       }
       // When a package is initially created or assigned, add to ToCollect
       else if ((originalStatus === 'pending' || !originalStatus) && status === 'assigned' && package.codAmount > 0) {
         console.log(`Package ${id} assigned. Adding to shop's ToCollect.`);
         
-        const codAmount = parseFloat(package.codAmount);
+        const codAmount = parseFloat(package.codAmount || 0);
         const currentToCollect = parseFloat(shop.ToCollect || 0);
         
         // Update the shop's ToCollect column in the database
@@ -556,7 +567,7 @@ exports.addDeliveryPhoto = async (req, res) => {
     
     // Update package
     await package.update({
-      deliveryPhotos: JSON.stringify(deliveryPhotos)
+      deliveryPhotos: deliveryPhotos
     });
     
     res.json(package);
@@ -600,7 +611,7 @@ exports.addDeliverySignature = async (req, res) => {
     
     // Update package
     await package.update({
-      signature: JSON.stringify(signature)
+      signature: signature
     });
     
     res.json(package);
@@ -640,9 +651,7 @@ exports.updatePackagePayment = async (req, res) => {
     
     // Update the payment status
     const updateData = {
-      isPaid: Boolean(isPaid),
-      paymentMethod: paymentMethod || null,
-      paymentNotes: paymentNotes || null
+      isPaid: Boolean(isPaid)
     };
     
     // Set payment date if paid
@@ -650,6 +659,15 @@ exports.updatePackagePayment = async (req, res) => {
       updateData.paymentDate = new Date();
     } else if (!Boolean(isPaid)) {
       updateData.paymentDate = null;
+    }
+    
+    // Log the payment status update
+    console.log(`Updating payment status for package ${id} to ${isPaid ? 'paid' : 'unpaid'}`);
+    if (paymentMethod) {
+      console.log(`Payment method: ${paymentMethod}`);
+    }
+    if (paymentNotes) {
+      console.log(`Payment notes: ${paymentNotes}`);
     }
     
     await package.update(updateData);
@@ -660,7 +678,6 @@ exports.updatePackagePayment = async (req, res) => {
         id: package.id,
         trackingNumber: package.trackingNumber,
         isPaid: package.isPaid,
-        paymentMethod: package.paymentMethod,
         paymentDate: package.paymentDate
       }
     });
