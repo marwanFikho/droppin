@@ -30,7 +30,9 @@ const Login = () => {
     
     try {
       setIsSubmitting(true);
+      console.log('Attempting login with:', { email: formData.email });
       const user = await login(formData);
+      console.log('Login successful:', user);
       
       // Redirect based on user role
       switch (user.role) {
@@ -47,6 +49,13 @@ const Login = () => {
           navigate('/user');
       }
     } catch (error) {
+      console.error('Login error:', error);
+      console.error('Error details:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        message: error.message
+      });
       setFormError(error.response?.data?.message || 'Failed to login. Please check your credentials.');
     } finally {
       setIsSubmitting(false);

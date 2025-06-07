@@ -9,6 +9,12 @@ const { sequelize, testConnection } = require('./config/db.config');
 // Load environment variables
 dotenv.config();
 
+// Set default JWT_SECRET if not provided
+if (!process.env.JWT_SECRET) {
+  process.env.JWT_SECRET = 'your-secret-key-for-development';
+  console.log('Warning: Using default JWT_SECRET. In production, set JWT_SECRET in .env file');
+}
+
 // Initialize Express app
 const app = express();
 
@@ -79,19 +85,31 @@ const startServer = async () => {
 
     const adminEmail = 'admin@dropin.com';
     const admin = await User.findOne({ where: { email: adminEmail } });
+    console.log('Checking for existing admin user:', admin ? 'Found' : 'Not found');
 
     if (!admin) {
       console.log('Creating default admin user...');
-      await User.create({
+      const bcrypt = require('bcryptjs');
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash('password', salt);
+      console.log('Generated hashed password for admin');
+      
+      const newAdmin = await User.create({
         name: 'Admin User',
         email: adminEmail,
-        password: 'password',
+        password: hashedPassword,
         phone: '1234567890',
         role: 'admin',
         isApproved: true,
         isActive: true
       });
-      console.log('Admin user created');
+      console.log('Admin user created successfully:', {
+        id: newAdmin.id,
+        email: newAdmin.email,
+        role: newAdmin.role,
+        isApproved: newAdmin.isApproved,
+        isActive: newAdmin.isActive
+      });
     }
 
     app.listen(PORT, () => {

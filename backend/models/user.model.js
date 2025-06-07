@@ -77,7 +77,13 @@ const User = sequelize.define('User', {
 
 // Instance method to compare password
 User.prototype.comparePassword = async function(candidatePassword) {
-  return await bcrypt.compare(candidatePassword, this.password);
+  console.log('Comparing passwords:', {
+    candidateLength: candidatePassword.length,
+    storedLength: this.password.length
+  });
+  const result = await bcrypt.compare(candidatePassword, this.password);
+  console.log('Password comparison result:', result);
+  return result;
 };
 
 module.exports = User;

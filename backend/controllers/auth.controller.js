@@ -265,28 +265,42 @@ exports.registerDriver = async (req, res) => {
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
+    console.log('Login attempt:', { email, hasPassword: !!password });
 
     // Find user by email
     const user = await User.findOne({ where: { email } });
+    console.log('User lookup result:', user ? {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      isApproved: user.isApproved,
+      isActive: user.isActive
+    } : 'No user found');
 
     if (!user) {
+      console.log('No user found for email:', email);
       return res.status(401).json({ message: 'Invalid email or password' });
     }
 
     // Check if account is active
     if (!user.isActive) {
+      console.log('Account is inactive:', user.id);
       return res.status(403).json({ message: 'Your account has been deactivated' });
     }
 
     // Check if shop/driver is approved
     if ((user.role === 'shop' || user.role === 'driver') && !user.isApproved) {
+      console.log('Account pending approval:', user.id);
       return res.status(403).json({ message: 'Your account is pending approval. Please wait for an administrator to approve your account.' });
     }
 
     // Always use secure password comparison
+    console.log('Comparing password for user:', user.id);
     const isMatch = await user.comparePassword(password);
+    console.log('Password match result:', isMatch);
 
     if (!isMatch) {
+      console.log('Password mismatch for user:', user.id);
       return res.status(401).json({ message: 'Invalid email or password' });
     }
 
