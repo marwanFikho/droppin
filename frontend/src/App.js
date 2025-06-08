@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Navigation from './components/Navigation';
 import './App.css';
+import './i18n';
+import { useTranslation } from 'react-i18next';
 
 // Pages
 import Home from './pages/Home';
@@ -21,15 +23,22 @@ import NotFound from './pages/NotFound';
 // Protected route component
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const { currentUser, loading } = useAuth();
+  const { t } = useTranslation();
   
+  // If still loading, show loading spinner
   if (loading) {
-    return <div className="loading-spinner">Loading...</div>;
+    return <div className="loading-spinner">{t('common.loading')}</div>;
   }
   
+  // If no user, redirect to login
   if (!currentUser) {
+    // Clear any stale tokens
+    localStorage.removeItem('token');
+    localStorage.removeItem('currentUser');
     return <Navigate to="/login" />;
   }
   
+  // Check role access
   if (allowedRoles && !allowedRoles.includes(currentUser.role)) {
     return <Navigate to="/unauthorized" />;
   }
@@ -38,10 +47,42 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
 };
 
 function App() {
+  const { i18n } = useTranslation();
+
+  useEffect(() => {
+    // Function to toggle RTL stylesheet
+    const toggleRTLStylesheet = (isRTL) => {
+      const rtlStylesheet = document.getElementById('rtl-stylesheet');
+      const ltrStylesheet = document.querySelector('link[href*="bootstrap.min.css"]:not([href*="rtl"])');
+      
+      if (isRTL) {
+        if (rtlStylesheet) rtlStylesheet.removeAttribute('disabled');
+        if (ltrStylesheet) ltrStylesheet.setAttribute('disabled', '');
+      } else {
+        if (rtlStylesheet) rtlStylesheet.setAttribute('disabled', '');
+        if (ltrStylesheet) ltrStylesheet.removeAttribute('disabled');
+      }
+    };
+
+    // Set document direction and language
+    const isRTL = i18n.language === 'ar';
+    document.documentElement.lang = i18n.language;
+    document.documentElement.dir = isRTL ? 'rtl' : 'ltr';
+    document.body.classList.toggle('rtl', isRTL);
+    
+    // Toggle RTL stylesheet
+    toggleRTLStylesheet(isRTL);
+
+    // Cleanup function
+    return () => {
+      document.body.classList.remove('rtl');
+    };
+  }, [i18n.language]);
+
   return (
     <Router>
       <AuthProvider>
-        <div className="App">
+        <div className={`App ${i18n.language === 'ar' ? 'rtl' : ''}`}>
           <Navigation />
           <Routes>
             {/* Public routes */}
@@ -78,6 +119,7 @@ function App() {
                 </ProtectedRoute>
               } 
             />
+            {/* Admin route - single route to handle all admin paths */}
             <Route 
               path="/admin/*" 
               element={
@@ -88,7 +130,7 @@ function App() {
             />
             
             {/* Not found route */}
-            <Route path="*" element={<NotFound />} />
+            <Route path="*" element={<Navigate to="/login" />} />
           </Routes>
         </div>
       </AuthProvider>

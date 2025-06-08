@@ -1,0 +1,139 @@
+{
+  "common": {
+    "appName": "Droppin",
+    "appFullName": "Droppin Delivery",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "submit": "Submit",
+    "cancel": "Cancel",
+    "save": "Save",
+    "edit": "Edit",
+    "delete": "Delete",
+    "back": "Back",
+    "next": "Next"
+  },
+
+  "navigation": {
+    "home": "Home",
+    "login": "Login",
+    "logout": "Logout",
+    "register": "Register",
+    "dashboard": "Dashboard",
+    "profile": "Profile",
+    "settings": "Settings",
+    "trackPackage": "Track Package",
+    "about": "About Us",
+    "contact": "Contact",
+    "terms": "Terms of Service",
+    "privacy": "Privacy Policy"
+  },
+
+  "home": {
+    "hero": {
+      "title": "Droppin Delivery",
+      "subtitle": "Fast & Reliable B2B Delivery Service",
+      "description": "Connecting shops, drivers, and customers with a seamless delivery experience.",
+      "ctaLogin": "Login",
+      "ctaRegister": "Register",
+      "ctaDashboard": "Go to Dashboard"
+    },
+    "features": {
+      "title": "Why Choose Droppin?",
+      "shops": {
+        "title": "For Shops",
+        "description": "Manage your deliveries, track packages, and ensure customer satisfaction."
+      },
+      "drivers": {
+        "title": "For Drivers",
+        "description": "Pick up and deliver packages efficiently with our easy-to-use platform."
+      },
+      "customers": {
+        "title": "For Customers",
+        "description": "Track your packages in real-time and receive timely updates."
+      }
+    },
+    "tracking": {
+      "title": "Track Your Package",
+      "button": "Enter Tracking Number"
+    },
+    "footer": {
+      "copyright": "© {year} Droppin Delivery. All rights reserved."
+    }
+  },
+
+  "auth": {
+    "login": {
+      "title": "Login to Droppin",
+      "subtitle": "Enter your credentials to access your account",
+      "email": "Email",
+      "emailPlaceholder": "Enter your email",
+      "password": "Password",
+      "passwordPlaceholder": "Enter your password",
+      "button": "Login",
+      "buttonLoading": "Logging in...",
+      "noAccount": "Don't have an account?",
+      "registerLink": "Register",
+      "registerShop": "Register as a Shop",
+      "registerDriver": "Register as a Driver",
+      "error": {
+        "credentials": "Failed to login. Please check your credentials.",
+        "required": "Please enter both email and password"
+      }
+    },
+    "register": {
+      "title": "Create an Account",
+      "subtitle": "Join Droppin and start using our services",
+      "hasAccount": "Already have an account?",
+      "loginLink": "Login here"
+    }
+  },
+
+  "dashboard": {
+    "welcome": "Welcome back",
+    "stats": {
+      "title": "Statistics",
+      "totalDeliveries": "Total Deliveries",
+      "pendingDeliveries": "Pending Deliveries",
+      "completedDeliveries": "Completed Deliveries"
+    }
+  },
+
+  "tracking": {
+    "title": "Package Tracking",
+    "enterNumber": "Enter tracking number",
+    "search": "Search",
+    "status": {
+      "pending": "Pending",
+      "inTransit": "In Transit",
+      "delivered": "Delivered",
+      "failed": "Failed"
+    }
+  },
+
+  "errors": {
+    "notFound": {
+      "title": "Page Not Found",
+      "message": "The page you're looking for doesn't exist.",
+      "backHome": "Back to Home"
+    },
+    "unauthorized": {
+      "title": "Unauthorized",
+      "message": "You don't have permission to access this page."
+    }
+  },
+
+  "welcome": "Welcome to Droppin",
+  "login": "Login",
+  "logout": "Logout",
+  "dashboard": "Dashboard",
+  "profile": "Profile",
+  "settings": "Settings",
+  "language": "Language",
+  "switchToArabic": "عربي",
+  "switchToEnglish": "English",
+  "deliveryService": "Delivery Service",
+  "trackPackage": "Track Package",
+  "becomeDriver": "Become a Driver",
+  "registerShop": "Register Your Shop"
+} 

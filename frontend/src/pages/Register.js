@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useTranslation } from 'react-i18next';
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -22,6 +23,7 @@ const Register = () => {
   
   const { register } = useAuth();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -48,12 +50,12 @@ const Register = () => {
     
     // Validation
     if (formData.password !== formData.confirmPassword) {
-      setFormError('Passwords do not match');
+      setFormError(t('auth.register.validation.passwordMatch'));
       return;
     }
     
     if (formData.password.length < 6) {
-      setFormError('Password must be at least 6 characters');
+      setFormError(t('auth.register.validation.passwordLength'));
       return;
     }
     
@@ -62,7 +64,7 @@ const Register = () => {
       await register(formData);
       navigate('/user'); // Redirect to user dashboard after successful registration
     } catch (error) {
-      setFormError(error.response?.data?.message || 'Registration failed. Please try again.');
+      setFormError(error.response?.data?.message || t('auth.register.validation.failed'));
     } finally {
       setIsSubmitting(false);
     }
@@ -72,119 +74,119 @@ const Register = () => {
     <div className="auth-container">
       <div className="auth-form-container">
         <div className="auth-header">
-          <h2>Create an Account</h2>
-          <p>Sign up to track your packages</p>
+          <h2>{t('auth.register.title')}</h2>
+          <p>{t('auth.register.subtitle')}</p>
         </div>
         
         {formError && <div className="auth-error">{formError}</div>}
         
         <form onSubmit={handleSubmit} className="auth-form">
           <div className="form-group">
-            <label htmlFor="name">Full Name</label>
+            <label htmlFor="name">{t('auth.register.fullName')}</label>
             <input
               type="text"
               id="name"
               name="name"
               value={formData.name}
               onChange={handleChange}
-              placeholder="Enter your full name"
+              placeholder={t('auth.register.fullNamePlaceholder')}
               required
             />
           </div>
           
           <div className="form-group">
-            <label htmlFor="email">Email</label>
+            <label htmlFor="email">{t('auth.register.email')}</label>
             <input
               type="email"
               id="email"
               name="email"
               value={formData.email}
               onChange={handleChange}
-              placeholder="Enter your email"
+              placeholder={t('auth.register.emailPlaceholder')}
               required
             />
           </div>
           
           <div className="form-group">
-            <label htmlFor="phone">Phone Number</label>
+            <label htmlFor="phone">{t('auth.register.phone')}</label>
             <input
               type="tel"
               id="phone"
               name="phone"
               value={formData.phone}
               onChange={handleChange}
-              placeholder="Enter your phone number"
+              placeholder={t('auth.register.phonePlaceholder')}
               required
             />
           </div>
           
           <div className="form-row">
             <div className="form-group">
-              <label htmlFor="password">Password</label>
+              <label htmlFor="password">{t('auth.register.password')}</label>
               <input
                 type="password"
                 id="password"
                 name="password"
                 value={formData.password}
                 onChange={handleChange}
-                placeholder="Create a password"
+                placeholder={t('auth.register.passwordPlaceholder')}
                 required
               />
             </div>
             
             <div className="form-group">
-              <label htmlFor="confirmPassword">Confirm Password</label>
+              <label htmlFor="confirmPassword">{t('auth.register.confirmPassword')}</label>
               <input
                 type="password"
                 id="confirmPassword"
                 name="confirmPassword"
                 value={formData.confirmPassword}
                 onChange={handleChange}
-                placeholder="Confirm your password"
+                placeholder={t('auth.register.confirmPasswordPlaceholder')}
                 required
               />
             </div>
           </div>
           
           <div className="address-section">
-            <h3>Address Information</h3>
+            <h3>{t('auth.register.address.title')}</h3>
             
             <div className="form-group">
-              <label htmlFor="address.street">Street Address</label>
+              <label htmlFor="address.street">{t('auth.register.address.street')}</label>
               <input
                 type="text"
                 id="address.street"
                 name="address.street"
                 value={formData.address.street}
                 onChange={handleChange}
-                placeholder="Street address"
+                placeholder={t('auth.register.address.streetPlaceholder')}
                 required
               />
             </div>
             
             <div className="form-row">
               <div className="form-group">
-                <label htmlFor="address.city">City</label>
+                <label htmlFor="address.city">{t('auth.register.address.city')}</label>
                 <input
                   type="text"
                   id="address.city"
                   name="address.city"
                   value={formData.address.city}
                   onChange={handleChange}
-                  placeholder="City"
+                  placeholder={t('auth.register.address.cityPlaceholder')}
                   required
                 />
               </div>
               
               <div className="form-group">
-                <label htmlFor="address.state">State/Province</label>
+                <label htmlFor="address.state">{t('auth.register.address.state')}</label>
                 <input
                   type="text"
                   id="address.state"
                   name="address.state"
                   value={formData.address.state}
                   onChange={handleChange}
-                  placeholder="State/Province"
+                  placeholder={t('auth.register.address.statePlaceholder')}
                   required
                 />
               </div>
@@ -192,27 +194,27 @@ const Register = () => {
             
             <div className="form-row">
               <div className="form-group">
-                <label htmlFor="address.zipCode">Zip/Postal Code</label>
+                <label htmlFor="address.zipCode">{t('auth.register.address.zipCode')}</label>
                 <input
                   type="text"
                   id="address.zipCode"
                   name="address.zipCode"
                   value={formData.address.zipCode}
                   onChange={handleChange}
-                  placeholder="Zip/Postal code"
+                  placeholder={t('auth.register.address.zipCodePlaceholder')}
                   required
                 />
               </div>
               
               <div className="form-group">
-                <label htmlFor="address.country">Country</label>
+                <label htmlFor="address.country">{t('auth.register.address.country')}</label>
                 <input
                   type="text"
                   id="address.country"
                   name="address.country"
                   value={formData.address.country}
                   onChange={handleChange}
-                  placeholder="Country"
+                  placeholder={t('auth.register.address.countryPlaceholder')}
                   required
                 />
               </div>
@@ -224,19 +226,19 @@ const Register = () => {
             className="auth-button" 
             disabled={isSubmitting}
           >
-            {isSubmitting ? 'Creating Account...' : 'Create Account'}
+            {isSubmitting ? t('auth.register.buttonLoading') : t('auth.register.button')}
           </button>
         </form>
         
         <div className="auth-links">
           <p>
-            Already have an account?{' '}
-            <Link to="/login">Login</Link>
+            {t('auth.register.hasAccount')}{' '}
+            <Link to="/login">{t('auth.register.loginLink')}</Link>
           </p>
           <div className="role-specific-links">
-            <p>Are you a business or driver?</p>
-            <Link to="/register/shop">Register as a Shop</Link>
-            <Link to="/register/driver">Register as a Driver</Link>
+            <p>{t('auth.register.roleLinks.title')}</p>
+            <Link to="/register/shop">{t('auth.register.roleLinks.shop')}</Link>
+            <Link to="/register/driver">{t('auth.register.roleLinks.driver')}</Link>
           </div>
         </div>
       </div>

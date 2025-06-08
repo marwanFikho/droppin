@@ -25,6 +25,60 @@ api.interceptors.request.use(
   }
 );
 
+// Add a response interceptor to handle auth errors
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+    
+    // Don't retry if we've already tried once
+    if (originalRequest._retry) {
+      return Promise.reject(error);
+    }
+
+    if (error.response) {
+      // Handle 401 Unauthorized
+      if (error.response.status === 401 && !originalRequest._retry) {
+        originalRequest._retry = true;
+        
+        // Clear auth data
+        localStorage.removeItem('token');
+        localStorage.removeItem('currentUser');
+        
+        // Redirect to login, but only if we're not already trying to login/register
+        if (!originalRequest.url.includes('/auth/')) {
+          window.location.href = '/login';
+        }
+      }
+      
+      // Handle 403 Forbidden
+      if (error.response.status === 403) {
+        // Clear auth data
+        localStorage.removeItem('token');
+        localStorage.removeItem('currentUser');
+        
+        // Redirect to login
+        window.location.href = '/login';
+      }
+      
+      // Handle 404 Not Found
+      if (error.response.status === 404) {
+        // If it's an admin route and we're logged in, try refreshing auth
+        if (window.location.pathname.startsWith('/admin') && localStorage.getItem('token')) {
+          // Clear auth data
+          localStorage.removeItem('token');
+          localStorage.removeItem('currentUser');
+          
+          // Redirect to login
+          window.location.href = '/login';
+        }
+      }
+    }
+    
+    return Promise.reject(error);
+  }
+);
+
 // Authentication service
 export const authService = {
   login: (credentials) => api.post('/auth/login', credentials),

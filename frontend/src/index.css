@@ -11,3 +11,550 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+/* RTL Support */
+.rtl {
+  direction: rtl;
+  text-align: right;
+}
+
+/* RTL Typography */
+.rtl h1, .rtl h2, .rtl h3, .rtl h4, .rtl h5, .rtl h6, 
+.rtl p, .rtl span, .rtl div {
+  font-family: 'Segoe UI', 'Tahoma', 'Arial', sans-serif;
+}
+
+/* RTL Forms */
+.rtl .form-group {
+  text-align: right;
+}
+
+.rtl .form-control {
+  text-align: right;
+}
+
+.rtl .input-group > .form-control:not(:last-child) {
+  border-radius: 0 0.25rem 0.25rem 0;
+}
+
+.rtl .input-group > .form-control:not(:first-child) {
+  border-radius: 0.25rem 0 0 0.25rem;
+}
+
+/* RTL Buttons */
+.rtl .btn-group > .btn:not(:last-child):not(.dropdown-toggle) {
+  border-radius: 0 0.25rem 0.25rem 0;
+}
+
+.rtl .btn-group > .btn:not(:first-child) {
+  border-radius: 0.25rem 0 0 0.25rem;
+}
+
+/* RTL Icons */
+.rtl .icon-mirror {
+  transform: scaleX(-1);
+}
+
+/* RTL Timeline */
+.rtl .timeline {
+  padding-right: 2rem;
+  padding-left: 0;
+}
+
+.rtl .timeline-item {
+  padding-right: 2rem;
+  padding-left: 0;
+}
+
+.rtl .timeline-dot {
+  right: -8px;
+  left: auto;
+}
+
+.rtl .timeline-line {
+  right: 0;
+  left: auto;
+}
+
+.rtl .timeline-content {
+  margin-right: 1rem;
+  margin-left: 0;
+}
+
+/* RTL Margins and Paddings */
+.rtl .me-1 { margin-left: 0.25rem !important; margin-right: 0 !important; }
+.rtl .me-2 { margin-left: 0.5rem !important; margin-right: 0 !important; }
+.rtl .me-3 { margin-left: 1rem !important; margin-right: 0 !important; }
+.rtl .me-4 { margin-left: 1.5rem !important; margin-right: 0 !important; }
+.rtl .me-5 { margin-left: 3rem !important; margin-right: 0 !important; }
+
+.rtl .ms-1 { margin-right: 0.25rem !important; margin-left: 0 !important; }
+.rtl .ms-2 { margin-right: 0.5rem !important; margin-left: 0 !important; }
+.rtl .ms-3 { margin-right: 1rem !important; margin-left: 0 !important; }
+.rtl .ms-4 { margin-right: 1.5rem !important; margin-left: 0 !important; }
+.rtl .ms-5 { margin-right: 3rem !important; margin-left: 0 !important; }
+
+.rtl .pe-1 { padding-left: 0.25rem !important; padding-right: 0 !important; }
+.rtl .pe-2 { padding-left: 0.5rem !important; padding-right: 0 !important; }
+.rtl .pe-3 { padding-left: 1rem !important; padding-right: 0 !important; }
+.rtl .pe-4 { padding-left: 1.5rem !important; padding-right: 0 !important; }
+.rtl .pe-5 { padding-left: 3rem !important; padding-right: 0 !important; }
+
+.rtl .ps-1 { padding-right: 0.25rem !important; padding-left: 0 !important; }
+.rtl .ps-2 { padding-right: 0.5rem !important; padding-left: 0 !important; }
+.rtl .ps-3 { padding-right: 1rem !important; padding-left: 0 !important; }
+.rtl .ps-4 { padding-right: 1.5rem !important; padding-left: 0 !important; }
+.rtl .ps-5 { padding-right: 3rem !important; padding-left: 0 !important; }
+
+/* RTL Layout */
+.rtl .flex-row { flex-direction: row-reverse !important; }
+.rtl .flex-row-reverse { flex-direction: row !important; }
+
+/* RTL Text Alignment */
+.rtl .text-start { text-align: right !important; }
+.rtl .text-end { text-align: left !important; }
+
+/* RTL Float */
+.rtl .float-start { float: right !important; }
+.rtl .float-end { float: left !important; }
+
+/* RTL Border Radius */
+.rtl .rounded-start { 
+  border-radius: 0 0.25rem 0.25rem 0 !important;
+}
+.rtl .rounded-end {
+  border-radius: 0.25rem 0 0 0.25rem !important;
+}
+
+/* RTL Dropdown Menus */
+.rtl .dropdown-menu {
+  text-align: right;
+  left: auto;
+  right: 0;
+}
+
+.rtl .dropdown-menu-start {
+  right: 0;
+  left: auto;
+}
+
+.rtl .dropdown-menu-end {
+  left: 0;
+  right: auto;
+}
+
+/* RTL Modal */
+.rtl .modal-header .btn-close {
+  margin: -0.5rem auto -0.5rem -0.5rem;
+}
+
+.rtl .modal-footer {
+  justify-content: flex-start;
+}
+
+/* RTL List Groups */
+.rtl .list-group {
+  padding-right: 0;
+}
+
+/* RTL Cards */
+.rtl .card-header,
+.rtl .card-body,
+.rtl .card-footer {
+  text-align: right;
+}
+
+/* RTL Tables */
+.rtl th {
+  text-align: right;
+}
+
+/* RTL Form Check */
+.rtl .form-check {
+  padding-left: 0;
+  padding-right: 1.25rem;
+}
+
+.rtl .form-check .form-check-input {
+  float: right;
+  margin-left: 0;
+  margin-right: -1.25rem;
+}
+
+/* RTL Input Groups */
+.rtl .input-group > :not(:first-child) {
+  margin-right: -1px;
+  margin-left: 0;
+}
+
+.rtl .input-group > :not(:last-child) {
+  margin-left: -1px;
+  margin-right: 0;
+}
+
+/* RTL Support */
+.rtl {
+  direction: rtl;
+  text-align: right;
+}
+
+/* RTL Typography */
+.rtl h1, .rtl h2, .rtl h3, .rtl h4, .rtl h5, .rtl h6, 
+.rtl p, .rtl span, .rtl div {
+  font-family: 'Segoe UI', 'Tahoma', 'Arial', sans-serif;
+}
+
+/* RTL Forms */
+.rtl .form-group {
+  text-align: right;
+}
+
+.rtl .form-control {
+  text-align: right;
+}
+
+.rtl .input-group > .form-control:not(:last-child) {
+  border-radius: 0 0.25rem 0.25rem 0;
+}
+
+.rtl .input-group > .form-control:not(:first-child) {
+  border-radius: 0.25rem 0 0 0.25rem;
+}
+
+/* RTL Buttons */
+.rtl .btn-group > .btn:not(:last-child):not(.dropdown-toggle) {
+  border-radius: 0 0.25rem 0.25rem 0;
+}
+
+.rtl .btn-group > .btn:not(:first-child) {
+  border-radius: 0.25rem 0 0 0.25rem;
+}
+
+/* RTL Icons */
+.rtl .icon-mirror {
+  transform: scaleX(-1);
+}
+
+/* RTL Timeline */
+.rtl .timeline {
+  padding-right: 2rem;
+  padding-left: 0;
+}
+
+.rtl .timeline-item {
+  padding-right: 2rem;
+  padding-left: 0;
+}
+
+.rtl .timeline-dot {
+  right: -8px;
+  left: auto;
+}
+
+.rtl .timeline-line {
+  right: 0;
+  left: auto;
+}
+
+.rtl .timeline-content {
+  margin-right: 1rem;
+  margin-left: 0;
+}
+
+/* RTL Margins and Paddings */
+.rtl .me-1 { margin-left: 0.25rem !important; margin-right: 0 !important; }
+.rtl .me-2 { margin-left: 0.5rem !important; margin-right: 0 !important; }
+.rtl .me-3 { margin-left: 1rem !important; margin-right: 0 !important; }
+.rtl .me-4 { margin-left: 1.5rem !important; margin-right: 0 !important; }
+.rtl .me-5 { margin-left: 3rem !important; margin-right: 0 !important; }
+
+.rtl .ms-1 { margin-right: 0.25rem !important; margin-left: 0 !important; }
+.rtl .ms-2 { margin-right: 0.5rem !important; margin-left: 0 !important; }
+.rtl .ms-3 { margin-right: 1rem !important; margin-left: 0 !important; }
+.rtl .ms-4 { margin-right: 1.5rem !important; margin-left: 0 !important; }
+.rtl .ms-5 { margin-right: 3rem !important; margin-left: 0 !important; }
+
+.rtl .pe-1 { padding-left: 0.25rem !important; padding-right: 0 !important; }
+.rtl .pe-2 { padding-left: 0.5rem !important; padding-right: 0 !important; }
+.rtl .pe-3 { padding-left: 1rem !important; padding-right: 0 !important; }
+.rtl .pe-4 { padding-left: 1.5rem !important; padding-right: 0 !important; }
+.rtl .pe-5 { padding-left: 3rem !important; padding-right: 0 !important; }
+
+.rtl .ps-1 { padding-right: 0.25rem !important; padding-left: 0 !important; }
+.rtl .ps-2 { padding-right: 0.5rem !important; padding-left: 0 !important; }
+.rtl .ps-3 { padding-right: 1rem !important; padding-left: 0 !important; }
+.rtl .ps-4 { padding-right: 1.5rem !important; padding-left: 0 !important; }
+.rtl .ps-5 { padding-right: 3rem !important; padding-left: 0 !important; }
+
+/* RTL Layout */
+.rtl .flex-row { flex-direction: row-reverse !important; }
+.rtl .flex-row-reverse { flex-direction: row !important; }
+
+/* RTL Text Alignment */
+.rtl .text-start { text-align: right !important; }
+.rtl .text-end { text-align: left !important; }
+
+/* RTL Float */
+.rtl .float-start { float: right !important; }
+.rtl .float-end { float: left !important; }
+
+/* RTL Border Radius */
+.rtl .rounded-start { 
+  border-radius: 0 0.25rem 0.25rem 0 !important;
+}
+.rtl .rounded-end {
+  border-radius: 0.25rem 0 0 0.25rem !important;
+}
+
+/* RTL Dropdown Menus */
+.rtl .dropdown-menu {
+  text-align: right;
+  left: auto;
+  right: 0;
+}
+
+.rtl .dropdown-menu-start {
+  right: 0;
+  left: auto;
+}
+
+.rtl .dropdown-menu-end {
+  left: 0;
+  right: auto;
+}
+
+/* RTL Modal */
+.rtl .modal-header .btn-close {
+  margin: -0.5rem auto -0.5rem -0.5rem;
+}
+
+.rtl .modal-footer {
+  justify-content: flex-start;
+}
+
+/* RTL List Groups */
+.rtl .list-group {
+  padding-right: 0;
+}
+
+/* RTL Cards */
+.rtl .card-header,
+.rtl .card-body,
+.rtl .card-footer {
+  text-align: right;
+}
+
+/* RTL Tables */
+.rtl th {
+  text-align: right;
+}
+
+/* RTL Form Check */
+.rtl .form-check {
+  padding-left: 0;
+  padding-right: 1.25rem;
+}
+
+.rtl .form-check .form-check-input {
+  float: right;
+  margin-left: 0;
+  margin-right: -1.25rem;
+}
+
+/* RTL Input Groups */
+.rtl .input-group > :not(:first-child) {
+  margin-right: -1px;
+  margin-left: 0;
+}
+
+.rtl .input-group > :not(:last-child) {
+  margin-left: -1px;
+  margin-right: 0;
+}
+
+/* RTL specific overrides */
+.rtl .nav-links {
+  flex-direction: row-reverse;
+}
+
+.rtl .hero-buttons {
+  flex-direction: row-reverse;
+}
+
+.rtl .btn {
+  direction: rtl;
+}
+
+/* Additional RTL fixes */
+.rtl .modal-header {
+  flex-direction: row-reverse;
+}
+
+.rtl .form-check {
+  padding-left: 0;
+  padding-right: 1.25rem;
+}
+
+.rtl .form-check-input {
+  float: right;
+  margin-left: 0;
+  margin-right: -1.25rem;
+}
+
+/* Fix for Bootstrap RTL input groups */
+.rtl .input-group {
+  flex-direction: row-reverse;
+}
+
+.rtl .input-group > :not(:first-child):not(.dropdown-menu):not(.valid-tooltip):not(.valid-feedback):not(.invalid-tooltip):not(.invalid-feedback) {
+  margin-right: -1px;
+  margin-left: 0;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  border-top-left-radius: 0.25rem;
+  border-bottom-left-radius: 0.25rem;
+}
+
+.rtl .input-group > :not(:last-child):not(.dropdown-toggle):not(.dropdown-menu):not(.form-floating) {
+  margin-left: -1px;
+  margin-right: 0;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  border-top-right-radius: 0.25rem;
+  border-bottom-right-radius: 0.25rem;
+}
+
+/* Navigation styles */
+.main-nav {
+  background-color: #fff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 1rem 0;
+}
+
+.nav-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.nav-logo {
+  display: flex;
+  align-items: center;
+}
+
+.nav-logo a {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+  color: inherit;
+}
+
+.nav-logo-image {
+  width: 40px;
+  height: 40px;
+  margin-right: 0.5rem;
+}
+
+.rtl .nav-logo-image {
+  margin-right: 0;
+  margin-left: 0.5rem;
+}
+
+.logo-text {
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.nav-link {
+  text-decoration: none;
+  color: inherit;
+  font-weight: 500;
+  transition: color 0.2s;
+}
+
+.nav-link:hover {
+  color: #f4511e;
+}
+
+.logout-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+}
+
+/* Hero section styles */
+.hero {
+  background-color: #f4511e;
+  color: white;
+  padding: 4rem 0;
+  text-align: center;
+}
+
+.hero-content {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+.hero h1 {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.hero h2 {
+  font-size: 1.5rem;
+  margin-bottom: 2rem;
+  font-weight: normal;
+}
+
+.hero p {
+  font-size: 1.2rem;
+  margin-bottom: 2rem;
+}
+
+.hero-buttons {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+}
+
+.btn-primary {
+  background-color: white;
+  color: #f4511e;
+  border: none;
+  padding: 0.75rem 2rem;
+  border-radius: 4px;
+  font-weight: bold;
+  text-decoration: none;
+  transition: background-color 0.2s;
+}
+
+.btn-primary:hover {
+  background-color: #f8f9fa;
+}
+
+.btn-secondary {
+  background-color: transparent;
+  color: white;
+  border: 2px solid white;
+  padding: 0.75rem 2rem;
+  border-radius: 4px;
+  font-weight: bold;
+  text-decoration: none;
+  transition: background-color 0.2s;
+}
+
+.btn-secondary:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}

@@ -13,21 +13,38 @@ export const AuthProvider = ({ children }) => {
   // Check if user is logged in on app load
   useEffect(() => {
     const checkLoggedIn = async () => {
-      const token = localStorage.getItem('token');
-      
-      if (token) {
         try {
           setLoading(true);
-          const response = await authService.getProfile();
-          setCurrentUser(response.data);
-        } catch (err) {
-          console.error('Error fetching user profile:', err);
-          localStorage.removeItem('token');
+        const token = localStorage.getItem('token');
+        const storedUser = localStorage.getItem('currentUser');
+        
+        if (!token) {
           setCurrentUser(null);
-        } finally {
           setLoading(false);
+          return;
         }
-      } else {
+
+        // First set the stored user if available
+        if (storedUser) {
+          setCurrentUser(JSON.parse(storedUser));
+        }
+
+        // Then verify with the server
+          const response = await authService.getProfile();
+        const userData = response.data;
+        
+        // Update stored user data
+        localStorage.setItem('currentUser', JSON.stringify(userData));
+        setCurrentUser(userData);
+        } catch (err) {
+        console.error('Error in auth check:', err);
+        // Only clear auth data if it's an auth error
+        if (err.response?.status === 401 || err.response?.status === 403) {
+          localStorage.removeItem('token');
+          localStorage.removeItem('currentUser');
+          setCurrentUser(null);
+        }
+      } finally {
         setLoading(false);
       }
     };

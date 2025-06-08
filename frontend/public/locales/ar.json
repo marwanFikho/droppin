@@ -1,0 +1,139 @@
+{
+  "common": {
+    "appName": "دروبين",
+    "appFullName": "توصيل دروبين",
+    "loading": "جاري التحميل...",
+    "error": "خطأ",
+    "success": "نجاح",
+    "submit": "إرسال",
+    "cancel": "إلغاء",
+    "save": "حفظ",
+    "edit": "تعديل",
+    "delete": "حذف",
+    "back": "رجوع",
+    "next": "التالي"
+  },
+
+  "navigation": {
+    "home": "الرئيسية",
+    "login": "تسجيل الدخول",
+    "logout": "تسجيل الخروج",
+    "register": "تسجيل",
+    "dashboard": "لوحة التحكم",
+    "profile": "الملف الشخصي",
+    "settings": "الإعدادات",
+    "trackPackage": "تتبع الطرد",
+    "about": "من نحن",
+    "contact": "اتصل بنا",
+    "terms": "شروط الخدمة",
+    "privacy": "سياسة الخصوصية"
+  },
+
+  "home": {
+    "hero": {
+      "title": "توصيل دروبين",
+      "subtitle": "خدمة توصيل سريعة وموثوقة للأعمال",
+      "description": "نربط المتاجر والسائقين والعملاء بتجربة توصيل سلسة",
+      "ctaLogin": "تسجيل الدخول",
+      "ctaRegister": "تسجيل",
+      "ctaDashboard": "الذهاب إلى لوحة التحكم"
+    },
+    "features": {
+      "title": "لماذا تختار دروبين؟",
+      "shops": {
+        "title": "للمتاجر",
+        "description": "إدارة عمليات التوصيل وتتبع الطرود وضمان رضا العملاء"
+      },
+      "drivers": {
+        "title": "للسائقين",
+        "description": "استلام وتوصيل الطرود بكفاءة مع منصتنا سهلة الاستخدام"
+      },
+      "customers": {
+        "title": "للعملاء",
+        "description": "تتبع طرودك في الوقت الفعلي واستلام التحديثات في الوقت المناسب"
+      }
+    },
+    "tracking": {
+      "title": "تتبع طردك",
+      "button": "أدخل رقم التتبع"
+    },
+    "footer": {
+      "copyright": "© {year} توصيل دروبين. جميع الحقوق محفوظة"
+    }
+  },
+
+  "auth": {
+    "login": {
+      "title": "تسجيل الدخول إلى دروبين",
+      "subtitle": "أدخل بيانات اعتمادك للوصول إلى حسابك",
+      "email": "البريد الإلكتروني",
+      "emailPlaceholder": "أدخل بريدك الإلكتروني",
+      "password": "كلمة المرور",
+      "passwordPlaceholder": "أدخل كلمة المرور",
+      "button": "تسجيل الدخول",
+      "buttonLoading": "جاري تسجيل الدخول...",
+      "noAccount": "ليس لديك حساب؟",
+      "registerLink": "سجل الآن",
+      "registerShop": "سجل كمتجر",
+      "registerDriver": "سجل كسائق",
+      "error": {
+        "credentials": "فشل تسجيل الدخول. يرجى التحقق من بيانات الاعتماد",
+        "required": "يرجى إدخال البريد الإلكتروني وكلمة المرور"
+      }
+    },
+    "register": {
+      "title": "إنشاء حساب",
+      "subtitle": "انضم إلى دروبين وابدأ استخدام خدماتنا",
+      "hasAccount": "لديك حساب بالفعل؟",
+      "loginLink": "سجل دخولك هنا"
+    }
+  },
+
+  "dashboard": {
+    "welcome": "مرحباً بعودتك",
+    "stats": {
+      "title": "الإحصائيات",
+      "totalDeliveries": "إجمالي التوصيلات",
+      "pendingDeliveries": "التوصيلات المعلقة",
+      "completedDeliveries": "التوصيلات المكتملة"
+    }
+  },
+
+  "tracking": {
+    "title": "تتبع الطرد",
+    "enterNumber": "أدخل رقم التتبع",
+    "search": "بحث",
+    "status": {
+      "pending": "معلق",
+      "inTransit": "قيد التوصيل",
+      "delivered": "تم التوصيل",
+      "failed": "فشل التوصيل"
+    }
+  },
+
+  "errors": {
+    "notFound": {
+      "title": "الصفحة غير موجودة",
+      "message": "الصفحة التي تبحث عنها غير موجودة",
+      "backHome": "العودة للرئيسية"
+    },
+    "unauthorized": {
+      "title": "غير مصرح",
+      "message": "ليس لديك صلاحية للوصول إلى هذه الصفحة"
+    }
+  },
+
+  "welcome": "مرحباً بكم في دروبين",
+  "login": "تسجيل الدخول",
+  "logout": "تسجيل الخروج",
+  "dashboard": "لوحة التحكم",
+  "profile": "الملف الشخصي",
+  "settings": "الإعدادات",
+  "language": "اللغة",
+  "switchToArabic": "عربي",
+  "switchToEnglish": "English",
+  "deliveryService": "خدمة التوصيل",
+  "trackPackage": "تتبع الطرد",
+  "becomeDriver": "كن سائقاً",
+  "registerShop": "سجل متجرك"
+} 

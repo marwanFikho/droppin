@@ -1,608 +1,428 @@
 import React, { useState, useEffect } from 'react';
-import { Routes, Route, Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useTranslation } from 'react-i18next';
 import { packageService } from '../../services/api';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faDollarSign, faBox, faTruck, faMapMarkedAlt } from '@fortawesome/free-solid-svg-icons';
+import { 
+  faBox, 
+  faSearch, 
+  faSpinner,
+  faTruck,
+  faMoneyBill,
+  faBoxOpen,
+  faCheckCircle,
+  faMapMarkedAlt,
+  faRoute
+} from '@fortawesome/free-solid-svg-icons';
 import './DriverDashboard.css';
 
 const DriverDashboard = () => {
   const { currentUser, logout } = useAuth();
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  
+  // State management
+  const [activeTab, setActiveTab] = useState('current');
   const [packages, setPackages] = useState([]);
   const [availablePackages, setAvailablePackages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState(null);
-  const [showPackageDetails, setShowPackageDetails] = useState(false);
-  const navigate = useNavigate();
+  const [stats, setStats] = useState({
+    packages: {
+      assigned: 0,
+      inTransit: 0,
+      delivered: 0,
+      available: 0
+    },
+    earnings: {
+      today: 0,
+      total: 0
+    }
+  });
 
+  // Update URL when tab changes
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    navigate(`/driver/${tab}`);
+  };
+
+  // Fetch dashboard data
   useEffect(() => {
-    // Fetch packages assigned to this driver and available packages
-    const fetchPackages = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true);
-        // Fetch packages assigned to this driver
-        const assignedResponse = await packageService.getPackages();
-        console.log('Assigned packages:', assignedResponse.data);
+        const [assignedResponse, availableResponse] = await Promise.all([
+          packageService.getDriverPackages(),
+          packageService.getAvailablePackages()
+        ]);
         
-        // Get the packages array from the response
-        let packagesList = [];
-        if (assignedResponse.data && Array.isArray(assignedResponse.data)) {
-          packagesList = assignedResponse.data;
-        } else if (assignedResponse.data && Array.isArray(assignedResponse.data.packages)) {
-          packagesList = assignedResponse.data.packages;
-        }
+        const assignedPackages = assignedResponse.data || [];
+        const availablePackages = availableResponse.data || [];
         
-        setPackages(packagesList);
+        setPackages(assignedPackages);
+        setAvailablePackages(availablePackages);
         
-        // Fetch packages that are available for pickup
-        const availableResponse = await packageService.getPackages({ status: 'pending' });
-        console.log('Available packages:', availableResponse.data);
+        // Calculate stats
+        setStats({
+          packages: {
+            assigned: assignedPackages.filter(p => p.status === 'assigned').length,
+            inTransit: assignedPackages.filter(p => ['pickedup', 'in-transit'].includes(p.status)).length,
+            delivered: assignedPackages.filter(p => p.status === 'delivered').length,
+            available: availablePackages.length
+          },
+          earnings: {
+            today: assignedPackages
+              .filter(p => p.status === 'delivered' && isToday(p.deliveredAt))
+              .reduce((sum, pkg) => sum + (pkg.deliveryFee || 0), 0),
+            total: assignedPackages
+              .filter(p => p.status === 'delivered')
+              .reduce((sum, pkg) => sum + (pkg.deliveryFee || 0), 0)
+          }
+        });
         
-        // Get the available packages array from the response
-        let availablePackagesList = [];
-        if (availableResponse.data && Array.isArray(availableResponse.data)) {
-          availablePackagesList = availableResponse.data;
-        } else if (availableResponse.data && Array.isArray(availableResponse.data.packages)) {
-          availablePackagesList = availableResponse.data.packages;
-        }
-        
-        setAvailablePackages(availablePackagesList);
+        setError(null);
       } catch (err) {
-        setError('Failed to load packages. Please try again later.');
-        console.error('Error fetching packages:', err);
+        console.error('Error fetching driver data:', err);
+        setError(t('driver.errors.fetchData'));
       } finally {
         setLoading(false);
       }
     };
 
-    fetchPackages();
-  }, []);
+    fetchData();
+  }, [t]);
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
+  // Helper function to check if a date is today
+  const isToday = (date) => {
+    if (!date) return false;
+    const today = new Date();
+    const deliveryDate = new Date(date);
+    return (
+      deliveryDate.getDate() === today.getDate() &&
+      deliveryDate.getMonth() === today.getMonth() &&
+      deliveryDate.getFullYear() === today.getFullYear()
+    );
   };
 
-  const acceptPackage = async (packageId) => {
-    try {
-      await packageService.updatePackageStatus(packageId, { status: 'assigned' });
-      
-      // Refresh data
-      const assignedResponse = await packageService.getPackages();
-      setPackages(assignedResponse.data.packages || []);
-      
-      const availableResponse = await packageService.getPackages({ status: 'pending' });
-      setAvailablePackages(availableResponse.data.packages || []);
-    } catch (err) {
-      setError('Failed to accept package. Please try again.');
-      console.error('Error accepting package:', err);
+  // Filter packages based on search term and active tab
+  const getFilteredPackages = () => {
+    let filtered = activeTab === 'available' ? availablePackages : packages;
+
+    if (searchTerm) {
+      const search = searchTerm.toLowerCase();
+      filtered = filtered.filter(pkg => 
+        pkg.trackingNumber?.toLowerCase().includes(search) ||
+        pkg.description?.toLowerCase().includes(search) ||
+        pkg.status?.toLowerCase().includes(search)
+      );
+    }
+
+    if (activeTab === 'available') {
+      return filtered;
+    }
+
+    switch (activeTab) {
+      case 'current':
+        return filtered.filter(pkg => ['assigned', 'pickedup', 'in-transit'].includes(pkg.status));
+      case 'delivered':
+        return filtered.filter(pkg => pkg.status === 'delivered');
+      default:
+        return filtered;
     }
   };
 
-  const updatePackageStatus = async (packageId, status, additionalData = {}) => {
-    try {
-      // Include additional data such as payment information if provided
-      await packageService.updatePackageStatus(packageId, { status, ...additionalData });
-      
-      // Refresh data
-      const assignedResponse = await packageService.getPackages();
-      const packagesData = assignedResponse.data.packages || assignedResponse.data || [];
-      setPackages(packagesData);
-      
-      // If we had a selected package and it was updated, close the modal
-      if (selectedPackage && selectedPackage.id === packageId) {
-        setShowPackageDetails(false);
-      }
-    } catch (err) {
-      setError(`Failed to update package to ${status}. Please try again.`);
-      console.error('Error updating package:', err);
-    }
-  };
-  
-  // Mark package as delivered and handle payment collection
-  const markAsDeliveredWithPayment = async (packageId) => {
-    try {
-      // Update package status to delivered with payment collected
-      await updatePackageStatus(packageId, 'delivered', { 
-        isPaid: true,
-        paymentDate: new Date().toISOString(),
-        paymentMethod: 'cash',
-        paymentNotes: 'Collected by driver on delivery'
-      });
-      
-      // Show success message
-      setError(null); // Clear any existing errors
-      alert('Package marked as delivered and payment collected successfully');
-    } catch (err) {
-      setError('Failed to mark package as delivered with payment. Please try again.');
-      console.error('Error updating package with payment:', err);
-    }
-  };
-  
   // View package details
-  const viewPackageDetails = async (pkg) => {
-    console.log('Viewing package details:', pkg);
-    setShowPackageDetails(true);
-    setLoading(true);
-    setError(null);
-    
+  const viewDetails = (pkg) => {
+    setSelectedPackage(pkg);
+    setShowDetailsModal(true);
+  };
+
+  // Handle package status update
+  const handleStatusUpdate = async (packageId, newStatus) => {
     try {
-      // Get the complete package details from the API
-      const response = await packageService.getPackageById(pkg.id);
-      console.log('API package details:', response.data);
-      
-      if (response && response.data) {
-        // Ensure we have all the data we need
-        const packageData = response.data;
-        
-        // Check for required nested objects and ensure we're not using mock data
-        if (!packageData.pickupAddress) {
-          console.warn('Package is missing pickup address data');
-          packageData.pickupAddress = {};
-        }
-        
-        if (!packageData.deliveryAddress) {
-          console.warn('Package is missing delivery address data');
-          packageData.deliveryAddress = {};
-        }
-        
-        // Log the real data we're about to display
-        console.log('Using real package data from database:', packageData);
-        console.log('Pickup address:', packageData.pickupAddress);
-        console.log('Delivery address:', packageData.deliveryAddress);
-        
-        // Set the data from the database
-        setSelectedPackage(packageData);
-      } else {
-        // Fallback to the package data we already have
-        console.warn('API returned no data, using existing package data as fallback');
-        setSelectedPackage(pkg);
-        setError('Could not fetch complete package details from the server.');
-      }
-      
-      setLoading(false);
-    } catch (error) {
-      console.error('Error fetching package details:', error);
-      
-      // If API call fails, use the data we already have
-      setSelectedPackage(pkg);
-      setLoading(false);
-      
-      // Show error message but don't close the modal
-      setError('Could not fetch complete package details. Some information may be missing.');
-      
-      // Clear error after 5 seconds
-      setTimeout(() => {
-        setError(null);
-      }, 5000);
+      await packageService.updatePackageStatus(packageId, newStatus);
+      // Refresh data after status update
+      const response = await packageService.getDriverPackages();
+      setPackages(response.data || []);
+      setShowDetailsModal(false);
+    } catch (err) {
+      console.error('Error updating package status:', err);
+      setError(t('driver.errors.updateStatus', { status: newStatus }));
     }
   };
-  
-  // Format date for display
-  const formatDate = (dateString) => {
-    if (!dateString) return 'Not set';
+
+  // Accept available package
+  const handleAcceptPackage = async (packageId) => {
     try {
-      const date = new Date(dateString);
-      return date.toLocaleString();
-    } catch (error) {
-      console.error('Error formatting date:', error);
-      return 'Invalid date';
+      await packageService.acceptPackage(packageId);
+      // Refresh both assigned and available packages
+      const [assignedResponse, availableResponse] = await Promise.all([
+        packageService.getDriverPackages(),
+        packageService.getAvailablePackages()
+      ]);
+      setPackages(assignedResponse.data || []);
+      setAvailablePackages(availableResponse.data || []);
+    } catch (err) {
+      console.error('Error accepting package:', err);
+      setError(t('driver.errors.acceptPackage'));
     }
   };
-  
-  // Safely get nested properties
-  const safeGet = (obj, path, defaultValue = 'Not available') => {
-    try {
-      const result = path.split('.').reduce((o, key) => (o && o[key] !== undefined && o[key] !== null) ? o[key] : null, obj);
-      return result !== null && result !== undefined ? result : defaultValue;
-    } catch (error) {
-      console.error(`Error accessing path ${path}:`, error);
-      return defaultValue;
-    }
-  };
-  
+
   // Render package details modal
-  const renderPackageDetailsModal = () => {
-    if (!selectedPackage) return null;
-    
-    console.log('Rendering package details for:', selectedPackage);
-    
-    // Get status with fallback
-    const status = selectedPackage.status || 'pending';
+  const renderDetailsModal = () => {
+    if (!showDetailsModal || !selectedPackage) return null;
     
     return (
-      <div className={`modal-overlay ${showPackageDetails ? 'show' : ''}`} onClick={() => setShowPackageDetails(false)}>
+      <div className="modal-overlay show" onClick={() => setShowDetailsModal(false)}>
         <div className="modal-content" onClick={e => e.stopPropagation()}>
           <div className="modal-header">
-            <h2>Package #{selectedPackage.trackingNumber || 'Unknown'}</h2>
-            <button 
-              className="close-btn"
-              onClick={() => setShowPackageDetails(false)}
-            >
-              ×
-            </button>
+            <h2>
+              <FontAwesomeIcon icon={faBox} className="package-icon" />
+              {selectedPackage.trackingNumber}
+            </h2>
+            <button className="close-btn" onClick={() => setShowDetailsModal(false)}>×</button>
           </div>
-          
-          {loading ? (
-            <div className="modal-body loading-state">
-              <div className="loading-spinner"></div>
-              <p>Loading package details...</p>
+          <div className="modal-body">
+            <div className="package-details">
+              <div className="detail-row">
+                <label>{t('driver.package.description')}:</label>
+                <span>{selectedPackage.description}</span>
+              </div>
+              <div className="detail-row">
+                <label>{t('driver.package.status')}:</label>
+                <span className={`status-badge status-${selectedPackage.status}`}>
+                  {t(`driver.status.${selectedPackage.status}`)}
+                </span>
+              </div>
+              <div className="detail-row">
+                <label>{t('driver.package.pickupAddress')}:</label>
+                <span>{selectedPackage.pickupAddress}</span>
+              </div>
+              <div className="detail-row">
+                <label>{t('driver.package.deliveryAddress')}:</label>
+                <span>{selectedPackage.deliveryAddress}</span>
+              </div>
+              <div className="detail-row">
+                <label>{t('driver.package.deliveryFee')}:</label>
+                <span className="financial-cell">${selectedPackage.deliveryFee}</span>
+              </div>
+              {selectedPackage.codAmount > 0 && (
+                <div className="detail-row">
+                  <label>{t('driver.package.codAmount')}:</label>
+                  <span className="financial-cell">${selectedPackage.codAmount}</span>
+                </div>
+              )}
             </div>
-          ) : (
-            <>
-              <div className="modal-body">
-                {error && (
-                  <div className="error-message">{error}</div>
-                )}
-                
-                <div className={`package-status-banner status-${status}`}>
-                  <h3>Status: {status.charAt(0).toUpperCase() + status.slice(1)}</h3>
-                </div>
-              
-                <div className="package-details-section">
-                  <h3>Package Information</h3>
-                  <div className="details-grid">
-                    <div className="detail-item">
-                      <span className="label">Description:</span>
-                      <span>{selectedPackage.packageDescription || 'No description available'}</span>
-                    </div>
-                    <div className="detail-item">
-                      <span className="label">Weight:</span>
-                      <span>{selectedPackage.weight ? `${selectedPackage.weight} kg` : 'Not specified'}</span>
-                    </div>
-                    <div className="detail-item">
-                      <span className="label">Dimensions:</span>
-                      <span>
-                        {selectedPackage.dimensions ? `${selectedPackage.dimensions} cm` : 'Not specified'}
-                      </span>
-                    </div>
-                    <div className="detail-item">
-                      <span className="label">Priority:</span>
-                      <span className={`priority-tag ${selectedPackage.priority || 'normal'}`}>
-                        {(selectedPackage.priority || 'normal').charAt(0).toUpperCase() + (selectedPackage.priority || 'normal').slice(1)}
-                      </span>
-                    </div>
-                    <div className="detail-item">
-                      <span className="label">Tracking Number:</span>
-                      <span>{selectedPackage.trackingNumber || 'Not available'}</span>
-                    </div>
-                    {selectedPackage.codAmount > 0 && (
-                      <div className="detail-item cod-amount">
-                        <span className="label">Cash on Delivery:</span>
-                        <span className="money-value">${parseFloat(selectedPackage.codAmount).toFixed(2)}</span>
-                        <div className="payment-status-badge">
-                          {selectedPackage.isPaid ? (
-                            <span className="status-paid">PAID</span>
-                          ) : (
-                            <span className="status-collect">COLLECT FROM CUSTOMER</span>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-                
-                <div className="package-details-section">
-                  <h3>Pickup Information</h3>
-                  <div className="details-grid">
-                    <div className="detail-item">
-                      <span className="label">Contact Name:</span>
-                      <span>{selectedPackage.pickupContactName || 'Not available'}</span>
-                    </div>
-                    <div className="detail-item">
-                      <span className="label">Contact Phone:</span>
-                      <span>{selectedPackage.pickupContactPhone || 'Not available'}</span>
-                    </div>
-                    <div className="detail-item full-width">
-                      <span className="label">Address:</span>
-                      <span>{selectedPackage.pickupAddress || 'Address Not Available'}</span>
-                    </div>
-                    <div className="detail-item full-width">
-                      <span className="label">Instructions:</span>
-                      <span>{selectedPackage.pickupAddress?.instructions || 'No special instructions'}</span>
-                    </div>
-                    <div className="detail-item">
-                      <span className="label">Scheduled Pickup:</span>
-                      <span>{formatDate(selectedPackage.schedulePickupTime)}</span>
-                    </div>
-                    <div className="detail-item">
-                      <span className="label">Actual Pickup:</span>
-                      <span>{formatDate(selectedPackage.actualPickupTime)}</span>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="package-details-section">
-                  <h3>Delivery Information</h3>
-                  <div className="details-grid">
-                    <div className="detail-item">
-                      <span className="label">Contact Name:</span>
-                      <span>{selectedPackage.deliveryContactName || 'Not available'}</span>
-                    </div>
-                    <div className="detail-item">
-                      <span className="label">Contact Phone:</span>
-                      <span>{selectedPackage.deliveryContactPhone || 'Not available'}</span>
-                    </div>
-                    <div className="detail-item full-width">
-                      <span className="label">Address:</span>
-                      <span> {selectedPackage.deliveryAddress || 'Address Not Available'}</span>
-                    </div>
-                    <div className="detail-item full-width">
-                      <span className="label">Instructions:</span>
-                      <span>{selectedPackage.deliveryAddress?.instructions || 'No special instructions'}</span>
-                    </div>
-                    <div className="detail-item">
-                      <span className="label">Estimated Delivery:</span>
-                      <span>{formatDate(selectedPackage.estimatedDeliveryTime)}</span>
-                    </div>
-                    <div className="detail-item">
-                      <span className="label">Actual Delivery:</span>
-                      <span>{formatDate(selectedPackage.actualDeliveryTime)}</span>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="package-details-section">
-                  <h3>Additional Notes</h3>
-                  <p className="package-notes">{selectedPackage.notes || 'No additional notes'}</p>
-                </div>
-              </div>
-              
-              <div className="modal-footer">
-                {selectedPackage.status === 'assigned' && (
-                  <button 
-                    className="action-button primary" 
-                    onClick={() => {
-                      updatePackageStatus(selectedPackage.id, 'pickedup');
-                      setShowPackageDetails(false);
-                    }}
-                  >
-                    Mark as Picked Up
-                  </button>
-                )}
-                {selectedPackage.status === 'pickedup' && (
-                  <button 
-                    className="action-button primary" 
-                    onClick={() => {
-                      updatePackageStatus(selectedPackage.id, 'in-transit');
-                      setShowPackageDetails(false);
-                    }}
-                  >
-                    Mark In Transit
-                  </button>
-                )}
-                {selectedPackage.status === 'in-transit' && (
-                  <>
-                    {selectedPackage.codAmount > 0 && !selectedPackage.isPaid ? (
-                      <button 
-                        className="action-button primary collect-payment" 
-                        onClick={() => {
-                          markAsDeliveredWithPayment(selectedPackage.id);
-                        }}
-                      >
-                        <FontAwesomeIcon icon={faDollarSign} /> Deliver & Collect ${parseFloat(selectedPackage.codAmount || 0).toFixed(2)}
-                      </button>
-                    ) : (
-                      <button 
-                        className="action-button primary" 
-                        onClick={() => {
-                          updatePackageStatus(selectedPackage.id, 'delivered');
-                          setShowPackageDetails(false);
-                        }}
-                      >
-                        Mark as Delivered
-                      </button>
-                    )}
-                  </>
-                )}
+          </div>
+          {selectedPackage.status !== 'delivered' && (
+            <div className="modal-actions">
+              {selectedPackage.status === 'assigned' && (
                 <button 
-                  className="action-button secondary" 
-                  onClick={() => setShowPackageDetails(false)}
+                  className="btn pickup-btn"
+                  onClick={() => handleStatusUpdate(selectedPackage.id, 'pickedup')}
                 >
-                  Close
+                  <FontAwesomeIcon icon={faTruck} /> {t('driver.actions.pickup')}
                 </button>
-              </div>
-            </>
+              )}
+              {selectedPackage.status === 'pickedup' && (
+                <button 
+                  className="btn transit-btn"
+                  onClick={() => handleStatusUpdate(selectedPackage.id, 'in-transit')}
+                >
+                  <FontAwesomeIcon icon={faRoute} /> {t('driver.actions.startDelivery')}
+                </button>
+              )}
+              {selectedPackage.status === 'in-transit' && (
+                <button 
+                  className="btn deliver-btn"
+                  onClick={() => handleStatusUpdate(selectedPackage.id, 'delivered')}
+                >
+                  <FontAwesomeIcon icon={faCheckCircle} /> {t('driver.actions.markDelivered')}
+                </button>
+              )}
+            </div>
           )}
         </div>
       </div>
     );
   };
 
+  // Render packages table
+  const renderPackagesTable = () => {
+    const filteredPackages = getFilteredPackages();
+
+    return (
+      <div className="table-container">
+        <table className="admin-table">
+          <thead>
+            <tr>
+              <th>{t('driver.table.trackingNumber')}</th>
+              <th>{t('driver.table.description')}</th>
+              <th>{t('driver.table.status')}</th>
+              <th>{t('driver.table.pickupAddress')}</th>
+              <th>{t('driver.table.deliveryAddress')}</th>
+              <th>{t('driver.table.deliveryFee')}</th>
+              <th className="actions-header">{t('driver.table.actions')}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredPackages.length === 0 ? (
+              <tr>
+                <td colSpan="7" className="no-data">{t('driver.table.noData')}</td>
+              </tr>
+            ) : (
+              filteredPackages.map(pkg => (
+                <tr key={pkg.id}>
+                  <td>{pkg.trackingNumber}</td>
+                  <td>{pkg.description}</td>
+                  <td>
+                    <span className={`status-badge status-${pkg.status}`}>
+                      {t(`driver.status.${pkg.status}`)}
+                    </span>
+                  </td>
+                  <td>{pkg.pickupAddress}</td>
+                  <td>{pkg.deliveryAddress}</td>
+                  <td className="financial-cell">${pkg.deliveryFee}</td>
+                  <td className="actions-cell">
+                    <button 
+                      className="action-btn view"
+                      onClick={() => viewDetails(pkg)}
+                      title={t('common.view')}
+                    >
+                      <FontAwesomeIcon icon={faBox} />
+                    </button>
+                    {activeTab === 'available' && (
+                      <button 
+                        className="action-btn accept"
+                        onClick={() => handleAcceptPackage(pkg.id)}
+                        title={t('driver.actions.accept')}
+                      >
+                        <FontAwesomeIcon icon={faCheckCircle} />
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
   return (
-    <div className="dashboard-container">
-      <div className="dashboard-sidebar">
-        <div className="sidebar-header">
-          <h2>Droppin</h2>
-          <p>Driver Portal</p>
+    <div className="driver-dashboard">
+      <header className="admin-header">
+        <h1>{t('driver.title')}</h1>
+      </header>
+
+      <div className="dashboard-stats">
+        <div className="stats-section">
+          <h2>{t('driver.overview.packages.title')}</h2>
+          <div className="stats-grid">
+            <div className="stat-card">
+              <FontAwesomeIcon icon={faBox} />
+              <div className="stat-info">
+                <h3>{t('driver.overview.packages.assigned')}</h3>
+                <p>{stats.packages.assigned}</p>
+              </div>
+            </div>
+            <div className="stat-card">
+              <FontAwesomeIcon icon={faTruck} />
+              <div className="stat-info">
+                <h3>{t('driver.overview.packages.inTransit')}</h3>
+                <p>{stats.packages.inTransit}</p>
+              </div>
+            </div>
+            <div className="stat-card">
+              <FontAwesomeIcon icon={faCheckCircle} />
+              <div className="stat-info">
+                <h3>{t('driver.overview.packages.delivered')}</h3>
+                <p>{stats.packages.delivered}</p>
+              </div>
+            </div>
+            <div className="stat-card">
+              <FontAwesomeIcon icon={faBoxOpen} />
+              <div className="stat-info">
+                <h3>{t('driver.overview.packages.available')}</h3>
+                <p>{stats.packages.available}</p>
+              </div>
+            </div>
+          </div>
         </div>
-        
-        <div className="sidebar-menu">
-          <Link to="/driver" className="menu-item active">
-            <i className="menu-icon">📊</i>
-            Dashboard
-          </Link>
-          <Link to="/driver/assigned" className="menu-item">
-            <i className="menu-icon">📦</i>
-            My Packages
-          </Link>
-          <Link to="/driver/available" className="menu-item">
-            <i className="menu-icon">🔎</i>
-            Available Packages
-          </Link>
-          <Link to="/driver/profile" className="menu-item">
-            <i className="menu-icon">👤</i>
-            Profile
-          </Link>
-          <button onClick={handleLogout} className="menu-item logout">
-            <i className="menu-icon">🚪</i>
-            Logout
-          </button>
+
+        <div className="stats-section">
+          <h2>{t('driver.overview.earnings.title')}</h2>
+          <div className="stats-grid">
+            <div className="stat-card">
+              <FontAwesomeIcon icon={faMoneyBill} />
+              <div className="stat-info">
+                <h3>{t('driver.overview.earnings.today')}</h3>
+                <p>${stats.earnings.today}</p>
+              </div>
+            </div>
+            <div className="stat-card">
+              <FontAwesomeIcon icon={faMoneyBill} />
+              <div className="stat-info">
+                <h3>{t('driver.overview.earnings.total')}</h3>
+                <p>${stats.earnings.total}</p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
       
-      <div className="dashboard-content">
-        <div className="dashboard-header">
-          <div className="welcome-message">
-            <h1>Welcome, {currentUser?.name || 'Driver'}</h1>
-            <p>Manage your deliveries with ease</p>
-          </div>
-          <div className="user-info">
-            <span className="driver-status">
-              Status: {currentUser?.isAvailable ? 'Available' : 'Busy'}
-            </span>
-            <span className="user-role">Driver Account</span>
-          </div>
-        </div>
-        
-        <div className="dashboard-stats">
-          <div className="stat-card">
-            <div className="stat-value">{packages.filter(p => p.status === 'assigned').length}</div>
-            <div className="stat-label">Assigned</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-value">{packages.filter(p => ['pickedup', 'in-transit'].includes(p.status)).length}</div>
-            <div className="stat-label">In Transit</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-value">{packages.filter(p => p.status === 'delivered').length}</div>
-            <div className="stat-label">Delivered</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-value">{availablePackages.length}</div>
-            <div className="stat-label">Available</div>
-          </div>
-        </div>
-        
-        <div className="dashboard-main">
-          <div className="current-packages">
-            <div className="section-header">
-              <h2>Current Packages</h2>
-              <Link to="/driver/assigned" className="view-all">View All</Link>
-            </div>
-            
-            {loading ? (
-              <div className="loading-message">Loading packages...</div>
-            ) : error ? (
-              <div className="error-message">{error}</div>
-            ) : packages.filter(p => ['assigned', 'pickedup', 'in-transit'].includes(p.status)).length === 0 ? (
-              <div className="empty-state">
-                <p>No active packages at the moment.</p>
-                <Link to="/driver/available" className="action-button">Find Packages</Link>
-              </div>
-            ) : (
-              <div className="package-list">
-                {packages
-                  .filter(p => ['assigned', 'pickedup', 'in-transit'].includes(p.status))
-                  .slice(0, 3)
-                  .map((pkg) => (
-                    <div key={pkg.id} className="package-item">
-                      <div className="package-info">
-                        <div className="tracking-number">{pkg.trackingNumber}</div>
-                        <div className="package-description">{pkg.packageDescription}</div>
-                        <div className="package-addresses">
-                          <div className="pickup">
-                            <strong>Pickup:</strong> {pkg.pickupAddress}
-                          </div>
-                          <div className="delivery">
-                            <strong>Delivery:</strong> {pkg.deliveryAddress}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="package-actions">
-                        <div className={`package-status status-${pkg.status}`}>
-                          {pkg.status.charAt(0).toUpperCase() + pkg.status.slice(1)}
-                        </div>
-                        <button 
-                          className="action-button view-details" 
-                          onClick={() => viewPackageDetails(pkg)}
-                        >
-                          View Details
-                        </button>
-                        {pkg.status === 'assigned' && (
-                          <button 
-                            className="action-button" 
-                            onClick={() => updatePackageStatus(pkg.id, 'pickedup')}
-                          >
-                            Mark as Picked Up
-                          </button>
-                        )}
-                        {pkg.status === 'pickedup' && (
-                          <button 
-                            className="action-button" 
-                            onClick={() => updatePackageStatus(pkg.id, 'in-transit')}
-                          >
-                            Mark In Transit
-                          </button>
-                        )}
-                        {pkg.status === 'in-transit' && (
-                          <button 
-                            className="action-button" 
-                            onClick={() => updatePackageStatus(pkg.id, 'delivered')}
-                          >
-                            Mark as Delivered
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-              </div>
-            )}
-          </div>
-          
-          <div className="available-packages">
-            <div className="section-header">
-              <h2>Available Packages</h2>
-              <Link to="/driver/available" className="view-all">View All</Link>
-            </div>
-            
-            {loading ? (
-              <div className="loading-message">Loading available packages...</div>
-            ) : error ? (
-              <div className="error-message">{error}</div>
-            ) : availablePackages.length === 0 ? (
-              <div className="empty-state">
-                <p>No available packages at the moment.</p>
-              </div>
-            ) : (
-              <div className="package-list">
-                {availablePackages.slice(0, 3).map((pkg) => (
-                  <div key={pkg.id} className="package-item">
-                    <div className="package-info">
-                      <div className="tracking-number">{pkg.trackingNumber}</div>
-                      <div className="package-description">{pkg.packageDescription}</div>
-                      <div className="package-addresses">
-                        <div className="pickup">
-                          <strong>Pickup:</strong> {pkg.pickupAddress.street}, {pkg.pickupAddress.city}
-                        </div>
-                        <div className="delivery">
-                          <strong>Delivery:</strong> {pkg.deliveryAddress.street}, {pkg.deliveryAddress.city}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="package-actions">
-                      <button 
-                        className="action-button view-details" 
-                        onClick={() => viewPackageDetails(pkg)}
-                      >
-                        View Details
-                      </button>
-                      <button 
-                        className="action-button" 
-                        onClick={() => acceptPackage(pkg.id)}
-                      >
-                        Accept Package
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
+      <div className="dashboard-tabs">
+        <button 
+          className={`tab-button ${activeTab === 'current' ? 'active' : ''}`}
+          onClick={() => handleTabChange('current')}
+        >
+          {t('driver.tabs.current')}
+        </button>
+        <button 
+          className={`tab-button ${activeTab === 'available' ? 'active' : ''}`}
+          onClick={() => handleTabChange('available')}
+        >
+          {t('driver.tabs.available')}
+        </button>
+        <button 
+          className={`tab-button ${activeTab === 'delivered' ? 'active' : ''}`}
+          onClick={() => handleTabChange('delivered')}
+        >
+          {t('driver.tabs.delivered')}
+        </button>
       </div>
-      {showPackageDetails && renderPackageDetailsModal()}
+      
+      <div className="dashboard-content">
+        <div className="search-section">
+          <div className="search-bar">
+            <FontAwesomeIcon icon={faSearch} />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder={t('common.search')}
+            />
+          </div>
+        </div>
+        
+        {loading ? (
+          <div className="loading-container">
+            <div className="loading">
+              <FontAwesomeIcon icon={faSpinner} />
+              {t('common.loading')}
+            </div>
+          </div>
+        ) : (
+          renderPackagesTable()
+        )}
+      </div>
+      
+      {showDetailsModal && renderDetailsModal()}
     </div>
   );
 };

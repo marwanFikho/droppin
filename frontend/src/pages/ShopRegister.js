@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useTranslation } from 'react-i18next';
 
 const ShopRegister = () => {
   const [formData, setFormData] = useState({
@@ -30,6 +31,7 @@ const ShopRegister = () => {
   
   const { register } = useAuth();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -56,12 +58,12 @@ const ShopRegister = () => {
     
     // Validation
     if (formData.password !== formData.confirmPassword) {
-      setFormError('Passwords do not match');
+      setFormError(t('auth.register.validation.passwordMatch'));
       return;
     }
     
     if (formData.password.length < 6) {
-      setFormError('Password must be at least 6 characters');
+      setFormError(t('auth.register.validation.passwordLength'));
       return;
     }
     
@@ -78,11 +80,11 @@ const ShopRegister = () => {
       navigate('/registration-success', { 
         state: { 
           userType: 'shop', 
-          message: 'Your shop account has been registered successfully! An administrator will review your application. You will be able to sign in once your account has been approved.' 
+          message: t('auth.register.shop.successMessage')
         } 
       });
     } catch (error) {
-      setFormError(error.response?.data?.message || 'Registration failed. Please try again.');
+      setFormError(error.response?.data?.message || t('auth.register.validation.failed'));
     } finally {
       setIsSubmitting(false);
     }
@@ -92,53 +94,53 @@ const ShopRegister = () => {
     <div className="auth-container">
       <div className="auth-form-container">
         <div className="auth-header">
-          <h2>Register Your Shop</h2>
-          <p>Create a shop account to manage your deliveries</p>
+          <h2>{t('auth.register.shop.title')}</h2>
+          <p>{t('auth.register.shop.subtitle')}</p>
           <div className="approval-notice">
-            <p><strong>Note:</strong> Shop accounts require administrator approval before you can sign in. You will be notified once your account has been approved.</p>
+            <p><strong>{t('common.note')}:</strong> {t('auth.register.shop.approvalNotice')}</p>
           </div>
         </div>
         
         {formError && <div className="auth-error">{formError}</div>}
         
         <form onSubmit={handleSubmit} className="auth-form">
-          <h3>Business Information</h3>
+          <h3>{t('auth.register.shop.businessInfo')}</h3>
           <div className="form-group">
-            <label htmlFor="businessName">Business Name</label>
+            <label htmlFor="businessName">{t('auth.register.shop.businessName')}</label>
             <input
               type="text"
               id="businessName"
               name="businessName"
               value={formData.businessName}
               onChange={handleChange}
-              placeholder="Enter your business name"
+              placeholder={t('auth.register.shop.businessNamePlaceholder')}
               required
             />
           </div>
           
           <div className="form-row">
             <div className="form-group">
-              <label htmlFor="email">Email (Used in login)</label>
+              <label htmlFor="email">{t('auth.register.shop.email')}</label>
               <input
                 type="email"
                 id="email"
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
-                placeholder="Enter business email"
+                placeholder={t('auth.register.shop.emailPlaceholder')}
                 required
               />
             </div>
             
             <div className="form-group">
-              <label htmlFor="phone">Business Phone Number</label>
+              <label htmlFor="phone">{t('auth.register.shop.phone')}</label>
               <input
                 type="tel"
                 id="phone"
                 name="phone"
                 value={formData.phone}
                 onChange={handleChange}
-                placeholder="Enter business phone number"
+                placeholder={t('auth.register.shop.phonePlaceholder')}
                 required
               />
             </div>
@@ -146,125 +148,125 @@ const ShopRegister = () => {
           
           <div className="form-row">
             <div className="form-group">
-              <label htmlFor="password">Password</label>
+              <label htmlFor="password">{t('auth.register.password')}</label>
               <input
                 type="password"
                 id="password"
                 name="password"
                 value={formData.password}
                 onChange={handleChange}
-                placeholder="Create a password"
+                placeholder={t('auth.register.passwordPlaceholder')}
                 required
               />
             </div>
             
             <div className="form-group">
-              <label htmlFor="confirmPassword">Confirm Password</label>
+              <label htmlFor="confirmPassword">{t('auth.register.confirmPassword')}</label>
               <input
                 type="password"
                 id="confirmPassword"
                 name="confirmPassword"
                 value={formData.confirmPassword}
                 onChange={handleChange}
-                placeholder="Confirm your password"
+                placeholder={t('auth.register.confirmPasswordPlaceholder')}
                 required
               />
             </div>
           </div>
           
           <div className="form-group">
-            <label htmlFor="businessType">Business Type</label>
+            <label htmlFor="businessType">{t('auth.register.shop.businessType')}</label>
             <input
               type="text"
               id="businessType"
               name="businessType"
               value={formData.businessType}
               onChange={handleChange}
-              placeholder="E.g., Retail, Restaurant, etc."
+              placeholder={t('auth.register.shop.businessTypePlaceholder')}
               required
             />
           </div>
           
-          <h4>Contact Person Information</h4>
-          <p className="form-info">Please provide details of the person we should contact regarding this account.</p>
+          <h4>{t('auth.register.shop.contactPerson.title')}</h4>
+          <p className="form-info">{t('auth.register.shop.contactPerson.info')}</p>
           <div className="form-row">
             <div className="form-group">
-              <label htmlFor="contactPerson.name">Contact Person Name</label>
+              <label htmlFor="contactPerson.name">{t('auth.register.shop.contactPerson.name')}</label>
               <input
                 type="text"
                 id="contactPerson.name"
                 name="contactPerson.name"
                 value={formData.contactPerson.name}
                 onChange={handleChange}
-                placeholder="Contact person name"
+                placeholder={t('auth.register.shop.contactPerson.namePlaceholder')}
                 required
               />
             </div>
             
             <div className="form-group">
-              <label htmlFor="contactPerson.phone">Contact Person Phone</label>
+              <label htmlFor="contactPerson.phone">{t('auth.register.shop.contactPerson.phone')}</label>
               <input
                 type="tel"
                 id="contactPerson.phone"
                 name="contactPerson.phone"
                 value={formData.contactPerson.phone}
                 onChange={handleChange}
-                placeholder="Contact person phone"
+                placeholder={t('auth.register.shop.contactPerson.phonePlaceholder')}
                 required
               />
             </div>
           </div>
           
           <div className="form-group">
-            <label htmlFor="contactPerson.email">Contact Person Email</label>
+            <label htmlFor="contactPerson.email">{t('auth.register.shop.contactPerson.email')}</label>
             <input
               type="email"
               id="contactPerson.email"
               name="contactPerson.email"
               value={formData.contactPerson.email}
               onChange={handleChange}
-              placeholder="Contact person email"
+              placeholder={t('auth.register.shop.contactPerson.emailPlaceholder')}
               required
             />
           </div>
           
-          <h4>Business Address</h4>
+          <h4>{t('auth.register.shop.address.title')}</h4>
           <div className="form-group">
-            <label htmlFor="businessAddress.street">Street Address</label>
+            <label htmlFor="businessAddress.street">{t('auth.register.address.street')}</label>
             <input
               type="text"
               id="businessAddress.street"
               name="businessAddress.street"
               value={formData.businessAddress.street}
               onChange={handleChange}
-              placeholder="Street address"
+              placeholder={t('auth.register.address.streetPlaceholder')}
               required
             />
           </div>
           
           <div className="form-row">
             <div className="form-group">
-              <label htmlFor="businessAddress.city">City</label>
+              <label htmlFor="businessAddress.city">{t('auth.register.address.city')}</label>
               <input
                 type="text"
                 id="businessAddress.city"
                 name="businessAddress.city"
                 value={formData.businessAddress.city}
                 onChange={handleChange}
-                placeholder="City"
+                placeholder={t('auth.register.address.cityPlaceholder')}
                 required
               />
             </div>
             
             <div className="form-group">
-              <label htmlFor="businessAddress.state">State/Province</label>
+              <label htmlFor="businessAddress.state">{t('auth.register.address.state')}</label>
               <input
                 type="text"
                 id="businessAddress.state"
                 name="businessAddress.state"
                 value={formData.businessAddress.state}
                 onChange={handleChange}
-                placeholder="State/Province"
+                placeholder={t('auth.register.address.statePlaceholder')}
                 required
               />
             </div>
@@ -272,27 +274,27 @@ const ShopRegister = () => {
           
           <div className="form-row">
             <div className="form-group">
-              <label htmlFor="businessAddress.zipCode">Zip/Postal Code</label>
+              <label htmlFor="businessAddress.zipCode">{t('auth.register.address.zipCode')}</label>
               <input
                 type="text"
                 id="businessAddress.zipCode"
                 name="businessAddress.zipCode"
                 value={formData.businessAddress.zipCode}
                 onChange={handleChange}
-                placeholder="Zip/Postal code"
+                placeholder={t('auth.register.address.zipCodePlaceholder')}
                 required
               />
             </div>
             
             <div className="form-group">
-              <label htmlFor="businessAddress.country">Country</label>
+              <label htmlFor="businessAddress.country">{t('auth.register.address.country')}</label>
               <input
                 type="text"
                 id="businessAddress.country"
                 name="businessAddress.country"
                 value={formData.businessAddress.country}
                 onChange={handleChange}
-                placeholder="Country"
+                placeholder={t('auth.register.address.countryPlaceholder')}
                 required
               />
             </div>
@@ -300,26 +302,26 @@ const ShopRegister = () => {
           
           <div className="form-row">
             <div className="form-group">
-              <label htmlFor="registrationNumber">Business Registration Number</label>
+              <label htmlFor="registrationNumber">{t('auth.register.shop.registrationNumber')}</label>
               <input
                 type="text"
                 id="registrationNumber"
                 name="registrationNumber"
                 value={formData.registrationNumber}
                 onChange={handleChange}
-                placeholder="Registration number (optional)"
+                placeholder={t('auth.register.shop.registrationNumberPlaceholder')}
               />
             </div>
             
             <div className="form-group">
-              <label htmlFor="taxId">Tax ID</label>
+              <label htmlFor="taxId">{t('auth.register.shop.taxId')}</label>
               <input
                 type="text"
                 id="taxId"
                 name="taxId"
                 value={formData.taxId}
                 onChange={handleChange}
-                placeholder="Tax ID (optional)"
+                placeholder={t('auth.register.shop.taxIdPlaceholder')}
               />
             </div>
           </div>
@@ -329,18 +331,18 @@ const ShopRegister = () => {
             className="auth-button" 
             disabled={isSubmitting}
           >
-            {isSubmitting ? 'Creating Account...' : 'Register Shop'}
+            {isSubmitting ? t('auth.register.shop.buttonLoading') : t('auth.register.shop.button')}
           </button>
         </form>
         
         <div className="auth-links">
           <p>
-            Already have an account?{' '}
-            <Link to="/login">Login</Link>
+            {t('auth.register.hasAccount')}{' '}
+            <Link to="/login">{t('auth.register.loginLink')}</Link>
           </p>
           <div className="role-specific-links">
-            <Link to="/register">Register as a Customer</Link>
-            <Link to="/register/driver">Register as a Driver</Link>
+            <Link to="/register">{t('auth.register.roleLinks.user')}</Link>
+            <Link to="/register/driver">{t('auth.register.roleLinks.driver')}</Link>
           </div>
         </div>
       </div>

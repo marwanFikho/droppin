@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 
 const Login = () => {
@@ -12,6 +13,7 @@ const Login = () => {
   
   const { login } = useAuth();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -24,7 +26,7 @@ const Login = () => {
     
     // Simple validation
     if (!formData.email || !formData.password) {
-      setFormError('Please enter both email and password');
+      setFormError(t('auth.login.error.required'));
       return;
     }
     
@@ -56,7 +58,7 @@ const Login = () => {
         data: error.response?.data,
         message: error.message
       });
-      setFormError(error.response?.data?.message || 'Failed to login. Please check your credentials.');
+      setFormError(error.response?.data?.message || t('auth.login.error.credentials'));
     } finally {
       setIsSubmitting(false);
     }
@@ -66,35 +68,38 @@ const Login = () => {
     <div className="auth-container">
       <div className="auth-form-container">
         <div className="auth-header">
-          <h2>Login to Droppin</h2>
-          <p>Enter your credentials to access your account</p>
+          <h2>{t('auth.login.title')}</h2>
+          <p>{t('auth.login.subtitle')}</p>
         </div>
         
         {formError && <div className="auth-error">{formError}</div>}
         
         <form onSubmit={handleSubmit} className="auth-form">
           <div className="form-group">
-            <label htmlFor="email">Email</label>
+            <label htmlFor="email">{t('auth.login.email')}</label>
             <input
               type="email"
               id="email"
               name="email"
               value={formData.email}
               onChange={handleChange}
-              placeholder="Enter your email"
+              placeholder={t('auth.login.emailPlaceholder')}
+              className="form-control auth-input"
+              dir="auto"
               required
             />
           </div>
           
           <div className="form-group">
-            <label htmlFor="password">Password</label>
+            <label htmlFor="password">{t('auth.login.password')}</label>
             <input
               type="password"
               id="password"
               name="password"
               value={formData.password}
               onChange={handleChange}
-              placeholder="Enter your password"
+              placeholder={t('auth.login.passwordPlaceholder')}
+              className="form-control"
               required
             />
           </div>
@@ -104,18 +109,18 @@ const Login = () => {
             className="auth-button" 
             disabled={isSubmitting}
           >
-            {isSubmitting ? 'Logging in...' : 'Login'}
+            {isSubmitting ? t('auth.login.buttonLoading') : t('auth.login.button')}
           </button>
         </form>
         
         <div className="auth-links">
           <p>
-            Don't have an account?{' '}
-            <Link to="/register">Register</Link>
+            {t('auth.login.noAccount')}{' '}
+            <Link to="/register">{t('auth.login.registerLink')}</Link>
           </p>
           <div className="role-specific-links">
-            <Link to="/register/shop">Register as a Shop</Link>
-            <Link to="/register/driver">Register as a Driver</Link>
+            <Link to="/register/shop">{t('auth.login.registerShop')}</Link>
+            <Link to="/register/driver">{t('auth.login.registerDriver')}</Link>
           </div>
         </div>
       </div>

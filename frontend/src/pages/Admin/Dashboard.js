@@ -2,12 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { adminService, packageService } from '../../services/api';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faUser, faStore, faTruck, faBox, faSearch, faEye, faCheck, faTimes, faChartBar, faUserPlus, faTimes as faClose } from '@fortawesome/free-solid-svg-icons';
+import { faUser, faStore, faTruck, faBox, faSearch, faEye, faCheck, faTimes, faChartBar, faUserPlus, faTimes as faClose, faSpinner } from '@fortawesome/free-solid-svg-icons';
+import { useTranslation } from 'react-i18next';
+import { useLocation, useNavigate } from 'react-router-dom';
 import './AdminDashboard.css';
 
 const AdminDashboard = () => {
   const { currentUser } = useAuth();
-  const [activeTab, setActiveTab] = useState('pending');
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState('users');
   const [users, setUsers] = useState([]);
   const [packages, setPackages] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -32,6 +36,22 @@ const AdminDashboard = () => {
   const [statusMessage, setStatusMessage] = useState(null);
   const [confirmationDialogTitle, setConfirmationDialogTitle] = useState('');
   const [confirmationDialogText, setConfirmationDialogText] = useState('');
+  const { t } = useTranslation();
+
+  // Set active tab based on URL path
+  useEffect(() => {
+    const path = location.pathname.split('/');
+    const tab = path[path.length - 1];
+    if (tab && ['pending', 'users', 'shops', 'drivers', 'packages'].includes(tab)) {
+      setActiveTab(tab);
+    }
+  }, [location]);
+
+  // Update URL when tab changes
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    navigate(`/admin/${tab}`);
+  };
 
   // Function to fetch users of a specific role
   const fetchUsers = async (role) => {
@@ -71,6 +91,10 @@ const AdminDashboard = () => {
       }
     } catch (error) {
       console.error(`Error fetching ${role} data:`, error);
+      setStatusMessage({
+        type: 'error',
+        text: t('admin.errors.fetchUsers', { role: t(`admin.roles.${role}`) })
+      });
     } finally {
       setLoading(false);
     }
@@ -115,14 +139,17 @@ const AdminDashboard = () => {
         }
       } catch (error) {
         console.error('Error loading data:', error.response?.data || error.message || error);
-        alert(`Failed to load data: ${error.response?.data?.message || error.message || 'Unknown error'}`)
+        setStatusMessage({
+          type: 'error',
+          text: t('admin.errors.loadData')
+        });
       } finally {
         setLoading(false);
       }
     };
     
     fetchData();
-  }, [activeTab]);
+  }, [activeTab, t]);
 
   // Handle approval or rejection of a user
   const handleApproval = async (entityId, userType, approve = true, selectedEntity = {}) => {
@@ -132,12 +159,12 @@ const AdminDashboard = () => {
     if (!approve && (userType === 'shop' || userType === 'driver')) {
       const entityName = selectedEntity?.name || 
                          (selectedEntity?.businessName || 
-                         'this ' + userType);
+                         t(`admin.roles.${userType}`));
       
       // Set confirmation dialog content
-      setConfirmationDialogTitle(`Confirm ${userType} Rejection`);
+      setConfirmationDialogTitle(t('admin.confirmation.rejectTitle', { type: t(`admin.roles.${userType}`) }));
       setConfirmationDialogText(
-        `Are you sure you want to reject ${entityName}? This will PERMANENTLY DELETE the ${userType} account from the system.`
+        t('admin.confirmation.rejectText', { name: entityName, type: t(`admin.roles.${userType}`) })
       );
       
       // Create the action function to be executed when confirmed
@@ -151,7 +178,10 @@ const AdminDashboard = () => {
           console.error(`Error rejecting ${userType}:`, error);
           setStatusMessage({
             type: 'error',
-            text: `Error rejecting ${userType}: ${error.response?.data?.message || error.message || 'Unknown error'}`
+            text: t('admin.errors.reject', { 
+              type: t(`admin.roles.${userType}`),
+              error: error.response?.data?.message || error.message || t('common.unknownError')
+            })
           });
           setShowConfirmationDialog(false);
         }
@@ -168,283 +198,74 @@ const AdminDashboard = () => {
   
   // Process the actual approval/rejection
   const processApproval = async (entityId, userType, approve, selectedEntity = {}) => {
-    setLoading(true); // Show loading state while processing
-    let response;
-    let success = false; // Track if the operation was successful
-    // Store the entity type for refreshing the right tab later
-    const approvedEntityType = userType === 'shop' ? 'shops' : userType === 'driver' ? 'drivers' : 'users'
+    setLoading(true);
+    let success = false;
+    const approvedEntityType = userType === 'shop' ? 'shops' : userType === 'driver' ? 'drivers' : 'users';
 
     try {
       console.log('Approval request:', { entityId, approve, userType, selectedEntity });
       // Call the appropriate API endpoint based on user type
       switch(userType) {
         case 'shop':
-          // For shops, we have multiple potential IDs to try
-          // Strategy 1: Try using the shopId if available
           let idToUse;
           
           if (selectedEntity && selectedEntity.shopId) {
             idToUse = selectedEntity.shopId;
             console.log('Using shopId from selectedEntity:', idToUse);
           } 
-          // Strategy 2: If there's a userId attribute, try that (in case it's expecting userId)
           else if (selectedEntity && selectedEntity.userId) {
             idToUse = selectedEntity.userId;
             console.log('Using userId from selectedEntity:', idToUse);
           }
-          // Strategy 3: Use the passed entityId as a last resort
           else {
             idToUse = entityId;
             console.log('Using passed entityId:', idToUse);
           }
           
-          console.log('Approving shop with ID:', idToUse);
-          try {
-            response = await adminService.approveShop(idToUse, approve);
-            console.log('Shop approval response:', response);
-            // Check if we have a successful response with the new format
-            if (response.data && (response.data.success === true || response.data.message)) {
-              success = true;
-            }
-          } catch (error) {
-            console.error('First attempt at shop approval failed:', error);
-            // If the first attempt failed, try with the user ID directly
-            if (selectedEntity && selectedEntity.id) {
-              console.log('Trying again with user ID:', selectedEntity.id);
-              try {
-                response = await adminService.approveShop(selectedEntity.id, approve);
-                console.log('Second attempt shop approval response:', response);
-                // Check if we have a successful response with the new format
-                if (response.data && (response.data.success === true || response.data.message)) {
-                  success = true;
-                }
-              } catch (secondError) {
-                console.error('Second attempt at shop approval also failed:', secondError);
-                // If the approval actually succeeded in the backend but we got an error in the frontend
-                // We'll refresh the data anyway
-                success = true;
-              }
+          if (approve) {
+            await adminService.approveShop(idToUse);
             } else {
-              // The approval actually might have succeeded even if we get an error
-              // We'll assume success and refresh data
-              success = true;
+            await adminService.rejectShop(idToUse);
             }
-          }
+          success = true;
           break;
           
         case 'driver':
-          // For drivers, we have multiple potential IDs to try
-          // Strategy 1: Try using the driverId if available
-          let driverIdToUse;
-          
-          if (selectedEntity && selectedEntity.driverId) {
-            driverIdToUse = selectedEntity.driverId;
-            console.log('Using driverId from selectedEntity:', driverIdToUse);
-          } 
-          // Strategy 2: If there's a userId attribute, try that (in case it's expecting userId)
-          else if (selectedEntity && selectedEntity.userId) {
-            driverIdToUse = selectedEntity.userId;
-            console.log('Using userId from selectedEntity:', driverIdToUse);
-          }
-          // Strategy 3: Use the passed entityId as a last resort
-          else {
-            driverIdToUse = entityId;
-            console.log('Using passed entityId:', driverIdToUse);
-          }
-          
-          console.log('Approving driver with ID:', driverIdToUse);
-          try {
-            response = await adminService.approveDriver(driverIdToUse, approve);
-            console.log('Driver approval response:', response);
-            // Check if we have a successful response with the new format
-            if (response.data && (response.data.success === true || response.data.message)) {
-              success = true;
-            }
-          } catch (error) {
-            console.error('First attempt at driver approval failed:', error);
-            // If the first attempt failed, try with the user ID directly
-            if (selectedEntity && selectedEntity.id) {
-              console.log('Trying again with user ID:', selectedEntity.id);
-              try {
-                response = await adminService.approveDriver(selectedEntity.id, approve);
-                console.log('Second attempt driver approval response:', response);
-                // Check if we have a successful response with the new format
-                if (response.data && (response.data.success === true || response.data.message)) {
-                  success = true;
-                }
-              } catch (secondError) {
-                console.error('Second attempt at driver approval also failed:', secondError);
-                // If the approval actually succeeded in the backend but we got an error in the frontend
-                // We'll refresh the data anyway
-                success = true;
-              }
+          if (approve) {
+            await adminService.approveDriver(entityId);
             } else {
-              // The approval actually might have succeeded even if we get an error
-              // We'll assume success and refresh data
-              success = true;
+            await adminService.rejectDriver(entityId);
             }
-          }
+          success = true;
           break;
           
         default:
-          response = await adminService.approveUser(entityId, approve);
+          throw new Error(t('admin.errors.invalidUserType'));
       }
       
-      // Update the local state by replacing the updated user
-      const updatedUsers = users.map(user => {
-        // Match based on appropriate ID depending on the user type
-        if (userType === 'shop' && user.shopId === selectedEntity.shopId) {
-          return { ...user, isApproved: approve };
-        } else if (userType === 'driver' && user.driverId === selectedEntity.driverId) {
-          return { ...user, isApproved: approve };
-        } else if (user.id === entityId) {
-          return { ...user, isApproved: approve };
-        }
-        return user;
-      });
-      
-      setUsers(updatedUsers);
-      
-      // Check if any of our shop approval attempts succeeded when we get here
-      if (userType === 'shop') {
-        // If we had a successful shop approval (even with API errors), update the UI
         if (success) {
-          // Update the local state by replacing the updated user
-          const updatedUsers = users.map(user => {
-            if (userType === 'shop' && user.shopId === selectedEntity.shopId) {
-              return { ...user, isApproved: approve };
-            } else if (user.id === entityId) {
-              return { ...user, isApproved: approve };
-            }
-            return user;
-          });
-          
-          setUsers(updatedUsers);
-          
-          // Show success message
-          alert(`${userType.charAt(0).toUpperCase() + userType.slice(1)} ${approve ? 'approved' : 'rejected'} successfully`);
-          
-          // Always refresh the pending approvals data to remove approved/rejected entities
-          try {
-            // Refresh all relevant data regardless of active tab
-            const pendingResponse = await adminService.getPendingApprovals();
-            setUsers(pendingResponse.data);
-            
-            // Also refresh the dashboard stats
-            const statsResponse = await adminService.getDashboardStats();
-            setStats(statsResponse.data);
-            
-            // If we're on a different tab, also refresh that tab's data
-            if (activeTab !== 'pending') {
-              console.log('Refreshing data for active tab:', activeTab);
-              // Load specific data based on active tab without calling fetchData directly
-              switch (activeTab) {
-                case 'users':
-                  await fetchUsers('user');
-                  break;
-                case 'shops':
-                  await fetchUsers('shop');
-                  break;
-                case 'drivers':
-                  await fetchUsers('driver');
-                  break;
-                case 'packages':
-                  const packagesResponse = await adminService.getPackages();
-                  setPackages(packagesResponse.data || []);
-                  break;
-                default:
-                  break;
-              }
-            }
-          } catch (refreshError) {
-            console.error('Error refreshing data after approval:', refreshError);
-          }
-          
-          // Exit here since we successfully handled the shop approval
-          return;
-        }
-      }
-      
-      // For other entity types or if shop approval wasn't explicitly successful
-      // Show success message
-      if (success) {
-        alert(`${userType.charAt(0).toUpperCase() + userType.slice(1)} ${approve ? 'approved' : 'rejected'} successfully`);
+        setStatusMessage({
+          type: 'success',
+          text: t(`admin.success.${approve ? 'approve' : 'reject'}`, {
+            type: t(`admin.roles.${userType}`)
+          })
+        });
         
-        // Comprehensive data refresh to ensure the entity disappears from pending list
-        // and appears in the appropriate tab immediately
-        try {
-          console.log('Starting comprehensive data refresh for approval changes');
-          
-          // 1. Always refresh the pending approvals list first
-          const pendingResponse = await adminService.getPendingApprovals();
-          console.log('Updated pending approvals:', pendingResponse.data);
-          // Only update users list if we're on the pending tab
-          if (activeTab === 'pending') {
-            setUsers(pendingResponse.data);
-          }
-          
-          // 2. Always refresh the dashboard stats for up-to-date counts
-          const statsResponse = await adminService.getDashboardStats();
-          setStats(statsResponse.data);
-          
-          // 3. Update the specific entity tab that the approved entity belongs to
-          console.log('Refreshing data for entity type:', approvedEntityType);
-          if (userType === 'shop') {
-            const shopsResponse = await adminService.getShops();
-            // If we're on the shops tab, update the UI with fresh data
-            if (activeTab === 'shops') {
-              setUsers(shopsResponse.data || []);
-            }
-          } else if (userType === 'driver') {
-            const driversResponse = await adminService.getDrivers();
-            // If we're on the drivers tab, update the UI with fresh data
-            if (activeTab === 'drivers') {
-              setUsers(driversResponse.data || []);
-            }
-          }
-          
-          // 4. Refresh any other active tab if needed
-          if (activeTab !== 'pending' && activeTab !== approvedEntityType) {
-            console.log('Refreshing current active tab data:', activeTab);
-            // Load specific data based on active tab
-            switch (activeTab) {
-              case 'users':
-                await fetchUsers('user');
-                break;
-              case 'shops':
-                await fetchUsers('shop');
-                break;
-              case 'drivers':
-                await fetchUsers('driver');
-                break;
-              case 'packages':
-                const packagesResponse = await adminService.getPackages();
-                setPackages(packagesResponse.data || []);
-                break;
-              default:
-                break;
-            }
-          }
-          
-          console.log('Comprehensive data refresh completed after approval');
-        } catch (refreshError) {
-          console.error('Error refreshing data after approval:', refreshError);
-        } finally {
-          setLoading(false); // Ensure loading state is turned off
-        }
-      } else {
-        setLoading(false); // Turn off loading state if not successful
+        // Refresh the data
+        fetchUsers(approvedEntityType);
       }
     } catch (error) {
-      console.error('Error handling approval:', error);
-      setLoading(false); // Ensure loading state is turned off even if an error occurs
-      // Only show error message if we didn't determine success already
-      if (!success) {
-        alert(`Error: ${error.response?.data?.message || 'Failed to update approval status'}`);
-      } else {
-        // If there was an error but we know the approval succeeded, show success message
-        alert(`${userType.charAt(0).toUpperCase() + userType.slice(1)} ${approve ? 'approved' : 'rejected'} successfully`);
-      }
+      console.error('Error processing approval:', error);
+      setStatusMessage({
+        type: 'error',
+        text: t('admin.errors.processApproval', {
+          action: t(`admin.actions.${approve ? 'approve' : 'reject'}`),
+          type: t(`admin.roles.${userType}`),
+          error: error.response?.data?.message || error.message || t('common.unknownError')
+        })
+      });
+        } finally {
+      setLoading(false);
     }  
   };
 
@@ -506,92 +327,54 @@ const AdminDashboard = () => {
   
   // Render driver assignment modal
   const renderAssignDriverModal = () => {
-    const filteredDrivers = getFilteredDrivers();
-    
+    if (!showAssignDriverModal) return null;
+
     return (
-      <div className={`modal-overlay ${showAssignDriverModal ? 'show' : ''}`} onClick={() => setShowAssignDriverModal(false)}>
-        <div className="modal-content" onClick={e => e.stopPropagation()}>
+      <div className={`modal-overlay ${showAssignDriverModal ? 'show' : ''}`}>
+        <div className="modal-content">
           <div className="modal-header">
-            <h2>
-              <FontAwesomeIcon icon={faUserPlus} /> Assign Driver to Package
-            </h2>
-            <button 
-              className="close-btn"
-              onClick={() => setShowAssignDriverModal(false)}
-            >
-              <FontAwesomeIcon icon={faClose} />
-            </button>
+            <h2>{t('admin.assignDriver.title')}</h2>
+            <button className="close-btn" onClick={() => setShowAssignDriverModal(false)}>×</button>
           </div>
-          
           <div className="modal-body">
-            {selectedPackage && (
-              <div className="package-info">
-                <h3>Package Information</h3>
-                <div className="details-grid">
-                  <div className="detail-item">
-                    <span className="label">Tracking Number:</span>
-                    <span>{selectedPackage.trackingNumber}</span>
-                  </div>
-                  <div className="detail-item">
-                    <span className="label">Description:</span>
-                    <span>{selectedPackage.packageDescription}</span>
-                  </div>
-                  <div className="detail-item">
-                    <span className="label">Recipient:</span>
-                    <span>{selectedPackage.deliveryContactName}</span>
-                  </div>
-                  <div className="detail-item">
-                    <span className="label">Delivery Address:</span>
-                    <span>{selectedPackage.deliveryAddress}</span>
-                  </div>
-                </div>
-              </div>
-            )}
-            
+            <div className="package-info">
+              <h3>{t('admin.assignDriver.packageDetails')}</h3>
+              <p>{t('admin.assignDriver.from', { city: selectedPackage?.pickupAddress?.city })}</p>
+              <p>{t('admin.assignDriver.to', { city: selectedPackage?.deliveryAddress?.city })}</p>
+            </div>
             <div className="search-drivers">
-              <h3>Select a Driver</h3>
               <div className="search-bar">
-                <FontAwesomeIcon icon={faSearch} className="search-icon" />
-                <input 
-                  type="text" 
-                  placeholder="Search drivers by name, email, or phone..." 
+                <FontAwesomeIcon icon={faSearch} />
+                <input
+                  type="text"
                   value={driverSearchTerm}
                   onChange={(e) => setDriverSearchTerm(e.target.value)}
+                  placeholder={t('admin.assignDriver.searchPlaceholder')}
                 />
               </div>
-              
-              {filteredDrivers.length === 0 ? (
-                <div className="empty-state">
-                  <p>No drivers found{driverSearchTerm ? ' matching your search' : ''}.</p>
-                </div>
-              ) : (
-                <div className="drivers-list">
-                  {filteredDrivers.map(driver => (
-                    <div 
-                      key={driver.id} 
-                      className="driver-item"
-                      onClick={() => assignDriverToPackage(driver.driverId)}
-                    >
-                      <div className="driver-info">
-                        <div className="driver-name">{driver.name}</div>
-                        <div className="driver-details">
-                          <span>{driver.phone}</span>
-                          <span className="dot-separator">•</span>
-                          <span className="vehicle-type">{driver.vehicleType || 'N/A'}</span>
-                          {driver.licensePlate && (
-                            <>
-                              <span className="dot-separator">•</span>
-                              <span className="license-plate">{driver.licensePlate}</span>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                      <button className="assign-btn" disabled={assigningDriver}>
-                        {assigningDriver ? 'Assigning...' : 'Assign'}
-                      </button>
+            </div>
+            <div className="drivers-list">
+              {getFilteredDrivers().map(driver => (
+                <div key={driver.id} className="driver-item">
+                  <div className="driver-info">
+                    <h4 className="driver-name">{driver.name || t('admin.driver.unnamed', { id: driver.id })}</h4>
+                    <div className="driver-details">
+                      <span>{driver.email}</span>
+                      <span className="dot-separator">•</span>
+                      <span>{driver.phone}</span>
                     </div>
-                  ))}
+                  </div>
+                  <button
+                    className="assign-btn"
+                    onClick={() => assignDriverToPackage(driver.id)}
+                    disabled={assigningDriver}
+                  >
+                    {assigningDriver ? t('admin.assignDriver.assigning') : t('common.assign')}
+                  </button>
                 </div>
+              ))}
+              {getFilteredDrivers().length === 0 && (
+                <p className="no-data">{t('admin.assignDriver.noDrivers')}</p>
               )}
             </div>
           </div>
@@ -642,9 +425,8 @@ const AdminDashboard = () => {
       const search = searchTerm.toLowerCase();
       filtered = filtered.filter(pkg => 
         pkg.trackingNumber?.toLowerCase().includes(search) ||
-        pkg.pickupContactName?.toLowerCase().includes(search) ||
-        (pkg.shop?.businessName || '').toLowerCase().includes(search) ||
-        pkg.status?.toLowerCase().includes(search)
+        pkg.pickupContact?.toLowerCase().includes(search) ||
+        pkg.deliveryContact?.toLowerCase().includes(search)
       );
     }
 
@@ -818,119 +600,90 @@ const AdminDashboard = () => {
   const renderUsersTable = () => {
     const filteredUsers = getFilteredUsers();
 
-    if (filteredUsers.length === 0) {
-      return (
-        <div className="empty-state">
-          <p>No {activeTab} found{searchTerm ? ' matching your search' : ''}.</p>
-        </div>
-      );
-    }
-
     return (
-      <table className="admin-table">
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Email</th>
-            <th>Role</th>
-            <th>Status</th>
-            {activeTab === 'shops' && (
-              <>
-                <th>To Collect ($)</th>
-                <th>Collected ($)</th>
-              </>
-            )}
-            {activeTab === 'drivers' && (
-              <>
-                <th>Assigned Packages</th>
-                <th>Delivered</th>
-              </>
-            )}
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredUsers.map(user => (
-            <tr key={user.id}>
-              <td>
-                {getRoleIcon(user.role)} {user.name || 'N/A'}
-              </td>
-              <td>{user.email}</td>
-              <td className="role-cell">
-                <span className={`role-badge role-${user.role}`}>
-                  {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
-                </span>
-              </td>
-              <td>
-                <span className={`status-badge ${user.isApproved ? 'status-approved' : 'status-pending'}`}>
-                  {user.isApproved ? 'Approved' : 'Pending'}
-                </span>
-              </td>
-              {activeTab === 'shops' && (
-                <>
-                  <td className="financial-cell">
-                    ${parseFloat(user.ToCollect || 0).toFixed(2)}
-                  </td>
-                  <td className="financial-cell">
-                    ${parseFloat(user.TotalCollected || 0).toFixed(2)}
-                  </td>
-                </>
-              )}
-              {activeTab === 'drivers' && (
-                <>
-                  <td className="count-cell">
-                    {user.stats?.assignedPackages || 0}
-                  </td>
-                  <td className="count-cell">
-                    {user.stats?.deliveredPackages || 0}
-                  </td>
-                </>
-              )}
-              <td className="actions-cell">
-                {!user.isApproved && (
-                  <>
-                    <button 
-                      className="action-btn approve-btn"
-                      onClick={() => {
-                        const userType = user.role === 'shop' ? 'shop' : (user.role === 'driver' ? 'driver' : 'user');
-                        // Use shopId or driverId if available, otherwise use user.id
-                        const entityId = userType === 'shop' ? (user.shopId || user.id) : 
-                                        userType === 'driver' ? (user.driverId || user.id) : 
-                                        user.id;
-                        handleApproval(entityId, userType, true, user);
-                      }}
-                      title="Approve"
-                    >
-                      <FontAwesomeIcon icon={faCheck} />
-                    </button>
-                    <button 
-                      className="action-btn reject-btn"
-                      onClick={() => {
-                        const userType = user.role === 'shop' ? 'shop' : (user.role === 'driver' ? 'driver' : 'user');
-                        // Use shopId or driverId if available, otherwise use user.id
-                        const entityId = userType === 'shop' ? (user.shopId || user.id) : 
-                                        userType === 'driver' ? (user.driverId || user.id) : 
-                                        user.id;
-                        handleApproval(entityId, userType, false, user);
-                      }}
-                      title="Reject"
-                    >
-                      <FontAwesomeIcon icon={faTimes} />
-                    </button>
-                  </>
-                )}
-                <button 
-                  className="action-btn view-btn"
-                  onClick={() => viewDetails(user, user.role)}
-                  title="View Details"
-                >
-                  <FontAwesomeIcon icon={faEye} />
-                </button>
-              </td>
+      <div className="table-container">
+        <table className="admin-table">
+          <thead>
+            <tr>
+              <th>{t('admin.table.name')}</th>
+              <th>{t('admin.table.email')}</th>
+              <th className="role-header">{t('admin.table.role')}</th>
+              <th className="status-header">{t('admin.table.status')}</th>
+              <th className="actions-header">{t('admin.table.actions')}</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {filteredUsers.length === 0 ? (
+              <tr>
+                <td colSpan="5">
+                  <div className="empty-state">
+                    <p>{t('admin.table.noData')}</p>
+                  </div>
+                </td>
+              </tr>
+            ) : (
+              filteredUsers.map(user => (
+                <tr key={user.id}>
+                  <td className="name-cell">
+                    {getRoleIcon(user.role)}
+                    {user.name || user.businessName || t('common.unnamed')}
+                  </td>
+                  <td className="email-cell">{user.email}</td>
+                  <td className="role-cell">
+                    <span className={`role-badge ${user.role}-role`}>
+                      {t(`admin.roles.${user.role}`)}
+                    </span>
+                  </td>
+                  <td className="status-cell">
+                    <span className={`status-badge ${user.isApproved ? 'approved' : 'pending'}`}>
+                      {user.isApproved ? t('admin.status.approved') : t('admin.status.pending')}
+                    </span>
+                  </td>
+                  <td className="actions-cell">
+                    {!user.isApproved && (
+                      <>
+                        <button 
+                          className="action-btn approve-btn"
+                          onClick={() => {
+                            const userType = user.role === 'shop' ? 'shop' : (user.role === 'driver' ? 'driver' : 'user');
+                            const entityId = userType === 'shop' ? (user.shopId || user.id) : 
+                                            userType === 'driver' ? (user.driverId || user.id) : 
+                                            user.id;
+                            handleApproval(entityId, userType, true, user);
+                          }}
+                          title={t('common.approve')}
+                        >
+                          <FontAwesomeIcon icon={faCheck} />
+                        </button>
+                        <button 
+                          className="action-btn reject-btn"
+                          onClick={() => {
+                            const userType = user.role === 'shop' ? 'shop' : (user.role === 'driver' ? 'driver' : 'user');
+                            const entityId = userType === 'shop' ? (user.shopId || user.id) : 
+                                            userType === 'driver' ? (user.driverId || user.id) : 
+                                            user.id;
+                            handleApproval(entityId, userType, false, user);
+                          }}
+                          title={t('common.reject')}
+                        >
+                          <FontAwesomeIcon icon={faTimes} />
+                        </button>
+                      </>
+                    )}
+                    <button 
+                      className="action-btn view-btn"
+                      onClick={() => viewDetails(user, user.role)}
+                      title={t('common.view')}
+                    >
+                      <FontAwesomeIcon icon={faEye} />
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
     );
   };
 
@@ -938,515 +691,314 @@ const AdminDashboard = () => {
   const renderPackagesTable = () => {
     const filteredPackages = getFilteredPackages();
 
-    if (filteredPackages.length === 0) {
-      return (
-        <div className="empty-state">
-          <p>No packages found{searchTerm ? ' matching your search' : ''}.</p>
-        </div>
-      );
-    }
-
     return (
-      <table className="admin-table">
-        <thead>
-          <tr>
-            <th>Tracking Number</th>
-            <th>Description</th>
-            <th>Status</th>
-            <th>From</th>
-            <th>To</th>
-            <th>COD Amount</th>
-            <th>Driver</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredPackages.map(pkg => (
-            <tr key={pkg.id}>
-              <td>{pkg.trackingNumber}</td>
-              <td>{pkg.packageDescription}</td>
-              <td>
-                <span className={`status-badge status-${pkg.status}`}>
-                  {pkg.status.charAt(0).toUpperCase() + pkg.status.slice(1)}
-                </span>
-              </td>
-              <td>{pkg.pickupContactName || 'N/A'}</td>
-              <td>{pkg.deliveryContactName || 'N/A'}</td>
-              <td className="financial-cell">${parseFloat(pkg.codAmount || 0).toFixed(2)}
-                {pkg.codAmount > 0 && <span className={`payment-status ${pkg.isPaid ? 'paid' : 'unpaid'}`}>
-                  {pkg.isPaid ? ' (Paid)' : ' (Unpaid)'}
-                </span>}
-              </td>
-              <td>{pkg.driver ? pkg.driver.contact?.name || `Driver #${pkg.driver.id}` : 'Not Assigned'}</td>
-              <td className="actions-cell">
-                <button 
-                  className="action-btn view-btn"
-                  onClick={() => viewDetails(pkg, 'package')}
-                  title="View Details"
-                >
-                  <FontAwesomeIcon icon={faEye} />
-                </button>
-                {pkg.status === 'pending' && (
-                  <button 
-                    className="action-btn assign-btn"
-                    onClick={() => openAssignDriverModal(pkg)}
-                    title="Assign Driver"
-                  >
-                    <FontAwesomeIcon icon={faUserPlus} />
-                  </button>
-                )}
-                {pkg.driverId && (
-                  <span className="driver-assigned-badge" title="Driver Assigned">
-                    <FontAwesomeIcon icon={faTruck} />
-                  </span>
-                )}
-              </td>
+      <div className="table-container">
+        <table className="admin-table">
+          <thead>
+            <tr>
+              <th className="tracking-number-cell">{t('admin.table.trackingNumber')}</th>
+              <th className="description-cell">{t('admin.table.description')}</th>
+              <th className="status-cell">{t('admin.table.status')}</th>
+              <th className="contact-header">{t('admin.table.pickupContact')}</th>
+              <th className="contact-header">{t('admin.table.deliveryContact')}</th>
+              <th className="amount-cell">{t('admin.table.codAmount')}</th>
+              <th className="driver-header">{t('admin.table.driver')}</th>
+              <th className="actions-header">{t('admin.table.actions')}</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {filteredPackages.length === 0 ? (
+              <tr>
+                <td colSpan="8">
+                  <div className="empty-state">
+                    <p>{t('admin.table.noData')}</p>
+                  </div>
+                </td>
+              </tr>
+            ) : (
+              filteredPackages.map(pkg => (
+                <tr key={pkg.id}>
+                  <td className="tracking-number-cell">{pkg.trackingNumber}</td>
+                  <td className="description-cell">{pkg.description}</td>
+                  <td className="status-cell">
+                    <span className={`status-badge status-${pkg.status}`}>
+                      {t(`admin.status.${pkg.status}`)}
+                    </span>
+                  </td>
+                  <td className="contact-cell">{pkg.pickupContactName || t('common.notAvailable')}</td>
+                  <td className="contact-cell">{pkg.deliveryContactName || t('common.notAvailable')}</td>
+                  <td className="amount-cell financial-cell">
+                    ${parseFloat(pkg.codAmount || 0).toFixed(2)}
+                    {pkg.codAmount > 0 && (
+                      <span className={`payment-status ${pkg.isPaid ? 'paid' : 'unpaid'}`}>
+                        {pkg.isPaid ? t('admin.status.paid') : t('admin.status.unpaid')}
+                      </span>
+                    )}
+                  </td>
+                  <td className="driver-cell">
+                    {pkg.driver ? 
+                      pkg.driver.contact?.name || t('admin.driver.unnamed', { id: pkg.driver.id }) 
+                      : t('admin.driver.notAssigned')
+                    }
+                  </td>
+                  <td className="actions-cell">
+                    <button 
+                      className="action-btn view-btn"
+                      onClick={() => viewDetails(pkg, 'package')}
+                      title={t('common.view')}
+                    >
+                      <FontAwesomeIcon icon={faEye} />
+                    </button>
+                    {pkg.status === 'pending' && (
+                      <button 
+                        className="action-btn assign-btn"
+                        onClick={() => openAssignDriverModal(pkg)}
+                        title={t('common.assign')}
+                      >
+                        <FontAwesomeIcon icon={faUserPlus} />
+                      </button>
+                    )}
+                    {pkg.driverId && (
+                      <span className="driver-assigned-badge" title={t('admin.driver.assigned')}>
+                        <FontAwesomeIcon icon={faTruck} />
+                      </span>
+                    )}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
     );
   };
 
   // Render details modal
   const renderDetailsModal = () => {
-  if (!selectedEntity) return null;
-
-  const entityType = selectedEntity.entityType;
-  const isUser = entityType === 'user';
-  const isShop = entityType === 'shop' || (isUser && selectedEntity.role === 'shop');
-  const isDriver = entityType === 'driver' || (isUser && selectedEntity.role === 'driver');
-  const isPackage = entityType === 'package';
-  
-  // Format address from individual fields for display
-  const formatAddress = (entity) => {
-    if (!entity) return 'N/A';
+    if (!showDetailsModal || !selectedEntity) return null;
     
-    // For users, the address is stored as separate fields
-    if (entity.street) {
-      const parts = [
-        entity.street,
-        entity.city && entity.state ? `${entity.city}, ${entity.state}` : (entity.city || entity.state || ''),
-        entity.zipCode,
-        entity.country
-      ].filter(Boolean);
-      
-      return parts.length > 0 ? parts.join(', ') : 'N/A';
-    }
+    const entityType = selectedEntity.entityType;
+    const isUser = entityType === 'user';
+    const isShop = entityType === 'shop' || (isUser && selectedEntity.role === 'shop');
+    const isDriver = entityType === 'driver' || (isUser && selectedEntity.role === 'driver');
+    const isPackage = entityType === 'package';
     
-    // For shops, the address is stored as a single string
-    return entity.address || 'N/A';
-  };
-
-  return (
-    <div className={`modal-overlay ${showDetailsModal ? 'show' : ''}`} onClick={() => setShowDetailsModal(false)}>
-      <div className="modal-content" onClick={e => e.stopPropagation()}>
-        <div className="modal-header">
-          <h2>
-            {isUser && (
-              <>
-                {getRoleIcon(selectedEntity.role)} {selectedEntity.name}
-              </>
-            )}
-            {isPackage && (
-              <>
-                <FontAwesomeIcon icon={faBox} /> Package #{selectedEntity.trackingNumber}
-              </>
-            )}
-          </h2>
-          {(isUser || isShop || isDriver) && (
-            <div className={`status-badge ${selectedEntity.isApproved ? 'approved' : 'pending'}`}>
-              {selectedEntity.isApproved ? 'Approved' : 'Pending Approval'}
-            </div>
-          )}
-          {isPackage && (
-            <div className={`status-badge ${selectedEntity.status}`}>
-              {selectedEntity.status}
-            </div>
-          )}
-        </div>
-        
-        {/* User, Shop, or Driver details */}
-        {(isUser || isShop || isDriver) && (
-          <div className="details-grid">
-            <div className="detail-item">
-              <span className="label">Name:</span>
-              <span>{selectedEntity.name}</span>
-            </div>
-            <div className="detail-item">
-              <span className="label">Email:</span>
-              <span>{selectedEntity.email}</span>
-            </div>
-            <div className="detail-item">
-              <span className="label">Phone:</span>
-              <span>{selectedEntity.phone}</span>
-            </div>
-            <div className="detail-item">
-              <span className="label">Role:</span>
-              <span className="role-badge">
-                {getRoleIcon(selectedEntity.role)} {selectedEntity.role}
-              </span>
-            </div>
-            <div className="detail-item">
-              <span className="label">Joined:</span>
-              <span>{new Date(selectedEntity.createdAt).toLocaleDateString()}</span>
-            </div>
-            
-            {/* Address */}
-            <div className="detail-item full-width">
-              <span className="label">Address:</span>
-              <span>{formatAddress(selectedEntity)}</span>
-            </div>
-            
-            {/* Additional details for shop */}
+    return (
+      <div className={`modal-overlay ${showDetailsModal ? 'show' : ''}`} onClick={() => setShowDetailsModal(false)}>
+        <div className="modal-content" onClick={e => e.stopPropagation()}>
+          <div className="modal-header">
+            <h2>
+              {getRoleIcon(entityType)}
+              {selectedEntity.name || selectedEntity.businessName || t('common.unnamed')}
+            </h2>
+            <button 
+              className="close-btn"
+              onClick={() => setShowDetailsModal(false)}
+            >
+              ×
+            </button>
+          </div>
+          <div className="modal-body">
             {isShop && (
-              <>
-                <div className="detail-item full-width">
-                  <span className="label">Business Information:</span>
-                  <div className="nested-details">
-                    <div className="nested-detail">
-                      <span className="nested-label">Business Name:</span>
-                      <span>{selectedEntity.businessName || 'N/A'}</span>
-                    </div>
-                    <div className="nested-detail">
-                      <span className="nested-label">Business Type:</span>
-                      <span>{selectedEntity.businessType || 'N/A'}</span>
-                    </div>
-                    <div className="nested-detail">
-                      <span className="nested-label">Registration #:</span>
-                      <span>{selectedEntity.registrationNumber || 'N/A'}</span>
-                    </div>
-                    <div className="nested-detail">
-                      <span className="nested-label">Tax ID:</span>
-                      <span>{selectedEntity.taxId || 'N/A'}</span>
-                    </div>
-                  </div>
+              <div className="shop-details">
+                <div className="detail-row">
+                  <label>{t('admin.shop.businessName')}:</label>
+                  <span>{selectedEntity.businessName || t('common.notAvailable')}</span>
+                </div>
+                <div className="detail-row">
+                  <label>{t('admin.shop.businessType')}:</label>
+                  <span>{selectedEntity.businessType || t('common.notAvailable')}</span>
+                </div>
+                <div className="detail-row">
+                  <label>{t('admin.shop.registrationNumber')}:</label>
+                  <span>{selectedEntity.registrationNumber || t('common.notAvailable')}</span>
+                </div>
+                <div className="detail-row">
+                  <label>{t('admin.shop.taxId')}:</label>
+                  <span>{selectedEntity.taxId || t('common.notAvailable')}</span>
+                </div>
+              </div>
+            )}
+            
+            {isDriver && (
+              <div className="driver-details">
+                <div className="detail-row">
+                  <label>{t('admin.driver.name')}:</label>
+                  <span>{selectedEntity.name || t('common.notAvailable')}</span>
+                </div>
+                <div className="detail-row">
+                  <label>{t('admin.driver.phone')}:</label>
+                  <span>{selectedEntity.phone || t('common.notAvailable')}</span>
+                </div>
+                <div className="detail-row">
+                  <label>{t('admin.driver.email')}:</label>
+                  <span>{selectedEntity.email || t('common.notAvailable')}</span>
+                </div>
+                <div className="detail-row">
+                  <label>{t('admin.driver.vehicleInfo')}:</label>
+                  <span>{selectedEntity.vehicleType && selectedEntity.vehicleMake ? 
+                    `${selectedEntity.vehicleType} - ${selectedEntity.vehicleMake} ${selectedEntity.vehicleModel}` : 
+                    t('common.notAvailable')}</span>
+                </div>
+                <div className="detail-row">
+                  <label>{t('admin.driver.licenseNumber')}:</label>
+                  <span>{selectedEntity.driverLicense || t('common.notAvailable')}</span>
+                </div>
+                <div className="detail-row">
+                  <label>{t('admin.table.assignedPackages')}:</label>
+                  <span>{selectedEntity.stats?.assignedPackages || 0}</span>
+                </div>
+                <div className="detail-row">
+                  <label>{t('admin.table.delivered')}:</label>
+                  <span>{selectedEntity.stats?.deliveredPackages || 0}</span>
+                </div>
+              </div>
+            )}
+            
+            {isPackage && (
+              <div className="package-details">
+                <div className="detail-row">
+                  <label>{t('admin.package.weight')}:</label>
+                  <span>{selectedEntity.weight ? `${selectedEntity.weight} kg` : t('common.notAvailable')}</span>
+                </div>
+                <div className="detail-row">
+                  <label>{t('admin.package.dimensions')}:</label>
+                  <span>{selectedEntity.dimensions || t('common.notAvailable')}</span>
                 </div>
                 
-                {/* Financial information */}
-                <div className="detail-item full-width">
-                  <span className="label">Financial Summary:</span>
-                  <div className="nested-details">
-                    <div className="nested-detail">
-                      <span className="nested-label">Total to Collect:</span>
-                      <span className="financial-value">
-                        ${parseFloat(selectedEntity.ToCollect || 0).toFixed(2)}
-                      </span>
-                    </div>
-                    <div className="nested-detail">
-                      <span className="nested-label">Total Collected:</span>
-                      <span className="financial-value">
-                        ${parseFloat(selectedEntity.TotalCollected || 0).toFixed(2)}
-                      </span>
-                    </div>
-                    <div className="nested-detail">
-                      <span className="nested-label">Package Count:</span>
-                      <span>{selectedEntity.financialData?.packageCount || 0}</span>
-                    </div>
-                  </div>
+                <h3>{t('admin.package.pickup')}:</h3>
+                <div className="detail-row">
+                  <label>{t('admin.package.contactName')}:</label>
+                  <span>{selectedEntity.pickupContactName || t('common.notAvailable')}</span>
+                </div>
+                <div className="detail-row">
+                  <label>{t('admin.package.contactPhone')}:</label>
+                  <span>{selectedEntity.pickupContactPhone || t('common.notAvailable')}</span>
+                </div>
+                <div className="detail-row">
+                  <label>{t('admin.package.address')}:</label>
+                  <span>{selectedEntity.pickupAddress || t('common.notAvailable')}</span>
                 </div>
                 
-                {/* Shop packages section */}
-                {selectedEntity.shopId && (
-                  <div className="detail-item full-width">
-                    <span className="label">Recent Packages:</span>
-                    <button 
-                      className="load-packages-btn"
-                      onClick={() => loadShopPackages(selectedEntity.shopId)}
-                    >
-                      Load Packages
-                    </button>
-                    
-                    {shopPackages.length > 0 && (
-                      <div className="shop-packages-table">
-                        <table>
-                          <thead>
-                            <tr>
-                              <th>Tracking #</th>
-                              <th>Status</th>
-                              <th>COD Amount</th>
-                              <th>Payment Status</th>
-                              <th>Actions</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {shopPackages.map(pkg => (
-                              <tr key={pkg.id}>
-                                <td>{pkg.trackingNumber}</td>
-                                <td>
-                                  <span className={`status-badge status-${pkg.status}`}>
-                                    {pkg.status}
-                                  </span>
-                                </td>
-                                <td className="financial-cell">${parseFloat(pkg.codAmount || 0).toFixed(2)}</td>
-                                <td>
-                                  <span className={`payment-status ${pkg.isPaid ? 'paid' : 'unpaid'}`}>
-                                    {pkg.isPaid ? 'Paid' : 'Unpaid'}
-                                  </span>
-                                </td>
-                                <td>
-                                  <button 
-                                    className="action-btn view-btn"
-                                    onClick={() => viewDetails(pkg, 'package')}
-                                    title="View Details"
-                                  >
-                                    <FontAwesomeIcon icon={faEye} />
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                        
-                        {/* Shop payment settlement */}
-                        {shopPackagesWithUnpaidMoney.length > 0 && (
-                          <div className="settlement-section">
-                            <div className="settlement-title">Settle Payments with Shop</div>
-                            <div className="settlement-amount">Total amount to pay to shop: ${parseFloat(shopUnpaidTotal).toFixed(2)}</div>
-                            <button 
-                              className="settle-btn" 
-                              onClick={() => prepareSettleShopPayment(selectedEntity.shopId)}
-                            >
-                              Mark as Settled
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
+                <h3>{t('admin.package.delivery')}:</h3>
+                <div className="detail-row">
+                  <label>{t('admin.package.contactName')}:</label>
+                  <span>{selectedEntity.deliveryContactName || t('common.notAvailable')}</span>
+                </div>
+                <div className="detail-row">
+                  <label>{t('admin.package.contactPhone')}:</label>
+                  <span>{selectedEntity.deliveryContactPhone || t('common.notAvailable')}</span>
+                </div>
+                <div className="detail-row">
+                  <label>{t('admin.package.address')}:</label>
+                  <span>{selectedEntity.deliveryAddress || t('common.notAvailable')}</span>
+                </div>
+                
+                {selectedEntity.Driver && (
+                  <>
+                    <h3>{t('admin.package.driver')}:</h3>
+                    <div className="detail-row">
+                      <label>{t('admin.driver.name')}:</label>
+                      <span>{selectedEntity.Driver.User ? selectedEntity.Driver.User.name : t('common.notAvailable')}</span>
+                    </div>
+                    <div className="detail-row">
+                      <label>{t('admin.driver.phone')}:</label>
+                      <span>{selectedEntity.Driver.User ? selectedEntity.Driver.User.phone : t('common.notAvailable')}</span>
+                    </div>
+                    <div className="detail-row">
+                      <label>{t('admin.driver.email')}:</label>
+                      <span>{selectedEntity.Driver.User ? selectedEntity.Driver.User.email : t('common.notAvailable')}</span>
+                    </div>
+                    <div className="detail-row">
+                      <label>{t('admin.driver.vehicleInfo')}:</label>
+                      <span>{selectedEntity.Driver.vehicleType && selectedEntity.Driver.vehicleMake ? 
+                        `${selectedEntity.Driver.vehicleType} - ${selectedEntity.Driver.vehicleMake} ${selectedEntity.Driver.vehicleModel}` : 
+                        t('common.notAvailable')}</span>
+                    </div>
+                    <div className="detail-row">
+                      <label>{t('admin.driver.licenseNumber')}:</label>
+                      <span>{selectedEntity.Driver.driverLicense || t('common.notAvailable')}</span>
+                    </div>
+                  </>
                 )}
+              </div>
+            )}
+
+            {!isShop && !isDriver && !isPackage && (
+              <div className="user-details">
+                <div className="detail-row">
+                  <label>{t('admin.table.name')}:</label>
+                  <span>{selectedEntity.name || t('common.notAvailable')}</span>
+                </div>
+                <div className="detail-row">
+                  <label>{t('admin.table.email')}:</label>
+                  <span>{selectedEntity.email || t('common.notAvailable')}</span>
+                </div>
+                <div className="detail-row">
+                  <label>{t('admin.table.role')}:</label>
+                  <span>{t(`admin.roles.${selectedEntity.role}`)}</span>
+                </div>
+                <div className="detail-row">
+                  <label>{t('admin.table.status')}:</label>
+                  <span>{selectedEntity.isApproved ? t('admin.status.approved') : t('admin.status.pending')}</span>
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="modal-actions">
+            {activeTab === 'pending' && (
+              <>
+                <button 
+                  className="btn approve-btn"
+                  onClick={() => {
+                    let entityId;
+                    if (selectedEntity.shopId) {
+                      entityId = selectedEntity.shopId;
+                      handleApproval(entityId, 'shop', true, selectedEntity);
+                    } else if (selectedEntity.driverId) {
+                      entityId = selectedEntity.driverId;
+                      handleApproval(entityId, 'driver', true, selectedEntity);
+                    } else {
+                      entityId = selectedEntity.id;
+                      handleApproval(entityId, true, 'user');
+                    }
+                    setShowDetailsModal(false);
+                  }}
+                >
+                  <FontAwesomeIcon icon={faCheck} /> {t('common.approve')}
+                </button>
+                <button 
+                  className="btn reject-btn"
+                  onClick={() => {
+                    let entityId;
+                    if (selectedEntity.shopId) {
+                      entityId = selectedEntity.shopId;
+                      handleApproval(entityId, 'shop', false, selectedEntity);
+                    } else if (selectedEntity.driverId) {
+                      entityId = selectedEntity.driverId;
+                      handleApproval(entityId, 'driver', false, selectedEntity);
+                    } else {
+                      entityId = selectedEntity.id;
+                      handleApproval(entityId, false, 'user');
+                    }
+                    setShowDetailsModal(false);
+                  }}
+                >
+                  <FontAwesomeIcon icon={faTimes} /> {t('common.reject')}
+                </button>
               </>
             )}
-            
-            {/* Additional details for driver */}
-            {isDriver && (
-              <div className="detail-item full-width">
-                <span className="label">Vehicle Information:</span>
-                <div className="nested-details">
-                  <div className="nested-detail">
-                    <span className="nested-label">Vehicle Type:</span>
-                    <span className="detail-value">
-                      {selectedEntity.vehicleType ? (
-                        <span className="vehicle-type">{selectedEntity.vehicleType}</span>
-                      ) : 'Not provided'}
-                    </span>
-                  </div>
-                  <div className="nested-detail">
-                    <span className="nested-label">License Plate:</span>
-                    <span className="detail-value">
-                      {selectedEntity.licensePlate ? (
-                        <span className="license-plate">{selectedEntity.licensePlate}</span>
-                      ) : 'Not provided'}
-                    </span>
-                  </div>
-                  <div className="nested-detail">
-                    <span className="nested-label">Model:</span>
-                    <span className="detail-value">
-                      {selectedEntity.model ? (
-                        <span className="vehicle-model">{selectedEntity.model}</span>
-                      ) : 'Not provided'}
-                    </span>
-                  </div>
-                  <div className="nested-detail">
-                    <span className="nested-label">Color:</span>
-                    <span className="detail-value">
-                      {selectedEntity.color ? (
-                        <span className="vehicle-color" 
-                              style={{display: 'inline-block', 
-                                     marginRight: '5px',
-                                     width: '12px', 
-                                     height: '12px', 
-                                     backgroundColor: selectedEntity.color.toLowerCase(),
-                                     border: '1px solid #ccc',
-                                     borderRadius: '2px'}}></span>
-                      ) : ''}
-                      {selectedEntity.color || 'Not provided'}
-                    </span>
-                  </div>
-                  <div className="nested-detail">
-                    <span className="nested-label">Driver License:</span>
-                    <span className="detail-value">
-                      {selectedEntity.driverLicense ? (
-                        <span className="driver-license">{selectedEntity.driverLicense}</span>
-                      ) : 'Not provided'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            )}
+            <button 
+              className="btn close-btn"
+              onClick={() => setShowDetailsModal(false)}
+            >
+              {t('common.close')}
+            </button>
           </div>
-        )}
-        
-        {/* Package details */}
-        {isPackage && (
-          <div className="details-grid">
-            <div className="detail-item">
-              <span className="label">Tracking Number:</span>
-              <span>{selectedEntity.trackingNumber}</span>
-            </div>
-            <div className="detail-item">
-              <span className="label">Status:</span>
-              <span className={`status-badge ${selectedEntity.status}`}>
-                {selectedEntity.status}
-              </span>
-            </div>
-            <div className="detail-item">
-              <span className="label">Created:</span>
-              <span>{new Date(selectedEntity.createdAt).toLocaleDateString()}</span>
-            </div>
-            <div className="detail-item full-width">
-              <span className="label">Description:</span>
-              <span>{selectedEntity.packageDescription || 'No description'}</span>
-            </div>
-            
-            {/* Package dimensions and weight */}
-            <div className="detail-item">
-              <span className="label">Weight:</span>
-              <span>{selectedEntity.weight ? `${selectedEntity.weight} kg` : 'N/A'}</span>
-            </div>
-            <div className="detail-item">
-              <span className="label">Dimensions:</span>
-              <span>{selectedEntity.dimensions || 'N/A'}</span>
-            </div>
-            
-            {/* Pickup address */}
-            <div className="detail-item full-width">
-              <span className="label">Pickup Details:</span>
-              <div className="nested-details">
-                <div className="nested-detail">
-                  <span className="nested-label">Contact Name:</span>
-                  <span>{selectedEntity.pickupContactName || 'N/A'}</span>
-                </div>
-                <div className="nested-detail">
-                  <span className="nested-label">Contact Phone:</span>
-                  <span>{selectedEntity.pickupContactPhone || 'N/A'}</span>
-                </div>
-                <div className="nested-detail">
-                  <span className="nested-label">Address:</span>
-                  <span>{selectedEntity.pickupAddress || 'N/A'}</span>
-                </div>
-              </div>
-            </div>
-            
-            {/* Delivery address */}
-            <div className="detail-item full-width">
-              <span className="label">Delivery Details:</span>
-              <div className="nested-details">
-                <div className="nested-detail">
-                  <span className="nested-label">Contact Name:</span>
-                  <span>{selectedEntity.deliveryContactName || 'N/A'}</span>
-                </div>
-                <div className="nested-detail">
-                  <span className="nested-label">Contact Phone:</span>
-                  <span>{selectedEntity.deliveryContactPhone || 'N/A'}</span>
-                </div>
-                <div className="nested-detail">
-                  <span className="nested-label">Address:</span>
-                  <span>{selectedEntity.deliveryAddress || 'N/A'}</span>
-                </div>
-              </div>
-            </div>
-            
-            {/* Driver details - show only if package has been assigned to a driver */}
-            {false && (
-              <div className="detail-item full-width driver-details-section">
-                <span className="label">Assigned Driver:</span>
-                <div className="nested-details">
-                  {selectedEntity.Driver ? (
-                    <>
-                      <div className="nested-detail">
-                        <span className="nested-label">Name:</span>
-                        <span>{selectedEntity.Driver.User ? selectedEntity.Driver.User.name : 'N/A'}</span>
-                      </div>
-                      <div className="nested-detail">
-                        <span className="nested-label">Phone:</span>
-                        <span>{selectedEntity.Driver.User ? selectedEntity.Driver.User.phone : 'N/A'}</span>
-                      </div>
-                      <div className="nested-detail">
-                        <span className="nested-label">Email:</span>
-                        <span>{selectedEntity.Driver.User ? selectedEntity.Driver.User.email : 'N/A'}</span>
-                      </div>
-                      <div className="nested-detail">
-                        <span className="nested-label">Vehicle:</span>
-                        <span>
-                          {selectedEntity.Driver.vehicleType ? 
-                            `${selectedEntity.Driver.vehicleType}${selectedEntity.Driver.model ? ` - ${selectedEntity.Driver.model}` : ''}${selectedEntity.Driver.color ? ` (${selectedEntity.Driver.color})` : ''}` : 
-                            'N/A'}
-                        </span>
-                      </div>
-                      <div className="nested-detail">
-                        <span className="nested-label">License:</span>
-                        <span>{selectedEntity.Driver.driverLicense || 'N/A'}</span>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="nested-detail">
-                      <span>Driver ID: {selectedEntity.driverId} (Details not available)</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-        
-        <div className="modal-actions">
-          {/* Approve/Reject buttons for pending users */}
-          {!selectedEntity.isApproved && (isUser || isShop || isDriver) && (
-            <>
-              <button 
-                className="btn approve-btn"
-                onClick={() => {
-                  // Get the appropriate ID based on entity type
-                  let entityId;
-                  if (isShop) {
-                    entityId = selectedEntity.shopId || selectedEntity.id;
-                    handleApproval(entityId, true, 'shop');
-                  } else if (isDriver) {
-                    entityId = selectedEntity.driverId || selectedEntity.id;
-                    handleApproval(entityId, true, 'driver');
-                  } else {
-                    entityId = selectedEntity.id;
-                    handleApproval(entityId, true, 'user');
-                  }
-                  setShowDetailsModal(false);
-                }}
-              >
-                <FontAwesomeIcon icon={faCheck} /> Approve
-              </button>
-              <button 
-                className="btn reject-btn"
-                onClick={() => {
-                  // Get the appropriate ID based on entity type
-                  let entityId;
-                  if (isShop) {
-                    entityId = selectedEntity.shopId || selectedEntity.id;
-                    handleApproval(entityId, false, 'shop');
-                  } else if (isDriver) {
-                    entityId = selectedEntity.driverId || selectedEntity.id;
-                    handleApproval(entityId, false, 'driver');
-                  } else {
-                    entityId = selectedEntity.id;
-                    handleApproval(entityId, false, 'user');
-                  }
-                  setShowDetailsModal(false);
-                }}
-              >
-                <FontAwesomeIcon icon={faTimes} /> Reject
-              </button>
-            </>
-          )}
-          <button 
-            className="btn close-btn"
-            onClick={() => setShowDetailsModal(false)}
-          >
-            Close
-          </button>
         </div>
       </div>
-    </div>
-  );
-};
+    );
+  };
 
   // Render confirmation dialog
   const renderConfirmationDialog = () => {
@@ -1455,20 +1007,20 @@ const AdminDashboard = () => {
     return (
       <div className="confirmation-overlay">
         <div className="confirmation-dialog warning-dialog">
-          <h3>{confirmationDialogTitle || 'Confirm Action'}</h3>
-          <p>{confirmationDialogText || 'Are you sure you want to proceed with this action?'}</p>
+          <h3>{confirmationDialogTitle || t('admin.confirmation.title')}</h3>
+          <p>{confirmationDialogText || t('admin.confirmation.text')}</p>
           <div className="confirmation-buttons">
             <button 
               className="btn-secondary"
               onClick={() => setShowConfirmationDialog(false)}
             >
-              Cancel
+              {t('common.cancel')}
             </button>
             <button 
               className="btn-primary danger"
               onClick={() => confirmAction && confirmAction()}
             >
-              Confirm
+              {t('common.confirm')}
             </button>
           </div>
         </div>
@@ -1495,105 +1047,148 @@ const AdminDashboard = () => {
 
   return (
     <div className="admin-dashboard">
-      {renderStatusMessage()}
-      {renderConfirmationDialog()}
-      <div className="dashboard-header">
-        <h1>Admin Dashboard</h1>
-        <div className="search-box">
-          <FontAwesomeIcon icon={faSearch} className="search-icon" />
-          <input 
-            type="text" 
-            placeholder="Search users, shops, drivers, or packages..." 
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+      <header className="admin-header">
+        <h1>{t('admin.title')}</h1>
+      </header>
+
+      <div className="dashboard-stats">
+        <div className="stats-section">
+          <h2>{t('admin.overview.users.title')}</h2>
+          <div className="stats-grid">
+            <div className="stat-card">
+              <FontAwesomeIcon icon={faUser} />
+              <div className="stat-info">
+                <h3>{t('admin.overview.users.total')}</h3>
+                <p>{stats.users.total}</p>
+              </div>
+            </div>
+            <div className="stat-card">
+              <FontAwesomeIcon icon={faStore} />
+              <div className="stat-info">
+                <h3>{t('admin.overview.users.shops')}</h3>
+                <p>{stats.users.shops}</p>
+              </div>
+            </div>
+            <div className="stat-card">
+              <FontAwesomeIcon icon={faTruck} />
+              <div className="stat-info">
+                <h3>{t('admin.overview.users.drivers')}</h3>
+                <p>{stats.users.drivers}</p>
+              </div>
+            </div>
+            <div className="stat-card">
+              <FontAwesomeIcon icon={faUser} />
+              <div className="stat-info">
+                <h3>{t('admin.overview.users.customers')}</h3>
+                <p>{stats.users.customers}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="stats-section">
+          <h2>{t('admin.overview.packages.title')}</h2>
+          <div className="stats-grid">
+            <div className="stat-card">
+              <FontAwesomeIcon icon={faBox} />
+              <div className="stat-info">
+                <h3>{t('admin.overview.packages.total')}</h3>
+                <p>{stats.packages.total}</p>
+              </div>
+            </div>
+            <div className="stat-card">
+              <FontAwesomeIcon icon={faBox} />
+              <div className="stat-info">
+                <h3>{t('admin.overview.packages.pending')}</h3>
+                <p>{stats.packages.pending}</p>
+              </div>
+            </div>
+            <div className="stat-card">
+              <FontAwesomeIcon icon={faTruck} />
+              <div className="stat-info">
+                <h3>{t('admin.overview.packages.inTransit')}</h3>
+                <p>{stats.packages.inTransit}</p>
+              </div>
+            </div>
+            <div className="stat-card">
+              <FontAwesomeIcon icon={faCheck} />
+              <div className="stat-info">
+                <h3>{t('admin.overview.packages.delivered')}</h3>
+                <p>{stats.packages.delivered}</p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
       
       <div className="dashboard-tabs">
         <button 
-          className={`tab-btn ${activeTab === 'pending' ? 'active' : ''}`}
-          onClick={() => setActiveTab('pending')}
+          className={`tab-button ${activeTab === 'users' ? 'active' : ''}`}
+          onClick={() => handleTabChange('users')}
         >
-          Pending Approvals
+          {t('admin.tabs.users')}
         </button>
         <button 
-          className={`tab-btn ${activeTab === 'users' ? 'active' : ''}`}
-          onClick={() => setActiveTab('users')}
+          className={`tab-button ${activeTab === 'shops' ? 'active' : ''}`}
+          onClick={() => handleTabChange('shops')}
         >
-          <FontAwesomeIcon icon={faUser} /> Users
+          {t('admin.tabs.shops')}
         </button>
         <button 
-          className={`tab-btn ${activeTab === 'shops' ? 'active' : ''}`}
-          onClick={() => setActiveTab('shops')}
+          className={`tab-button ${activeTab === 'drivers' ? 'active' : ''}`}
+          onClick={() => handleTabChange('drivers')}
         >
-          <FontAwesomeIcon icon={faStore} /> Shops
+          {t('admin.tabs.drivers')}
         </button>
         <button 
-          className={`tab-btn ${activeTab === 'drivers' ? 'active' : ''}`}
-          onClick={() => setActiveTab('drivers')}
+          className={`tab-button ${activeTab === 'packages' ? 'active' : ''}`}
+          onClick={() => handleTabChange('packages')}
         >
-          <FontAwesomeIcon icon={faTruck} /> Drivers
+          {t('admin.tabs.packages')}
         </button>
         <button 
-          className={`tab-btn ${activeTab === 'packages' ? 'active' : ''}`}
-          onClick={() => setActiveTab('packages')}
+          className={`tab-button ${activeTab === 'pending' ? 'active' : ''}`}
+          onClick={() => handleTabChange('pending')}
         >
-          <FontAwesomeIcon icon={faBox} /> Packages
+          {t('admin.tabs.pending')}
         </button>
-      </div>
-      
-      <div className="dashboard-stats">
-        <div className="stats-grid">
-          <div className="stat-card">
-            <div className="stat-icon">
-              <FontAwesomeIcon icon={faUser} />
-            </div>
-            <div className="stat-content">
-              <div className="stat-value">{stats.users.total}</div>
-              <div className="stat-label">Total Users</div>
-            </div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-icon">
-              <FontAwesomeIcon icon={faStore} />
-            </div>
-            <div className="stat-content">
-              <div className="stat-value">{stats.users.shops}</div>
-              <div className="stat-label">Shops</div>
-            </div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-icon">
-              <FontAwesomeIcon icon={faTruck} />
-            </div>
-            <div className="stat-content">
-              <div className="stat-value">{stats.users.drivers}</div>
-              <div className="stat-label">Drivers</div>
-            </div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-icon">
-              <FontAwesomeIcon icon={faBox} />
-            </div>
-            <div className="stat-content">
-              <div className="stat-value">{stats.packages.total}</div>
-              <div className="stat-label">Packages</div>
-            </div>
-          </div>
-        </div>
       </div>
       
       <div className="dashboard-content">
-        {loading ? (
-          <div className="loading-state">
-            <p>Loading data...</p>
+        <div className="search-section">
+          <div className="search-bar">
+            <FontAwesomeIcon icon={faSearch} />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder={t('common.search')}
+            />
           </div>
-        ) : activeTab !== 'packages' ? renderUsersTable() : renderPackagesTable()}
+        </div>
+        
+        {loading ? (
+          <div className="loading-container">
+            <div className="loading">
+              <FontAwesomeIcon icon={faSpinner} />
+              {t('common.loading')}
+            </div>
+          </div>
+        ) : (
+          <>
+            {activeTab === 'pending' && renderUsersTable()}
+            {activeTab === 'users' && renderUsersTable()}
+            {activeTab === 'shops' && renderUsersTable()}
+            {activeTab === 'drivers' && renderUsersTable()}
+            {activeTab === 'packages' && renderPackagesTable()}
+          </>
+        )}
       </div>
-
-      {renderDetailsModal()}
-      {renderAssignDriverModal()}
+      
+      {showDetailsModal && renderDetailsModal()}
+      {showAssignDriverModal && renderAssignDriverModal()}
+      {showConfirmationDialog && renderConfirmationDialog()}
+      {statusMessage && renderStatusMessage()}
     </div>
   );
 };

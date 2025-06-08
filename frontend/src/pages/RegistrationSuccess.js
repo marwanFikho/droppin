@@ -1,18 +1,20 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 
 const RegistrationSuccess = () => {
   const location = useLocation();
+  const { t } = useTranslation();
   const { userType, message } = location.state || { 
     userType: 'user', 
-    message: 'Your account has been registered successfully!' 
+    message: t('registration.success.defaultMessage')
   };
 
   return (
     <div className="auth-container">
       <div className="auth-form-container">
         <div className="auth-header">
-          <h2>Registration Successful!</h2>
+          <h2>{t('registration.success.title')}</h2>
         </div>
         
         <div className="success-message">
@@ -27,18 +29,22 @@ const RegistrationSuccess = () => {
           
           {userType === 'shop' && (
             <div className="approval-info">
-              <h3>What happens next?</h3>
+              <h3>{t('registration.success.shop.nextSteps.title')}</h3>
               <ol>
-                <li>Our administrators will review your shop information</li>
-                <li>You'll receive an email notification once your account is approved</li>
-                <li>After approval, you can sign in and start managing your deliveries</li>
+                <li>{t('registration.success.shop.nextSteps.steps.1')}</li>
+                <li>{t('registration.success.shop.nextSteps.steps.2')}</li>
+                <li>{t('registration.success.shop.nextSteps.steps.3')}</li>
               </ol>
             </div>
           )}
           
           <div className="action-buttons">
-            <Link to="/login" className="auth-button">Go to Login</Link>
-            <Link to="/" className="auth-button secondary">Back to Home</Link>
+            <Link to="/login" className="auth-button">
+              {t('registration.success.actions.login')}
+            </Link>
+            <Link to="/" className="auth-button secondary">
+              {t('registration.success.actions.home')}
+            </Link>
           </div>
         </div>
       </div>
