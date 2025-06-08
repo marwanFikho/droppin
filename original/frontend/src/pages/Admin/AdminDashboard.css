@@ -1,0 +1,720 @@
+/* Admin Dashboard Styles */
+.admin-dashboard {
+  padding: 20px;
+  background-color: #f8f9fa;
+  min-height: calc(100vh - 60px);
+}
+
+.admin-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.search-bar {
+  position: relative;
+  width: 300px;
+}
+
+.search-bar input {
+  width: 100%;
+  padding: 10px 15px 10px 40px;
+  border: 1px solid #ddd;
+  border-radius: 30px;
+  font-size: 16px;
+}
+
+.search-icon {
+  position: absolute;
+  left: 15px;
+  top: 12px;
+  color: #777;
+}
+
+.tabs {
+  display: flex;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #ddd;
+  overflow-x: auto;
+}
+
+.tab-btn {
+  padding: 10px 20px;
+  background: none;
+  border: none;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  position: relative;
+  color: #777;
+}
+
+.tab-btn.active {
+  color: #4a6cf7;
+}
+
+.tab-btn.active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background-color: #4a6cf7;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 30px;
+  background-color: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.admin-table th, 
+.admin-table td {
+  padding: 15px;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+}
+
+.admin-table th {
+  background-color: #f5f7ff;
+  font-weight: 600;
+  color: #444;
+}
+
+.admin-table tr:last-child td {
+  border-bottom: none;
+}
+
+.admin-table tr:hover {
+  background-color: #f9faff;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 40px;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.empty-state p {
+  font-size: 18px;
+  color: #777;
+}
+
+.role-badge, .status-badge {
+  display: inline-block;
+  padding: 5px 10px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.user-role {
+  background-color: #e3f2fd;
+  color: #0d47a1;
+}
+
+.shop-role {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+}
+
+.driver-role {
+  background-color: #fff3e0;
+  color: #e65100;
+}
+
+.admin-role {
+  background-color: #fce4ec;
+  color: #c2185b;
+}
+
+.status-badge.approved {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+}
+
+.status-badge.pending {
+  background-color: #fff3e0;
+  color: #e65100;
+}
+
+.status-badge.status-pending {
+  background-color: #e3f2fd;
+  color: #0d47a1;
+}
+
+.status-badge.status-assigned {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+}
+
+.status-badge.status-pickedup {
+  background-color: #fff3e0;
+  color: #e65100;
+}
+
+.status-badge.status-in-transit {
+  background-color: #ede7f6;
+  color: #4527a0;
+}
+
+.status-badge.status-delivered {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+}
+
+.actions-cell {
+  white-space: nowrap;
+}
+
+.action-btn {
+  background: none;
+  border: none;
+  width: 35px;
+  height: 35px;
+  border-radius: 50%;
+  cursor: pointer;
+  margin-right: 5px;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.view-btn {
+  color: #4a6cf7;
+  background-color: #e3f2fd;
+}
+
+.approve-btn {
+  color: #2e7d32;
+  background-color: #e8f5e9;
+}
+
+.reject-btn {
+  color: #c62828;
+  background-color: #ffebee;
+}
+
+.action-btn:hover {
+  opacity: 0.8;
+  transform: scale(1.05);
+}
+
+.role-icon, .package-icon {
+  margin-right: 8px;
+  color: #777;
+}
+
+.user-icon {
+  color: #0d47a1;
+}
+
+.shop-icon {
+  color: #2e7d32;
+}
+
+.driver-icon {
+  color: #e65100;
+}
+
+/* Modal styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s, visibility 0.3s;
+}
+
+.modal-overlay.show {
+  opacity: 1;
+  visibility: visible;
+}
+
+.modal-content {
+  background-color: white;
+  border-radius: 10px;
+  width: 90%;
+  max-width: 800px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+  transform: translateY(20px);
+  transition: transform 0.3s;
+}
+
+.modal-overlay.show .modal-content {
+  transform: translateY(0);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 25px;
+  border-bottom: 1px solid #eee;
+  background-color: #f8f9fa;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 20px;
+  color: #333;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.modal-body {
+  padding: 25px;
+}
+
+/* Financial data styling */
+.financial-cell, .count-cell {
+  text-align: right;
+  font-family: monospace;
+  font-weight: 500;
+}
+
+.financial-cell:after, .count-cell:after {
+  content: "";
+  display: inline-block;
+  width: 10px;
+}
+
+/* Confirmation dialog styling */
+.confirmation-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1500; /* Increased z-index to appear above modal */
+}
+
+.confirmation-dialog {
+  background-color: white;
+  border-radius: 8px;
+  padding: 20px;
+  max-width: 400px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.confirmation-dialog h3 {
+  margin-top: 0;
+  color: #333;
+}
+
+/* Warning dialog variant */
+.confirmation-dialog.warning-dialog {
+  border-top: 4px solid #dc3545;
+}
+
+.confirmation-dialog.warning-dialog h3 {
+  color: #dc3545;
+}
+
+.confirmation-dialog.warning-dialog p {
+  font-weight: 500;
+}
+
+/* Danger button */
+.btn-primary.danger {
+  background-color: #dc3545;
+  border-color: #dc3545;
+}
+
+.btn-primary.danger:hover {
+  background-color: #c82333;
+  border-color: #bd2130;
+}
+
+.confirmation-buttons {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 20px;
+  gap: 10px;
+}
+
+.btn-secondary {
+  background-color: #f0f0f0;
+  color: #333;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.btn-primary {
+  background-color: #4caf50;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+/* Status message styling */
+.status-message {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  padding: 12px 20px;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 1000;
+  animation: slideIn 0.3s ease-out;
+}
+
+.status-message p {
+  margin: 0;
+}
+
+.status-message .close-btn {
+  background: none;
+  border: none;
+  font-size: 18px;
+  margin-left: 15px;
+  cursor: pointer;
+  padding: 0 5px;
+}
+
+.status-message.success {
+  background-color: #dff2bf;
+  color: #4F8A10;
+  border-left: 4px solid #4F8A10;
+}
+
+.status-message.error {
+  background-color: #ffbaba;
+  color: #D8000C;
+  border-left: 4px solid #D8000C;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* Details styling */
+.details-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 15px;
+  margin-bottom: 25px;
+}
+
+.detail-item {
+  padding: 15px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.detail-item.full-width {
+  grid-column: 1 / -1;
+}
+
+.label {
+  display: block;
+  font-weight: 600;
+  color: #555;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.nested-details {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+  background-color: white;
+  padding: 15px;
+  border-radius: 6px;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.nested-detail {
+  margin-bottom: 10px;
+}
+
+.nested-label {
+  display: block;
+  font-weight: 500;
+  color: #666;
+  margin-bottom: 5px;
+  font-size: 13px;
+}
+
+.detail-value {
+  color: #333;
+  font-weight: 500;
+}
+
+.vehicle-type, .license-plate, .vehicle-model, .driver-license {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background-color: #e3f2fd;
+  color: #0d47a1;
+  font-weight: 500;
+}
+
+.status-timeline {
+  margin-top: 15px;
+}
+
+.timeline-item {
+  position: relative;
+  padding-left: 30px;
+  margin-bottom: 15px;
+  border-left: 2px solid #ddd;
+  padding-bottom: 15px;
+}
+
+.timeline-item:last-child {
+  margin-bottom: 0;
+  border-left: 2px solid transparent;
+}
+
+.timeline-item::before {
+  content: '';
+  position: absolute;
+  left: -8px;
+  top: 0;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background-color: #4a6cf7;
+}
+
+.timeline-date {
+  font-size: 14px;
+  color: #777;
+  margin-bottom: 5px;
+}
+
+.timeline-status {
+  margin-bottom: 5px;
+}
+
+.timeline-note {
+  color: #555;
+}
+
+.modal-actions {
+  display: flex;
+  padding: 20px 25px;
+  background-color: #f8f9fa;
+  border-top: 1px solid #eee;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.btn {
+  padding: 10px 20px;
+  border-radius: 5px;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s;
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.btn:active {
+  transform: translateY(0);
+}
+
+.approve-btn {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+}
+
+.reject-btn {
+  background-color: #ffebee;
+  color: #c62828;
+}
+
+.close-btn {
+  background-color: #f5f5f5;
+  color: #555;
+}
+
+.content-area {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+  overflow-x: auto;
+}
+
+/* Driver assignment modal styles */
+.package-info {
+  margin-bottom: 25px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #eee;
+}
+
+.search-drivers {
+  margin-top: 25px;
+}
+
+.search-drivers .search-bar {
+  margin-bottom: 20px;
+}
+
+.drivers-list {
+  max-height: 400px;
+  overflow-y: auto;
+  border: 1px solid #eee;
+  border-radius: 8px;
+}
+
+.driver-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px;
+  border-bottom: 1px solid #eee;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.driver-item:last-child {
+  border-bottom: none;
+}
+
+.driver-item:hover {
+  background-color: #f5f7ff;
+}
+
+.driver-info {
+  flex: 1;
+}
+
+.driver-name {
+  font-weight: 600;
+  font-size: 16px;
+  margin-bottom: 5px;
+  color: #333;
+}
+
+.driver-details {
+  color: #666;
+  font-size: 14px;
+}
+
+.dot-separator {
+  margin: 0 8px;
+  color: #aaa;
+}
+
+.assign-btn {
+  background-color: #4a6cf7;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  padding: 8px 15px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.assign-btn:hover {
+  background-color: #3a5ce5;
+  transform: translateY(-2px);
+}
+
+.assign-btn:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.driver-assigned-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background-color: #e8f5e9;
+  color: #2e7d32;
+  margin-left: 5px;
+}
+
+/* Driver details section in package modal */
+.driver-details-section {
+  background-color: #f0f7ff;
+  border-left: 4px solid #4a6cf7;
+}
+
+.driver-details-section .label {
+  color: #0d47a1;
+}
+
+.driver-details-section .nested-details {
+  background-color: rgba(255, 255, 255, 0.7);
+}
+
+.driver-details-section .nested-label {
+  color: #2c3e50;
+}
+
+/* Vehicle info styling */
+.vehicle-info {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 4px;
+  background-color: #e3f2fd;
+  color: #0d47a1;
+  font-weight: 500;
+  margin-top: 5px;
+}
+
+/* Driver note styling */
+.driver-note {
+  margin-top: 10px;
+  padding: 8px 12px;
+  background-color: #fff3e0;
+  border-left: 3px solid #ff9800;
+  color: #e65100;
+  font-size: 13px;
+  border-radius: 4px;
+}
