@@ -20,7 +20,7 @@ router.get('/profile', authenticate, authorize('shop'), async (req, res) => {
     // Use direct SQL query to get the exact values from the database
     const [rawShopData] = await sequelize.query(
       `SELECT id, userId, businessName, businessType, contactPersonName, contactPersonPhone, 
-              contactPersonEmail, createdAt, updatedAt, ToCollect, TotalCollected 
+              contactPersonEmail, address, createdAt, updatedAt, ToCollect, TotalCollected 
        FROM Shops WHERE id = :shopId`,
       {
         replacements: { shopId: shop.id },
@@ -106,6 +106,33 @@ router.get('/profile', authenticate, authorize('shop'), async (req, res) => {
     res.json(response);
   } catch (error) {
     console.error('Error fetching shop profile:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Update shop profile data
+router.put('/profile', authenticate, authorize('shop'), async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const shop = await Shop.findOne({ where: { userId } });
+    if (!shop) {
+      return res.status(404).json({ message: 'Shop not found' });
+    }
+    const { businessName, contactPerson, address } = req.body;
+    // Update fields if provided
+    if (businessName) shop.businessName = businessName;
+    if (contactPerson) {
+      shop.contactPersonName = contactPerson.name || shop.contactPersonName;
+      shop.contactPersonPhone = contactPerson.phone || shop.contactPersonPhone;
+      shop.contactPersonEmail = contactPerson.email || shop.contactPersonEmail;
+    }
+    if (address) {
+      shop.address = address; // Save as a single string
+    }
+    await shop.save();
+    res.json({ message: 'Shop profile updated successfully' });
+  } catch (error) {
+    console.error('Error updating shop profile:', error);
     res.status(500).json({ message: error.message });
   }
 });

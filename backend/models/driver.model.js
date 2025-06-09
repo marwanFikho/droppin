@@ -34,14 +34,6 @@ const Driver = sequelize.define('Driver', {
     type: DataTypes.BOOLEAN,
     defaultValue: true
   },
-  latitude: {
-    type: DataTypes.FLOAT,
-    allowNull: true
-  },
-  longitude: {
-    type: DataTypes.FLOAT,
-    allowNull: true
-  },
   locationUpdatedAt: {
     type: DataTypes.DATE,
     allowNull: true
@@ -51,6 +43,22 @@ const Driver = sequelize.define('Driver', {
     defaultValue: 0
   },
   totalDeliveries: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0
+  },
+  totalAssigned: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0
+  },
+  totalCancelled: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0
+  },
+  assignedToday: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0
+  },
+  activeAssign: {
     type: DataTypes.INTEGER,
     defaultValue: 0
   },

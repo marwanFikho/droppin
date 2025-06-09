@@ -1,15 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { Routes, Route, Link, useNavigate, Outlet } from 'react-router-dom';
+import { Routes, Route, Link, useNavigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { packageService } from '../../services/api';
 import CreatePackage from './CreatePackage';
+import ShopPackages from './ShopPackages';
+import ShopProfile from './ShopProfile';
+import NewPickup from './NewPickup';
+import { Pie } from 'react-chartjs-2';
+import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import './ShopDashboard.css';
+
+// Register ChartJS components
+ChartJS.register(ArcElement, Tooltip, Legend);
 
 // Create a context to share the refresh function with child components
 export const ShopDashboardContext = React.createContext();
 
 const ShopDashboard = () => {
-  const { currentUser, logout } = useAuth();
+  const { currentUser } = useAuth();
   const [packages, setPackages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -19,6 +27,12 @@ const ShopDashboard = () => {
     totalCollected: 0
   });
   const navigate = useNavigate();
+  const location = useLocation();
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [packageToCancel, setPackageToCancel] = useState(null);
+  const [cancelError, setCancelError] = useState(null);
+  // Add search state
+  const [search, setSearch] = useState('');
   
   // Function to refresh dashboard data - can be called from any child component
   const refreshDashboard = () => {
@@ -94,9 +108,71 @@ const ShopDashboard = () => {
     fetchData();
   }, [refreshData]); // Add refreshData to dependencies to trigger refresh when it changes
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
+  // Prepare chart data
+  const getChartData = () => {
+    const pending = packages.filter(p => p.status === 'pending').length;
+    const inTransit = packages.filter(p => ['assigned', 'pickedup', 'in-transit'].includes(p.status)).length;
+    const delivered = packages.filter(p => p.status === 'delivered').length;
+
+    return {
+      labels: ['Pending', 'In Transit', 'Delivered'],
+      datasets: [
+        {
+          data: [pending, inTransit, delivered],
+          backgroundColor: ['#ffd700', '#1e90ff', '#32cd32'],
+          borderColor: ['#ffd700', '#1e90ff', '#32cd32'],
+          borderWidth: 1,
+        },
+      ],
+    };
+  };
+
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'bottom',
+        labels: {
+          boxWidth: 12,
+          padding: 8,
+          font: {
+            size: 11
+          }
+        }
+      }
+    }
+  };
+
+  const handleCancel = async () => {
+    if (!packageToCancel) return;
+    try {
+      await packageService.updatePackageStatus(packageToCancel.id, { status: 'cancelled' });
+      setRefreshData(Date.now());
+      setShowCancelModal(false);
+      setPackageToCancel(null);
+      setCancelError(null);
+    } catch (err) {
+      setCancelError(err.response?.data?.message || 'Failed to cancel package.');
+    }
+  };
+
+  // Filter packages for dashboard display
+  const filterDashboardPackages = () => {
+    let filtered = packages;
+    if (search.trim()) {
+      const s = search.trim().toLowerCase();
+      filtered = filtered.filter(pkg =>
+        (pkg.trackingNumber && pkg.trackingNumber.toLowerCase().includes(s)) ||
+        (pkg.packageDescription && pkg.packageDescription.toLowerCase().includes(s)) ||
+        (pkg.deliveryContactName && pkg.deliveryContactName.toLowerCase().includes(s))
+      );
+    }
+    return filtered;
+  };
+
+  const handleStatClick = (tab) => {
+    navigate(`/shop/packages?tab=${tab}`);
   };
 
   return (
@@ -108,161 +184,179 @@ const ShopDashboard = () => {
             <p>Shop Portal</p>
           </div>
         
-        <div className="sidebar-menu">
-          <Link to="/shop" className="menu-item active">
-            <i className="menu-icon">📊</i>
-            Dashboard
-          </Link>
-          <Link to="/shop/packages" className="menu-item">
-            <i className="menu-icon">📦</i>
-            Packages
-          </Link>
-          <Link to="/shop/create-package" className="menu-item">
-            <i className="menu-icon">➕</i>
-            New Package
-          </Link>
-          <Link to="/shop/profile" className="menu-item">
-            <i className="menu-icon">👤</i>
-            Profile
-          </Link>
-          <button onClick={handleLogout} className="menu-item logout">
-            <i className="menu-icon">🚪</i>
-            Logout
-          </button>
+          <div className="sidebar-menu">
+            <Link to="/shop" className={`menu-item${location.pathname === '/shop' ? ' active' : ''}`}> 
+              <i className="menu-icon">📊</i>
+              Dashboard
+            </Link>
+            <Link to="/shop/packages" className={`menu-item${location.pathname.startsWith('/shop/packages') ? ' active' : ''}`}> 
+              <i className="menu-icon">📦</i>
+              Packages
+            </Link>
+            <Link to="/shop/create-package" className={`menu-item${location.pathname === '/shop/create-package' ? ' active' : ''}`}> 
+              <i className="menu-icon">➕</i>
+              New Package
+            </Link>
+            <Link to="/shop/new-pickup" className={`menu-item${location.pathname === '/shop/new-pickup' ? ' active' : ''}`}> 
+              <i className="menu-icon">🚚</i>
+              New Pickup
+            </Link>
+            <Link to="/shop/profile" className={`menu-item${location.pathname === '/shop/profile' ? ' active' : ''}`}> 
+              <i className="menu-icon">👤</i>
+              Profile
+            </Link>
+          </div>
         </div>
-      </div>
-      
-      <Routes>
-        <Route path="create-package" element={<CreatePackage />} />
-        <Route path="*" element={
-          <div className="dashboard-content">
-            <div className="dashboard-header">
-              <div className="welcome-message">
-                <h1>Welcome, {currentUser?.name || 'Shop Owner'}</h1>
-                <p>Manage your deliveries with ease</p>
-              </div>
-              <div className="user-info">
-                <span className="business-name">{currentUser?.businessName}</span>
-                <span className="user-role">Shop Account</span>
-              </div>
-            </div>
-            
-            <div className="dashboard-stats">
-              <div className="stat-card">
-                <div className="stat-value">{packages.filter(p => p.status === 'pending').length}</div>
-                <div className="stat-label">Pending</div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-value">{packages.filter(p => ['assigned', 'pickedup', 'in-transit'].includes(p.status)).length}</div>
-                <div className="stat-label">In Transit</div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-value">{packages.filter(p => p.status === 'delivered').length}</div>
-                <div className="stat-label">Delivered</div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-value">{packages.length}</div>
-                <div className="stat-label">Total</div>
-              </div>
-            </div>
-            
-            <div className="dashboard-stats financial-stats">
-              <div className="stat-card">
-                {/* Use raw database value directly for ToCollect */}
-                <div className="stat-value">
-                  ${(parseInt(financialStats.rawToCollect || 0)).toFixed(2)}
+        
+        <Routes>
+          <Route path="create-package" element={<CreatePackage />} />
+          <Route path="packages" element={<ShopPackages />} />
+          <Route path="profile" element={<ShopProfile />} />
+          <Route path="new-pickup" element={<NewPickup />} />
+          <Route path="*" element={
+            <div className="dashboard-content">
+              <div className="dashboard-header">
+                <div className="welcome-message">
+                  <h1>Welcome, {currentUser?.name || 'Shop Owner'}</h1>
+                  <p>Manage your deliveries with ease</p>
                 </div>
-                <div className="stat-label">To Collect (Pending COD Collection)</div>
-              </div>
-              <div className="stat-card">
-                {/* Use raw database value directly for TotalCollected */}
-                <div className="stat-value">
-                  ${(parseInt(financialStats.rawTotalCollected || 0)).toFixed(2)}
+                <div className="user-info">
+                  <span className="business-name">{currentUser?.businessName}</span>
+                  <span className="user-role">Shop Account</span>
                 </div>
-                <div className="stat-label">Collected (Awaiting Settlement)</div>
               </div>
-              <div className="stat-card">
-                <div className="stat-value">
-                  {(financialStats.totalToCollect + financialStats.totalCollected) > 0 ? 
-                    `${((financialStats.totalCollected / (financialStats.totalToCollect + financialStats.totalCollected)) * 100).toFixed(1)}%` : 
-                    '0%'}
-                </div>
-                <div className="stat-label">Collection Rate</div>
-              </div>
-            </div>
-            
-            <div className="dashboard-main">
-              <div className="recent-packages">
-                <div className="section-header">
-                  <h2>Recent Packages</h2>
-                  <Link to="/shop/packages" className="view-all">View All</Link>
-                </div>
-                
-                {loading ? (
-                  <div className="loading-message">Loading recent packages...</div>
-                ) : error ? (
-                  <div className="error-message">{error}</div>
-                ) : packages.length === 0 ? (
-                  <div className="empty-state">
-                    <p>No packages found. Create your first delivery package now!</p>
-                    <Link to="/shop/create-package" className="action-button">Create Package</Link>
+              
+              <div className="dashboard-stats-container">
+                {/* Package Stats and Chart Row */}
+                <div className="stats-and-chart-row">
+                  {/* Package Stats */}
+                  <div className="dashboard-stats package-stats">
+                    <div className="stat-card" style={{cursor:'pointer'}} onClick={() => handleStatClick('pending')}>
+                      <div className="stat-value">{packages.filter(p => p.status === 'pending').length}</div>
+                      <div className="stat-label">Pending</div>
+                    </div>
+                    <div className="stat-card" style={{cursor:'pointer'}} onClick={() => handleStatClick('in-transit')}>
+                      <div className="stat-value">{packages.filter(p => ['assigned', 'pickedup', 'in-transit'].includes(p.status)).length}</div>
+                      <div className="stat-label">In Transit</div>
+                    </div>
+                    <div className="stat-card" style={{cursor:'pointer'}} onClick={() => handleStatClick('delivered')}>
+                      <div className="stat-value">{packages.filter(p => p.status === 'delivered').length}</div>
+                      <div className="stat-label">Delivered</div>
+                    </div>
+                    <div className="stat-card" style={{cursor:'pointer'}} onClick={() => handleStatClick('all')}>
+                      <div className="stat-value">{packages.length}</div>
+                      <div className="stat-label">Total</div>
+                    </div>
                   </div>
-                ) : (
-                  <div className="package-list">
-                    {packages.slice(0, 5).map((pkg) => (
-                      <div key={pkg.id} className="package-item">
-                        <div className="package-info">
-                          <div className="tracking-number">{pkg.trackingNumber}</div>
-                          <div className="package-description">{pkg.packageDescription}</div>
-                        </div>
-                        <div className="package-details">
-                          <div className="package-row">
-                            <div className={`package-status status-${pkg.status}`}>
-                              {pkg.status.charAt(0).toUpperCase() + pkg.status.slice(1)}
+
+                  {/* Package Distribution Chart */}
+                  <div className="chart-container">
+                    <h3>Package Distribution</h3>
+                    <div className="chart-wrapper">
+                      <Pie data={getChartData()} options={chartOptions} />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Financial Stats Row */}
+                <div className="dashboard-stats financial-stats">
+                  <div className="stat-card">
+                    <div className="stat-value">
+                      ${(parseInt(financialStats.rawToCollect || 0)).toFixed(2)}
+                    </div>
+                    <div className="stat-label">To Collect</div>
+                  </div>
+                  <div className="stat-card">
+                    <div className="stat-value">
+                      ${(parseInt(financialStats.rawTotalCollected || 0)).toFixed(2)}
+                    </div>
+                    <div className="stat-label">Collected</div>
+                  </div>
+                  <div className="stat-card">
+                    <div className="stat-value">
+                      {(financialStats.totalToCollect + financialStats.totalCollected) > 0 ? 
+                        `${((financialStats.totalCollected / (financialStats.totalToCollect + financialStats.totalCollected)) * 100).toFixed(1)}%` : 
+                        '0%'}
+                    </div>
+                    <div className="stat-label">Collection Rate</div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="dashboard-main">
+                <div className="recent-packages">
+                  <div className="section-header">
+                    <h2>Recent Packages</h2>
+                    <Link to="/shop/packages" className="view-all">View All</Link>
+                  </div>
+                  
+                  {loading ? (
+                    <div className="loading-message">Loading recent packages...</div>
+                  ) : error ? (
+                    <div className="error-message">{error}</div>
+                  ) : packages.length === 0 ? (
+                    <div className="empty-state">
+                      <p>No packages found. Create your first delivery package now!</p>
+                      <Link to="/shop/create-package" className="action-button">Create Package</Link>
+                    </div>
+                  ) : (
+                    <div className="package-list">
+                      {filterDashboardPackages().slice(0, 4).map((pkg) => (
+                        <div key={pkg.id} className="package-item">
+                          <div className="package-main-row">
+                            <div className="package-info">
+                              <div style={{display:'flex',flexDirection:'column'}}>
+                                <div className="tracking-number">{pkg.trackingNumber}</div>
+                                <div className="recipient-name">{pkg.deliveryContactName || 'No recipient'}</div>
+                              </div>
+                              <div className="package-description">{pkg.packageDescription}</div>
+                              <div className={`package-status status-${pkg.status}`}>{pkg.status.charAt(0).toUpperCase() + pkg.status.slice(1)}</div>
                             </div>
-                            <div className="package-date">
-                              {new Date(pkg.createdAt).toLocaleDateString()}
-                            </div>
-                          </div>
-                          <div className="package-row financial-row">
-                            <div className="package-cod">
-                              COD: ${parseFloat(pkg.codAmount || 0).toFixed(2)}
-                              {pkg.codAmount > 0 && (
-                                <span className={`payment-status ${pkg.isPaid ? 'paid' : 'unpaid'}`}>
-                                  {pkg.isPaid ? ' (Paid)' : ' (Unpaid)'}
-                                </span>
+                            <div className="package-details-right">
+                              <div className="package-date">{new Date(pkg.createdAt).toLocaleDateString()}</div>
+                              <div className="package-cod">
+                                COD: ${parseFloat(pkg.codAmount || 0).toFixed(2)}
+                                {pkg.codAmount > 0 && (
+                                  <span className={`payment-status ${pkg.isPaid ? 'paid' : 'unpaid'}`}>{pkg.isPaid ? ' (Paid)' : ' (Unpaid)'}</span>
+                                )}
+                              </div>
+                              {pkg.status !== 'delivered' && pkg.status !== 'cancelled' && (
+                                <button
+                                  className="action-button"
+                                  style={{background:'#e53935',color:'#fff',padding:'0.2rem 0.6rem',fontSize:'0.8rem',marginTop:'0.3rem'}}
+                                  onClick={() => {
+                                    setPackageToCancel(pkg);
+                                    setShowCancelModal(true);
+                                  }}
+                                >
+                                  Cancel
+                                </button>
                               )}
                             </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-              
-              <div className="quick-actions">
-                <h2>Quick Actions</h2>
-                <div className="action-buttons">
-                  <Link to="/shop/create-package" className="action-button">
-                    <i className="action-icon">➕</i>
-                    Create New Package
-                  </Link>
-                  <Link to="/track" className="action-button">
-                    <i className="action-icon">🔍</i>
-                    Track Package
-                  </Link>
-                  <Link to="/shop/profile" className="action-button">
-                    <i className="action-icon">⚙️</i>
-                    Update Profile
-                  </Link>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
-          </div>
-        } />
-      </Routes>
+          } />
+        </Routes>
       </div>
+      {showCancelModal && (
+        <div className="confirmation-overlay" onClick={() => { setShowCancelModal(false); setCancelError(null); }}>
+          <div className="confirmation-dialog warning-dialog" onClick={e => e.stopPropagation()}>
+            <h3>Cancel Package</h3>
+            <p>Are you sure you want to cancel this package?</p>
+            {cancelError && <div style={{color:'#dc3545',marginBottom:'0.5rem'}}>{cancelError}</div>}
+            <div className="confirmation-buttons">
+              <button className="btn-secondary" onClick={() => { setShowCancelModal(false); setCancelError(null); }}>No</button>
+              <button className="btn-primary danger" onClick={handleCancel}>Yes, Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
     </ShopDashboardContext.Provider>
   );
 };

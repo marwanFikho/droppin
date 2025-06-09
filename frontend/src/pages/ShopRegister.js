@@ -74,7 +74,7 @@ const ShopRegister = () => {
       };
       
       await register(shopData, 'shop');
-      // Redirect to a success page instead of the shop dashboard
+      // Redirect to success page without auto-sign-in
       navigate('/registration-success', { 
         state: { 
           userType: 'shop', 

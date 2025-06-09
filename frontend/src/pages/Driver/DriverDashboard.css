@@ -15,11 +15,13 @@
   opacity: 0;
   visibility: hidden;
   transition: opacity 0.3s, visibility 0.3s;
+  backdrop-filter: blur(2px);
 }
 
 .modal-overlay.show {
   opacity: 1;
   visibility: visible;
+  display: flex !important;
 }
 
 .modal-content {
@@ -29,9 +31,17 @@
   max-width: 800px;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
   display: flex;
   flex-direction: column;
+  position: relative;
+  z-index: 1001;
+  transform: scale(0.9);
+  transition: transform 0.3s ease;
+}
+
+.modal-overlay.show .modal-content {
+  transform: scale(1);
 }
 
 .modal-header {
@@ -40,12 +50,17 @@
   align-items: center;
   padding: 16px 24px;
   border-bottom: 1px solid #eee;
+  background-color: #f8f9fa;
+  border-radius: 8px 8px 0 0;
 }
 
 .modal-header h2 {
   margin: 0;
   font-size: 1.5rem;
   color: #333;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .close-btn {
@@ -54,6 +69,18 @@
   font-size: 24px;
   cursor: pointer;
   color: #666;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.close-btn:hover {
+  background-color: #e9ecef;
+  color: #333;
 }
 
 .modal-body {
@@ -124,19 +151,34 @@
 }
 
 .status-assigned {
-  background-color: #5bc0de;
+  background: #2196f3 !important;
+  color: #fff !important;
+  padding: 6px 22px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 1rem;
+  display: inline-block;
+  text-align: center;
+  min-width: 80px;
+  box-shadow: 0 1px 3px rgba(33,150,243,0.08);
 }
 
 .status-pickedup {
-  background-color: #5cb85c;
+  background: #ffd600 !important;
+  color: #333 !important;
+  min-width: 10px;
 }
 
 .status-in-transit {
-  background-color: #428bca;
+  background: #ff9800 !important;
+  color: #fff !important;
+  min-width: 10px;
 }
 
 .status-delivered {
-  background-color: #28a745;
+  background: #43a047;
+  color: #fff;
+  min-width: 10px;
 }
 
 .status-cancelled {
@@ -216,41 +258,96 @@
 }
 
 /* Action Buttons */
-.action-button {
-  padding: 8px 16px;
-  border-radius: 4px;
-  font-weight: bold;
-  cursor: pointer;
+.action-btn {
+  padding: 6px 12px;
   border: none;
-  transition: background-color 0.2s;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0 2px;
 }
 
-.action-button.primary {
-  background-color: #4285f4;
+.action-btn.view-btn {
+  background-color: #007bff;
+  color: white;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  font-size: 20px;
+  margin: 0 auto;
+  transition: background-color 0.2s, box-shadow 0.2s;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+
+.action-btn.view-btn:hover {
+  background-color: #0056b3;
+  transform: translateY(-1px) scale(1.05);
+}
+
+.action-btn.assign-btn {
+  background-color: #28a745;
   color: white;
 }
 
-.action-button.primary:hover {
-  background-color: #3367d6;
+.action-btn.assign-btn:hover {
+  background-color: #1e7e34;
+  transform: translateY(-1px);
 }
 
-.action-button.secondary {
-  background-color: #f1f3f4;
-  color: #3c4043;
-}
-
-.action-button.secondary:hover {
-  background-color: #dadce0;
-}
-
-.action-button.view-details {
-  background-color: #6c757d;
+.action-btn.approve-btn {
+  background-color: #28a745;
   color: white;
-  margin-right: 8px;
 }
 
-.action-button.view-details:hover {
-  background-color: #5a6268;
+.action-btn.approve-btn:hover {
+  background-color: #1e7e34;
+  transform: translateY(-1px);
+}
+
+.action-btn.reject-btn {
+  background-color: #dc3545;
+  color: white;
+}
+
+.action-btn.reject-btn:hover {
+  background-color: #c82333;
+  transform: translateY(-1px);
+}
+
+/* Payment Status */
+.payment-status {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.payment-status.paid {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.payment-status.unpaid {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+
+/* Actions Cell */
+.actions-cell {
+  display: flex;
+  gap: 4px;
+  justify-content: flex-end;
+  align-items: center;
 }
 
 /* Package Item Styling */
@@ -325,4 +422,228 @@
     margin-bottom: 8px;
     text-align: center;
   }
+}
+
+/* Dashboard Stats Container */
+.dashboard-stats-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+/* Stats and Chart Row */
+.stats-and-chart-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  align-items: start;
+}
+
+.dashboard-stats.package-stats {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border-radius: 0;
+  box-shadow: none;
+  height: 180px;
+}
+
+.stat-card {
+  padding: 0.75rem;
+  text-align: center;
+  background-color: #ffffff;
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 0.25rem;
+}
+
+.stat-label {
+  font-size: 0.85rem;
+  color: #666;
+}
+
+.chart-container {
+  padding: 0;
+  border-radius: 0;
+  box-shadow: none;
+  height: 180px;
+  display: flex;
+  flex-direction: column;
+}
+
+.chart-container h3 {
+  margin: 0 0 0.5rem 0;
+  color: #333;
+  font-size: 1.1rem;
+}
+
+.chart-wrapper {
+  position: relative;
+  width: 100%;
+  height: 140px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.chart-wrapper canvas {
+  max-width: 100% !important;
+  max-height: 140px !important;
+  width: auto !important;
+  height: auto !important;
+}
+
+/* Package Categories Tabs */
+.package-tabs {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid #e0e0e0;
+  padding-bottom: 0.5rem;
+}
+
+.tab-btn {
+  padding: 0.5rem 1rem;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: #666;
+  border-radius: 4px 4px 0 0;
+  transition: all 0.3s ease;
+  font-weight: 500;
+  box-shadow: none;
+}
+
+.tab-btn:hover {
+  background-color: #f5f5f5;
+  color: #333;
+}
+
+.tab-btn.active {
+  background: none;
+  color: #1976d2;
+  font-weight: 600;
+  border-bottom: 3px solid #1976d2;
+}
+
+/* Search Bar */
+.search-bar {
+  margin-bottom: 1.5rem;
+}
+
+.search-bar input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  background-color: white;
+}
+
+.search-bar input:focus {
+  outline: none;
+  border-color: #1976d2;
+  box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.1);
+}
+
+/* Packages Table */
+.packages-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.packages-table th,
+.packages-table td {
+  padding: 1rem;
+  text-align: left;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.packages-table th {
+  background-color: #f5f5f5;
+  font-weight: 600;
+  color: #333;
+}
+
+.packages-table tr:hover {
+  background-color: #f8f9fa;
+}
+
+.view-details-btn {
+  padding: 0.5rem 1rem;
+  background-color: #1976d2;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.3s ease;
+}
+
+.view-details-btn:hover {
+  background-color: #1565c0;
+}
+
+/* Status Badge */
+.status-badge {
+  display: inline-block;
+  min-width: 64px;
+  padding: 4px 16px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  text-align: center;
+  background: #f4f8fb;
+  color: #2196f3;
+  box-shadow: none;
+  letter-spacing: 0.01em;
+}
+
+.status-assigned {
+  background: #2196f3 !important;
+  color: #fff !important;
+  min-width: 10px;
+}
+
+.status-pending {
+  background: #e3f2fd;
+  color: #2196f3;
+  min-width: 10px;
+}
+
+.status-cancelled {
+  background: #eeeeee;
+  color: #757575;
+  min-width: 10px;
+}
+
+/* Loading and Error States */
+.loading,
+.error,
+.no-packages {
+  text-align: center;
+  padding: 2rem;
+  color: #666;
+}
+
+.error {
+  color: #dc3545;
 }

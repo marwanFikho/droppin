@@ -128,8 +128,8 @@ const AdminDashboard = () => {
   const handleApproval = async (entityId, userType, approve = true, selectedEntity = {}) => {
     console.log('Handling approval:', { entityId, userType, approve, selectedEntity });
     
-    // If rejection (approve=false), show confirmation dialog for shops and drivers
-    if (!approve && (userType === 'shop' || userType === 'driver')) {
+    // If rejection (approve=false), show confirmation dialog for shops, drivers, and users
+    if (!approve) {
       const entityName = selectedEntity?.name || 
                          (selectedEntity?.businessName || 
                          'this ' + userType);
@@ -143,10 +143,16 @@ const AdminDashboard = () => {
       // Create the action function to be executed when confirmed
       const confirmRejectAction = async () => {
         try {
-          await processApproval(entityId, userType, false, selectedEntity);
+          if (userType === 'user') {
+            // For regular users, use the delete endpoint
+            await adminService.deleteUser(entityId);
+          } else {
+            // For shops and drivers, use the existing processApproval
+            await processApproval(entityId, userType, false, selectedEntity);
+          }
           setShowConfirmationDialog(false);
           // Refresh data
-          fetchUsers(userType === 'shop' ? 'shops' : 'drivers');
+          fetchUsers(userType === 'shop' ? 'shops' : userType === 'driver' ? 'drivers' : 'user');
         } catch (error) {
           console.error(`Error rejecting ${userType}:`, error);
           setStatusMessage({
@@ -162,7 +168,7 @@ const AdminDashboard = () => {
       return;
     }
     
-    // If approving or for regular users, proceed without confirmation
+    // If approving, proceed without confirmation
     await processApproval(entityId, userType, approve, selectedEntity);
   };
   

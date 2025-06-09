@@ -1,6 +1,7 @@
 import axios from 'axios';
+import { getToken } from '../utils/auth';
 
-const API_URL = 'http://localhost:5000/api';
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 // const API_URL = 'https://droppin-production.up.railway.app/api';
 
 // Create axios instance
@@ -25,13 +26,36 @@ api.interceptors.request.use(
   }
 );
 
+// Add a response interceptor to handle token expiration
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      // Clear invalid token
+      localStorage.removeItem('token');
+      localStorage.removeItem('currentUser');
+      // Redirect to login if not already there
+      if (!window.location.pathname.includes('/login')) {
+        window.location.href = '/login';
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 // Authentication service
 export const authService = {
-  login: (credentials) => api.post('/auth/login', credentials),
+  login: async (credentials) => {
+    const response = await api.post('/auth/login', credentials);
+    return response;
+  },
   register: (userData) => api.post('/auth/register', userData),
   registerShop: (shopData) => api.post('/auth/register/shop', shopData),
   registerDriver: (driverData) => api.post('/auth/register/driver', driverData),
-  getProfile: () => api.get('/auth/profile'),
+  getProfile: async () => {
+    const response = await api.get('/auth/profile');
+    return response;
+  },
 };
 
 // Package service
@@ -59,7 +83,17 @@ export const packageService = {
   trackPackage: (trackingNumber) => {
     return api.get(`/packages/track/${trackingNumber}`);
   },
-  getShopProfile: () => api.get('/shops/profile')
+  getShopProfile: () => api.get('/shops/profile'),
+  updateShopProfile: (data) => api.put('/shops/profile', data),
+  cancelPackage: (id) => {
+    return api.patch(`/packages/${id}/cancel`);
+  },
+  createPickup: (pickupData) => {
+    return api.post('/pickups', pickupData);
+  },
+  getShopPickups: () => api.get('/pickups/shop'),
+  getPickupById: (id) => api.get(`/pickups/${id}`),
+  cancelPickup: (pickupId) => api.patch(`/pickups/${pickupId}/cancel`),
 };
 
 // Shop service
@@ -73,6 +107,7 @@ export const driverService = {
   getDrivers: () => api.get('/drivers'),
   getDriverById: (id) => api.get(`/drivers/${id}`),
   updateLocation: (data) => api.post('/drivers/location', data),
+  getDriverProfile: () => api.get('/drivers/profile'),
 };
 
 // Admin service
@@ -86,6 +121,7 @@ export const adminService = {
   createUser: (userData) => api.post('/admin/users', userData),
   updateUser: (id, userData) => api.put(`/admin/users/${id}`, userData),
   approveUser: (id, approved) => api.patch(`/admin/users/${id}/approve`, { approved }),
+  deleteUser: (id) => api.delete(`/admin/users/${id}`),
   
   // Shop management
   getShops: (filters = {}) => api.get('/admin/shops', { params: filters }),

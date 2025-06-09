@@ -1,5 +1,6 @@
 const { Package, Shop, Driver, User } = require('../models');
 const { Op } = require('sequelize');
+const { sequelize } = require('../config/db.config');
 
 // Create a new package
 exports.createPackage = async (req, res) => {
@@ -13,7 +14,10 @@ exports.createPackage = async (req, res) => {
       schedulePickupTime,
       priority,
       // Financial fields
-      codAmount
+      codAmount,
+      deliveryCost,
+      paymentMethod,
+      paymentNotes
     } = req.body;
 
     // Verify that user is a shop
@@ -60,6 +64,9 @@ exports.createPackage = async (req, res) => {
       priority: priority || 'normal',
       // Financial information - COD amount and payment status
       codAmount: parseFloat(codAmount) || 0,
+      deliveryCost: parseFloat(deliveryCost) || 0,
+      paymentMethod: paymentMethod || null,
+      paymentNotes: paymentNotes || null,
       isPaid: false,
       paymentStatus: 'pending'
     });
@@ -311,9 +318,9 @@ exports.updatePackageStatus = async (req, res) => {
         return res.status(403).json({ message: 'Unauthorized access' });
       }
       
-      // Shops can only cancel packages with pending status
-      if (status !== 'cancelled' || package.status !== 'pending') {
-        return res.status(403).json({ message: 'Shops can only cancel pending packages' });
+      // Shops can only cancel packages that aren't delivered
+      if (status === 'cancelled' && package.status === 'delivered') {
+        return res.status(403).json({ message: 'Cannot cancel a delivered package' });
       }
     } else if (req.user.role === 'driver') {
       const driver = await Driver.findOne({ where: { userId: req.user.id } });
@@ -338,7 +345,7 @@ exports.updatePackageStatus = async (req, res) => {
       }
     }
     
-    // Update fields - status history has been removed from the schema
+    // Update fields
     const updateData = {
       status
     };
@@ -354,14 +361,31 @@ exports.updatePackageStatus = async (req, res) => {
       updateData.actualPickupTime = new Date();
     } else if (status === 'delivered') {
       updateData.actualDeliveryTime = new Date();
-      
       // Auto-mark payment as paid when package is delivered if there's a COD amount
       if (package.codAmount > 0 && !package.isPaid) {
         updateData.isPaid = true;
         updateData.paymentDate = new Date();
-        
         // Log payment status change
         console.log(`Auto-marking payment as paid for package ${id} with COD amount ${package.codAmount}`);
+      }
+      // Increment driver's totalDeliveries and decrement activeAssign
+      if (package.driverId) {
+        const driver = await Driver.findByPk(package.driverId);
+        if (driver) {
+          driver.totalDeliveries += 1;
+          driver.activeAssign = Math.max(0, driver.activeAssign - 1);
+          await driver.save();
+        }
+      }
+    } else if (status === 'cancelled' && package.driverId) {
+      // If package is being cancelled and was assigned to a driver, update driver stats
+      const driver = await Driver.findByPk(package.driverId);
+      if (driver) {
+        driver.totalCancelled += 1;
+        if (['assigned', 'pickedup', 'in-transit'].includes(package.status)) {
+          driver.activeAssign = Math.max(0, driver.activeAssign - 1);
+        }
+        await driver.save();
       }
     }
     
@@ -395,6 +419,23 @@ exports.updatePackageStatus = async (req, res) => {
         await shop.update({
           ToCollect: newToCollect,
           TotalCollected: newTotalCollected
+        });
+      }
+      // When a package is cancelled, subtract from ToCollect
+      else if (status === 'cancelled' && package.codAmount > 0) {
+        console.log(`Package ${id} cancelled. Subtracting from shop's ToCollect.`);
+        
+        const codAmount = parseFloat(package.codAmount || 0);
+        const currentToCollect = parseFloat(shop.ToCollect || 0);
+        
+        // Calculate new ToCollect amount
+        const newToCollect = Math.max(0, currentToCollect - codAmount);
+        
+        console.log(`Shop financial update: ToCollect ${currentToCollect} -> ${newToCollect}`);
+        
+        // Update shop's ToCollect
+        await shop.update({
+          ToCollect: newToCollect
         });
       }
       // When a package is initially created or assigned, add to ToCollect
@@ -684,5 +725,137 @@ exports.updatePackagePayment = async (req, res) => {
   } catch (error) {
     console.error('Error updating payment status:', error);
     res.status(500).json({ message: error.message });
+  }
+};
+
+// Cancel a package (shop only, if not delivered or already cancelled)
+exports.cancelPackage = async (req, res) => {
+  const t = await sequelize.transaction();
+
+  try {
+    if (req.user.role !== 'shop') {
+      await t.rollback();
+      return res.status(403).json({ message: 'Only shops can cancel packages' });
+    }
+
+    const packageId = req.params.id;
+    
+    // Find package with its shop
+    const pkg = await Package.findByPk(packageId, {
+      include: [{
+        model: Shop,
+        required: true
+      }],
+      transaction: t
+    });
+
+    if (!pkg) {
+      await t.rollback();
+      return res.status(404).json({ message: 'Package not found' });
+    }
+
+    const shop = pkg.Shop; // Get the associated shop
+
+    // Verify shop ownership
+    if (!shop || shop.userId !== req.user.id) {
+      await t.rollback();
+      return res.status(403).json({ message: 'You do not have permission to cancel this package' });
+    }
+
+    // Check package status
+    if (pkg.status === 'delivered') {
+      await t.rollback();
+      return res.status(400).json({ message: 'Cannot cancel a delivered package' });
+    }
+    if (pkg.status === 'cancelled') {
+      await t.rollback();
+      return res.status(400).json({ message: 'Package is already cancelled' });
+    }
+
+    // Log the exact values we're working with
+    console.log('DEBUG - Values before update:', {
+      shopId: shop.id,
+      shopToCollect: shop.ToCollect,
+      shopToCollectType: typeof shop.ToCollect,
+      packageCodAmount: pkg.codAmount,
+      packageCodAmountType: typeof pkg.codAmount,
+      packageId: pkg.id,
+      packageStatus: pkg.status
+    });
+
+    // Convert and validate values
+    const currentToCollect = parseFloat(shop.ToCollect) || 0;
+    const codAmount = parseFloat(pkg.codAmount) || 0;
+
+    if (isNaN(currentToCollect) || isNaN(codAmount)) {
+      console.error('Invalid numeric values:', { currentToCollect, codAmount });
+      await t.rollback();
+      return res.status(500).json({ message: 'Invalid numeric values encountered' });
+    }
+
+    const newToCollect = Math.max(0, currentToCollect - codAmount);
+
+    console.log('DEBUG - Calculation:', {
+      currentToCollect,
+      codAmount,
+      newToCollect,
+      calculation: `${currentToCollect} - ${codAmount} = ${newToCollect}`
+    });
+
+    // Reload the shop instance to ensure we have the latest data
+    await shop.reload({ transaction: t });
+
+    // Update using the instance method
+    shop.ToCollect = newToCollect;
+    await shop.save({ transaction: t });
+
+    console.log('DEBUG - After shop update:', {
+      shopId: shop.id,
+      newToCollect: shop.ToCollect,
+      newToCollectType: typeof shop.ToCollect
+    });
+
+    // Update driver stats if needed
+    if (pkg.driverId) {
+      const driver = await Driver.findByPk(pkg.driverId, { transaction: t });
+      if (driver) {
+        driver.totalCancelled += 1;
+        if (['assigned', 'pickedup', 'in-transit'].includes(pkg.status)) {
+          driver.activeAssign = Math.max(0, driver.activeAssign - 1);
+        }
+        await driver.save({ transaction: t });
+      }
+    }
+
+    // Update package status
+    pkg.status = 'cancelled';
+    await pkg.save({ transaction: t });
+
+    // Commit the transaction
+    await t.commit();
+
+    // Fetch final state
+    const finalShop = await Shop.findByPk(shop.id);
+    console.log('DEBUG - Final state:', {
+      shopId: finalShop.id,
+      finalToCollect: finalShop.ToCollect,
+      finalToCollectType: typeof finalShop.ToCollect
+    });
+
+    res.json({ 
+      message: 'Package cancelled successfully', 
+      package: pkg,
+      shop: {
+        id: finalShop.id,
+        ToCollect: finalShop.ToCollect
+      }
+    });
+  } catch (error) {
+    await t.rollback();
+    console.error('Error in cancelPackage:', error);
+    res.status(500).json({ 
+      message: 'Error cancelling package',
+      error: error.message 
+    });
   }
 };

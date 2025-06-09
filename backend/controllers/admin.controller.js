@@ -846,6 +846,12 @@ exports.assignDriverToPackage = async (req, res) => {
       status: 'assigned',
       statusHistory: JSON.stringify(statusHistory)
     }, { transaction });
+
+    // Update driver stats
+    driver.assignedToday += 1;
+    driver.totalAssigned += 1;
+    driver.activeAssign += 1;
+    await driver.save({ transaction });
     
     await transaction.commit();
     
@@ -1119,6 +1125,34 @@ exports.settleShopPayments = async (req, res) => {
     console.log(`Packages: ${packageIds.join(', ')}`);
   } catch (error) {
     console.error('Error settling shop payments:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Delete a user
+exports.deleteUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const user = await User.findByPk(id);
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    // Delete associated records based on user role
+    if (user.role === 'shop') {
+      await Shop.destroy({ where: { userId: id } });
+    } else if (user.role === 'driver') {
+      await Driver.destroy({ where: { userId: id } });
+    }
+    
+    // Delete the user
+    await user.destroy();
+    
+    res.json({ message: 'User deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting user:', error);
     res.status(500).json({ message: error.message });
   }
 };

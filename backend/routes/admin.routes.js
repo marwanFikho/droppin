@@ -13,6 +13,7 @@ router.get('/stats', adminController.getDashboardStats);
 router.get('/users', adminController.getUsers);
 router.get('/users/pending', adminController.getPendingApprovals);
 router.patch('/users/:id/approve', adminController.approveUser);
+router.delete('/users/:id', adminController.deleteUser);
 
 // Shop management
 router.get('/shops', adminController.getShops);

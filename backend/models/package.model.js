@@ -108,6 +108,12 @@ const Package = sequelize.define('Package', {
     type: DataTypes.DATE,
     allowNull: true
   },
+  deliveryCost: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: false,
+    defaultValue: 0.00,
+    comment: 'The cost of delivering this package'
+  },
   // No additional fields - model must match database exactly
 }, {
   hooks: {
