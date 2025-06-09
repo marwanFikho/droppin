@@ -110,7 +110,7 @@ const CreatePackage = () => {
     
     try {
       // Validate required fields
-      if (!formData.packageDescription || !formData.weight || !formData.schedulePickupTime || !formData.category) {
+      if (!formData.packageDescription || !formData.weight || !formData.category) {
         throw new Error('Please fill in all required fields');
       }
       
@@ -257,7 +257,7 @@ const CreatePackage = () => {
       <div className="form-container" style={{ maxWidth: '800px', margin: '0 auto' }}>
         <form onSubmit={handleSubmit} className="create-package-form">
           <div className="form-section" style={{ marginBottom: '1rem' }}>
-            <h2 style={{ fontSize: '1.2rem', marginBottom: '0.5rem', color: '#1976d2' }}>Package Information</h2>
+            <h2 style={{ fontSize: '1.2rem', marginBottom: '0.5rem', color: '#ff8c00' }}>Package Information</h2>
             
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
               <div className="form-group">
@@ -355,7 +355,7 @@ const CreatePackage = () => {
           </div>
           
           <div className="form-section">
-            <h2 style={{ fontSize: '1.2rem', color: '#1976d2' }}>Delivery Information</h2>
+            <h2 style={{ fontSize: '1.2rem', color: '#ff8c00' }}>Delivery Information</h2>
             
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
               <div className="form-group">
@@ -474,7 +474,7 @@ const CreatePackage = () => {
           </div>
           
           <div className="form-section" style={{ marginBottom: '1rem' }}>
-            <h2 style={{ fontSize: '1.2rem', color: '#1976d2' }}>Additional Information</h2>
+            <h2 style={{ fontSize: '1.2rem', color: '#ff8c00' }}>Additional Information</h2>
             
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
               <div className="form-group">
@@ -514,7 +514,7 @@ const CreatePackage = () => {
             style={{
               width: '100%',
               padding: '0.75rem',
-              backgroundColor: '#1976d2',
+              backgroundColor: '#ff8c00',
               color: 'white',
               border: 'none',
               borderRadius: '4px',

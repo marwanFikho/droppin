@@ -1,5 +1,6 @@
 const { Op, QueryTypes } = require('sequelize');
 const { sequelize, User, Shop, Driver, Package } = require('../models/index');
+const { formatDateTimeToDDMMYYYY, getCairoDateTime } = require('../utils/dateUtils');
 
 // Get dashboard statistics
 exports.getDashboardStats = async (req, res) => {
@@ -230,6 +231,9 @@ exports.getShops = async (req, res) => {
         // Get package count for this shop
         const packageCount = await Package.count({ where: { shopId: shop.id } });
         
+        // Find the main driver for this shop (if any)
+        const mainDriver = null;
+        
         // Return shop data with financial values from the direct SQL query
         return {
           ...userData,
@@ -250,7 +254,8 @@ exports.getShops = async (req, res) => {
             totalCollected, 
             totalSettled: 0,
             packageCount: packageCount
-          }
+          },
+          workingArea: mainDriver ? mainDriver.workingArea : null
         };
       }
       
@@ -577,6 +582,8 @@ exports.getDrivers = async (req, res) => {
           color: driver.color,
           driverLicense: driver.driverLicense,
           isAvailable: driver.isAvailable,
+          workingArea: driver.workingArea,
+          totalDeliveries: driver.totalDeliveries,
           stats: {
             assignedPackages: assignedPackagesCount,
             deliveredPackages: deliveredPackagesCount,
@@ -916,6 +923,8 @@ exports.getPackages = async (req, res) => {
     const enhancedPackages = await Promise.all(packages.map(async (pkg) => {
       const packageData = pkg.toJSON();
       
+      // Dates are now stored as formatted strings, so no formatting needed
+      
       // Get shop info
       if (pkg.shopId) {
         const shop = await Shop.findByPk(pkg.shopId);
@@ -992,7 +1001,7 @@ exports.updatePackagePayment = async (req, res) => {
       
       // If marking as paid, set payment date
       if (isPaid) {
-        updates.paymentDate = new Date();
+        updates.paymentDate = formatDateTimeToDDMMYYYY(getCairoDateTime());
       } else {
         updates.paymentDate = null;
       }

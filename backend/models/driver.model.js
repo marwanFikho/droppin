@@ -65,6 +65,11 @@ const Driver = sequelize.define('Driver', {
   isVerified: {
     type: DataTypes.BOOLEAN,
     defaultValue: false
+  },
+  workingArea: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    comment: 'The area where the driver works (set by admin)'
   }
 }, {
   timestamps: true

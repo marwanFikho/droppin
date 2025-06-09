@@ -6,7 +6,7 @@
 
 .new-pickup-container h1 {
   margin-bottom: 20px;
-  color: #1976d2;
+  color: #ff8c00;
 }
 
 .form-group {
@@ -49,14 +49,20 @@ input[type="text"] {
   border-radius: 4px;
 }
 
-button[type="submit"] {
-  background-color: #1976d2;
+.btn-primary {
+  background-color: #ff8c00;
   color: white;
-  padding: 10px 15px;
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
   cursor: pointer;
-  font-size: 16px;
+  transition: background-color 0.2s;
+}
+
+.btn-primary:hover {
+  background-color: #e67e00;
 }
 
 button[type="submit"]:disabled {

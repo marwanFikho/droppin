@@ -57,7 +57,7 @@
 /* Dashboard Stats Container */
 .dashboard-stats-container {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   gap: 1rem;
   margin-bottom: 2rem;
 }
@@ -134,7 +134,7 @@
   padding: 0;
   border-radius: 0;
   box-shadow: none;
-  height: 180px;
+  height: 300px;
   display: flex;
   flex-direction: column;
 }
@@ -148,16 +148,15 @@
 .chart-wrapper {
   position: relative;
   width: 100%;
-  height: 140px; /* Fixed height for chart */
+  height: 240px;
   display: flex;
   justify-content: center;
   align-items: center;
 }
 
-/* Make chart responsive but controlled */
 .chart-wrapper canvas {
   max-width: 100% !important;
-  max-height: 140px !important;
+  max-height: 240px !important;
   width: auto !important;
   height: auto !important;
 }
@@ -188,8 +187,8 @@
   transition: color 0.2s, border-bottom 0.2s;
 }
 .tab-btn.active {
-  color: #1976d2;
-  border-bottom: 2px solid #1976d2;
+  color: #ff8c00;
+  border-bottom: 2px solid #ff8c00;
   font-weight: bold;
 }
 
@@ -256,14 +255,14 @@
   font-weight: 600;
   font-size: 0.95rem;
   text-align: center;
-  background: #f4f8fb;
-  color: #2196f3;
+  background: #fff3e0;
+  color: #ff8c00;
   box-shadow: none;
   letter-spacing: 0.01em;
 }
 
 .status-assigned {
-  background: #2196f3 !important;
+  background: #ff8c00 !important;
   color: #fff !important;
   min-width: 10px;
 }
@@ -281,8 +280,8 @@
 }
 
 .status-pending {
-  background: #e3f2fd;
-  color: #2196f3;
+  background: #fff3e0;
+  color: #ff8c00;
   min-width: 10px;
 }
 
@@ -349,7 +348,7 @@
 }
 
 .profile-save-btn {
-  background: #1976d2;
+  background: #ff8c00;
   color: #fff;
   border: none;
   border-radius: 6px;
@@ -381,7 +380,7 @@
 
 .tracking-number {
   font-weight: 600;
-  color: #1976d2;
+  color: #ff8c00;
 }
 
 .package-description {
@@ -419,9 +418,11 @@
 }
 
 .view-all {
-  color: #1976d2;
+  color: #ff8c00;
   font-size: 0.85rem;
   text-decoration: none;
+  font-weight: 600;
+  transition: color 0.2s;
 }
 
 .package-list {
@@ -464,7 +465,7 @@
 
 .tracking-number {
   font-weight: 600;
-  color: #1976d2;
+  color: #ff8c00;
   font-size: 0.9rem;
   white-space: nowrap;
 }
@@ -548,17 +549,21 @@
 }
 
 .action-button {
-  background-color: #1976d2;
-  color: white;
+  background-color: #ff8c00;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
   padding: 0.5rem 1rem;
-  border-radius: 4px;
-  text-decoration: none;
   font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
   transition: background-color 0.2s;
+  text-decoration: none;
+  display: inline-block;
 }
 
 .action-button:hover {
-  background-color: #1565c0;
+  background-color: #e67e00;
 }
 
 /* New Pickup Form Styles */
@@ -603,13 +608,13 @@
 }
 
 .package-card:hover {
-  border-color: #1976d2;
+  border-color: #ff8c00;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
 .package-card.selected {
-  border-color: #1976d2;
-  background-color: #f0f7ff;
+  border-color: #ff8c00;
+  background-color: #fff3e0;
 }
 
 .package-info h4 {
@@ -643,9 +648,9 @@
 }
 
 .form-control:focus {
-  border-color: #1976d2;
   outline: none;
-  box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.1);
+  border-color: #ff8c00;
+  box-shadow: 0 0 0 2px rgba(255, 140, 0, 0.1);
 }
 
 .form-actions {
@@ -665,13 +670,19 @@
 }
 
 .btn-primary {
-  background-color: #1976d2;
+  background-color: #ff8c00;
   color: white;
   border: none;
+  border-radius: 6px;
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
 }
 
 .btn-primary:hover {
-  background-color: #1565c0;
+  background-color: #e67e00;
 }
 
 .btn-secondary {
@@ -719,13 +730,13 @@
 }
 
 .package-list-item.selected {
-  border-color: #1976d2;
-  background: #e3f0ff;
+  border-color: #ff8c00;
+  background: #fff3e0;
 }
 
 .package-list-item input[type="checkbox"] {
   margin-right: 1rem;
-  accent-color: #1976d2;
+  accent-color: #ff8c00;
 }
 
 .tracking-number {
@@ -741,7 +752,7 @@
 
 .package-list-info .tracking-number {
   font-weight: 600;
-  color: #1976d2;
+  color: #ff8c00;
   font-size: 1.05rem;
 }
 
@@ -758,33 +769,32 @@
 }
 
 .btn-select-all {
-  background: #e3f0ff;
-  color: #1976d2;
-  border: 1px solid #1976d2;
-  font-weight: 500;
-  padding: 0.5rem 1.2rem;
-  border-radius: 6px;
-  cursor: pointer;
-  margin-bottom: 1rem;
-  transition: background 0.2s, color 0.2s;
+  color: #ff8c00;
+  text-decoration: none;
+  font-weight: 600;
+  transition: color 0.2s;
 }
+
 .btn-select-all:hover {
-  background: #1976d2;
-  color: #fff;
+  color: #e67e00;
 }
 
 .btn-danger {
-  background: #e53935;
-  color: #fff;
-  border: 1px solid #e53935;
-  font-weight: 500;
-  padding: 0.5rem 1.2rem;
+  background-color: #dc3545;
+  color: white;
+  border: none;
   border-radius: 6px;
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
   cursor: pointer;
-  transition: background 0.2s, color 0.2s;
+  transition: background-color 0.2s;
 }
+
 .btn-danger:hover {
-  background: #b71c1c;
-  border-color: #b71c1c;
-  color: #fff;
+  background-color: #c82333;
+}
+
+.package-list-item input[type="checkbox"]:checked {
+  accent-color: #ff8c00;
 }

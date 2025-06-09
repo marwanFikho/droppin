@@ -129,15 +129,15 @@ const ShopDashboard = () => {
 
   const chartOptions = {
     responsive: true,
-    maintainAspectRatio: false,
+    maintainAspectRatio: true,
     plugins: {
       legend: {
         position: 'bottom',
         labels: {
-          boxWidth: 12,
-          padding: 8,
+          boxWidth: 15,
+          padding: 10,
           font: {
-            size: 11
+            size: 14
           }
         }
       }
@@ -217,12 +217,12 @@ const ShopDashboard = () => {
             <div className="dashboard-content">
               <div className="dashboard-header">
                 <div className="welcome-message">
-                  <h1>Welcome, {currentUser?.name || 'Shop Owner'}</h1>
-                  <p>Manage your deliveries with ease</p>
+                  <h1 style={{color:'white'}}>Welcome, {currentUser?.name || 'Shop Owner'}</h1>
+                  <p style={{color:'white'}}>Manage your deliveries with ease</p>
                 </div>
                 <div className="user-info">
                   <span className="business-name">{currentUser?.businessName}</span>
-                  <span className="user-role">Shop Account</span>
+                  <span>Shop Account</span>
                 </div>
               </div>
               
@@ -252,7 +252,7 @@ const ShopDashboard = () => {
                   {/* Package Distribution Chart */}
                   <div className="chart-container">
                     <h3>Package Distribution</h3>
-                    <div className="chart-wrapper">
+                    <div>
                       <Pie data={getChartData()} options={chartOptions} />
                     </div>
                   </div>
@@ -262,23 +262,15 @@ const ShopDashboard = () => {
                 <div className="dashboard-stats financial-stats">
                   <div className="stat-card">
                     <div className="stat-value">
-                      ${(parseInt(financialStats.rawToCollect || 0)).toFixed(2)}
+                      ${(parseFloat(financialStats.rawToCollect || 0)).toFixed(2)}
                     </div>
                     <div className="stat-label">To Collect</div>
                   </div>
                   <div className="stat-card">
                     <div className="stat-value">
-                      ${(parseInt(financialStats.rawTotalCollected || 0)).toFixed(2)}
+                      ${(parseFloat(financialStats.rawTotalCollected || 0)).toFixed(2)}
                     </div>
-                    <div className="stat-label">Collected</div>
-                  </div>
-                  <div className="stat-card">
-                    <div className="stat-value">
-                      {(financialStats.totalToCollect + financialStats.totalCollected) > 0 ? 
-                        `${((financialStats.totalCollected / (financialStats.totalToCollect + financialStats.totalCollected)) * 100).toFixed(1)}%` : 
-                        '0%'}
-                    </div>
-                    <div className="stat-label">Collection Rate</div>
+                    <div className="stat-label">Collected (Waiting Withdraw)</div>
                   </div>
                 </div>
               </div>
@@ -352,7 +344,7 @@ const ShopDashboard = () => {
             {cancelError && <div style={{color:'#dc3545',marginBottom:'0.5rem'}}>{cancelError}</div>}
             <div className="confirmation-buttons">
               <button className="btn-secondary" onClick={() => { setShowCancelModal(false); setCancelError(null); }}>No</button>
-              <button className="btn-primary danger" onClick={handleCancel}>Yes, Cancel</button>
+              <button className="btn-danger" onClick={handleCancel}>Yes, Cancel</button>
             </div>
           </div>
         </div>

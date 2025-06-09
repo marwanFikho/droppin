@@ -2,11 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { adminService, packageService } from '../../services/api';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faUser, faStore, faTruck, faBox, faSearch, faEye, faCheck, faTimes, faChartBar, faUserPlus, faTimes as faClose } from '@fortawesome/free-solid-svg-icons';
+import { faUser, faStore, faTruck, faBox, faSearch, faEye, faCheck, faTimes, faChartBar, faUserPlus, faTimes as faClose, faEdit, faSignOutAlt, faTrash } from '@fortawesome/free-solid-svg-icons';
+import { formatDate } from '../../utils/dateUtils';
 import './AdminDashboard.css';
 
 const AdminDashboard = () => {
-  const { currentUser } = useAuth();
+  const { currentUser, logout } = useAuth();
   const [activeTab, setActiveTab] = useState('pending');
   const [users, setUsers] = useState([]);
   const [packages, setPackages] = useState([]);
@@ -32,6 +33,15 @@ const AdminDashboard = () => {
   const [statusMessage, setStatusMessage] = useState(null);
   const [confirmationDialogTitle, setConfirmationDialogTitle] = useState('');
   const [confirmationDialogText, setConfirmationDialogText] = useState('');
+  const [showWorkingAreaModal, setShowWorkingAreaModal] = useState(false);
+  const [selectedDriverForWorkingArea, setSelectedDriverForWorkingArea] = useState(null);
+  const [workingAreaInput, setWorkingAreaInput] = useState('');
+  const [updatingWorkingArea, setUpdatingWorkingArea] = useState(false);
+
+  // Handle logout
+  const handleLogout = () => {
+    logout();
+  };
 
   // Function to fetch users of a specific role
   const fetchUsers = async (role) => {
@@ -40,6 +50,7 @@ const AdminDashboard = () => {
       setLoading(true);
       
       switch(role) {
+        case 'shop':
         case 'shops':
           const shopsResponse = await adminService.getShops();
           // Enhanced logging for shop financial data
@@ -501,10 +512,13 @@ const AdminDashboard = () => {
       }
       
       setShowAssignDriverModal(false);
-      alert('Driver assigned successfully!');
+      setStatusMessage({ type: 'success', text: 'Driver assigned successfully!' });
     } catch (error) {
       console.error('Error assigning driver:', error);
-      alert(`Error: ${error.response?.data?.message || 'Failed to assign driver'}`);
+      setStatusMessage({ 
+        type: 'error', 
+        text: `Error: ${error.response?.data?.message || 'Failed to assign driver'}` 
+      });
     } finally {
       setAssigningDriver(false);
     }
@@ -576,7 +590,26 @@ const AdminDashboard = () => {
                     <div 
                       key={driver.id} 
                       className="driver-item"
-                      onClick={() => assignDriverToPackage(driver.driverId)}
+                      onClick={() => {
+                        // Set confirmation dialog content
+                        setConfirmationDialogTitle('Confirm Driver Assignment');
+                        setConfirmationDialogText(
+                          `Are you sure you want to assign driver ${driver.name} to package #${selectedPackage.trackingNumber}?`
+                        );
+                        
+                        // Create the action function to be executed when confirmed
+                        const confirmAssignAction = async () => {
+                          try {
+                            await assignDriverToPackage(driver.driverId);
+                            setShowConfirmationDialog(false);
+                          } catch (error) {
+                            setShowConfirmationDialog(false);
+                          }
+                        };
+                        
+                        setConfirmAction(() => confirmAssignAction);
+                        setShowConfirmationDialog(true);
+                      }}
                     >
                       <div className="driver-info">
                         <div className="driver-name">{driver.name}</div>
@@ -848,8 +881,9 @@ const AdminDashboard = () => {
             )}
             {activeTab === 'drivers' && (
               <>
-                <th>Assigned Packages</th>
-                <th>Delivered</th>
+                <th>Working Area</th>
+                <th>Total Assigned Packages</th>
+                <th>Total Delivered</th>
               </>
             )}
             <th>Actions</th>
@@ -884,11 +918,22 @@ const AdminDashboard = () => {
               )}
               {activeTab === 'drivers' && (
                 <>
+                  <td className="working-area-cell">
+                    {user.workingArea || 'Not assigned'}
+                    <button 
+                      className="action-btn edit-btn"
+                      onClick={() => openWorkingAreaModal(user)}
+                      title="Edit Working Area"
+                      style={{ marginLeft: '0.5rem' }}
+                    >
+                      <FontAwesomeIcon icon={faEdit} />
+                    </button>
+                  </td>
                   <td className="count-cell">
                     {user.stats?.assignedPackages || 0}
                   </td>
                   <td className="count-cell">
-                    {user.stats?.deliveredPackages || 0}
+                    {user.totalDeliveries || 0}
                   </td>
                 </>
               )}
@@ -1331,6 +1376,10 @@ const AdminDashboard = () => {
                   <span className="nested-label">Address:</span>
                   <span>{selectedEntity.pickupAddress || 'N/A'}</span>
                 </div>
+                <div className="nested-detail">
+                    <span className="nested-label">Pickedup Time</span>
+                    <span>{selectedEntity.actualPickupTime ? selectedEntity.actualPickupTime : 'Not pickedup yet'}</span>
+                </div>
               </div>
             </div>
             
@@ -1349,6 +1398,10 @@ const AdminDashboard = () => {
                 <div className="nested-detail">
                   <span className="nested-label">Address:</span>
                   <span>{selectedEntity.deliveryAddress || 'N/A'}</span>
+                </div>
+                <div className="nested-detail">
+                    <span className="nested-label">Delivery Time</span>
+                    <span>{selectedEntity.actualDeliveryTime ? selectedEntity.actualDeliveryTime : 'Not delivered yet'}</span>
                 </div>
               </div>
             </div>
@@ -1442,6 +1495,82 @@ const AdminDashboard = () => {
               </button>
             </>
           )}
+          {/* Delete button for drivers */}
+          {isDriver && (
+            <button
+              className="btn reject-btn"
+              style={{ marginLeft: 8 }}
+              onClick={() => {
+                // Set confirmation dialog content
+                setConfirmationDialogTitle('Confirm Driver Deletion');
+                setConfirmationDialogText(
+                  `Are you sure you want to delete driver ${selectedEntity.name}? This will PERMANENTLY DELETE the driver account from the system.`
+                );
+                
+                // Create the action function to be executed when confirmed
+                const confirmDeleteAction = async () => {
+                  try {
+                    await adminService.deleteUser(selectedEntity.id);
+                    setStatusMessage({ type: 'success', text: 'Driver deleted successfully.' });
+                    setShowConfirmationDialog(false);
+                    setShowDetailsModal(false);
+                    // Refresh drivers list
+                    fetchUsers('drivers');
+                  } catch (error) {
+                    setStatusMessage({ 
+                      type: 'error', 
+                      text: error.response?.data?.message || error.message || 'Failed to delete driver.' 
+                    });
+                    setShowConfirmationDialog(false);
+                  }
+                };
+                
+                setConfirmAction(() => confirmDeleteAction);
+                setShowConfirmationDialog(true);
+              }}
+              title="Delete Driver"
+            >
+              <FontAwesomeIcon icon={faTrash} /> Delete
+            </button>
+          )}
+          {/* Delete button for shops */}
+          {isShop && (
+            <button
+              className="btn reject-btn"
+              style={{ marginLeft: 8 }}
+              onClick={() => {
+                // Set confirmation dialog content
+                setConfirmationDialogTitle('Confirm Shop Deletion');
+                setConfirmationDialogText(
+                  `Are you sure you want to delete shop ${selectedEntity.businessName || selectedEntity.name}? This will PERMANENTLY DELETE the shop account from the system.`
+                );
+                
+                // Create the action function to be executed when confirmed
+                const confirmDeleteAction = async () => {
+                  try {
+                    await adminService.deleteUser(selectedEntity.id);
+                    setStatusMessage({ type: 'success', text: 'Shop deleted successfully.' });
+                    setShowConfirmationDialog(false);
+                    setShowDetailsModal(false);
+                    // Refresh shops list
+                    fetchUsers('shops');
+                  } catch (error) {
+                    setStatusMessage({ 
+                      type: 'error', 
+                      text: error.response?.data?.message || error.message || 'Failed to delete shop.' 
+                    });
+                    setShowConfirmationDialog(false);
+                  }
+                };
+                
+                setConfirmAction(() => confirmDeleteAction);
+                setShowConfirmationDialog(true);
+              }}
+              title="Delete Shop"
+            >
+              <FontAwesomeIcon icon={faTrash} /> Delete
+            </button>
+          )}
           <button 
             className="btn close-btn"
             onClick={() => setShowDetailsModal(false)}
@@ -1472,6 +1601,7 @@ const AdminDashboard = () => {
             </button>
             <button 
               className="btn-primary danger"
+              style={{background:'green'}}
               onClick={() => confirmAction && confirmAction()}
             >
               Confirm
@@ -1499,20 +1629,122 @@ const AdminDashboard = () => {
     );
   };
 
+  // Update driver working area
+  const updateDriverWorkingArea = async (driverId, workingArea) => {
+    try {
+      setUpdatingWorkingArea(true);
+      // Use the driverId field from the driver object, not the user id
+      const actualDriverId = driverId.driverId || driverId;
+      await adminService.updateDriverWorkingArea(actualDriverId, workingArea);
+      
+      // Update local state
+      setUsers(prevUsers => {
+        return prevUsers.map(user => {
+          if (user.role === 'driver' && (user.id === driverId.id || user.driverId === actualDriverId)) {
+            return {
+              ...user,
+              workingArea: workingArea
+            };
+          }
+          return user;
+        });
+      });
+      
+      setStatusMessage({
+        type: 'success',
+        text: 'Driver working area updated successfully'
+      });
+      
+      setShowWorkingAreaModal(false);
+      setSelectedDriverForWorkingArea(null);
+      setWorkingAreaInput('');
+    } catch (error) {
+      console.error('Error updating driver working area:', error);
+      setStatusMessage({
+        type: 'error',
+        text: `Error updating working area: ${error.response?.data?.message || error.message || 'Unknown error'}`
+      });
+    } finally {
+      setUpdatingWorkingArea(false);
+    }
+  };
+
+  // Open working area modal
+  const openWorkingAreaModal = (driver) => {
+    setSelectedDriverForWorkingArea(driver);
+    setWorkingAreaInput(driver.workingArea || '');
+    setShowWorkingAreaModal(true);
+  };
+
+  // Render working area modal
+  const renderWorkingAreaModal = () => {
+    if (!selectedDriverForWorkingArea) return null;
+
+    return (
+      <div className={`modal-overlay ${showWorkingAreaModal ? 'show' : ''}`} onClick={() => setShowWorkingAreaModal(false)}>
+        <div className="modal-content" onClick={e => e.stopPropagation()}>
+          <div className="modal-header">
+            <h2>
+              <FontAwesomeIcon icon={faEdit} /> Update Working Area
+            </h2>
+            <button 
+              className="close-btn"
+              onClick={() => setShowWorkingAreaModal(false)}
+            >
+              <FontAwesomeIcon icon={faClose} />
+            </button>
+          </div>
+          
+          <div className="modal-body">
+            <div className="working-area-input">
+              <label htmlFor="workingArea">Working Area:</label>
+              <input 
+                type="text" 
+                id="workingArea" 
+                value={workingAreaInput}
+                onChange={(e) => setWorkingAreaInput(e.target.value)}
+              />
+            </div>
+          </div>
+          
+          <div className="modal-actions">
+            <button 
+              className="btn-primary"
+              onClick={() => {
+                updateDriverWorkingArea(selectedDriverForWorkingArea, workingAreaInput);
+              }}
+            >
+              Update
+            </button>
+            <button 
+              className="btn-secondary"
+              onClick={() => setShowWorkingAreaModal(false)}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="admin-dashboard">
       {renderStatusMessage()}
       {renderConfirmationDialog()}
+      {renderWorkingAreaModal()}
       <div className="dashboard-header">
-        <h1>Admin Dashboard</h1>
-        <div className="search-box">
-          <FontAwesomeIcon icon={faSearch} className="search-icon" />
-          <input 
-            type="text" 
-            placeholder="Search users, shops, drivers, or packages..." 
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+        <h1 style={{color: 'white'}}>Admin Dashboard</h1>
+        <div className="header-actions">
+          <div className="search-box">
+            <FontAwesomeIcon icon={faSearch} className="search-icon" />
+            <input 
+              type="text" 
+              placeholder="Search users, shops, drivers, or packages..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
         </div>
       </div>
       

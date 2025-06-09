@@ -1,6 +1,7 @@
 const { Package, Shop, Driver, User } = require('../models');
 const { Op } = require('sequelize');
 const { sequelize } = require('../config/db.config');
+const { getCairoDateTime, formatDateTimeToDDMMYYYY } = require('../utils/dateUtils');
 
 // Create a new package
 exports.createPackage = async (req, res) => {
@@ -60,7 +61,7 @@ exports.createPackage = async (req, res) => {
       deliveryContactName: deliveryAddress.contactName,
       deliveryContactPhone: deliveryAddress.contactPhone,
       deliveryAddress: `${deliveryAddress.street}, ${deliveryAddress.city}, ${deliveryAddress.state} ${deliveryAddress.zipCode}, ${deliveryAddress.country}`,
-      schedulePickupTime: new Date(schedulePickupTime),
+      schedulePickupTime: formatDateTimeToDDMMYYYY(getCairoDateTime(schedulePickupTime)),
       priority: priority || 'normal',
       // Financial information - COD amount and payment status
       codAmount: parseFloat(codAmount) || 0,
@@ -189,8 +190,9 @@ exports.getPackages = async (req, res) => {
     });
     
     // Return the paginated result
+    const formattedPackages = packages.map(pkg => formatPackageForResponse(pkg));
     res.json({
-      packages,
+      packages: formattedPackages,
       totalPages: Math.ceil(count / limit),
       currentPage: parseInt(page),
       total: count
@@ -256,7 +258,9 @@ exports.getPackageById = async (req, res) => {
       return res.status(403).json({ message: 'Unauthorized access' });
     }
     
-    res.json(package);
+    // Format the response with Cairo timezone dates
+    const formattedPackage = formatPackageForResponse(package);
+    res.json(formattedPackage);
   } catch (error) {
     console.error('Error fetching package by ID:', error);
     res.status(500).json({ message: error.message });
@@ -358,13 +362,13 @@ exports.updatePackageStatus = async (req, res) => {
     
     // Update timestamps for specific statuses
     if (status === 'pickedup') {
-      updateData.actualPickupTime = new Date();
+      updateData.actualPickupTime = formatDateTimeToDDMMYYYY(getCairoDateTime());
     } else if (status === 'delivered') {
-      updateData.actualDeliveryTime = new Date();
+      updateData.actualDeliveryTime = formatDateTimeToDDMMYYYY(getCairoDateTime());
       // Auto-mark payment as paid when package is delivered if there's a COD amount
       if (package.codAmount > 0 && !package.isPaid) {
         updateData.isPaid = true;
-        updateData.paymentDate = new Date();
+        updateData.paymentDate = formatDateTimeToDDMMYYYY(getCairoDateTime());
         // Log payment status change
         console.log(`Auto-marking payment as paid for package ${id} with COD amount ${package.codAmount}`);
       }
@@ -468,7 +472,9 @@ exports.updatePackageStatus = async (req, res) => {
       ]
     });
     
-    res.json(updatedPackage);
+    // Format the response with Cairo timezone dates
+    const formattedPackage = formatPackageForResponse(updatedPackage);
+    res.json(formattedPackage);
   } catch (error) {
     console.error('Error updating package status:', error);
     res.status(500).json({ message: error.message });
@@ -858,4 +864,12 @@ exports.cancelPackage = async (req, res) => {
       error: error.message 
     });
   }
+};
+
+// Helper function to format package data with Cairo timezone dates
+const formatPackageForResponse = (package) => {
+  const packageData = package.toJSON ? package.toJSON() : package;
+  
+  // Dates are now stored as formatted strings, so no formatting needed
+  return packageData;
 };

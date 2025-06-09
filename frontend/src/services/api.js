@@ -108,6 +108,7 @@ export const driverService = {
   getDriverById: (id) => api.get(`/drivers/${id}`),
   updateLocation: (data) => api.post('/drivers/location', data),
   getDriverProfile: () => api.get('/drivers/profile'),
+  updateAvailability: (isAvailable) => api.patch('/drivers/availability', { isAvailable }),
 };
 
 // Admin service
@@ -131,6 +132,7 @@ export const adminService = {
   // Driver management
   getDrivers: (filters = {}) => api.get('/admin/drivers', { params: filters }),
   approveDriver: (id, approved) => api.patch(`/admin/drivers/${id}/approve`, { approved }),
+  updateDriverWorkingArea: (driverId, workingArea) => api.patch(`/drivers/${driverId}/working-area`, { workingArea }),
   
   // Package management
   getPackages: (filters = {}) => api.get('/admin/packages', { params: filters }),

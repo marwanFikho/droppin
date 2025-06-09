@@ -72,19 +72,19 @@ const Package = sequelize.define('Package', {
     allowNull: false
   },
   schedulePickupTime: {
-    type: DataTypes.DATE,
+    type: DataTypes.STRING,
     allowNull: false
   },
   estimatedDeliveryTime: {
-    type: DataTypes.DATE,
+    type: DataTypes.STRING,
     allowNull: true
   },
   actualPickupTime: {
-    type: DataTypes.DATE,
+    type: DataTypes.STRING,
     allowNull: true
   },
   actualDeliveryTime: {
-    type: DataTypes.DATE,
+    type: DataTypes.STRING,
     allowNull: true
   },
   priority: {
@@ -105,7 +105,7 @@ const Package = sequelize.define('Package', {
     defaultValue: false
   },
   paymentDate: {
-    type: DataTypes.DATE,
+    type: DataTypes.STRING,
     allowNull: true
   },
   deliveryCost: {

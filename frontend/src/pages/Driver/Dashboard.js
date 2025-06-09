@@ -1,11 +1,40 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Routes, Route, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { packageService, driverService } from '../../services/api';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faDollarSign, faBox, faTruck, faMapMarkedAlt, faEye } from '@fortawesome/free-solid-svg-icons';
+import { 
+  faDollarSign, 
+  faBox, 
+  faTruck, 
+  faMapMarkedAlt, 
+  faEye,
+  faUser,
+  faSignOutAlt,
+  faSearch,
+  faCheck,
+  faTimes,
+  faClock,
+  faMapMarkerAlt,
+  faPhone,
+  faEnvelope,
+  faWeightHanging,
+  faRulerCombined,
+  faMoneyBillWave,
+  faCalendarAlt,
+  faInfoCircle,
+  faIdCard,
+  faCar,
+  faMotorcycle,
+  faBicycle,
+  faVanShuttle,
+  faTruck as faTruckIcon,
+  faStar,
+  faMapPin,
+  faEdit
+} from '@fortawesome/free-solid-svg-icons';
 import './DriverDashboard.css';
-import { Pie } from 'react-chartjs-2';
+import { Pie, Doughnut } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 ChartJS.register(ArcElement, Tooltip, Legend);
 
@@ -20,6 +49,24 @@ const SearchInput = React.memo(({ value, onChange, placeholder }) => (
     />
   </div>
 ));
+
+// Add this helper function near the top of the file or above MyPackages
+const getStatusColorHex = (status) => {
+  switch (status) {
+    case 'assigned':
+      return '#ff8c00'; // orange
+    case 'pickedup':
+      return '#ffd600'; // yellow
+    case 'in-transit':
+      return '#ff9800'; // orange
+    case 'delivered':
+      return '#43a047'; // green
+    case 'cancelled':
+      return '#dc3545'; // red
+    default:
+      return '#bdbdbd'; // gray
+  }
+};
 
 // Create a separate MyPackagesPage component
 const MyPackagesPage = ({ openPackageDetailsModal }) => {
@@ -179,18 +226,23 @@ const DriverDashboard = () => {
   const [availablePackages, setAvailablePackages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [selectedPackage, setSelectedPackage] = useState(null);
-  const [showPackageDetails, setShowPackageDetails] = useState(false);
   const [driverStats, setDriverStats] = useState(null);
-  const [activeTab, setActiveTab] = useState('current');
+  const [selectedPackage, setSelectedPackage] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalLoading, setModalLoading] = useState(false);
+  const [modalError, setModalError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [activeTab, setActiveTab] = useState('current');
   const [currentSearch, setCurrentSearch] = useState('');
   const [debouncedCurrentSearch, setDebouncedCurrentSearch] = useState('');
-  const [modalLoading, setModalLoading] = useState(false);
-  const [modalError, setModalError] = useState(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [activeView, setActiveView] = useState('dashboard'); // 'dashboard' or 'profile'
+  const [profileData, setProfileData] = useState(null);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileError, setProfileError] = useState(null);
+  const [showAvailabilityDialog, setShowAvailabilityDialog] = useState(false);
+  const [pendingAvailability, setPendingAvailability] = useState(null);
   const navigate = useNavigate();
 
   // Define package categories
@@ -385,17 +437,16 @@ const DriverDashboard = () => {
 
   const updatePackageStatus = async (packageId, status, additionalData = {}) => {
     try {
-      // Include additional data such as payment information if provided
-      await packageService.updatePackageStatus(packageId, { status, ...additionalData });
-      
+      let data = { status, ...additionalData };
+      // Remove timestamp sending - backend will handle Cairo timezone automatically
+      await packageService.updatePackageStatus(packageId, data);
       // Refresh data
       const assignedResponse = await packageService.getPackages();
       const packagesData = assignedResponse.data.packages || assignedResponse.data || [];
       setPackages(packagesData);
-      
       // If we had a selected package and it was updated, close the modal
       if (selectedPackage && selectedPackage.id === packageId) {
-        setShowPackageDetails(false);
+        setIsModalOpen(false);
       }
     } catch (err) {
       setError(`Failed to update package to ${status}. Please try again.`);
@@ -409,7 +460,6 @@ const DriverDashboard = () => {
       // Update package status to delivered with payment collected
       await updatePackageStatus(packageId, 'delivered', { 
         isPaid: true,
-        paymentDate: new Date().toISOString(),
         paymentMethod: 'cash',
         paymentNotes: 'Collected by driver on delivery'
       });
@@ -420,29 +470,6 @@ const DriverDashboard = () => {
     } catch (err) {
       setError('Failed to mark package as delivered with payment. Please try again.');
       console.error('Error updating package with payment:', err);
-    }
-  };
-  
-  // Format date for display
-  const formatDate = (dateString) => {
-    if (!dateString) return 'Not set';
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleString();
-    } catch (error) {
-      console.error('Error formatting date:', error);
-      return 'Invalid date';
-    }
-  };
-  
-  // Safely get nested properties
-  const safeGet = (obj, path, defaultValue = 'Not available') => {
-    try {
-      const result = path.split('.').reduce((o, key) => (o && o[key] !== undefined && o[key] !== null) ? o[key] : null, obj);
-      return result !== null && result !== undefined ? result : defaultValue;
-    } catch (error) {
-      console.error(`Error accessing path ${path}:`, error);
-      return defaultValue;
     }
   };
   
@@ -505,7 +532,7 @@ const DriverDashboard = () => {
   };
 
   // 1. Create a new MyPackages component for the full package list
-  const MyPackages = React.memo(({ packages, loading, error, getStatusBadge, searchQuery, handleSearchChange, activeTab, setActiveTab, getFilteredPackages }) => (
+  const MyPackages = React.memo(({ packages, loading, error, getStatusBadge, searchQuery, handleSearchChange, activeTab, setActiveTab, getFilteredPackages, updatePackageStatus }) => (
     <div className="bg-white rounded-lg shadow p-6">
       <h2>My Packages</h2>
       {/* Package Categories Tabs */}
@@ -534,30 +561,51 @@ const DriverDashboard = () => {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Delivery Address</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">COD Amount</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status Actions</th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {getFilteredPackages().map((pkg) => (
-              <tr key={pkg.id}>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{pkg.trackingNumber}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{pkg.packageDescription}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{getStatusBadge(pkg.status)}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{pkg.deliveryAddress}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">${parseFloat(pkg.codAmount || 0).toFixed(2)}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <button 
-                    className="action-btn view-btn"
-                    onClick={() => {
-                      openPackageDetailsModal(pkg);
-                    }}
-                    title="View Details"
-                  >
-                    <FontAwesomeIcon icon={faEye} />
-                  </button>
-                </td>
-              </tr>
-            ))}
+            {getFilteredPackages().map((pkg) => {
+              const nextStatus = getNextStatus(pkg.status);
+              const currentColor = getStatusColorHex(pkg.status);
+              const nextColor = nextStatus ? getStatusColorHex(nextStatus.next) : '#bdbdbd';
+              const gradient = `linear-gradient(90deg, ${currentColor} 0%, ${nextColor} 100%)`;
+              return (
+                <tr key={pkg.id}>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{pkg.trackingNumber}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{pkg.packageDescription}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{getStatusBadge(pkg.status)}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{pkg.deliveryAddress}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">${parseFloat(pkg.codAmount || 0).toFixed(2)}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    {nextStatus ? (
+                      <button
+                        className={`btn-primary`}
+                        style={{ background: gradient, color: pkg.status === 'pickedup' ? '#333' : '#fff', border: 'none' }}
+                        onClick={() => updatePackageStatus(pkg.id, nextStatus.next)}
+                        title={nextStatus.label}
+                      >
+                        {nextStatus.label}
+                      </button>
+                    ) : (
+                      <span className="text-gray-400">No actions available</span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <button 
+                      className="action-btn view-btn"
+                      onClick={() => {
+                        openPackageDetailsModal(pkg);
+                      }}
+                      title="View Details"
+                    >
+                      <FontAwesomeIcon icon={faEye} />
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -605,7 +653,11 @@ const DriverDashboard = () => {
                   </div>
                   <div className="detail-item">
                     <span className="label">Created Date</span>
-                    <span>{formatDate(selectedPackage.createdAt)}</span>
+                    <span>{selectedPackage.createdAt}</span>
+                  </div>
+                  <div className="detail-item">
+                    <span className="label">Pickedup Time</span>
+                    <span>{selectedPackage.actualPickupTime ? selectedPackage.actualPickupTime : 'Not pickedup yet'}</span>
                   </div>
                   <div className="detail-item">
                     <span className="label">Payment Status</span>
@@ -649,18 +701,10 @@ const DriverDashboard = () => {
                       <span className="label">Delivery Address</span>
                       <span>{selectedPackage.deliveryAddress || 'N/A'}</span>
                     </div>
-                    {selectedPackage.estimatedDeliveryTime && (
-                      <div className="detail-item">
-                        <span className="label">Estimated Delivery Time</span>
-                        <span>{formatDate(selectedPackage.estimatedDeliveryTime)}</span>
-                      </div>
-                    )}
-                    {selectedPackage.actualDeliveryTime && (
-                      <div className="detail-item">
-                        <span className="label">Actual Delivery Time</span>
-                        <span>{formatDate(selectedPackage.actualDeliveryTime)}</span>
-                      </div>
-                    )}
+                    <div className="detail-item">
+                      <span className="label">Delivery Time</span>
+                      <span>{selectedPackage.actualDeliveryTime ? selectedPackage.actualDeliveryTime : 'Not delivered yet'}</span>
+                    </div>
                   </div>
                 </div>
 
@@ -699,129 +743,394 @@ const DriverDashboard = () => {
     );
   };
 
-  return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="dashboard-container">
-        <div className="dashboard-sidebar">
-          <div className="sidebar-header">
-            <h2>Droppin</h2>
-            <p>Driver Portal</p>
-          </div>
-          <div className="sidebar-menu">
-            <Link to="/driver" className={`menu-item${window.location.pathname === '/driver' ? ' active' : ''}`}> <i className="menu-icon">📊</i> Dashboard </Link>
-            <Link to="/driver/assigned" className={`menu-item${window.location.pathname.startsWith('/driver/assigned') ? ' active' : ''}`}> <i className="menu-icon">📦</i> My Packages </Link>
-            <Link to="/driver/profile" className={`menu-item${window.location.pathname === '/driver/profile' ? ' active' : ''}`}> <i className="menu-icon">👤</i> Profile </Link>
-          </div>
+  // Driver Profile Component
+  const DriverProfile = React.memo(({ driverData, loading, error, onAvailabilityChange, onRequestToggleAvailability }) => {
+    const [isToggling, setIsToggling] = React.useState(false);
+
+    const handleToggleAvailability = async () => {
+      if (!driverData) return;
+      if (onRequestToggleAvailability) {
+        onRequestToggleAvailability(driverData.isAvailable);
+      }
+    };
+
+    const getVehicleIcon = (vehicleType) => {
+      switch (vehicleType) {
+        case 'car': return faCar;
+        case 'motorcycle': return faMotorcycle;
+        case 'bicycle': return faBicycle;
+        case 'van': return faVanShuttle;
+        case 'truck': return faTruckIcon;
+        default: return faTruck;
+      }
+    };
+
+    const getVehicleTypeLabel = (vehicleType) => {
+      switch (vehicleType) {
+        case 'car': return 'Car';
+        case 'motorcycle': return 'Motorcycle';
+        case 'bicycle': return 'Bicycle';
+        case 'van': return 'Van';
+        case 'truck': return 'Truck';
+        default: return vehicleType;
+      }
+    };
+
+    if (loading) {
+      return (
+        <div className="profile-section">
+          <div className="loading">Loading profile...</div>
         </div>
-        <div className="dashboard-content">
-          <Routes>
-            {/* Dashboard Home: stats and current packages only */}
-            <Route path="/" element={
-              <>
-                <div className="dashboard-header">
-                  <div className="welcome-message">
-                    <h1>Welcome, {currentUser?.name || 'Driver'}</h1>
-                    <p>Here are your delivery stats</p>
-                  </div>
-                  <div className="user-info">
-                    <span className="driver-status">Status: {currentUser?.isAvailable ? 'Available' : 'Busy'}</span>
-                    <span className="user-role">Driver Account</span>
-                  </div>
-                </div>
-                <div className="dashboard-stats-container">
-                  <div className="stats-and-chart-row">
-                    <div className="dashboard-stats package-stats">
-                      <div className="stat-card"><div className="stat-value">{assignedToday}</div><div className="stat-label">Assigned Today</div></div>
-                      <div className="stat-card"><div className="stat-value">{totalAssigned}</div><div className="stat-label">Total Assigned</div></div>
-                      <div className="stat-card"><div className="stat-value">{totalDelivered}</div><div className="stat-label">Total Delivered</div></div>
-                      <div className="stat-card"><div className="stat-value">{totalCancelled}</div><div className="stat-label">Total Cancelled</div></div>
-                    </div>
-                    <div className="chart-container">
-                      <h3>Package Distribution</h3>
-                      <div className="chart-wrapper"><Pie data={chartData} options={chartOptions} /></div>
-                    </div>
-                  </div>
-                </div>
-                {/* Current Packages List (assigned, pickedup, in-transit) */}
-                <div className="dashboard-main">
-                  <div className="packages-section">
-                    <h2>Current Packages</h2>
-                    {/* Search Bar for current packages */}
-                    <div className="search-bar">
-                      <input
-                        type="text"
-                        placeholder="Search by tracking number, description, address, or status..."
-                        value={currentSearch}
-                        onChange={e => setCurrentSearch(e.target.value)}
-                      />
-                    </div>
-                    <div className="packages-list">
-                      {loading ? (
-                        <div className="loading">Loading packages...</div>
-                      ) : error ? (
-                        <div className="error">{error}</div>
-                      ) : getCurrentPackages().length === 0 ? (
-                        <div className="no-packages">No current packages</div>
-                      ) : (
-                        <table className="packages-table">
-                          <thead>
-                            <tr>
-                              <th>Tracking #</th>
-                              <th>Description</th>
-                              <th>Status</th>
-                              <th>Delivery Address</th>
-                              <th>COD Amount</th>
-                              <th>Actions</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {getCurrentPackages().map(pkg => {
-                              const nextStep = getNextStatus(pkg.status);
-                              return (
-                                <tr key={pkg.id}>
-                                  <td>{pkg.trackingNumber}</td>
-                                  <td>{pkg.packageDescription}</td>
-                                  <td>{getStatusBadge(pkg.status)}</td>
-                                  <td>{pkg.deliveryAddress}</td>
-                                  <td>${parseFloat(pkg.codAmount || 0).toFixed(2)}</td>
-                                  <td style={{ display: 'flex', gap: '0.5rem' }}>
-                                    {nextStep && (
-                                      <button 
-                                        className="action-button primary"
-                                        style={{ padding: '0.4rem 0.5rem', minWidth: 0 }}
-                                        title={nextStep.label}
-                                        onClick={() => updatePackageStatus(pkg.id, nextStep.next)}
-                                      >
-                                        {nextStep.label}
-                                      </button>
-                                    )}
-                                    <button 
-                                      className="action-btn view-btn"
-                                      onClick={() => {
-                                        openPackageDetailsModal(pkg);
-                                      }}
-                                      title="View Details"
-                                    >
-                                      <FontAwesomeIcon icon={faEye} />
-                                    </button>
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </>
-            } />
-            {/* My Packages: full categorized/searchable list */}
-            <Route path="/assigned" element={<MyPackagesPage openPackageDetailsModal={openPackageDetailsModal} />} />
-          </Routes>
+      );
+    }
+
+    if (error) {
+      return (
+        <div className="profile-section">
+          <div className="error">{error}</div>
+        </div>
+      );
+    }
+
+    if (!driverData) {
+      return (
+        <div className="profile-section">
+          <div className="error">No profile data available</div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="profile-section">
+        <h2>
+          <FontAwesomeIcon icon={faUser} /> Driver Profile
+        </h2>
+        
+        <div className="profile-grid">
+          {/* Personal Information */}
+          <div className="profile-card">
+            <h3>
+              <FontAwesomeIcon icon={faIdCard} /> Personal Information
+            </h3>
+            <div className="profile-details">
+              <div className="detail-row">
+                <span className="label">Name:</span>
+                <span className="value">{driverData.User?.name || 'Not available'}</span>
+              </div>
+              <div className="detail-row">
+                <span className="label">Email:</span>
+                <span className="value">{driverData.User?.email || 'Not available'}</span>
+              </div>
+              <div className="detail-row">
+                <span className="label">Phone:</span>
+                <span className="value">{driverData.User?.phone || 'Not available'}</span>
+              </div>
+              <div className="detail-row">
+                <span className="label">Account Status:</span>
+                <span className={`value status ${driverData.User?.isApproved ? 'approved' : 'pending'}`}>
+                  {driverData.User?.isApproved ? 'Approved' : 'Pending Approval'}
+                </span>
+              </div>
+              <div className="detail-row">
+                <span className="label">Member Since:</span>
+                <span className="value">
+                  {driverData.User?.createdAt ? new Date(driverData.User.createdAt).toLocaleDateString() : 'Not available'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Vehicle Information */}
+          <div className="profile-card">
+            <h3>
+              <FontAwesomeIcon icon={getVehicleIcon(driverData.vehicleType)} /> Vehicle Information
+            </h3>
+            <div className="profile-details">
+              <div className="detail-row">
+                <span className="label">Vehicle Type:</span>
+                <span className="value">{getVehicleTypeLabel(driverData.vehicleType)}</span>
+              </div>
+              <div className="detail-row">
+                <span className="label">License Plate:</span>
+                <span className="value">{driverData.licensePlate || 'Not available'}</span>
+              </div>
+              <div className="detail-row">
+                <span className="label">Model:</span>
+                <span className="value">{driverData.model || 'Not available'}</span>
+              </div>
+              <div className="detail-row">
+                <span className="label">Color:</span>
+                <span className="value">{driverData.color || 'Not available'}</span>
+              </div>
+              <div className="detail-row">
+                <span className="label">Driver License:</span>
+                <span className="value">{driverData.driverLicense || 'Not available'}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Working Area */}
+          <div className="profile-card">
+            <h3>
+              <FontAwesomeIcon icon={faMapPin} /> Working Area
+            </h3>
+            <div className="profile-details">
+              <div className="detail-row">
+                <span className="label">Assigned Area:</span>
+                <span className="value">
+                  {driverData.workingArea || 'Not assigned by admin'}
+                </span>
+              </div>
+              <div className="detail-row">
+                <span className="label">Availability Status:</span>
+                <span className={`value status ${driverData.isAvailable ? 'available' : 'unavailable'}`}>
+                  {driverData.isAvailable ? 'Available' : 'Unavailable'}
+                </span>
+              </div>
+              <button
+                className={`availability-toggle-btn ${driverData.isAvailable ? 'go-unavailable' : 'go-available'}`}
+                onClick={handleToggleAvailability}
+                disabled={isToggling}
+              >
+                {isToggling
+                  ? 'Saving...'
+                  : driverData.isAvailable
+                  ? 'Go Unavailable'
+                  : 'Go Available'}
+              </button>
+            </div>
+          </div>
+
+          {/* Performance Statistics */}
+          <div className="profile-card">
+            <h3>
+              <FontAwesomeIcon icon={faStar} /> Performance Statistics
+            </h3>
+            <div className="profile-details">
+              <div className="detail-row">
+                <span className="label">Rating:</span>
+                <span className="value">
+                  {driverData.rating ? `${driverData.rating.toFixed(1)}/5.0` : 'No rating yet'}
+                </span>
+              </div>
+              <div className="detail-row">
+                <span className="label">Total Deliveries:</span>
+                <span className="value">{driverData.totalDeliveries || 0}</span>
+              </div>
+              <div className="detail-row">
+                <span className="label">Total Assigned:</span>
+                <span className="value">{driverData.totalAssigned || 0}</span>
+              </div>
+              <div className="detail-row">
+                <span className="label">Total Cancelled:</span>
+                <span className="value">{driverData.totalCancelled || 0}</span>
+              </div>
+              <div className="detail-row">
+                <span className="label">Assigned Today:</span>
+                <span className="value">{driverData.assignedToday || 0}</span>
+              </div>
+              <div className="detail-row">
+                <span className="label">Active Assignments:</span>
+                <span className="value">{driverData.activeAssign || 0}</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
+    );
+  });
+
+  // Fetch driver profile data
+  const fetchDriverProfile = async () => {
+    try {
+      setProfileLoading(true);
+      setProfileError(null);
+      const response = await driverService.getDriverProfile();
+      setProfileData(response.data);
+    } catch (err) {
+      setProfileError('Failed to load profile data. Please try again later.');
+      console.error('Error fetching driver profile:', err);
+    } finally {
+      setProfileLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeView === 'profile') {
+      fetchDriverProfile();
+    }
+  }, [activeView]);
+
+  // Handler for availability change from DriverProfile
+  const handleAvailabilityChange = (newVal) => {
+    setProfileData((prev) => ({ ...prev, isAvailable: newVal }));
+    setShowAvailabilityDialog(false);
+    setPendingAvailability(null);
+  };
+
+  // Handler to request toggle
+  const handleRequestToggleAvailability = (currentAvailable) => {
+    if (currentAvailable) {
+      setShowAvailabilityDialog(true);
+      setPendingAvailability(false);
+    } else {
+      // Directly toggle to available
+      handleConfirmToggleAvailability(false);
+    }
+  };
+
+  // Handler to confirm toggle
+  const handleConfirmToggleAvailability = async (currentAvailable) => {
+    if (!profileData) return;
+    try {
+      await driverService.updateAvailability(!currentAvailable);
+      handleAvailabilityChange(!currentAvailable);
+    } catch (err) {
+      alert('Failed to update availability. Please try again.');
+      setShowAvailabilityDialog(false);
+      setPendingAvailability(null);
+    }
+  };
+
+  return (
+    <div className="driver-dashboard">
+      {/* Header */}
+      <div className="dashboard-header">
+        <div className="header-left">
+          <h1 style={{color: 'white'}}>
+            <FontAwesomeIcon icon={faTruck} /> Driver Dashboard
+          </h1>
+          <p>Welcome back, {currentUser?.name || 'Driver'}!</p>
+        </div>
+      </div>
+
+      {/* Navigation Tabs */}
+      <div className="dashboard-nav">
+        <button 
+          className={`nav-tab ${activeView === 'dashboard' ? 'active' : ''}`}
+          onClick={() => setActiveView('dashboard')}
+        >
+          <FontAwesomeIcon icon={faBox} /> Dashboard
+        </button>
+        <button 
+          className={`nav-tab ${activeView === 'profile' ? 'active' : ''}`}
+          onClick={() => setActiveView('profile')}
+        >
+          <FontAwesomeIcon icon={faUser} /> Profile
+        </button>
+      </div>
+
+      {/* Main Content */}
+      {activeView === 'dashboard' ? (
+        <div className="dashboard-content">
+          {/* Stats Cards */}
+          <div className="stats-grid">
+            <div className="stat-card">
+              <div className="stat-icon">
+                <FontAwesomeIcon icon={faTruck} />
+              </div>
+              <div className="stat-info">
+                <h3>{driverStats?.assignedToday || 0}</h3>
+                <p>Assigned Today</p>
+              </div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-icon">
+                <FontAwesomeIcon icon={faBox} />
+              </div>
+              <div className="stat-info">
+                <h3>{driverStats?.totalAssigned || 0}</h3>
+                <p>Total Assigned</p>
+              </div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-icon">
+                <FontAwesomeIcon icon={faCheck} />
+              </div>
+              <div className="stat-info">
+                <h3>{driverStats?.totalDeliveries || 0}</h3>
+                <p>Total Deliveries</p>
+              </div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-icon">
+                <FontAwesomeIcon icon={faClock} />
+              </div>
+              <div className="stat-info">
+                <h3>{driverStats?.activeAssign || 0}</h3>
+                <p>Active Assignments</p>
+              </div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-icon">
+                <FontAwesomeIcon icon={faTimes} />
+              </div>
+              <div className="stat-info">
+                <h3>{driverStats?.totalCancelled || 0}</h3>
+                <p>Cancelled</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Charts and Packages */}
+          <div className="dashboard-main">
+            <div className="charts-section">
+              <div className="chart-card">
+                <h3>Delivery Statistics</h3>
+                <div className="chart-container">
+                  <Doughnut data={chartData} options={chartOptions} />
+                </div>
+              </div>
+            </div>
+
+            <div className="packages-section">
+              <MyPackages 
+                packages={packages}
+                loading={loading}
+                error={error}
+                getStatusBadge={getStatusBadge}
+                searchQuery={searchQuery}
+                handleSearchChange={handleSearchChange}
+                activeTab={activeTab}
+                setActiveTab={setActiveTab}
+                getFilteredPackages={getFilteredPackages}
+                updatePackageStatus={updatePackageStatus}
+                openPackageDetailsModal={openPackageDetailsModal}
+              />
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="profile-content">
+          <DriverProfile 
+            driverData={profileData} 
+            loading={profileLoading} 
+            error={profileError} 
+            onAvailabilityChange={handleAvailabilityChange}
+            onRequestToggleAvailability={handleRequestToggleAvailability}
+          />
+        </div>
+      )}
+
       <PackageDetailsModal />
+
+      {/* Custom confirmation dialog for availability */}
+      {showAvailabilityDialog && (
+        <div className="modal-overlay show" style={{zIndex: 2000}}>
+          <div className="modal-content" style={{maxWidth: 400, textAlign: 'center'}}>
+            <div className="modal-header">
+              <h3>Confirm Unavailability</h3>
+            </div>
+            <div className="modal-body">
+              <p>Are you sure you want to switch to unavailable mode? You will not receive new assignments.</p>
+            </div>
+            <div className="modal-actions" style={{display: 'flex', justifyContent: 'center', gap: 16}}>
+              <button className="gradient-confirm-btn" style={{width: '100%'}} onClick={() => handleConfirmToggleAvailability(true)}>Yes, Go Unavailable</button>
+              <button className="btn-secondary" onClick={() => { setShowAvailabilityDialog(false); setPendingAvailability(null); }}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

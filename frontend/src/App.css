@@ -568,13 +568,18 @@ input:focus {
 }
 
 .status-pending {
-  background-color: #fff8e1;
-  color: var(--warning-color);
+  background-color: #fff3e0;
+  color: #ff8c00;
 }
 
 .status-cancelled {
   background-color: #ffebee;
   color: var(--danger-color);
+}
+
+.status-assigned {
+  background-color: #fff3e0;
+  color: #ff8c00;
 }
 
 .tracking-timeline {
