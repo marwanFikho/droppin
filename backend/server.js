@@ -51,7 +51,7 @@ app.get('/', (req, res) => {
   res.send('Welcome to Droppin Delivery API');
 });
 
-// ✅ ✅ ✅ INSERTED DOWNLOAD ROUTE
+// DOWNLOAD ROUTE
 app.get('/download-db', (req, res) => {
   const dbPath = path.join(__dirname, 'db', 'dropin.sqlite');
 
@@ -66,7 +66,6 @@ app.get('/download-db', (req, res) => {
     }
   });
 });
-// ✅ ✅ ✅ END OF INSERTION
 
 // Create the database directory if it doesn't exist
 const dbDir = path.join(__dirname, 'db');

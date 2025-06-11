@@ -2,6 +2,7 @@ const { Package, Shop, Driver, User } = require('../models');
 const { Op } = require('sequelize');
 const { sequelize } = require('../config/db.config');
 const { getCairoDateTime, formatDateTimeToDDMMYYYY } = require('../utils/dateUtils');
+const { logMoneyTransaction } = require('../utils/moneyLogger');
 
 // Create a new package
 exports.createPackage = async (req, res) => {
@@ -52,7 +53,7 @@ exports.createPackage = async (req, res) => {
       packageDescription,
       weight,
       dimensions: dimensionsStr, // Store as string (e.g., '10x20x30')
-      status: 'pending',
+      status: 'awaiting_schedule',
       // Pickup information
       pickupContactName: pickupAddress?.contactName || req.user.name,
       pickupContactPhone: pickupAddress?.contactPhone || req.user.phone,
@@ -75,20 +76,6 @@ exports.createPackage = async (req, res) => {
     console.log(`Created package with ID ${package.id}, tracking number ${trackingNumber}`);
     if (codAmount && parseFloat(codAmount) > 0) {
       console.log(`Package has COD amount of ${codAmount}`);
-    }
-
-    // Update the shop's ToCollect amount when package is created with COD
-    if (package.codAmount > 0) {
-      console.log(`Adding COD amount ${package.codAmount} to shop's ToCollect when creating package ${package.id}`);
-      
-      const currentToCollect = parseFloat(shop.ToCollect || 0);
-      const newToCollect = currentToCollect + parseFloat(package.codAmount);
-      
-      await shop.update({
-        ToCollect: newToCollect
-      });
-      
-      console.log(`Updated shop (${shop.id}) ToCollect: ${currentToCollect} -> ${newToCollect}`);
     }
 
     res.status(201).json(package);
@@ -295,64 +282,48 @@ exports.getPackageByTracking = async (req, res) => {
 
 // Update package status
 exports.updatePackageStatus = async (req, res) => {
+  const t = await sequelize.transaction();
+  
   try {
     const { id } = req.params;
     const { status, note } = req.body;
     
     if (!status) {
+      await t.rollback();
       return res.status(400).json({ message: 'Status is required' });
     }
     
     // Validate status
     const validStatuses = ['pending', 'assigned', 'pickedup', 'in-transit', 'delivered', 'cancelled', 'returned'];
     if (!validStatuses.includes(status)) {
+      await t.rollback();
       return res.status(400).json({ message: 'Invalid status' });
     }
     
     // Find package
-    const package = await Package.findByPk(id);
+    const package = await Package.findByPk(id, { transaction: t });
     if (!package) {
+      await t.rollback();
       return res.status(404).json({ message: 'Package not found' });
     }
     
     // Check authorization
     if (req.user.role === 'shop') {
-      const shop = await Shop.findOne({ where: { userId: req.user.id } });
+      const shop = await Shop.findOne({ 
+        where: { userId: req.user.id },
+        transaction: t
+      });
       if (!shop || package.shopId !== shop.id) {
+        await t.rollback();
         return res.status(403).json({ message: 'Unauthorized access' });
       }
       
       // Shops can only cancel packages that aren't delivered
       if (status === 'cancelled' && package.status === 'delivered') {
+        await t.rollback();
         return res.status(403).json({ message: 'Cannot cancel a delivered package' });
       }
-    } else if (req.user.role === 'driver') {
-      const driver = await Driver.findOne({ where: { userId: req.user.id } });
-      if (!driver) {
-        return res.status(404).json({ message: 'Driver profile not found' });
-      }
-      
-      // Drivers can only update packages assigned to them
-      if (!package.driverId || package.driverId !== driver.id) {
-        return res.status(403).json({ message: 'Unauthorized access' });
-      }
-      
-      // Validate status transition for driver
-      const driverAllowedTransitions = {
-        'assigned': ['pickedup', 'cancelled'],
-        'pickedup': ['in-transit', 'delivered', 'cancelled'],
-        'in-transit': ['delivered', 'cancelled']
-      };
-      
-      if (!driverAllowedTransitions[package.status] || !driverAllowedTransitions[package.status].includes(status)) {
-        return res.status(400).json({ message: 'Invalid status transition' });
-      }
     }
-    
-    // Update fields
-    const updateData = {
-      status
-    };
     
     // Log status change for debugging
     console.log(`Updating package ${id} status from ${package.status} to ${status} by ${req.user.id} (${req.user.role})`);
@@ -360,53 +331,22 @@ exports.updatePackageStatus = async (req, res) => {
       console.log(`Status change note: ${note}`);
     }
     
-    // Update timestamps for specific statuses
-    if (status === 'pickedup') {
-      updateData.actualPickupTime = formatDateTimeToDDMMYYYY(getCairoDateTime());
-    } else if (status === 'delivered') {
-      updateData.actualDeliveryTime = formatDateTimeToDDMMYYYY(getCairoDateTime());
-      // Auto-mark payment as paid when package is delivered if there's a COD amount
-      if (package.codAmount > 0 && !package.isPaid) {
-        updateData.isPaid = true;
-        updateData.paymentDate = formatDateTimeToDDMMYYYY(getCairoDateTime());
-        // Log payment status change
-        console.log(`Auto-marking payment as paid for package ${id} with COD amount ${package.codAmount}`);
-      }
-      // Increment driver's totalDeliveries and decrement activeAssign
-      if (package.driverId) {
-        const driver = await Driver.findByPk(package.driverId);
-        if (driver) {
-          driver.totalDeliveries += 1;
-          driver.activeAssign = Math.max(0, driver.activeAssign - 1);
-          await driver.save();
-        }
-      }
-    } else if (status === 'cancelled' && package.driverId) {
-      // If package is being cancelled and was assigned to a driver, update driver stats
-      const driver = await Driver.findByPk(package.driverId);
-      if (driver) {
-        driver.totalCancelled += 1;
-        if (['assigned', 'pickedup', 'in-transit'].includes(package.status)) {
-          driver.activeAssign = Math.max(0, driver.activeAssign - 1);
-        }
-        await driver.save();
-      }
-    }
-    
     // Save the original status and payment status values before updating
     const originalStatus = package.status;
-    const originalIsPaid = package.isPaid;
     
-    // Apply package updates
-    await package.update(updateData);
+    // Update package status
+    await package.update({ status }, { transaction: t });
     
     // Get the shop for this package to update financial data
-    const shop = await Shop.findByPk(package.shopId, { raw: false });
+    const shop = await Shop.findByPk(package.shopId, { 
+      transaction: t,
+      lock: true // Add row-level locking
+    });
     
     if (shop) {
-      // When a package is marked as delivered and payment collected (isPaid changed)
-      if (status === 'delivered' && !originalIsPaid && updateData.isPaid === true && package.codAmount > 0) {
-        console.log(`Package ${id} marked as delivered with payment collected. Updating shop financial data.`);
+      // When a package is marked as delivered and has COD
+      if (status === 'delivered' && package.codAmount > 0) {
+        console.log(`Package ${id} marked as delivered. Updating shop financial data.`);
         
         // Move amount from ToCollect to TotalCollected
         const codAmount = parseFloat(package.codAmount || 0);
@@ -419,11 +359,27 @@ exports.updatePackageStatus = async (req, res) => {
         
         console.log(`Shop financial update: ToCollect ${currentToCollect} -> ${newToCollect}, TotalCollected ${currentTotalCollected} -> ${newTotalCollected}`);
         
-        // Update shop
-        await shop.update({
-          ToCollect: newToCollect,
-          TotalCollected: newTotalCollected
-        });
+        // Update shop using direct SQL to avoid precision issues
+        await sequelize.query(
+          'UPDATE Shops SET ToCollect = :newToCollect, TotalCollected = :newTotalCollected WHERE id = :shopId',
+          {
+            replacements: { newToCollect, newTotalCollected, shopId: shop.id },
+            type: sequelize.QueryTypes.UPDATE,
+            transaction: t
+          }
+        );
+        
+        // Log the money transactions
+        await logMoneyTransaction(shop.id, codAmount, 'TotalCollected', 'increase', `Package ${package.trackingNumber} delivered - COD collected`, t);
+        
+        // Update package payment status with properly formatted date
+        await package.update({ 
+          isPaid: true,
+          paymentDate: formatDateTimeToDDMMYYYY(getCairoDateTime()),
+          paymentStatus: 'paid',
+          paymentMethod: 'cod',
+          paymentNotes: 'COD collected on delivery'
+        }, { transaction: t });
       }
       // When a package is cancelled, subtract from ToCollect
       else if (status === 'cancelled' && package.codAmount > 0) {
@@ -432,29 +388,35 @@ exports.updatePackageStatus = async (req, res) => {
         const codAmount = parseFloat(package.codAmount || 0);
         const currentToCollect = parseFloat(shop.ToCollect || 0);
         
-        // Calculate new ToCollect amount
-        const newToCollect = Math.max(0, currentToCollect - codAmount);
+        // Only subtract if the package had its COD added previously
+        const wasCodAdded = ['pending','assigned','pickedup','in-transit'].includes(originalStatus.toLowerCase());
+        const newToCollect = wasCodAdded ? Math.max(0, currentToCollect - codAmount) : currentToCollect;
         
-        console.log(`Shop financial update: ToCollect ${currentToCollect} -> ${newToCollect}`);
-        
-        // Update shop's ToCollect
-        await shop.update({
-          ToCollect: newToCollect
-        });
-      }
-      // When a package is initially created or assigned, add to ToCollect
-      else if ((originalStatus === 'pending' || !originalStatus) && status === 'assigned' && package.codAmount > 0) {
-        console.log(`Package ${id} assigned. Adding to shop's ToCollect.`);
-        
-        const codAmount = parseFloat(package.codAmount || 0);
-        const currentToCollect = parseFloat(shop.ToCollect || 0);
-        
-        // Update the shop's ToCollect column in the database
-        await shop.update({
-          ToCollect: currentToCollect + codAmount
+        console.log('DEBUG - Calculation:', {
+          currentToCollect,
+          codAmount,
+          newToCollect,
+          calculation: `${currentToCollect} - ${codAmount} = ${newToCollect}`,
+          wasCodAdded
         });
         
-        console.log(`Updated shop (${shop.id}) ToCollect in database: ${currentToCollect} -> ${currentToCollect + codAmount}`);
+        // Apply balance change ONLY if COD was previously added
+        if (wasCodAdded) {
+          // Update shop using direct SQL to avoid precision issues
+          await sequelize.query(
+            'UPDATE Shops SET ToCollect = :newToCollect WHERE id = :shopId',
+            {
+              replacements: { newToCollect, shopId: shop.id },
+              type: sequelize.QueryTypes.UPDATE,
+              transaction: t
+            }
+          );
+          
+          // Log the money transaction
+          await logMoneyTransaction(shop.id, codAmount, 'ToCollect', 'decrease', `Package ${package.trackingNumber} cancelled`, t);
+          
+          console.log(`Shop (${shop.id}) ToCollect updated: ${currentToCollect} -> ${newToCollect}`);
+        }
       }
     }
     
@@ -469,13 +431,18 @@ exports.updatePackageStatus = async (req, res) => {
           model: Driver,
           attributes: ['id']
         }
-      ]
+      ],
+      transaction: t
     });
+    
+    // Commit the transaction
+    await t.commit();
     
     // Format the response with Cairo timezone dates
     const formattedPackage = formatPackageForResponse(updatedPackage);
     res.json(formattedPackage);
   } catch (error) {
+    await t.rollback();
     console.error('Error updating package status:', error);
     res.status(500).json({ message: error.message });
   }
@@ -799,26 +766,15 @@ exports.cancelPackage = async (req, res) => {
       return res.status(500).json({ message: 'Invalid numeric values encountered' });
     }
 
-    const newToCollect = Math.max(0, currentToCollect - codAmount);
+    // Only subtract if the package had its COD added previously. We assume this is true for packages that have status after pickup phase (pending/assigned/in-transit/delivered)
+    const wasCodAdded = ['pending','assigned','pickedup','in-transit'].includes(pkg.status.toLowerCase());
+    const newToCollect = wasCodAdded ? Math.max(0, currentToCollect - codAmount) : currentToCollect;
 
     console.log('DEBUG - Calculation:', {
       currentToCollect,
       codAmount,
       newToCollect,
       calculation: `${currentToCollect} - ${codAmount} = ${newToCollect}`
-    });
-
-    // Reload the shop instance to ensure we have the latest data
-    await shop.reload({ transaction: t });
-
-    // Update using the instance method
-    shop.ToCollect = newToCollect;
-    await shop.save({ transaction: t });
-
-    console.log('DEBUG - After shop update:', {
-      shopId: shop.id,
-      newToCollect: shop.ToCollect,
-      newToCollectType: typeof shop.ToCollect
     });
 
     // Update driver stats if needed
@@ -836,6 +792,24 @@ exports.cancelPackage = async (req, res) => {
     // Update package status
     pkg.status = 'cancelled';
     await pkg.save({ transaction: t });
+
+    // Update shop's ToCollect if needed
+    if (wasCodAdded && codAmount > 0) {
+      // Update shop's ToCollect using direct SQL to avoid precision issues
+      await sequelize.query(
+        'UPDATE Shops SET ToCollect = :newToCollect WHERE id = :shopId',
+        {
+          replacements: { newToCollect, shopId: shop.id },
+          type: sequelize.QueryTypes.UPDATE,
+          transaction: t
+        }
+      );
+      
+      // Create money log within the transaction
+      await logMoneyTransaction(shop.id, codAmount, 'ToCollect', 'decrease', `Package ${pkg.trackingNumber} cancelled`, t);
+      
+      console.log(`Shop (${shop.id}) ToCollect updated: ${currentToCollect} -> ${newToCollect}`);
+    }
 
     // Commit the transaction
     await t.commit();
@@ -858,11 +832,8 @@ exports.cancelPackage = async (req, res) => {
     });
   } catch (error) {
     await t.rollback();
-    console.error('Error in cancelPackage:', error);
-    res.status(500).json({ 
-      message: 'Error cancelling package',
-      error: error.message 
-    });
+    console.error('Error cancelling package:', error);
+    res.status(500).json({ message: error.message });
   }
 };
 

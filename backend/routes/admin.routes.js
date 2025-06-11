@@ -32,4 +32,7 @@ router.patch('/packages/:packageId/payment', adminController.updatePackagePaymen
 // Financial management
 router.post('/shops/:shopId/settle-payments', adminController.settleShopPayments);
 
+// Money transactions
+router.get('/money', adminController.getMoneyTransactions);
+
 module.exports = router;

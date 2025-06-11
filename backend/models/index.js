@@ -6,6 +6,7 @@ const Shop = require('./shop.model');
 const Driver = require('./driver.model');
 const Package = require('./package.model');
 const Pickup = require('./pickup.model');
+const MoneyTransaction = require('./moneytransaction.model');
 
 // Define relationships
 User.hasOne(Shop, { foreignKey: 'userId' });
@@ -26,6 +27,9 @@ Package.belongsTo(User, { foreignKey: 'userId' });
 Shop.hasMany(Pickup, { foreignKey: 'shopId' });
 Pickup.belongsTo(Shop, { foreignKey: 'shopId' });
 
+Shop.hasMany(MoneyTransaction, { foreignKey: 'shopId' });
+MoneyTransaction.belongsTo(Shop, { foreignKey: 'shopId' });
+
 const PickupPackages = sequelize.define('PickupPackages', {}, { timestamps: true });
 Pickup.belongsToMany(Package, { through: PickupPackages, foreignKey: 'pickupId' });
 Package.belongsToMany(Pickup, { through: PickupPackages, foreignKey: 'packageId' });
@@ -36,5 +40,6 @@ module.exports = {
   Shop,
   Driver,
   Package,
-  Pickup
+  Pickup,
+  MoneyTransaction
 };

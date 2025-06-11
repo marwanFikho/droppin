@@ -223,7 +223,6 @@ const useDriverPackages = () => {
 const DriverDashboard = () => {
   const { currentUser, logout } = useAuth();
   const [packages, setPackages] = useState([]);
-  const [availablePackages, setAvailablePackages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [driverStats, setDriverStats] = useState(null);
@@ -285,7 +284,6 @@ const DriverDashboard = () => {
           availablePackagesList = availableResponse.data.packages;
         }
         
-        setAvailablePackages(availablePackagesList);
       } catch (err) {
         setError('Failed to load packages. Please try again later.');
         console.error('Error fetching packages:', err);
@@ -428,7 +426,6 @@ const DriverDashboard = () => {
       setPackages(assignedResponse.data.packages || []);
       
       const availableResponse = await packageService.getPackages({ status: 'pending' });
-      setAvailablePackages(availableResponse.data.packages || []);
     } catch (err) {
       setError('Failed to accept package. Please try again.');
       console.error('Error accepting package:', err);
@@ -513,9 +510,9 @@ const DriverDashboard = () => {
   // Add this helper function inside the DriverDashboard component, before the return statement
   const getStatusBadge = (status) => (
     <span className={`status-badge status-${status}`}>
-      {status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ')}
-    </span>
-  );
+        {status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ')}
+      </span>
+    );
 
   // Helper to get next status for a package
   const getNextStatus = (status) => {
@@ -572,12 +569,12 @@ const DriverDashboard = () => {
               const nextColor = nextStatus ? getStatusColorHex(nextStatus.next) : '#bdbdbd';
               const gradient = `linear-gradient(90deg, ${currentColor} 0%, ${nextColor} 100%)`;
               return (
-                <tr key={pkg.id}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{pkg.trackingNumber}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{pkg.packageDescription}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{getStatusBadge(pkg.status)}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{pkg.deliveryAddress}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">${parseFloat(pkg.codAmount || 0).toFixed(2)}</td>
+              <tr key={pkg.id}>
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{pkg.trackingNumber}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{pkg.packageDescription}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{getStatusBadge(pkg.status)}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{pkg.deliveryAddress}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">${parseFloat(pkg.codAmount || 0).toFixed(2)}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     {nextStatus ? (
                       <button
@@ -592,7 +589,7 @@ const DriverDashboard = () => {
                       <span className="text-gray-400">No actions available</span>
                     )}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <button 
                       className="action-btn view-btn"
                       onClick={() => {
@@ -602,8 +599,8 @@ const DriverDashboard = () => {
                     >
                       <FontAwesomeIcon icon={faEye} />
                     </button>
-                  </td>
-                </tr>
+                </td>
+              </tr>
               );
             })}
           </tbody>
@@ -622,13 +619,13 @@ const DriverDashboard = () => {
             <h2>
               <FontAwesomeIcon icon={faBox} /> Package #{selectedPackage.trackingNumber}
             </h2>
-            <button
+              <button
               onClick={closePackageDetailsModal}
               className="close-btn"
             >
               ×
-            </button>
-          </div>
+              </button>
+            </div>
 
           <div className="modal-body">
             {modalLoading ? (
@@ -732,7 +729,7 @@ const DriverDashboard = () => {
                         <span className="label">Shop Phone</span>
                         <span>{selectedPackage.shop.phone || 'N/A'}</span>
                       </div>
-                    </div>
+                </div>
                   </div>
                 )}
               </div>
@@ -777,10 +774,10 @@ const DriverDashboard = () => {
     };
 
     if (loading) {
-      return (
+  return (
         <div className="profile-section">
           <div className="loading">Loading profile...</div>
-        </div>
+          </div>
       );
     }
 
@@ -788,7 +785,7 @@ const DriverDashboard = () => {
       return (
         <div className="profile-section">
           <div className="error">{error}</div>
-        </div>
+          </div>
       );
     }
 
@@ -995,14 +992,14 @@ const DriverDashboard = () => {
   return (
     <div className="driver-dashboard">
       {/* Header */}
-      <div className="dashboard-header">
+                <div className="dashboard-header">
         <div className="header-left">
           <h1 style={{color: 'white'}}>
             <FontAwesomeIcon icon={faTruck} /> Driver Dashboard
           </h1>
           <p>Welcome back, {currentUser?.name || 'Driver'}!</p>
-        </div>
-      </div>
+                  </div>
+                  </div>
 
       {/* Navigation Tabs */}
       <div className="dashboard-nav">
@@ -1018,7 +1015,7 @@ const DriverDashboard = () => {
         >
           <FontAwesomeIcon icon={faUser} /> Profile
         </button>
-      </div>
+                </div>
 
       {/* Main Content */}
       {activeView === 'dashboard' ? (
@@ -1028,16 +1025,16 @@ const DriverDashboard = () => {
             <div className="stat-card">
               <div className="stat-icon">
                 <FontAwesomeIcon icon={faTruck} />
-              </div>
+                    </div>
               <div className="stat-info">
                 <h3>{driverStats?.assignedToday || 0}</h3>
                 <p>Assigned Today</p>
-              </div>
-            </div>
+                    </div>
+                  </div>
             <div className="stat-card">
               <div className="stat-icon">
                 <FontAwesomeIcon icon={faBox} />
-              </div>
+                </div>
               <div className="stat-info">
                 <h3>{driverStats?.totalAssigned || 0}</h3>
                 <p>Total Assigned</p>
@@ -1073,7 +1070,7 @@ const DriverDashboard = () => {
           </div>
 
           {/* Charts and Packages */}
-          <div className="dashboard-main">
+                <div className="dashboard-main">
             <div className="charts-section">
               <div className="chart-card">
                 <h3>Delivery Statistics</h3>
@@ -1083,7 +1080,7 @@ const DriverDashboard = () => {
               </div>
             </div>
 
-            <div className="packages-section">
+                  <div className="packages-section">
               <MyPackages 
                 packages={packages}
                 loading={loading}
@@ -1096,8 +1093,8 @@ const DriverDashboard = () => {
                 getFilteredPackages={getFilteredPackages}
                 updatePackageStatus={updatePackageStatus}
                 openPackageDetailsModal={openPackageDetailsModal}
-              />
-            </div>
+                      />
+                    </div>
           </div>
         </div>
       ) : (
@@ -1120,16 +1117,16 @@ const DriverDashboard = () => {
           <div className="modal-content" style={{maxWidth: 400, textAlign: 'center'}}>
             <div className="modal-header">
               <h3>Confirm Unavailability</h3>
-            </div>
+                    </div>
             <div className="modal-body">
               <p>Are you sure you want to switch to unavailable mode? You will not receive new assignments.</p>
-            </div>
+                  </div>
             <div className="modal-actions" style={{display: 'flex', justifyContent: 'center', gap: 16}}>
               <button className="gradient-confirm-btn" style={{width: '100%'}} onClick={() => handleConfirmToggleAvailability(true)}>Yes, Go Unavailable</button>
               <button className="btn-secondary" onClick={() => { setShowAvailabilityDialog(false); setPendingAvailability(null); }}>Cancel</button>
-            </div>
-          </div>
+                </div>
         </div>
+      </div>
       )}
     </div>
   );

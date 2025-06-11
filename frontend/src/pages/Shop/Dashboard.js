@@ -3,7 +3,7 @@ import { Routes, Route, Link, useNavigate, Outlet, useLocation } from 'react-rou
 import { useAuth } from '../../context/AuthContext';
 import { packageService } from '../../services/api';
 import CreatePackage from './CreatePackage';
-import ShopPackages from './ShopPackages';
+import ShopPackages, { getStatusBadge } from './ShopPackages';
 import ShopProfile from './ShopProfile';
 import NewPickup from './NewPickup';
 import { Pie } from 'react-chartjs-2';
@@ -302,7 +302,7 @@ const ShopDashboard = () => {
                                 <div className="recipient-name">{pkg.deliveryContactName || 'No recipient'}</div>
                               </div>
                               <div className="package-description">{pkg.packageDescription}</div>
-                              <div className={`package-status status-${pkg.status}`}>{pkg.status.charAt(0).toUpperCase() + pkg.status.slice(1)}</div>
+                              {getStatusBadge(pkg.status)}
                             </div>
                             <div className="package-details-right">
                               <div className="package-date">{new Date(pkg.createdAt).toLocaleDateString()}</div>

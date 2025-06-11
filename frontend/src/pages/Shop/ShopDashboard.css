@@ -100,11 +100,6 @@
   background-color: #ffffff;
   border-radius: 6px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  transition: transform 0.2s ease;
-}
-
-.stat-card:hover {
-  transform: translateY(-2px);
 }
 
 .stat-value {
@@ -248,53 +243,74 @@
 
 /* Status Badges */
 .status-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  text-transform: capitalize;
   display: inline-block;
-  min-width: 64px;
-  padding: 4px 16px;
-  border-radius: 999px;
-  font-weight: 600;
-  font-size: 0.95rem;
   text-align: center;
-  background: #fff3e0;
-  color: #ff8c00;
-  box-shadow: none;
-  letter-spacing: 0.01em;
+  min-width: 80px;
 }
 
-.status-assigned {
-  background: #ff8c00 !important;
-  color: #fff !important;
-  min-width: 10px;
+.status-awaiting-schedule {
+  background-color: #e3f2fd;
+  color: #1976d2;
+  border: 1px solid #bbdefb;
 }
 
-.status-pickedup {
-  background: #ffd600 !important;
-  color: #333 !important;
-  min-width: 10px;
+.status-awaiting-pickup {
+  background-color: #fff3e0;
+  color: #f57c00;
+  border: 1px solid #ffcc02;
 }
 
-.status-in-transit {
-  background: #ff9800 !important;
-  color: #fff !important;
-  min-width: 10px;
+.status-scheduled-for-pickup {
+  background-color: #f3e5f5;
+  color: #7b1fa2;
+  border: 1px solid #e1bee7;
 }
 
 .status-pending {
-  background: #fff3e0;
-  color: #ff8c00;
-  min-width: 10px;
+  background-color: #e3f2fd;
+  color: #1976d2;
+  border: 1px solid #bbdefb;
 }
 
-.status-cancelled {
-  background: #eeeeee;
-  color: #757575;
-  min-width: 10px;
+.status-assigned {
+  background-color: #e8f5e8;
+  color: #388e3c;
+  border: 1px solid #c8e6c9;
+}
+
+.status-pickedup {
+  background-color: #fff3e0;
+  color: #f57c00;
+  border: 1px solid #ffcc02;
+}
+
+.status-in-transit {
+  background-color: #fff3e0;
+  color: #f57c00;
+  border: 1px solid #ffcc02;
 }
 
 .status-delivered {
-  background: #43a047 !important;
-  color: #fff !important;
-  min-width: 10px;
+  background-color: #e8f5e8;
+  color: #388e3c;
+  border: 1px solid #c8e6c9;
+}
+
+.status-cancelled {
+  background-color: #ffebee;
+  color: #d32f2f;
+  border: 1px solid #ffcdd2;
+}
+
+.status-other {
+  background-color: #f5f5f5;
+  color: #757575;
+  border: 1px solid #e0e0e0;
 }
 
 /* COD Badges */

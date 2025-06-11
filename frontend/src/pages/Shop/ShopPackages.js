@@ -5,6 +5,9 @@ import './ShopDashboard.css';
 
 const TABS = [
   { label: 'All', value: 'all' },
+  { label: 'Awaiting Schedule', value: 'awaiting_schedule' },
+  { label: 'Awaiting Pickup', value: 'awaiting_pickup' },
+  { label: 'Scheduled for Pickup', value: 'scheduled_for_pickup' },
   { label: 'Pending', value: 'pending' },
   { label: 'In Transit', value: 'in-transit' },
   { label: 'Delivered', value: 'delivered' },
@@ -14,16 +17,19 @@ const TABS = [
 
 const inTransitStatuses = ['assigned', 'pickedup', 'in-transit'];
 
-function getStatusBadge(status) {
+export function getStatusBadge(status) {
   let className = 'status-badge';
-  if (status === 'pending') className += ' status-pending';
+  if (status === 'awaiting_schedule') className += ' status-awaiting-schedule';
+  else if (status === 'awaiting_pickup') className += ' status-awaiting-pickup';
+  else if (status === 'scheduled_for_pickup') className += ' status-scheduled-for-pickup';
+  else if (status === 'pending') className += ' status-pending';
   else if (status === 'assigned') className += ' status-assigned';
   else if (status === 'pickedup') className += ' status-pickedup';
   else if (status === 'in-transit') className += ' status-in-transit';
   else if (status === 'delivered') className += ' status-delivered';
   else if (status === 'cancelled') className += ' status-cancelled';
   else className += ' status-other';
-  return <span className={className}>{status.charAt(0).toUpperCase() + status.slice(1).replace('-', ' ')}</span>;
+  return <span className={className}>{status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, ' ').replace('-', ' ')}</span>;
 }
 
 function getCodBadge(isPaid) {
@@ -143,23 +149,29 @@ const ShopPackages = () => {
   };
 
   const filterPackages = () => {
-    let filtered = packages;
-    if (activeTab !== 'all') {
-      if (activeTab === 'in-transit') {
-        filtered = filtered.filter(pkg => inTransitStatuses.includes(pkg.status));
-      } else {
-        filtered = filtered.filter(pkg => pkg.status === activeTab);
-      }
-    }
-    if (search.trim()) {
-      const s = search.trim().toLowerCase();
-      filtered = filtered.filter(pkg =>
-        (pkg.trackingNumber && pkg.trackingNumber.toLowerCase().includes(s)) ||
-        (pkg.recipientName && pkg.recipientName.toLowerCase().includes(s)) ||
-        (pkg.packageDescription && pkg.packageDescription.toLowerCase().includes(s))
+    let filtered = [...packages];
+
+    // Filter by search term
+    if (search) {
+      const searchLower = search.toLowerCase();
+      filtered = filtered.filter(pkg => 
+        pkg.trackingNumber?.toLowerCase().includes(searchLower) ||
+        pkg.packageDescription?.toLowerCase().includes(searchLower) ||
+        pkg.deliveryContactName?.toLowerCase().includes(searchLower) ||
+        pkg.status?.toLowerCase().includes(searchLower)
       );
     }
-    return filtered;
+
+    // Filter by active tab
+    if (activeTab === 'all') {
+      return filtered;
+    } else if (activeTab === 'in-transit') {
+      return filtered.filter(pkg => inTransitStatuses.includes(pkg.status));
+    } else if (activeTab === 'pickups') {
+      return filtered; // This will be handled by the pickups tab
+    } else {
+      return filtered.filter(pkg => pkg.status === activeTab);
+    }
   };
 
   return (
@@ -209,7 +221,7 @@ const ShopPackages = () => {
                       <button className="btn btn-primary" onClick={() => handlePickupClick(pickup)}>
                         View Packages
                       </button>
-                      {pickup.status !== 'cancelled' && (
+                      {pickup.status === 'scheduled' && (
                         <button className="btn btn-danger" onClick={() => { setPickupToCancel(pickup); setShowPickupCancelModal(true); }}>
                           Cancel
                         </button>

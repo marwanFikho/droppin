@@ -40,27 +40,21 @@ router.get('/profile', authenticate, authorize('shop'), async (req, res) => {
       attributes: ['id', 'codAmount', 'isPaid', 'status'] 
     });
     
-    // If ToCollect or TotalCollected aren't set in the database, calculate them
-    if (rawShopData.ToCollect === null || rawShopData.TotalCollected === null) {
+    // If TotalCollected is null (legacy rows), calculate it; leave ToCollect as-is to avoid double counting
+    if (rawShopData.TotalCollected === null) {
       console.log('Need to calculate financial totals for shop ID:', shop.id);
       
       // Calculate financial totals
-      let totalToCollect = 0;
       let totalCollected = 0;
       
       packages.forEach(pkg => {
-        // Packages with COD amount that are not delivered yet
-        if (pkg.codAmount > 0 && !pkg.isPaid) {
-          totalToCollect += parseFloat(pkg.codAmount);
-        }
-        
         // Packages with COD that have been paid but not settled
         if (pkg.codAmount > 0 && pkg.isPaid) {
           totalCollected += parseFloat(pkg.codAmount);
         }
       });
       
-      console.log('Calculated financial values:', { totalToCollect, totalCollected });
+      console.log('Calculated financial TotalCollected value:', { totalCollected });
       
       // Update the shop with calculated values
       await sequelize.query(
@@ -69,7 +63,7 @@ router.get('/profile', authenticate, authorize('shop'), async (req, res) => {
         {
           replacements: { 
             shopId: shop.id,
-            toCollect: totalToCollect,
+            toCollect: rawShopData.ToCollect || 0,
             totalCollected: totalCollected 
           },
           type: QueryTypes.UPDATE

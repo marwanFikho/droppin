@@ -136,12 +136,19 @@ export const adminService = {
   
   // Package management
   getPackages: (filters = {}) => api.get('/admin/packages', { params: filters }),
-  assignDriverToPackage: (packageId, driverId) => api.post(`/admin/packages/${packageId}/assign-driver`, { driverId }),
+  assignDriverToPackage: (packageId, driverId) => {
+    console.log('API call - assignDriverToPackage:', { packageId, driverId });
+    return api.post(`/admin/packages/${packageId}/assign-driver`, { driverId });
+  },
   
+  // Pickup management
+  getAllPickups: () => api.get('/pickups/admin/all'),
+  markPickupAsPickedUp: (pickupId) => api.patch(`/pickups/${pickupId}/pickup`),
   // Financial management
   settleShopPayments: (shopId, data) => api.post(`/admin/shops/${shopId}/settle-payments`, data),
   updatePackagePayment: (packageId, data) => api.patch(`/admin/packages/${packageId}/payment`, data),
   getShopPackages: (shopId) => api.get(`/admin/packages`, { params: { shopId } }),
+  getMoneyTransactions: (params = {}) => api.get('/admin/money', { params }),
 };
 
 export default api;

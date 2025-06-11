@@ -37,6 +37,65 @@ const AdminDashboard = () => {
   const [selectedDriverForWorkingArea, setSelectedDriverForWorkingArea] = useState(null);
   const [workingAreaInput, setWorkingAreaInput] = useState('');
   const [updatingWorkingArea, setUpdatingWorkingArea] = useState(false);
+  const [pickups, setPickups] = useState([]);
+  const [pickupLoading, setPickupLoading] = useState(false);
+  const [selectedPickup, setSelectedPickup] = useState(null);
+  const [showPickupModal, setShowPickupModal] = useState(false);
+  const [pickupPackages, setPickupPackages] = useState([]);
+  const [pickupPackagesLoading, setPickupPackagesLoading] = useState(false);
+  const [packagesTab, setPackagesTab] = useState('ready-to-assign');
+  const [selectedPackages, setSelectedPackages] = useState([]);
+  const [showBulkAssignModal, setShowBulkAssignModal] = useState(false);
+  const [bulkAssignDriverId, setBulkAssignDriverId] = useState('');
+  const [bulkAssigning, setBulkAssigning] = useState(false);
+  const [drivers, setDrivers] = useState([]);
+  const [showDriverPackages, setShowDriverPackages] = useState(false);
+  const [driverPackages, setDriverPackages] = useState([]);
+  const [selectedDriverForPackages, setSelectedDriverForPackages] = useState(null);
+  const [forwardingPackageId, setForwardingPackageId] = useState(null);
+  const [settleAmountInput, setSettleAmountInput] = useState('');
+  const [moneyTransactions, setMoneyTransactions] = useState([]);
+  // Add new state variables for money transactions
+  const [moneyFilters, setMoneyFilters] = useState({
+    startDate: '',
+    endDate: '',
+    attribute: '',
+    changeType: '',
+    search: '',
+    sortBy: 'createdAt',
+    sortOrder: 'DESC'
+  });
+
+  // Function to fetch packages for a driver
+  const fetchDriverPackages = async (driverId) => {
+    try {
+      const res = await adminService.getPackages({ driverId });
+      setDriverPackages((res.data || []).filter(pkg => pkg.driverId === driverId));
+    } catch (err) {
+      setDriverPackages([]);
+    }
+  };
+  
+  // Place this at the top of the AdminDashboard component, after useState/useEffect/hooks, before any render/JSX code that uses it
+  const forwardPackageStatus = async (pkg) => {
+    setForwardingPackageId(pkg.id);
+    // Define the status flow
+    const statusFlow = ['assigned', 'pickedup', 'in-transit', 'delivered'];
+    const currentIndex = statusFlow.indexOf(pkg.status);
+    if (currentIndex === -1 || currentIndex === statusFlow.length - 1) {
+      setForwardingPackageId(null);
+      return;
+    }
+    const nextStatus = statusFlow[currentIndex + 1];
+    try {
+      await packageService.updatePackageStatus(pkg.id, { status: nextStatus });
+      fetchDriverPackages(pkg.driverId);
+    } catch (err) {
+      // Optionally show error
+    } finally {
+      setForwardingPackageId(null);
+    }
+  };
 
   // Handle logout
   const handleLogout = () => {
@@ -109,17 +168,34 @@ const AdminDashboard = () => {
             // Use our new fetchUsers function to get the data
             await fetchUsers(activeTab === 'users' ? 'user' : activeTab);
             break;
+          case 'pickups':
+            console.log('Fetching pickups...');
+            const pickupsResponse = await adminService.getAllPickups();
+            console.log('Pickups received:', pickupsResponse.data);
+            setPickups(pickupsResponse.data || []);
+            break;
           case 'packages':
             console.log('Fetching packages...');
             const packagesResponse = await adminService.getPackages();
             console.log('Packages received:', packagesResponse.data);
-            // Debug the first package to see its structure
-            if (packagesResponse.data && packagesResponse.data.length > 0) {
-              console.log('First package structure:', JSON.stringify(packagesResponse.data[0], null, 2));
-              console.log('First package pickupAddress:', JSON.stringify(packagesResponse.data[0].pickupAddress, null, 2));
-              console.log('First package deliveryAddress:', JSON.stringify(packagesResponse.data[0].deliveryAddress, null, 2));
+            // For ready-to-assign tab, only show pending packages
+            // For all-packages tab, show all packages except those that aren't picked up yet
+            if (packagesTab === 'ready-to-assign') {
+              const pendingPackages = (packagesResponse.data || []).filter(pkg => pkg.status === 'pending');
+              console.log('Filtered pending packages:', pendingPackages);
+              setPackages(pendingPackages);
+            } else {
+              const filteredPackages = (packagesResponse.data || []);
+              console.log('Filtered all packages (excluding non-picked up):', filteredPackages);
+              setPackages(filteredPackages);
             }
-            setPackages(packagesResponse.data || []);
+            // Fetch all drivers for lookup
+            const driversResponse = await adminService.getDrivers();
+            setDrivers(driversResponse.data || []);
+            break;
+          case 'money':
+            const res = await adminService.getMoneyTransactions();
+            setMoneyTransactions(res.data.transactions || []);
             break;
           default:
             break;
@@ -133,7 +209,12 @@ const AdminDashboard = () => {
     };
     
     fetchData();
-  }, [activeTab]);
+  }, [activeTab, packagesTab]);
+
+  // Clear selected packages when switching tabs or when packages change
+  useEffect(() => {
+    setSelectedPackages([]);
+  }, [activeTab, packagesTab, packages]);
 
   // Handle approval or rejection of a user
   const handleApproval = async (entityId, userType, approve = true, selectedEntity = {}) => {
@@ -436,7 +517,15 @@ const AdminDashboard = () => {
                 break;
               case 'packages':
                 const packagesResponse = await adminService.getPackages();
-                setPackages(packagesResponse.data || []);
+                if (packagesTab === 'ready-to-assign') {
+                  const pendingPackages = (packagesResponse.data || []).filter(pkg => pkg.status === 'pending');
+                  setPackages(pendingPackages);
+                } else {
+                  const filteredPackages = (packagesResponse.data || []).filter(pkg => 
+                    !['awaiting_schedule', 'awaiting_pickup', 'scheduled_for_pickup'].includes(pkg.status)
+                  );
+                  setPackages(filteredPackages);
+                }
                 break;
               default:
                 break;
@@ -507,8 +596,16 @@ const AdminDashboard = () => {
       
       // Refresh packages data
       if (activeTab === 'packages') {
-        const { data } = await adminService.getPackages();
-        setPackages(data);
+        const packagesResponse = await adminService.getPackages();
+        if (packagesTab === 'ready-to-assign') {
+          const pendingPackages = (packagesResponse.data || []).filter(pkg => pkg.status === 'pending');
+          setPackages(pendingPackages);
+        } else {
+          const filteredPackages = (packagesResponse.data || []).filter(pkg => 
+            !['awaiting_schedule', 'awaiting_pickup', 'scheduled_for_pickup'].includes(pkg.status)
+          );
+          setPackages(filteredPackages);
+        }
       }
       
       setShowAssignDriverModal(false);
@@ -526,111 +623,60 @@ const AdminDashboard = () => {
   
   // Render driver assignment modal
   const renderAssignDriverModal = () => {
-    const filteredDrivers = getFilteredDrivers();
-    
+    if (!showAssignDriverModal || !selectedPackage) return null;
+
+    const filteredDrivers = availableDrivers.filter(driver => 
+      driver.name?.toLowerCase().includes(driverSearchTerm.toLowerCase()) ||
+      driver.email?.toLowerCase().includes(driverSearchTerm.toLowerCase())
+    );
+
     return (
-      <div className={`modal-overlay ${showAssignDriverModal ? 'show' : ''}`} onClick={() => setShowAssignDriverModal(false)}>
-        <div className="modal-content" onClick={e => e.stopPropagation()}>
+      <div className="modal-overlay">
+        <div className="modal-content">
           <div className="modal-header">
-            <h2>
-              <FontAwesomeIcon icon={faUserPlus} /> Assign Driver to Package
-            </h2>
+            <h3>Assign Driver to Package</h3>
             <button 
-              className="close-btn"
+              className="modal-close"
               onClick={() => setShowAssignDriverModal(false)}
             >
               <FontAwesomeIcon icon={faClose} />
             </button>
           </div>
-          
           <div className="modal-body">
-            {selectedPackage && (
-              <div className="package-info">
-                <h3>Package Information</h3>
-                <div className="details-grid">
-                  <div className="detail-item">
-                    <span className="label">Tracking Number:</span>
-                    <span>{selectedPackage.trackingNumber}</span>
-                  </div>
-                  <div className="detail-item">
-                    <span className="label">Description:</span>
-                    <span>{selectedPackage.packageDescription}</span>
-                  </div>
-                  <div className="detail-item">
-                    <span className="label">Recipient:</span>
-                    <span>{selectedPackage.deliveryContactName}</span>
-                  </div>
-                  <div className="detail-item">
-                    <span className="label">Delivery Address:</span>
-                    <span>{selectedPackage.deliveryAddress}</span>
-                  </div>
-                </div>
-              </div>
-            )}
+            <p><strong>Package:</strong> {selectedPackage.trackingNumber} - {selectedPackage.packageDescription}</p>
+            <p><strong>From:</strong> {selectedPackage.shop?.businessName || 'N/A'}</p>
+            <p><strong>To:</strong> {selectedPackage.deliveryContactName}</p>
             
-            <div className="search-drivers">
-              <h3>Select a Driver</h3>
-              <div className="search-bar">
-                <FontAwesomeIcon icon={faSearch} className="search-icon" />
-                <input 
-                  type="text" 
-                  placeholder="Search drivers by name, email, or phone..." 
-                  value={driverSearchTerm}
-                  onChange={(e) => setDriverSearchTerm(e.target.value)}
-                />
-              </div>
-              
+            <div className="search-section">
+              <input
+                type="text"
+                placeholder="Search drivers..."
+                value={driverSearchTerm}
+                onChange={(e) => setDriverSearchTerm(e.target.value)}
+                className="search-input"
+              />
+            </div>
+            
+            <div className="drivers-list">
               {filteredDrivers.length === 0 ? (
-                <div className="empty-state">
-                  <p>No drivers found{driverSearchTerm ? ' matching your search' : ''}.</p>
-                </div>
+                <p>No available drivers found.</p>
               ) : (
-                <div className="drivers-list">
-                  {filteredDrivers.map(driver => (
-                    <div 
-                      key={driver.id} 
-                      className="driver-item"
-                      onClick={() => {
-                        // Set confirmation dialog content
-                        setConfirmationDialogTitle('Confirm Driver Assignment');
-                        setConfirmationDialogText(
-                          `Are you sure you want to assign driver ${driver.name} to package #${selectedPackage.trackingNumber}?`
-                        );
-                        
-                        // Create the action function to be executed when confirmed
-                        const confirmAssignAction = async () => {
-                          try {
-                            await assignDriverToPackage(driver.driverId);
-                            setShowConfirmationDialog(false);
-                          } catch (error) {
-                            setShowConfirmationDialog(false);
-                          }
-                        };
-                        
-                        setConfirmAction(() => confirmAssignAction);
-                        setShowConfirmationDialog(true);
-                      }}
-                    >
-                      <div className="driver-info">
-                        <div className="driver-name">{driver.name}</div>
-                        <div className="driver-details">
-                          <span>{driver.phone}</span>
-                          <span className="dot-separator">•</span>
-                          <span className="vehicle-type">{driver.vehicleType || 'N/A'}</span>
-                          {driver.licensePlate && (
-                            <>
-                              <span className="dot-separator">•</span>
-                              <span className="license-plate">{driver.licensePlate}</span>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                      <button className="assign-btn" disabled={assigningDriver}>
-                        {assigningDriver ? 'Assigning...' : 'Assign'}
-                      </button>
+                filteredDrivers.map(driver => (
+                  <div key={driver.id} className="driver-item">
+                    <div className="driver-info">
+                      <strong>{driver.name}</strong>
+                      <span>{driver.email}</span>
+                      <span>Phone: {driver.phone}</span>
                     </div>
-                  ))}
-                </div>
+                    <button 
+                      className="assign-btn" 
+                      onClick={() => assignDriverToPackage(driver.driverId)}
+                      disabled={assigningDriver}
+                    >
+                      {assigningDriver ? 'Assigning...' : 'Assign'}
+                    </button>
+                  </div>
+                ))
               )}
             </div>
           </div>
@@ -676,14 +722,15 @@ const AdminDashboard = () => {
 
     let filtered = [...packages];
 
-    // Filter by search term
+    // Filter by search term - now works the same for both tabs
     if (searchTerm) {
-      const search = searchTerm.toLowerCase();
+      const searchLower = searchTerm.toLowerCase();
       filtered = filtered.filter(pkg => 
-        pkg.trackingNumber?.toLowerCase().includes(search) ||
-        pkg.pickupContactName?.toLowerCase().includes(search) ||
-        (pkg.shop?.businessName || '').toLowerCase().includes(search) ||
-        pkg.status?.toLowerCase().includes(search)
+        pkg.trackingNumber?.toLowerCase().includes(searchLower) ||
+        pkg.packageDescription?.toLowerCase().includes(searchLower) ||
+        pkg.deliveryContactName?.toLowerCase().includes(searchLower) ||
+        pkg.shop?.businessName?.toLowerCase().includes(searchLower) ||
+        pkg.status?.toLowerCase().includes(searchLower)
       );
     }
 
@@ -871,8 +918,9 @@ const AdminDashboard = () => {
           <tr>
             <th>Name</th>
             <th>Email</th>
-            <th>Role</th>
+            {activeTab === 'drivers' && (
             <th>Status</th>
+            )}
             {activeTab === 'shops' && (
               <>
                 <th>To Collect ($)</th>
@@ -883,6 +931,7 @@ const AdminDashboard = () => {
               <>
                 <th>Working Area</th>
                 <th>Total Assigned Packages</th>
+                <th>Active Assignments</th>
                 <th>Total Delivered</th>
               </>
             )}
@@ -896,22 +945,19 @@ const AdminDashboard = () => {
                 {getRoleIcon(user.role)} {user.name || 'N/A'}
               </td>
               <td>{user.email}</td>
-              <td className="role-cell">
-                <span className={`role-badge role-${user.role}`}>
-                  {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
-                </span>
-              </td>
+              {activeTab === 'drivers' && (
               <td>
-                <span className={`status-badge ${user.isApproved ? 'status-approved' : 'status-pending'}`}>
-                  {user.isApproved ? 'Approved' : 'Pending'}
+                <span style={{color: user.isAvailable ? '#2e7d32' : '#d32f2f', backgroundColor: user.isAvailable ? '#e8f5e9' : '#ffcdd2', padding: '5px 10px', borderRadius: '20px', fontSize: '14px', fontWeight: '500'}}>
+                  {user.isAvailable ? 'Available' : 'Unavailable'}
                 </span>
               </td>
+              )}
               {activeTab === 'shops' && (
                 <>
-                  <td className="financial-cell">
+                  <td className="financial-cell" style={{fontSize: '15px'}}>
                     ${parseFloat(user.ToCollect || 0).toFixed(2)}
                   </td>
-                  <td className="financial-cell">
+                  <td className="financial-cell" style={{fontSize: '15px'}}>
                     ${parseFloat(user.TotalCollected || 0).toFixed(2)}
                   </td>
                 </>
@@ -929,12 +975,9 @@ const AdminDashboard = () => {
                       <FontAwesomeIcon icon={faEdit} />
                     </button>
                   </td>
-                  <td className="count-cell">
-                    {user.stats?.assignedPackages || 0}
-                  </td>
-                  <td className="count-cell">
-                    {user.totalDeliveries || 0}
-                  </td>
+                  <td>{user.totalAssigned || 0}</td>
+                  <td>{user.activeAssign || 0}</td>
+                  <td>{user.totalDeliveries || 0}</td>
                 </>
               )}
               <td className="actions-cell">
@@ -985,9 +1028,32 @@ const AdminDashboard = () => {
     );
   };
 
+  // Render packages sub-tabs
+  const renderPackagesSubTabs = () => {
+    if (activeTab !== 'packages') return null;
+
+    return (
+      <div className="packages-sub-tabs">
+        <button 
+          className={`sub-tab-btn ${packagesTab === 'ready-to-assign' ? 'active' : ''}`}
+          onClick={() => setPackagesTab('ready-to-assign')}
+        >
+          Ready to Assign
+        </button>
+        <button 
+          className={`sub-tab-btn ${packagesTab === 'all-packages' ? 'active' : ''}`}
+          onClick={() => setPackagesTab('all-packages')}
+        >
+          All Packages
+        </button>
+      </div>
+    );
+  };
+
   // Render packages table
   const renderPackagesTable = () => {
     const filteredPackages = getFilteredPackages();
+    const isAllSelected = filteredPackages.length > 0 && selectedPackages.length === filteredPackages.length;
 
     if (filteredPackages.length === 0) {
       return (
@@ -998,59 +1064,147 @@ const AdminDashboard = () => {
     }
 
     return (
+      <>
+        <table className="admin-table">
+          <thead>
+            <tr>
+              {packagesTab === 'ready-to-assign' && (
+                <th>
+                  <input
+                    type="checkbox"
+                    checked={isAllSelected}
+                    onChange={(e) => handleSelectAll(e.target.checked)}
+                    title="Select All"
+                  />
+                </th>
+              )}
+              <th>Tracking Number</th>
+              <th>Description</th>
+              <th>Status</th>
+              <th>From</th>
+              <th>To</th>
+              <th>COD Amount</th>
+              <th>Driver</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredPackages.map(pkg => (
+              <tr key={pkg.id}>
+                {packagesTab === 'ready-to-assign' && (
+                  <td>
+                    <input
+                      type="checkbox"
+                      checked={selectedPackages.includes(pkg.id)}
+                      onChange={(e) => handleSelectPackage(pkg.id, e.target.checked)}
+                    />
+                  </td>
+                )}
+                <td>{pkg.trackingNumber}</td>
+                <td>{pkg.packageDescription}</td>
+                <td>
+                  <span className={`status-badge status-${pkg.status}`}>
+                    {pkg.status.charAt(0).toUpperCase() + pkg.status.slice(1).replace('-', ' ')}
+                  </span>
+                </td>
+                <td>{pkg.shop?.businessName || 'N/A'}</td>
+                <td>{pkg.deliveryAddress}</td>
+                <td>${parseFloat(pkg.codAmount || 0).toFixed(2)}</td>
+                <td>{(() => {
+                  const driver = drivers.find(d => d.driverId === pkg.driverId || d.id === pkg.driverId);
+                  return driver ? driver.name : 'Unassigned';
+                })()}</td>
+                <td>
+                  <button 
+                    className="action-btn view-btn"
+                    onClick={() => viewDetails(pkg, 'package')}
+                    title="View Details"
+                  >
+                    <FontAwesomeIcon icon={faEye} />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        
+        {packagesTab === 'ready-to-assign' && selectedPackages.length > 0 && (
+          <div className="bulk-actions">
+            <button 
+              className="btn-primary"
+              onClick={openBulkAssignModal}
+              disabled={selectedPackages.length === 0}
+            >
+              Assign Driver to {selectedPackages.length} Selected Package{selectedPackages.length !== 1 ? 's' : ''}
+            </button>
+          </div>
+        )}
+      </>
+    );
+  };
+
+  // Render pickups table
+  const renderPickupsTable = () => {
+    if (pickupLoading) {
+      return (
+        <div className="loading-state">
+          <p>Loading pickups...</p>
+        </div>
+      );
+    }
+
+    if (pickups.length === 0) {
+      return (
+        <div className="empty-state">
+          <p>No pickups found{searchTerm ? ' matching your search' : ''}.</p>
+        </div>
+      );
+    }
+
+    return (
       <table className="admin-table">
         <thead>
           <tr>
-            <th>Tracking Number</th>
-            <th>Description</th>
+            <th>Shop</th>
+            <th>Scheduled Time</th>
+            <th>Address</th>
             <th>Status</th>
-            <th>From</th>
-            <th>To</th>
-            <th>COD Amount</th>
-            <th>Driver</th>
+            <th>Package Count</th>
             <th>Actions</th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
-          {filteredPackages.map(pkg => (
-            <tr key={pkg.id}>
-              <td>{pkg.trackingNumber}</td>
-              <td>{pkg.packageDescription}</td>
+          {pickups.map(pickup => (
+            <tr key={pickup.id}>
+              <td>{pickup.Shop?.businessName || 'N/A'}</td>
+              <td>{new Date(pickup.scheduledTime).toLocaleString()}</td>
+              <td>{pickup.pickupAddress}</td>
               <td>
-                <span className={`status-badge status-${pkg.status}`}>
-                  {pkg.status.charAt(0).toUpperCase() + pkg.status.slice(1)}
+                <span className={`status-badge status-${pickup.status}`}>
+                  {pickup.status.charAt(0).toUpperCase() + pickup.status.slice(1).replace('_', ' ')}
                 </span>
               </td>
-              <td>{pkg.pickupContactName || 'N/A'}</td>
-              <td>{pkg.deliveryContactName || 'N/A'}</td>
-              <td className="financial-cell">${parseFloat(pkg.codAmount || 0).toFixed(2)}
-                {pkg.codAmount > 0 && <span className={`payment-status ${pkg.isPaid ? 'paid' : 'unpaid'}`}>
-                  {pkg.isPaid ? ' (Paid)' : ' (Unpaid)'}
-                </span>}
+              <td>{pickup.Packages?.length || 0}</td>
+              <td>
+                {pickup.status === 'scheduled' && (
+                  <button 
+                    className="action-btn assign-btn"
+                    onClick={() => handleMarkPickupAsPickedUp(pickup.id)}
+                    title="Mark as Picked Up"
+                  >
+                    <FontAwesomeIcon icon={faCheck} />
+                  </button>
+                )}
               </td>
-              <td>{pkg.driver ? pkg.driver.contact?.name || `Driver #${pkg.driver.id}` : 'Not Assigned'}</td>
-              <td className="actions-cell">
+              <td>
                 <button 
                   className="action-btn view-btn"
-                  onClick={() => viewDetails(pkg, 'package')}
-                  title="View Details"
+                  onClick={() => handlePickupClick(pickup)}
+                  title="View Packages"
                 >
                   <FontAwesomeIcon icon={faEye} />
                 </button>
-                {pkg.status === 'pending' && (
-                  <button 
-                    className="action-btn assign-btn"
-                    onClick={() => openAssignDriverModal(pkg)}
-                    title="Assign Driver"
-                  >
-                    <FontAwesomeIcon icon={faUserPlus} />
-                  </button>
-                )}
-                {pkg.driverId && (
-                  <span className="driver-assigned-badge" title="Driver Assigned">
-                    <FontAwesomeIcon icon={faTruck} />
-                  </span>
-                )}
               </td>
             </tr>
           ))}
@@ -1089,8 +1243,22 @@ const AdminDashboard = () => {
     return entity.address || 'N/A';
   };
 
+  // Function to fetch packages for a driver
+  const fetchDriverPackages = async (driverId) => {
+    try {
+      const res = await adminService.getPackages({ driverId });
+      setDriverPackages((res.data || []).filter(pkg => pkg.driverId === driverId));
+    } catch (err) {
+      setDriverPackages([]);
+    }
+  };
+
   return (
-    <div className={`modal-overlay ${showDetailsModal ? 'show' : ''}`} onClick={() => setShowDetailsModal(false)}>
+    <div
+      className={`modal-overlay ${showDetailsModal ? 'show' : ''}`}
+      style={{ zIndex: 2000 }}
+      onClick={() => setShowDetailsModal(false)}
+    >
       <div className="modal-content" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <h2>
@@ -1197,6 +1365,30 @@ const AdminDashboard = () => {
                   </div>
                 </div>
                 
+                {/* Quick settlement panel (visible without loading packages) */}
+                {parseFloat(selectedEntity.TotalCollected || 0) > 0 && (
+                  <div className="settlement-section" style={{marginTop: '1rem'}}>
+                    <div className="settlement-title">Settle Payments with Shop</div>
+                    <div className="settlement-amount">Total collected: ${parseFloat(selectedEntity.TotalCollected).toFixed(2)}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem' }}>
+                      <input
+                        type="number"
+                        min="0"
+                        placeholder="Amount to settle"
+                        value={settleAmountInput}
+                        onChange={e => setSettleAmountInput(e.target.value)}
+                        style={{ padding: '6px 8px', borderRadius: '4px', border: '1px solid #ccc', width: '120px' }}
+                      />
+                      <button className="settle-btn" onClick={() => handlePartialSettle(selectedEntity.shopId)}>
+                        Settle Amount
+                      </button>
+                      <button className="settle-btn" onClick={() => prepareSettleShopPayment(selectedEntity.shopId)}>
+                        Settle All
+                      </button>
+                    </div>
+                  </div>
+                )}
+                
                 {/* Shop packages section */}
                 {selectedEntity.shopId && (
                   <div className="detail-item full-width">
@@ -1250,16 +1442,27 @@ const AdminDashboard = () => {
                         </table>
                         
                         {/* Shop payment settlement */}
-                        {shopPackagesWithUnpaidMoney.length > 0 && (
+                        {shopUnpaidTotal > 0 && (
                           <div className="settlement-section">
                             <div className="settlement-title">Settle Payments with Shop</div>
-                            <div className="settlement-amount">Total amount to pay to shop: ${parseFloat(shopUnpaidTotal).toFixed(2)}</div>
-                            <button 
-                              className="settle-btn" 
-                              onClick={() => prepareSettleShopPayment(selectedEntity.shopId)}
-                            >
-                              Mark as Settled
-                            </button>
+                            <div className="settlement-amount">Total collected: ${parseFloat(shopUnpaidTotal).toFixed(2)}</div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem' }}>
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                placeholder="Amount to settle"
+                                value={settleAmountInput}
+                                onChange={e => setSettleAmountInput(e.target.value)}
+                                style={{ padding: '6px 8px', borderRadius: '4px', border: '1px solid #ccc', width: '120px' }}
+                              />
+                              <button className="settle-btn" onClick={() => handlePartialSettle(selectedEntity.shopId)}>
+                                Settle Amount
+                              </button>
+                              <button className="settle-btn" onClick={() => prepareSettleShopPayment(selectedEntity.shopId)}>
+                                Settle All
+                              </button>
+                            </div>
                           </div>
                         )}
                       </div>
@@ -1323,6 +1526,18 @@ const AdminDashboard = () => {
                     </span>
                   </div>
                 </div>
+                <button
+                  className="btn btn-primary"
+                  style={{ marginTop: 12 }}
+                  onClick={() => {
+                    setSelectedDriverForPackages(selectedEntity);
+                    fetchDriverPackages(selectedEntity.driverId || selectedEntity.id);
+                    setActiveTab('driver-packages');
+                    setShowDetailsModal(false);
+                  }}
+                >
+                  Show Packages
+                </button>
               </div>
             )}
           </div>
@@ -1728,6 +1943,545 @@ const AdminDashboard = () => {
     );
   };
 
+  // Handle pickup click to view details
+  const handlePickupClick = async (pickup) => {
+    console.log('handlePickupClick called with pickup:', pickup);
+    setSelectedPickup(pickup);
+    setShowPickupModal(true);
+    setPickupPackagesLoading(true);
+    try {
+      // Get all packages for this pickup
+      const res = await packageService.getPickupById(pickup.id);
+      console.log('Pickup details response:', res.data);
+      if (res.data.Packages) {
+        setPickupPackages(res.data.Packages);
+      } else {
+        setPickupPackages([]);
+      }
+    } catch (error) {
+      console.error('Error fetching pickup details:', error);
+      // Even if the API call fails, we can still show the modal with the pickup data we have
+      setPickupPackages([]);
+    } finally {
+      setPickupPackagesLoading(false);
+    }
+  };
+
+  // Mark pickup as picked up
+  const handleMarkPickupAsPickedUp = async (pickupId) => {
+    try {
+      await adminService.markPickupAsPickedUp(pickupId);
+      
+      // Refresh pickups data
+      const pickupsResponse = await adminService.getAllPickups();
+      setPickups(pickupsResponse.data || []);
+      
+      // Refresh packages data
+      const packagesResponse = await adminService.getPackages();
+      if (packagesTab === 'ready-to-assign') {
+        const pendingPackages = (packagesResponse.data || []).filter(pkg => pkg.status === 'pending');
+        setPackages(pendingPackages);
+      } else {
+        const filteredPackages = (packagesResponse.data || []).filter(pkg => 
+          !['awaiting_schedule', 'awaiting_pickup', 'scheduled_for_pickup'].includes(pkg.status)
+        );
+        setPackages(filteredPackages);
+      }
+      
+      setStatusMessage({ type: 'success', text: 'Pickup marked as picked up successfully!' });
+    } catch (error) {
+      console.error('Error marking pickup as picked up:', error);
+      setStatusMessage({ 
+        type: 'error', 
+        text: `Error: ${error.response?.data?.message || 'Failed to mark pickup as picked up'}` 
+      });
+    }
+  };
+
+  // Render pickup modal
+  const renderPickupModal = () => {
+    console.log('renderPickupModal called, showPickupModal:', showPickupModal, 'selectedPickup:', selectedPickup);
+    if (!showPickupModal) return null;
+
+    return (
+      <div className={`modal-overlay ${showPickupModal ? 'show' : ''}`} onClick={() => setShowPickupModal(false)}>
+        <div className="modal-content" onClick={e => e.stopPropagation()}>
+          <div className="modal-header">
+            <h3>Pickup Details</h3>
+            <button 
+              className="modal-close"
+              onClick={() => setShowPickupModal(false)}
+            >
+              <FontAwesomeIcon icon={faClose} />
+            </button>
+          </div>
+          <div className="modal-body">
+            {selectedPickup ? (
+              <>
+                <div className="pickup-info">
+                  <p><strong>Shop:</strong> {selectedPickup.Shop?.businessName || 'N/A'}</p>
+                  <p><strong>Scheduled Time:</strong> {new Date(selectedPickup.scheduledTime).toLocaleString()}</p>
+                  <p><strong>Address:</strong> {selectedPickup.pickupAddress}</p>
+                  <p><strong>Status:</strong> 
+                    <span className={`status-badge status-${selectedPickup.status}`}>
+                      {selectedPickup.status.charAt(0).toUpperCase() + selectedPickup.status.slice(1).replace('_', ' ')}
+                    </span>
+                  </p>
+                  {selectedPickup.actualPickupTime && (
+                    <p><strong>Actual Pickup Time:</strong> {new Date(selectedPickup.actualPickupTime).toLocaleString()}</p>
+                  )}
+                </div>
+                
+                <div className="packages-section">
+                  <h4>Packages in this Pickup</h4>
+                  {pickupPackagesLoading ? (
+                    <p>Loading packages...</p>
+                  ) : pickupPackages.length === 0 ? (
+                    <p>No packages found in this pickup.</p>
+                  ) : (
+                    <table className="packages-table">
+                      <thead>
+                        <tr>
+                          <th>Tracking #</th>
+                          <th>Description</th>
+                          <th>Status</th>
+                          <th>Address</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pickupPackages.map(pkg => (
+                          <tr key={pkg.id} style={{cursor: 'pointer'}} onClick={() => viewDetails(pkg, 'package')}>
+                            <td>{pkg.trackingNumber}</td>
+                            <td>{pkg.packageDescription}</td>
+                            <td>
+                              <span className={`status-badge status-${pkg.status}`}>
+                                {pkg.status.charAt(0).toUpperCase() + pkg.status.slice(1).replace('-', ' ')}
+                              </span>
+                            </td>
+                            <td>{pkg.deliveryAddress}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              </>
+            ) : (
+              <p>No pickup data available.</p>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Checkbox functionality for bulk driver assignment
+  const handleSelectAll = (checked) => {
+    if (checked) {
+      const filteredPackages = getFilteredPackages();
+      setSelectedPackages(filteredPackages.map(pkg => pkg.id));
+    } else {
+      setSelectedPackages([]);
+    }
+  };
+
+  const handleSelectPackage = (packageId, checked) => {
+    if (checked) {
+      setSelectedPackages(prev => [...prev, packageId]);
+    } else {
+      setSelectedPackages(prev => prev.filter(id => id !== packageId));
+    }
+  };
+
+  const openBulkAssignModal = async () => {
+    if (selectedPackages.length === 0) {
+      alert('Please select at least one package to assign.');
+      return;
+    }
+
+    setBulkAssignDriverId('');
+    setBulkAssigning(false);
+    
+    try {
+      // Fetch available drivers (approved and active)
+      const { data } = await adminService.getDrivers({ isApproved: true });
+      setAvailableDrivers(data);
+      setShowBulkAssignModal(true);
+    } catch (error) {
+      console.error('Error fetching available drivers:', error);
+      alert('Failed to fetch available drivers. Please try again.');
+    }
+  };
+
+  const handleBulkAssign = async () => {
+    if (!bulkAssignDriverId || selectedPackages.length === 0) {
+      alert('Please select a driver and at least one package.');
+      return;
+    }
+
+    setBulkAssigning(true);
+    
+    try {
+      console.log('Bulk assigning driver ID:', bulkAssignDriverId, 'to packages:', selectedPackages);
+      
+      // Process packages sequentially to avoid database locks
+      for (const packageId of selectedPackages) {
+        console.log(`Assigning driver ${bulkAssignDriverId} to package ${packageId}`);
+        await adminService.assignDriverToPackage(packageId, bulkAssignDriverId);
+        // Add a delay between requests to prevent database locks
+        await new Promise(resolve => setTimeout(resolve, 300));
+      }
+      
+      // Refresh the packages list
+      if (activeTab === 'packages') {
+        const packagesResponse = await adminService.getPackages();
+        if (packagesTab === 'ready-to-assign') {
+          const pendingPackages = (packagesResponse.data || []).filter(pkg => pkg.status === 'pending');
+          setPackages(pendingPackages);
+        } else {
+          const filteredPackages = (packagesResponse.data || []);
+          setPackages(filteredPackages);
+        }
+      }
+      
+      // Clear selections
+      setSelectedPackages([]);
+      setBulkAssignDriverId('');
+      setShowBulkAssignModal(false);
+      setStatusMessage({ type: 'success', text: 'Packages assigned to driver successfully!' });
+    } catch (error) {
+      console.error('Error in bulk assign:', error);
+      alert('Error assigning driver to packages. Please try again.');
+    } finally {
+      setBulkAssigning(false);
+    }
+  };
+
+  // Render bulk assign modal
+  const renderBulkAssignModal = () => {
+    if (!showBulkAssignModal) return null;
+
+    const selectedPackageDetails = packages.filter(pkg => selectedPackages.includes(pkg.id));
+    const filteredDrivers = availableDrivers.filter(driver => 
+      driver.name?.toLowerCase().includes(driverSearchTerm.toLowerCase()) ||
+      driver.email?.toLowerCase().includes(driverSearchTerm.toLowerCase())
+    );
+
+    console.log('selectedPackageDetails:', selectedPackageDetails);
+    console.log('filteredDrivers:', filteredDrivers);
+
+    return (
+      <div className={`modal-overlay ${showBulkAssignModal ? 'show' : ''}`}>
+        <div className="modal-content">
+          <div className="modal-header">
+            <h3>Bulk Assign Driver</h3>
+            <button 
+              className="modal-close"
+              onClick={() => setShowBulkAssignModal(false)}
+            >
+              <FontAwesomeIcon icon={faClose} />
+            </button>
+          </div>
+          <div className="modal-body">
+            <div className="selected-packages">
+              <h4>Selected Packages ({selectedPackages.length})</h4>
+              <div className="packages-list">
+                {selectedPackageDetails.map(pkg => (
+                  <div key={pkg.id} className="package-item">
+                    <strong>{pkg.trackingNumber}</strong> - {pkg.packageDescription}
+                    <br />
+                    <small>From: {pkg.shop?.businessName || 'N/A'} | To: {pkg.deliveryAddress}</small>
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            <div className="driver-selection">
+              <h4>Select Driver</h4>
+              <div className="search-section">
+                <input
+                  type="text"
+                  placeholder="Search drivers..."
+                  value={driverSearchTerm}
+                  onChange={(e) => setDriverSearchTerm(e.target.value)}
+                  className="search-input"
+                />
+              </div>
+              
+              <div className="drivers-list">
+                {filteredDrivers.length === 0 ? (
+                  <p>No available drivers found.</p>
+                ) : (
+                  filteredDrivers.map(driver => (
+                    <div key={driver.id} className="driver-item">
+                      <div className="driver-info">
+                        <strong>{driver.name}</strong>
+                        <span> \ Working Area: <span style={{fontWeight: 'bold'}}>{driver.workingArea ? driver.workingArea : 'N/A'}</span></span>
+                      </div>
+                      <button 
+                        className={`assign-btn ${bulkAssignDriverId === driver.driverId ? 'selected' : ''}`}
+                        onClick={() => setBulkAssignDriverId(driver.driverId)}
+                      >
+                        {bulkAssignDriverId === driver.driverId ? 'Selected' : 'Select'}
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+            
+            <div className="modal-actions">
+              <button 
+                className="btn-secondary"
+                onClick={() => setShowBulkAssignModal(false)}
+                disabled={bulkAssigning}
+              >
+                Cancel
+              </button>
+              <button 
+                className="btn-primary"
+                onClick={handleBulkAssign}
+                disabled={!bulkAssignDriverId || bulkAssigning}
+              >
+                {bulkAssigning ? 'Assigning...' : `Assign to ${selectedPackages.length} Package${selectedPackages.length !== 1 ? 's' : ''}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Render driver packages modal
+  const renderDriverPackagesModal = () => {
+    if (!showDriverPackages) return null;
+    return (
+      <div className="modal-overlay show" onClick={() => setShowDriverPackages(false)}>
+        <div className="modal-content" onClick={e => e.stopPropagation()} style={{ minWidth: 700 }}>
+          <div className="modal-header">
+            <h3>Package History for {selectedDriverForPackages?.name}</h3>
+            <button className="modal-close" onClick={() => setShowDriverPackages(false)}>
+              <FontAwesomeIcon icon={faClose} />
+            </button>
+          </div>
+          <div className="modal-body">
+            {driverPackages.length === 0 ? (
+              <div>No packages found for this driver.</div>
+            ) : (
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>Tracking #</th>
+                    <th>Description</th>
+                    <th>Status</th>
+                    <th>Recipient</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {driverPackages.map(pkg => (
+                    <tr key={pkg.id}>
+                      <td>{pkg.trackingNumber}</td>
+                      <td>{pkg.packageDescription}</td>
+                      <td><span className={`status-badge status-${pkg.status}`}>{pkg.status}</span></td>
+                      <td>{pkg.deliveryContactName}</td>
+                      <td>
+                        <button
+                          className="btn btn-primary"
+                          disabled={forwardingPackageId === pkg.id || pkg.status === 'delivered'}
+                          onClick={() => forwardPackageStatus(pkg)}
+                        >
+                          {pkg.status === 'delivered' ? 'Delivered' : forwardingPackageId === pkg.id ? 'Forwarding...' : 'Forward Status'}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const handlePartialSettle = async (shopId) => {
+    const amount = parseFloat(settleAmountInput);
+    if (isNaN(amount) || amount <= 0) {
+      alert('Please enter a valid amount greater than 0');
+      return;
+    }
+    const currentBalance = shopUnpaidTotal > 0 ? shopUnpaidTotal : parseFloat(selectedEntity.TotalCollected || 0);
+    if (amount > currentBalance) {
+      alert('Amount exceeds the collected balance for this shop');
+      return;
+    }
+    try {
+      const response = await adminService.settleShopPayments(shopId, { amount });
+      console.log('Partial settlement response:', response);
+
+      // Update UI balances
+      if (shopUnpaidTotal > 0) {
+        setShopUnpaidTotal(prev => prev - amount);
+      }
+
+      // Deduct from users list
+      setUsers(prevUsers => prevUsers.map(user => {
+        if (user.role === 'shop' && (user.id === shopId || user.shopId === shopId)) {
+          const newCollected = parseFloat(user.TotalCollected || 0) - amount;
+          return {
+            ...user,
+            TotalCollected: newCollected,
+            financialData: {
+              ...user.financialData,
+              totalCollected: newCollected
+            }
+          };
+        }
+        return user;
+      }));
+
+      setStatusMessage({ type: 'success', text: `Settled $${amount.toFixed(2)} with shop successfully` });
+      setSettleAmountInput('');
+    } catch (error) {
+      console.error('Error settling amount with shop:', error);
+      alert(error.response?.data?.message || 'Failed to settle amount');
+    }
+  };
+
+  // Add function to handle money transaction filters
+  const handleMoneyFilterChange = (field, value) => {
+    if (field === 'sortBy') {
+      // Toggle sort order if clicking the same column
+      if (moneyFilters.sortBy === value) {
+        setMoneyFilters(prev => ({
+          ...prev,
+          sortOrder: prev.sortOrder === 'DESC' ? 'ASC' : 'DESC'
+        }));
+      } else {
+        // New column selected, set it with default DESC order
+        setMoneyFilters(prev => ({
+          ...prev,
+          sortBy: value,
+          sortOrder: 'DESC'
+        }));
+      }
+    } else {
+      setMoneyFilters(prev => ({
+        ...prev,
+        [field]: value
+      }));
+    }
+  };
+
+  // Add function to fetch money transactions with filters
+  const fetchMoneyTransactions = async () => {
+    try {
+      const params = {
+        ...moneyFilters,
+        page: 1,
+        limit: 50
+      };
+      
+      // Remove empty filters
+      Object.keys(params).forEach(key => {
+        if (params[key] === '' || params[key] === null || params[key] === undefined) {
+          delete params[key];
+        }
+      });
+
+      const queryParams = new URLSearchParams(params);
+      const res = await adminService.getMoneyTransactions(queryParams);
+      setMoneyTransactions(res.data.transactions || []);
+    } catch (error) {
+      console.error('Error fetching money transactions:', error);
+      setStatusMessage({
+        type: 'error',
+        text: 'Failed to fetch money transactions'
+      });
+    }
+  };
+
+  // Add effect to refetch when filters change
+  useEffect(() => {
+    if (activeTab === 'money') {
+      fetchMoneyTransactions();
+    }
+  }, [activeTab, moneyFilters]);
+
+  const renderMoneyTable = () => {
+    if (moneyTransactions.length === 0) {
+      return <p style={{textAlign:'center'}}>No transactions found.</p>;
+    }
+
+    const renderSortIcon = (field) => {
+      if (moneyFilters.sortBy === field) {
+        return <span className="sort-icon">{moneyFilters.sortOrder === 'DESC' ? '▼' : '▲'}</span>;
+      }
+      return null;
+    };
+
+    return (
+      <div className="money-transactions-section">
+        {/* Filters section remains the same */}
+        <div className="filters-section">
+          {/* ... existing filter inputs ... */}
+        </div>
+
+        <table className="admin-table money-table">
+          <thead>
+            <tr>
+              <th 
+                onClick={() => handleMoneyFilterChange('sortBy', 'createdAt')} 
+                className="sortable-header"
+              >
+                Date {renderSortIcon('createdAt')}
+              </th>
+              <th>Shop</th>
+              <th 
+                onClick={() => handleMoneyFilterChange('sortBy', 'attribute')} 
+                className="sortable-header"
+              >
+                Attribute {renderSortIcon('attribute')}
+              </th>
+              <th 
+                onClick={() => handleMoneyFilterChange('sortBy', 'changeType')} 
+                className="sortable-header"
+              >
+                Type {renderSortIcon('changeType')}
+              </th>
+              <th 
+                onClick={() => handleMoneyFilterChange('sortBy', 'amount')} 
+                className="sortable-header"
+              >
+                Amount ($) {renderSortIcon('amount')}
+              </th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            {moneyTransactions.map(tx => (
+              <tr key={tx.id}>
+                <td>{new Date(tx.createdAt).toLocaleString()}</td>
+                <td>{tx.Shop?.businessName || tx.shopId}</td>
+                <td>{tx.attribute}</td>
+                <td>
+                  <span className={`change-type ${tx.changeType}`}>
+                    {tx.changeType}
+                  </span>
+                </td>
+                <td className={`financial-cell ${tx.changeType}`}>
+                  ${parseFloat(tx.amount).toFixed(2)}
+                </td>
+                <td>{tx.description || '-'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
   return (
     <div className="admin-dashboard">
       {renderStatusMessage()}
@@ -1740,7 +2494,7 @@ const AdminDashboard = () => {
             <FontAwesomeIcon icon={faSearch} className="search-icon" />
             <input 
               type="text" 
-              placeholder="Search users, shops, drivers, or packages..." 
+              placeholder={activeTab === 'packages' ? "Search by Package ID, description, recipient, shop, or status..." : "Search users, shops, drivers, or packages..."} 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -1774,10 +2528,22 @@ const AdminDashboard = () => {
           <FontAwesomeIcon icon={faTruck} /> Drivers
         </button>
         <button 
+          className={`tab-btn ${activeTab === 'pickups' ? 'active' : ''}`}
+          onClick={() => setActiveTab('pickups')}
+        >
+          <FontAwesomeIcon icon={faBox} /> Pickups
+        </button>
+        <button 
           className={`tab-btn ${activeTab === 'packages' ? 'active' : ''}`}
           onClick={() => setActiveTab('packages')}
         >
           <FontAwesomeIcon icon={faBox} /> Packages
+        </button>
+        <button 
+          className={`tab-btn ${activeTab === 'money' ? 'active' : ''}`}
+          onClick={() => setActiveTab('money')}
+        >
+          Money
         </button>
       </div>
       
@@ -1827,11 +2593,64 @@ const AdminDashboard = () => {
           <div className="loading-state">
             <p>Loading data...</p>
           </div>
-        ) : activeTab !== 'packages' ? renderUsersTable() : renderPackagesTable()}
+        ) : (
+          <>
+            {renderPackagesSubTabs()}
+            {activeTab === 'pickups' ? renderPickupsTable() : 
+             activeTab === 'packages' ? renderPackagesTable() : 
+             activeTab === 'money' ? renderMoneyTable() : 
+             renderUsersTable()}
+          </>
+        )}
       </div>
 
       {renderDetailsModal()}
       {renderAssignDriverModal()}
+      {renderPickupModal()}
+      {renderBulkAssignModal()}
+      {renderDriverPackagesModal()}
+      {activeTab === 'driver-packages' && selectedDriverForPackages && (
+        <div className="driver-packages-tab">
+          <button className="btn btn-secondary" onClick={() => setActiveTab('drivers')} style={{marginBottom: 16}}>
+            &larr; Back to Drivers
+          </button>
+          <h2>Package History for {selectedDriverForPackages.name}</h2>
+          {driverPackages.length === 0 ? (
+            <div>No packages found for this driver.</div>
+          ) : (
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>Tracking #</th>
+                  <th>Description</th>
+                  <th>Status</th>
+                  <th>Recipient</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {driverPackages.map(pkg => (
+                  <tr key={pkg.id}>
+                    <td>{pkg.trackingNumber}</td>
+                    <td>{pkg.packageDescription}</td>
+                    <td><span className={`status-badge status-${pkg.status}`}>{pkg.status}</span></td>
+                    <td>{pkg.deliveryContactName}</td>
+                    <td>
+                      <button
+                        className="btn btn-primary"
+                        disabled={forwardingPackageId === pkg.id || pkg.status === 'delivered'}
+                        onClick={() => forwardPackageStatus(pkg)}
+                      >
+                        {pkg.status === 'delivered' ? 'Delivered' : forwardingPackageId === pkg.id ? 'Forwarding...' : 'Forward Status'}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
     </div>
   );
 };

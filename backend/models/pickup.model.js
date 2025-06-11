@@ -19,8 +19,16 @@ const Pickup = sequelize.define('Pickup', {
     allowNull: false
   },
   status: {
-    type: DataTypes.ENUM('pending', 'scheduled', 'completed', 'cancelled'),
+    type: DataTypes.ENUM('pending', 'scheduled', 'picked_up', 'completed', 'cancelled'),
     defaultValue: 'pending'
+  },
+  actualPickupTime: {
+    type: DataTypes.DATE,
+    allowNull: true
+  },
+  notes: {
+    type: DataTypes.TEXT,
+    allowNull: true
   }
 }, {
   timestamps: true

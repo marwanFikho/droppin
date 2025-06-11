@@ -4,6 +4,7 @@ const { authenticate } = require('../middleware/auth.middleware');
 const { Pickup } = require('../models');
 const { Package } = require('../models');
 const { Shop } = require('../models');
+const { logMoneyTransaction } = require('../utils/moneyLogger');
 
 // Create a new pickup
 router.post('/', authenticate, async (req, res) => {
@@ -24,11 +25,14 @@ router.post('/', authenticate, async (req, res) => {
       status: 'scheduled'
     });
 
-    // Associate selected packages with the pickup
+    // Associate selected packages with the pickup and update their status
     if (packageIds && packageIds.length > 0) {
       await pickup.addPackages(packageIds);
       await Package.update(
-        { status: 'scheduled_for_pickup' },
+        { 
+          status: 'scheduled_for_pickup',
+          pickupId: pickup.id
+        },
         { where: { id: packageIds } }
       );
     }
@@ -46,19 +50,25 @@ router.post('/', authenticate, async (req, res) => {
   }
 });
 
-// Get all pickups for a shop
-router.get('/shop', authenticate, async (req, res) => {
+// Get all pickups for admin
+router.get('/admin/all', authenticate, async (req, res) => {
   try {
-    // Find the shop for the current user
-    const shop = await Shop.findOne({ where: { userId: req.user.id } });
-    if (!shop) {
-      return res.status(400).json({ message: 'Shop not found for this user.' });
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Admin access required' });
     }
-    const shopId = shop.id;
 
     const pickups = await Pickup.findAll({
-      where: { shopId },
-      order: [['scheduledTime', 'DESC']]
+      include: [
+        {
+          model: Shop,
+          attributes: ['businessName']
+        },
+        {
+          model: Package,
+          attributes: ['id', 'trackingNumber', 'packageDescription', 'status']
+        }
+      ],
+      order: [['createdAt', 'DESC']]
     });
 
     res.json(pickups);
@@ -71,13 +81,41 @@ router.get('/shop', authenticate, async (req, res) => {
   }
 });
 
-// Get a specific pickup
-router.get('/:id', authenticate, async (req, res) => {
+// Get shop pickups
+router.get('/shop', authenticate, async (req, res) => {
   try {
     // Find the shop for the current user
     const shop = await Shop.findOne({ where: { userId: req.user.id } });
     if (!shop) {
       return res.status(400).json({ message: 'Shop not found for this user.' });
+    }
+
+    const pickups = await Pickup.findAll({
+      where: { shopId: shop.id },
+      include: [{ model: Package }],
+      order: [['createdAt', 'DESC']]
+    });
+
+    res.json(pickups);
+  } catch (error) {
+    console.error('Error fetching shop pickups:', error);
+    res.status(500).json({
+      message: 'Failed to fetch pickups',
+      error: error.message
+    });
+  }
+});
+
+// Get a specific pickup
+router.get('/:id', authenticate, async (req, res) => {
+  try {
+    let shop = null;
+    if (req.user.role !== 'admin') {
+      // Find the shop for the current user
+      shop = await Shop.findOne({ where: { userId: req.user.id } });
+      if (!shop) {
+        return res.status(400).json({ message: 'Shop not found for this user.' });
+      }
     }
     const pickup = await Pickup.findByPk(req.params.id, {
       include: [{ model: Package }]
@@ -88,7 +126,7 @@ router.get('/:id', authenticate, async (req, res) => {
     }
 
     // Check if the user has permission to view this pickup
-    if (pickup.shopId !== shop.id && req.user.role !== 'admin') {
+    if (req.user.role !== 'admin' && pickup.shopId !== shop.id) {
       return res.status(403).json({ message: 'Not authorized to view this pickup' });
     }
 
@@ -102,35 +140,74 @@ router.get('/:id', authenticate, async (req, res) => {
   }
 });
 
-// Update pickup status
-router.patch('/:id/status', authenticate, async (req, res) => {
+// Mark pickup as picked up (admin only)
+router.patch('/:id/pickup', authenticate, async (req, res) => {
   try {
-    const { status } = req.body;
-    const pickup = await Pickup.findByPk(req.params.id);
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Admin access required' });
+    }
+
+    const pickup = await Pickup.findByPk(req.params.id, {
+      include: [{ model: Package }]
+    });
 
     if (!pickup) {
-      return res.status(404).json({
-        message: 'Pickup not found'
-      });
+      return res.status(404).json({ message: 'Pickup not found' });
     }
 
-    // Check if the user has permission to update this pickup
-    if (pickup.shopId !== req.user.id && req.user.role !== 'admin') {
-      return res.status(403).json({
-        message: 'Not authorized to update this pickup'
-      });
+    if (pickup.status === 'picked_up') {
+      return res.status(400).json({ message: 'Pickup already marked as picked up' });
     }
 
-    await pickup.update({ status });
-    res.json({
-      message: 'Pickup status updated successfully',
-      pickup
+    // Update pickup status and actual pickup time
+    await pickup.update({
+      status: 'picked_up',
+      actualPickupTime: new Date()
+    });
+
+    // Update all packages in this pickup to 'pending' status
+    if (pickup.Packages && pickup.Packages.length > 0) {
+      const packageIds = pickup.Packages.map(pkg => pkg.id);
+      await Package.update(
+        { status: 'pending' },
+        { where: { id: packageIds } }
+      );
+
+      // ===================== NEW FEATURE =====================
+      // Add total COD amount of these packages to the shop's ToCollect field
+      // -------------------------------------------------------
+      try {
+        // Sum COD amounts for the packages in this pickup
+        const totalCodAmount = pickup.Packages.reduce((sum, pkg) => {
+          const cod = parseFloat(pkg.codAmount || 0);
+          return sum + (isNaN(cod) ? 0 : cod);
+        }, 0);
+
+        if (totalCodAmount > 0) {
+          const shop = await Shop.findByPk(pickup.shopId);
+          if (shop) {
+            const currentToCollect = parseFloat(shop.ToCollect || 0);
+            const newToCollect = currentToCollect + totalCodAmount;
+            await shop.update({ ToCollect: newToCollect });
+            await logMoneyTransaction(shop.id, totalCodAmount, 'ToCollect', 'increase', `COD added via pickup ${pickup.id}`);
+            console.log(`Updated shop (${shop.id}) ToCollect on pickup: ${currentToCollect} -> ${newToCollect}`);
+          }
+        }
+      } catch (codError) {
+        console.error('Failed to update shop ToCollect after marking pickup as picked up:', codError);
+      }
+      // =================== END NEW FEATURE ===================
+    }
+
+    res.json({ 
+      message: 'Pickup marked as picked up successfully',
+      pickup 
     });
   } catch (error) {
-    console.error('Error updating pickup status:', error);
-    res.status(500).json({
-      message: 'Failed to update pickup status',
-      error: error.message
+    console.error('Error marking pickup as picked up:', error);
+    res.status(500).json({ 
+      message: 'Failed to mark pickup as picked up', 
+      error: error.message 
     });
   }
 });
@@ -154,11 +231,14 @@ router.patch('/:id/cancel', authenticate, async (req, res) => {
     }
     // Update pickup status
     await pickup.update({ status: 'cancelled' });
-    // Reset status of all packages in this pickup to 'pending'
+    // Reset status of all packages in this pickup to 'awaiting_schedule'
     if (pickup.Packages && pickup.Packages.length > 0) {
       const packageIds = pickup.Packages.map(pkg => pkg.id);
       await Package.update(
-        { status: 'pending' },
+        { 
+          status: 'awaiting_schedule',
+          pickupId: null
+        },
         { where: { id: packageIds } }
       );
     }

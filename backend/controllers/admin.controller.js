@@ -1,6 +1,7 @@
 const { Op, QueryTypes } = require('sequelize');
 const { sequelize, User, Shop, Driver, Package } = require('../models/index');
 const { formatDateTimeToDDMMYYYY, getCairoDateTime } = require('../utils/dateUtils');
+const { logMoneyTransaction } = require('../utils/moneyLogger');
 
 // Get dashboard statistics
 exports.getDashboardStats = async (req, res) => {
@@ -558,10 +559,7 @@ exports.getDrivers = async (req, res) => {
         // Count assigned packages for this driver
         const assignedPackagesCount = await Package.count({
           where: {
-            driverId: driver.id,
-            status: {
-              [Op.notIn]: ['delivered', 'cancelled', 'returned']
-            }
+            driverId: driver.id
           }
         });
         
@@ -584,6 +582,8 @@ exports.getDrivers = async (req, res) => {
           isAvailable: driver.isAvailable,
           workingArea: driver.workingArea,
           totalDeliveries: driver.totalDeliveries,
+          totalAssigned: driver.totalAssigned,
+          activeAssign: driver.activeAssign,
           stats: {
             assignedPackages: assignedPackagesCount,
             deliveredPackages: deliveredPackagesCount,
@@ -804,77 +804,114 @@ exports.approveDriver = async (req, res) => {
 
 // Assign driver to package
 exports.assignDriverToPackage = async (req, res) => {
-  const transaction = await sequelize.transaction();
+  console.log('assignDriverToPackage called');
+  console.log('req.params:', req.params);
+  console.log('req.body:', req.body);
+  console.log('req.headers:', req.headers);
   
-  try {
-    const { packageId } = req.params;
-    const { driverId } = req.body;
+  const maxRetries = 3;
+  let retryCount = 0;
+  
+  while (retryCount < maxRetries) {
+    const transaction = await sequelize.transaction();
     
-    if (!driverId) {
-      await transaction.rollback();
-      return res.status(400).json({ message: 'Driver ID is required' });
-    }
-    
-    // Find the package
-    const package = await Package.findByPk(packageId, { transaction });
-    
-    if (!package) {
-      await transaction.rollback();
-      return res.status(404).json({ message: 'Package not found' });
-    }
-    
-    // Find the driver
-    const driver = await Driver.findByPk(driverId, { transaction });
-    
-    if (!driver) {
-      await transaction.rollback();
-      return res.status(404).json({ message: 'Driver not found' });
-    }
-    
-    // Check if driver is approved
-    const driverUser = await User.findByPk(driver.userId, { transaction });
-    
-    if (!driverUser || !driverUser.isApproved) {
-      await transaction.rollback();
-      return res.status(400).json({ message: 'Driver is not approved' });
-    }
-    
-    // Update package with driver ID and change status to 'assigned'
-    const statusHistory = JSON.parse(package.statusHistory || '[]');
-    statusHistory.push({
-      status: 'assigned',
-      timestamp: new Date(),
-      note: `Assigned to driver ID: ${driverId}`,
-      updatedBy: req.user.id
-    });
-    
-    await package.update({
-      driverId,
-      status: 'assigned',
-      statusHistory: JSON.stringify(statusHistory)
-    }, { transaction });
-
-    // Update driver stats
-    driver.assignedToday += 1;
-    driver.totalAssigned += 1;
-    driver.activeAssign += 1;
-    await driver.save({ transaction });
-    
-    await transaction.commit();
-    
-    res.json({
-      message: 'Driver assigned successfully',
-      package: {
-        id: package.id,
-        trackingNumber: package.trackingNumber,
-        status: package.status,
-        driverId
+    try {
+      const { packageId } = req.params;
+      const { driverId } = req.body;
+      
+      console.log('packageId:', packageId);
+      console.log('driverId:', driverId);
+      
+      if (!driverId) {
+        await transaction.rollback();
+        return res.status(400).json({ message: 'Driver ID is required' });
       }
-    });
-  } catch (error) {
-    await transaction.rollback();
-    console.error('Error assigning driver to package:', error);
-    res.status(500).json({ message: error.message });
+
+      // Find the package
+      const package = await Package.findByPk(packageId, { transaction });
+      if (!package) {
+        await transaction.rollback();
+        return res.status(404).json({ message: 'Package not found' });
+      }
+
+      // Check if package is already assigned
+      if (package.driverId) {
+        await transaction.rollback();
+        return res.status(400).json({ message: 'Package is already assigned to a driver' });
+      }
+
+      // Find the driver
+      const driver = await Driver.findByPk(driverId, { transaction });
+      if (!driver) {
+        await transaction.rollback();
+        return res.status(404).json({ message: 'Driver not found' });
+      }
+
+      // Check if driver is available
+      if (!driver.isAvailable) {
+        await transaction.rollback();
+        return res.status(400).json({ message: 'Driver is not available' });
+      }
+
+      // Find the user associated with the driver
+      const driverUser = await User.findByPk(driver.userId, { transaction });
+      if (!driverUser || !driverUser.isApproved) {
+        await transaction.rollback();
+        return res.status(400).json({ message: 'Driver account is not approved' });
+      }
+
+      // Update package with driver ID and change status to 'assigned'
+      let statusHistory = [];
+      try {
+        statusHistory = JSON.parse(package.statusHistory || '[]');
+      } catch (parseError) {
+        console.log('Error parsing statusHistory, using empty array:', parseError);
+        statusHistory = [];
+      }
+      
+      statusHistory.push({
+        status: 'assigned',
+        timestamp: new Date(),
+        note: `Assigned to driver ID: ${driverId}`,
+        updatedBy: req.user.id
+      });
+
+      await package.update({
+        driverId: driverId,
+        status: 'assigned',
+        statusHistory: JSON.stringify(statusHistory)
+      }, { transaction });
+
+      // Update driver statistics
+      await driver.update({
+        assignedToday: driver.assignedToday + 1,
+        totalAssigned: driver.totalAssigned + 1,
+        activeAssign: driver.activeAssign + 1
+      }, { transaction });
+
+      await transaction.commit();
+      
+      console.log(`Successfully assigned driver ${driverId} to package ${packageId}`);
+      return res.json({ 
+        message: 'Driver assigned successfully',
+        package: package,
+        driver: driver
+      });
+      
+    } catch (error) {
+      await transaction.rollback();
+      retryCount++;
+      
+      // Check if it's a database lock error
+      if (error.name === 'SequelizeTimeoutError' && error.parent?.code === 'SQLITE_BUSY' && retryCount < maxRetries) {
+        console.log(`Database locked, retrying in 500ms... (attempt ${retryCount} of ${maxRetries})`);
+        await new Promise(resolve => setTimeout(resolve, 500));
+        continue;
+      }
+      
+      console.error('Error assigning driver to package:', error);
+      return res.status(500).json({ message: error.message });
+    }
   }
 };
 
@@ -1036,8 +1073,51 @@ exports.updatePackagePayment = async (req, res) => {
 exports.settleShopPayments = async (req, res) => {
   try {
     const { shopId } = req.params;
-    const { packageIds } = req.body;
+    const { packageIds, amount } = req.body;
     
+    // ---------- NEW LOGIC: Partial settlement by amount ----------
+    if (amount !== undefined && packageIds === undefined) {
+      const settleAmount = parseFloat(amount);
+      if (isNaN(settleAmount) || settleAmount <= 0) {
+        return res.status(400).json({ message: 'Invalid settlement amount provided' });
+      }
+
+      // Find the shop by id or userId
+      let shop = await Shop.findByPk(shopId);
+      if (!shop) {
+        shop = await Shop.findOne({ where: { userId: shopId } });
+      }
+      if (!shop) {
+        return res.status(404).json({ message: 'Shop not found' });
+      }
+
+      const currentTotalCollected = parseFloat(shop.TotalCollected || 0);
+      if (settleAmount > currentTotalCollected) {
+        return res.status(400).json({ message: 'Settlement amount exceeds shop\'s collected balance' });
+      }
+
+      const newBalance = currentTotalCollected - settleAmount;
+      // Update the value directly via SQL to avoid formatting issues
+      await sequelize.query(
+        `UPDATE Shops SET TotalCollected = :newBalance WHERE id = :shopId`,
+        {
+          replacements: { newBalance, shopId: shop.id },
+          type: QueryTypes.UPDATE
+        }
+      );
+
+      await logMoneyTransaction(shop.id, settleAmount, 'TotalCollected', 'decrease', 'Partial settlement');
+
+      return res.json({
+        message: `Successfully settled $${settleAmount.toFixed(2)} with shop`,
+        amountSettled: settleAmount,
+        previousBalance: currentTotalCollected,
+        currentBalance: newBalance,
+        shopId: shop.id
+      });
+    }
+    // ---------- END NEW LOGIC ----------
+
     if (!packageIds || !Array.isArray(packageIds) || packageIds.length === 0) {
       return res.status(400).json({ message: 'Invalid package IDs provided' });
     }
@@ -1102,6 +1182,8 @@ exports.settleShopPayments = async (req, res) => {
         type: QueryTypes.UPDATE
       }
     );
+
+    await logMoneyTransaction(shop.id, currentTotalCollected, 'TotalCollected', 'decrease', 'Full settlement');
     
     // Verify the update was successful
     const [verifiedShopData] = await sequelize.query(
@@ -1163,5 +1245,85 @@ exports.deleteUser = async (req, res) => {
   } catch (error) {
     console.error('Error deleting user:', error);
     res.status(500).json({ message: error.message });
+  }
+};
+
+exports.getMoneyTransactions = async (req, res) => {
+  try {
+    const { 
+      page = 1, 
+      limit = 20, 
+      shopId,
+      startDate,
+      endDate,
+      attribute,
+      changeType,
+      sortBy = 'createdAt',
+      sortOrder = 'DESC',
+      search
+    } = req.query;
+
+    // Build where clause
+    const where = {};
+    if (shopId) where.shopId = shopId;
+    if (attribute) where.attribute = attribute;
+    if (changeType) where.changeType = changeType;
+    
+    // Add date range filter
+    if (startDate || endDate) {
+      where.createdAt = {};
+      if (startDate) where.createdAt[Op.gte] = new Date(startDate);
+      if (endDate) where.createdAt[Op.lte] = new Date(endDate);
+    }
+
+    // Add search functionality
+    if (search) {
+      where[Op.or] = [
+        { description: { [Op.like]: `%${search}%` } },
+        { '$Shop.businessName$': { [Op.like]: `%${search}%` } }
+      ];
+    }
+
+    const offset = (page - 1) * limit;
+    const { MoneyTransaction, Shop } = require('../models');
+    const { Op } = require('sequelize');
+
+    // Validate sort field
+    const validSortFields = ['createdAt', 'amount', 'attribute', 'changeType'];
+    const actualSortBy = validSortFields.includes(sortBy) ? sortBy : 'createdAt';
+    const actualSortOrder = ['ASC', 'DESC'].includes(sortOrder?.toUpperCase()) ? sortOrder.toUpperCase() : 'DESC';
+
+    console.log('Sorting by:', actualSortBy, actualSortOrder);
+
+    const { count, rows } = await MoneyTransaction.findAndCountAll({
+      where,
+      limit: parseInt(limit),
+      offset,
+      order: [[actualSortBy, actualSortOrder]],
+      include: [{ 
+        model: Shop, 
+        attributes: ['businessName'],
+        required: false
+      }]
+    });
+
+    res.json({
+      transactions: rows,
+      total: count,
+      totalPages: Math.ceil(count / limit),
+      currentPage: parseInt(page),
+      filters: {
+        shopId,
+        startDate,
+        endDate,
+        attribute,
+        changeType,
+        sortBy: actualSortBy,
+        sortOrder: actualSortOrder
+      }
+    });
+  } catch (err) {
+    console.error('Error fetching money transactions:', err);
+    res.status(500).json({ message: err.message });
   }
 };
