@@ -264,7 +264,25 @@ exports.getPackageByTracking = async (req, res) => {
       attributes: [
         'id', 'trackingNumber', 'status', 'statusHistory', 
         'packageDescription', 'createdAt', 'deliveryAddress',
-        'deliveryContactName', 'estimatedDeliveryTime'
+        'deliveryContactName', 'estimatedDeliveryTime',
+        'actualDeliveryTime', 'weight', 'dimensions',
+        'pickupAddress', 'pickupContactName', 'priority'
+      ],
+      include: [
+        {
+          model: Driver,
+          attributes: ['id', 'vehicleType', 'workingArea'],
+          include: [
+            {
+              model: User,
+              attributes: ['name', 'phone']
+            }
+          ]
+        },
+        {
+          model: Shop,
+          attributes: ['businessName']
+        }
       ]
     });
     
@@ -272,8 +290,48 @@ exports.getPackageByTracking = async (req, res) => {
       return res.status(404).json({ message: 'Package not found' });
     }
     
-    // Public endpoint - return limited data
-    res.json(package);
+    // Format the response
+    let statusHistory = package.statusHistory;
+    if (typeof statusHistory === 'string') {
+      try {
+        statusHistory = JSON.parse(statusHistory);
+      } catch {
+        statusHistory = [];
+      }
+    }
+    if (!Array.isArray(statusHistory)) statusHistory = [];
+
+    const response = {
+      trackingNumber: package.trackingNumber,
+      status: package.status,
+      statusHistory,
+      packageDescription: package.packageDescription,
+      createdAt: package.createdAt,
+      estimatedDeliveryTime: package.estimatedDeliveryTime,
+      actualDeliveryTime: package.actualDeliveryTime,
+      weight: package.weight,
+      dimensions: package.dimensions,
+      // Delivery details
+      deliveryAddress: package.deliveryAddress,
+      deliveryContactName: package.deliveryContactName,
+      // Pickup details
+      pickupAddress: package.pickupAddress,
+      pickupContactName: package.pickupContactName,
+      // Shop details
+      shop: package.Shop ? {
+        name: package.Shop.businessName
+      } : null,
+      // Driver details (only if assigned)
+      driver: package.Driver ? {
+        name: package.Driver.User.name,
+        phone: package.Driver.User.phone,
+        vehicleType: package.Driver.vehicleType,
+        workingArea: package.Driver.workingArea
+      } : null,
+      priority: package.priority
+    };
+    
+    res.json(response);
   } catch (error) {
     console.error('Error tracking package:', error);
     res.status(500).json({ message: error.message });
