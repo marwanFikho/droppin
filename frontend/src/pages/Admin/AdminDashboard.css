@@ -659,21 +659,52 @@
 }
 
 .driver-item {
+  padding: 15px;
+  margin-bottom: 10px;
+  border-radius: 8px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 15px;
-  border-bottom: 1px solid #eee;
-  cursor: pointer;
   transition: background-color 0.2s;
 }
 
-.driver-item:last-child {
-  border-bottom: none;
+.driver-item.available {
+  background-color: rgba(40, 167, 69, 0.1);
+  border: 1px solid rgba(40, 167, 69, 0.2);
 }
 
-.driver-item:hover {
-  background-color: #f5f7ff;
+.driver-item.unavailable {
+  background-color: rgba(220, 53, 69, 0.1);
+  border: 1px solid rgba(220, 53, 69, 0.2);
+  opacity: 0.8;
+}
+
+.driver-item.unavailable .driver-info {
+  color: #666;
+}
+
+.driver-item.unavailable .assign-btn {
+  background-color: #dc3545;
+  border-color: #dc3545;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.driver-availability-status {
+  font-size: 0.8rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 8px;
+}
+
+.driver-availability-status.available {
+  background-color: rgba(40, 167, 69, 0.2);
+  color: #28a745;
+}
+
+.driver-availability-status.unavailable {
+  background-color: rgba(220, 53, 69, 0.2);
+  color: #dc3545;
 }
 
 .driver-info {
@@ -1335,4 +1366,21 @@
   .filter-select {
     width: 100%;
   }
+}
+
+.sortable-header {
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+}
+
+.sortable-header:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.sort-icon {
+  display: inline-block;
+  margin-left: 4px;
+  font-size: 0.8em;
+  color: #666;
 }

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { adminService, packageService } from '../../services/api';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faUser, faStore, faTruck, faBox, faSearch, faEye, faCheck, faTimes, faChartBar, faUserPlus, faTimes as faClose, faEdit, faSignOutAlt, faTrash } from '@fortawesome/free-solid-svg-icons';
+import { faUser, faStore, faTruck, faBox, faSearch, faEye, faCheck, faTimes, faChartBar, faUserPlus, faTimes as faClose, faEdit, faSignOutAlt, faTrash, faDollarSign } from '@fortawesome/free-solid-svg-icons';
 import { formatDate } from '../../utils/dateUtils';
 import './AdminDashboard.css';
 
@@ -65,6 +65,10 @@ const AdminDashboard = () => {
     sortBy: 'createdAt',
     sortOrder: 'DESC'
   });
+  const [sortConfig, setSortConfig] = useState({
+    field: 'createdAt',
+    order: 'DESC'
+  });
 
   // Function to fetch packages for a driver
   const fetchDriverPackages = async (driverId) => {
@@ -111,7 +115,10 @@ const AdminDashboard = () => {
       switch(role) {
         case 'shop':
         case 'shops':
-          const shopsResponse = await adminService.getShops();
+          const shopsResponse = await adminService.getShops({
+            sortBy: sortConfig.field,
+            sortOrder: sortConfig.order
+          });
           // Enhanced logging for shop financial data
           const shopData = shopsResponse.data || [];
           shopData.forEach(shop => {
@@ -209,7 +216,7 @@ const AdminDashboard = () => {
     };
     
     fetchData();
-  }, [activeTab, packagesTab]);
+  }, [activeTab, packagesTab, sortConfig]);
 
   // Clear selected packages when switching tabs or when packages change
   useEffect(() => {
@@ -919,12 +926,22 @@ const AdminDashboard = () => {
             <th>Name</th>
             <th>Email</th>
             {activeTab === 'drivers' && (
-            <th>Status</th>
+              <th>Status</th>
             )}
             {activeTab === 'shops' && (
               <>
-                <th>To Collect ($)</th>
-                <th>Collected ($)</th>
+                <th 
+                  className="sortable-header"
+                  onClick={() => handleSort('ToCollect')}
+                >
+                  To Collect ($) {renderSortIcon('ToCollect')}
+                </th>
+                <th 
+                  className="sortable-header"
+                  onClick={() => handleSort('TotalCollected')}
+                >
+                  Collected ($) {renderSortIcon('TotalCollected')}
+                </th>
               </>
             )}
             {activeTab === 'drivers' && (
@@ -1461,7 +1478,7 @@ const AdminDashboard = () => {
                               </button>
                               <button className="settle-btn" onClick={() => prepareSettleShopPayment(selectedEntity.shopId)}>
                                 Settle All
-                              </button>
+                            </button>
                             </div>
                           </div>
                         )}
@@ -2213,16 +2230,26 @@ const AdminDashboard = () => {
                   <p>No available drivers found.</p>
                 ) : (
                   filteredDrivers.map(driver => (
-                    <div key={driver.id} className="driver-item">
+                    <div 
+                      key={driver.id} 
+                      className={`driver-item ${driver.isAvailable ? 'available' : 'unavailable'}`}
+                    >
                       <div className="driver-info">
-                        <strong>{driver.name}</strong>
-                        <span> \ Working Area: <span style={{fontWeight: 'bold'}}>{driver.workingArea ? driver.workingArea : 'N/A'}</span></span>
+                        <span style={{fontWeight: 'bold', fontSize: '0.9rem'}}>{driver.name}</span>
+                        <span className={`driver-availability-status ${driver.isAvailable ? 'available' : 'unavailable'}`}>
+                          {driver.isAvailable ? 'Available' : 'Unavailable'}
+                        </span>
+                        <br />
+                        <span style={{fontSize: '0.8rem'}}>Working Area: <span style={{fontWeight: 'bold'}}>{driver.workingArea ? driver.workingArea : 'N/A'}</span></span>
+                        <span style={{fontSize: '0.8rem'}}> \ Active Assigns: <span style={{fontWeight: 'bold'}}>{driver.activeAssign ? driver.activeAssign : '0'}</span></span>
                       </div>
                       <button 
                         className={`assign-btn ${bulkAssignDriverId === driver.driverId ? 'selected' : ''}`}
                         onClick={() => setBulkAssignDriverId(driver.driverId)}
+                        disabled={!driver.isAvailable || bulkAssigning}
                       >
-                        {bulkAssignDriverId === driver.driverId ? 'Selected' : 'Select'}
+                        {!driver.isAvailable ? 'Unavailable' : 
+                         bulkAssignDriverId === driver.driverId ? 'Selected' : 'Select'}
                       </button>
                     </div>
                   ))
@@ -2482,6 +2509,32 @@ const AdminDashboard = () => {
     );
   };
 
+  // Add sort handler
+  const handleSort = (field) => {
+    const newOrder = sortConfig.field === field && sortConfig.order === 'DESC' ? 'ASC' : 'DESC';
+    setSortConfig({
+      field,
+      order: newOrder
+    });
+    
+    // Refetch data with new sort
+    if (activeTab === 'shops') {
+      fetchUsers('shops');
+    }
+  };
+
+  // Add sort icon renderer
+  const renderSortIcon = (field) => {
+    if (sortConfig.field !== field) {
+      return null;
+    }
+    return (
+      <span className="sort-icon">
+        {sortConfig.order === 'DESC' ? ' ▼' : ' ▲'}
+      </span>
+    );
+  };
+
   return (
     <div className="admin-dashboard">
       {renderStatusMessage()}
@@ -2543,7 +2596,7 @@ const AdminDashboard = () => {
           className={`tab-btn ${activeTab === 'money' ? 'active' : ''}`}
           onClick={() => setActiveTab('money')}
         >
-          Money
+          <FontAwesomeIcon icon={faDollarSign} /> Money
         </button>
       </div>
       
@@ -2638,10 +2691,10 @@ const AdminDashboard = () => {
                     <td>
                       <button
                         className="btn btn-primary"
-                        disabled={forwardingPackageId === pkg.id || pkg.status === 'delivered'}
+                        disabled={forwardingPackageId === pkg.id || pkg.status === 'delivered' || pkg.status === 'cancelled'}
                         onClick={() => forwardPackageStatus(pkg)}
                       >
-                        {pkg.status === 'delivered' ? 'Delivered' : forwardingPackageId === pkg.id ? 'Forwarding...' : 'Forward Status'}
+                        {pkg.status === 'delivered' ? 'Delivered' : pkg.status === 'cancelled' ? 'Cancelled' : forwardingPackageId === pkg.id ? 'Forwarding...' : 'Forward Status'}
                       </button>
                     </td>
                   </tr>

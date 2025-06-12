@@ -192,7 +192,7 @@ exports.approveUser = async (req, res) => {
 // Get all shops
 exports.getShops = async (req, res) => {
   try {
-    const { isApproved, search } = req.query;
+    const { isApproved, search, sortBy = 'createdAt', sortOrder = 'DESC' } = req.query;
     
     // First, get all users with role 'shop'
     const whereClause = { role: 'shop' };
@@ -275,6 +275,15 @@ exports.getShops = async (req, res) => {
         shop.address?.toLowerCase().includes(searchTerm) ||
         shop.city?.toLowerCase().includes(searchTerm)
       );
+    }
+    
+    // Apply sorting
+    if (sortBy === 'ToCollect' || sortBy === 'TotalCollected') {
+      result.sort((a, b) => {
+        const aValue = parseFloat(a[sortBy] || 0);
+        const bValue = parseFloat(b[sortBy] || 0);
+        return sortOrder === 'DESC' ? bValue - aValue : aValue - bValue;
+      });
     }
     
     res.json(result);
@@ -1117,7 +1126,7 @@ exports.settleShopPayments = async (req, res) => {
       });
     }
     // ---------- END NEW LOGIC ----------
-
+    
     if (!packageIds || !Array.isArray(packageIds) || packageIds.length === 0) {
       return res.status(400).json({ message: 'Invalid package IDs provided' });
     }

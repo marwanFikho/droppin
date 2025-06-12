@@ -4,8 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { packageService, driverService } from '../../services/api';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
-  faDollarSign, 
-  faBox, 
+  faBox,
   faTruck, 
   faMapMarkedAlt, 
   faEye,

@@ -6,6 +6,7 @@ import CreatePackage from './CreatePackage';
 import ShopPackages, { getStatusBadge } from './ShopPackages';
 import ShopProfile from './ShopProfile';
 import NewPickup from './NewPickup';
+import Wallet from './Wallet';
 import { Pie } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import './ShopDashboard.css';
@@ -33,6 +34,17 @@ const ShopDashboard = () => {
   const [cancelError, setCancelError] = useState(null);
   // Add search state
   const [search, setSearch] = useState('');
+  // Add money transactions state
+  const [moneyTransactions, setMoneyTransactions] = useState([]);
+  const [moneyFilters, setMoneyFilters] = useState({
+    startDate: '',
+    endDate: '',
+    attribute: '',
+    changeType: '',
+    search: '',
+    sortBy: 'createdAt',
+    sortOrder: 'DESC'
+  });
   
   // Function to refresh dashboard data - can be called from any child component
   const refreshDashboard = () => {
@@ -97,6 +109,10 @@ const ShopDashboard = () => {
             rawTotalCollected: String(totalCollected)
           });
         }
+
+        // Fetch money transactions
+        const moneyResponse = await packageService.getMoneyTransactions(moneyFilters);
+        setMoneyTransactions(moneyResponse.data.transactions || []);
       } catch (err) {
         setError('Failed to load data. Please try again later.');
         console.error('Error fetching data:', err);
@@ -106,7 +122,7 @@ const ShopDashboard = () => {
     };
 
     fetchData();
-  }, [refreshData]); // Add refreshData to dependencies to trigger refresh when it changes
+  }, [refreshData, moneyFilters]); // Add moneyFilters to dependencies
 
   // Prepare chart data
   const getChartData = () => {
@@ -142,6 +158,146 @@ const ShopDashboard = () => {
         }
       }
     }
+  };
+
+  // Add function to handle money transaction filters
+  const handleMoneyFilterChange = (field, value) => {
+    if (field === 'sortBy') {
+      // Toggle sort order if clicking the same column
+      if (moneyFilters.sortBy === value) {
+        setMoneyFilters(prev => ({
+          ...prev,
+          sortOrder: prev.sortOrder === 'DESC' ? 'ASC' : 'DESC'
+        }));
+      } else {
+        // New column selected, set it with default DESC order
+        setMoneyFilters(prev => ({
+          ...prev,
+          sortBy: value,
+          sortOrder: 'DESC'
+        }));
+      }
+    } else {
+      setMoneyFilters(prev => ({
+        ...prev,
+        [field]: value
+      }));
+    }
+  };
+
+  // Add function to render money transactions table
+  const renderMoneyTable = () => {
+    if (moneyTransactions.length === 0) {
+      return <p style={{textAlign:'center'}}>No transactions found.</p>;
+    }
+
+    const renderSortIcon = (field) => {
+      if (moneyFilters.sortBy === field) {
+        return <span className="sort-icon">{moneyFilters.sortOrder === 'DESC' ? '▼' : '▲'}</span>;
+      }
+      return null;
+    };
+
+    return (
+      <div className="money-transactions-section">
+        <div className="filters-section">
+          <div className="filter-group">
+            <input
+              type="date"
+              className="filter-input"
+              value={moneyFilters.startDate}
+              onChange={e => handleMoneyFilterChange('startDate', e.target.value)}
+              placeholder="Start Date"
+            />
+            <input
+              type="date"
+              className="filter-input"
+              value={moneyFilters.endDate}
+              onChange={e => handleMoneyFilterChange('endDate', e.target.value)}
+              placeholder="End Date"
+            />
+          </div>
+          <div className="filter-group">
+            <select
+              className="filter-select"
+              value={moneyFilters.attribute}
+              onChange={e => handleMoneyFilterChange('attribute', e.target.value)}
+            >
+              <option value="">All Attributes</option>
+              <option value="ToCollect">To Collect</option>
+              <option value="TotalCollected">Total Collected</option>
+            </select>
+            <select
+              className="filter-select"
+              value={moneyFilters.changeType}
+              onChange={e => handleMoneyFilterChange('changeType', e.target.value)}
+            >
+              <option value="">All Types</option>
+              <option value="increase">Increase</option>
+              <option value="decrease">Decrease</option>
+            </select>
+          </div>
+          <div className="filter-group">
+            <input
+              type="text"
+              className="filter-input"
+              value={moneyFilters.search}
+              onChange={e => handleMoneyFilterChange('search', e.target.value)}
+              placeholder="Search transactions..."
+            />
+          </div>
+        </div>
+
+        <table className="admin-table money-table">
+          <thead>
+            <tr>
+              <th 
+                onClick={() => handleMoneyFilterChange('sortBy', 'createdAt')} 
+                className="sortable-header"
+              >
+                Date {renderSortIcon('createdAt')}
+              </th>
+              <th 
+                onClick={() => handleMoneyFilterChange('sortBy', 'attribute')} 
+                className="sortable-header"
+              >
+                Attribute {renderSortIcon('attribute')}
+              </th>
+              <th 
+                onClick={() => handleMoneyFilterChange('sortBy', 'changeType')} 
+                className="sortable-header"
+              >
+                Type {renderSortIcon('changeType')}
+              </th>
+              <th 
+                onClick={() => handleMoneyFilterChange('sortBy', 'amount')} 
+                className="sortable-header"
+              >
+                Amount ($) {renderSortIcon('amount')}
+              </th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            {moneyTransactions.map(tx => (
+              <tr key={tx.id}>
+                <td>{new Date(tx.createdAt).toLocaleString()}</td>
+                <td>{tx.attribute}</td>
+                <td>
+                  <span className={`change-type ${tx.changeType}`}>
+                    {tx.changeType}
+                  </span>
+                </td>
+                <td className={`financial-cell ${tx.changeType}`}>
+                  ${parseFloat(tx.amount).toFixed(2)}
+                </td>
+                <td>{tx.description || '-'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
   };
 
   const handleCancel = async () => {
@@ -201,6 +357,10 @@ const ShopDashboard = () => {
               <i className="menu-icon">🚚</i>
               New Pickup
             </Link>
+            <Link to="/shop/wallet" className={`menu-item${location.pathname === '/shop/wallet' ? ' active' : ''}`}> 
+              <i className="menu-icon">💰</i>
+              Wallet
+            </Link>
             <Link to="/shop/profile" className={`menu-item${location.pathname === '/shop/profile' ? ' active' : ''}`}> 
               <i className="menu-icon">👤</i>
               Profile
@@ -213,6 +373,7 @@ const ShopDashboard = () => {
           <Route path="packages" element={<ShopPackages />} />
           <Route path="profile" element={<ShopProfile />} />
           <Route path="new-pickup" element={<NewPickup />} />
+          <Route path="wallet" element={<Wallet />} />
           <Route path="*" element={
             <div className="dashboard-content">
               <div className="dashboard-header">

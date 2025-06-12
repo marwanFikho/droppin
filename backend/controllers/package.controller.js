@@ -343,6 +343,27 @@ exports.updatePackageStatus = async (req, res) => {
       lock: true // Add row-level locking
     });
     
+    // Update driver statistics if the package has a driver assigned
+    if (package.driverId) {
+      const driver = await Driver.findByPk(package.driverId, { transaction: t });
+      if (driver) {
+        // When package is marked as delivered
+        if (status === 'delivered') {
+          driver.totalDeliveries += 1;
+          driver.activeAssign = Math.max(0, driver.activeAssign - 1);
+          await driver.save({ transaction: t });
+        }
+        // When package is cancelled
+        else if (status === 'cancelled') {
+          driver.totalCancelled += 1;
+          if (['assigned', 'pickedup', 'in-transit'].includes(originalStatus)) {
+            driver.activeAssign = Math.max(0, driver.activeAssign - 1);
+          }
+          await driver.save({ transaction: t });
+        }
+      }
+    }
+    
     if (shop) {
       // When a package is marked as delivered and has COD
       if (status === 'delivered' && package.codAmount > 0) {

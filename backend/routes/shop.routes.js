@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const { authenticate, authorize } = require('../middleware/auth.middleware');
-const { Shop, User, Package, sequelize } = require('../models');
-const { QueryTypes } = require('sequelize');
+const { Shop, User, Package, MoneyTransaction, sequelize } = require('../models');
+const { QueryTypes, Op } = require('sequelize');
 
 // Get shop profile data with financial columns
 router.get('/profile', authenticate, authorize('shop'), async (req, res) => {
@@ -128,6 +128,84 @@ router.put('/profile', authenticate, authorize('shop'), async (req, res) => {
   } catch (error) {
     console.error('Error updating shop profile:', error);
     res.status(500).json({ message: error.message });
+  }
+});
+
+// Get shop's money transactions
+router.get('/money-transactions', authenticate, authorize('shop'), async (req, res) => {
+  try {
+    const { 
+      page = 1, 
+      limit = 20,
+      startDate,
+      endDate,
+      attribute,
+      changeType,
+      sortBy = 'createdAt',
+      sortOrder = 'DESC',
+      search
+    } = req.query;
+
+    // First, get the shop ID for the current user
+    const shop = await Shop.findOne({ 
+      where: { userId: req.user.id },
+      attributes: ['id']
+    });
+    
+    if (!shop) {
+      return res.status(404).json({ message: 'Shop not found' });
+    }
+
+    // Build where clause
+    const where = { shopId: shop.id };
+    if (attribute) where.attribute = attribute;
+    if (changeType) where.changeType = changeType;
+    
+    // Add date range filter
+    if (startDate || endDate) {
+      where.createdAt = {};
+      if (startDate) where.createdAt[Op.gte] = new Date(startDate);
+      if (endDate) where.createdAt[Op.lte] = new Date(endDate);
+    }
+
+    // Add search functionality
+    if (search) {
+      where[Op.or] = [
+        { description: { [Op.like]: `%${search}%` } }
+      ];
+    }
+
+    const offset = (page - 1) * limit;
+
+    // Validate sort field
+    const validSortFields = ['createdAt', 'amount', 'attribute', 'changeType'];
+    const actualSortBy = validSortFields.includes(sortBy) ? sortBy : 'createdAt';
+    const actualSortOrder = ['ASC', 'DESC'].includes(sortOrder?.toUpperCase()) ? sortOrder.toUpperCase() : 'DESC';
+
+    const { count, rows } = await MoneyTransaction.findAndCountAll({
+      where,
+      limit: parseInt(limit),
+      offset,
+      order: [[actualSortBy, actualSortOrder]]
+    });
+
+    res.json({
+      transactions: rows,
+      total: count,
+      totalPages: Math.ceil(count / limit),
+      currentPage: parseInt(page),
+      filters: {
+        startDate,
+        endDate,
+        attribute,
+        changeType,
+        sortBy: actualSortBy,
+        sortOrder: actualSortOrder
+      }
+    });
+  } catch (err) {
+    console.error('Error fetching money transactions:', err);
+    res.status(500).json({ message: err.message });
   }
 });
 

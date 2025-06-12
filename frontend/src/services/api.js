@@ -94,6 +94,7 @@ export const packageService = {
   getShopPickups: () => api.get('/pickups/shop'),
   getPickupById: (id) => api.get(`/pickups/${id}`),
   cancelPickup: (pickupId) => api.patch(`/pickups/${pickupId}/cancel`),
+  getMoneyTransactions: (params = {}) => api.get('/shops/money-transactions', { params }),
 };
 
 // Shop service

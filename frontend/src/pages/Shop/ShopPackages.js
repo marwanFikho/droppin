@@ -6,7 +6,6 @@ import './ShopDashboard.css';
 const TABS = [
   { label: 'All', value: 'all' },
   { label: 'Awaiting Schedule', value: 'awaiting_schedule' },
-  { label: 'Awaiting Pickup', value: 'awaiting_pickup' },
   { label: 'Scheduled for Pickup', value: 'scheduled_for_pickup' },
   { label: 'Pending', value: 'pending' },
   { label: 'In Transit', value: 'in-transit' },
