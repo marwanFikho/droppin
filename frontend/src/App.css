@@ -683,3 +683,73 @@ input:focus {
     justify-content: center;
   }
 }
+
+/* Unauthorized Page Styles */
+.unauthorized-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: calc(100vh - 80px); /* Adjust based on your navbar height */
+  padding: 20px;
+  background-color: #f8f9fa;
+}
+
+.unauthorized-content {
+  text-align: center;
+  background: white;
+  padding: 40px;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  max-width: 500px;
+  width: 100%;
+}
+
+.unauthorized-content h1 {
+  color: #dc3545;
+  margin-bottom: 20px;
+  font-size: 2.5rem;
+}
+
+.unauthorized-icon {
+  font-size: 4rem;
+  margin: 20px 0;
+}
+
+.unauthorized-content p {
+  color: #6c757d;
+  font-size: 1.2rem;
+  margin-bottom: 30px;
+}
+
+.unauthorized-actions {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+}
+
+.unauthorized-actions button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.unauthorized-actions .btn-primary {
+  background-color: #007bff;
+  color: white;
+}
+
+.unauthorized-actions .btn-primary:hover {
+  background-color: #0056b3;
+}
+
+.unauthorized-actions .btn-secondary {
+  background-color: #6c757d;
+  color: white;
+}
+
+.unauthorized-actions .btn-secondary:hover {
+  background-color: #545b62;
+}

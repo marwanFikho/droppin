@@ -10,11 +10,13 @@ const TABS = [
   { label: 'Pending', value: 'pending' },
   { label: 'In Transit', value: 'in-transit' },
   { label: 'Delivered', value: 'delivered' },
+  { label: 'Return to Shop', value: 'return-to-shop' },
   { label: 'Cancelled', value: 'cancelled' },
   { label: 'Pickups', value: 'pickups' },
 ];
 
 const inTransitStatuses = ['assigned', 'pickedup', 'in-transit'];
+const returnToShopStatuses = ['cancelled-awaiting-return', 'cancelled-returned'];
 
 export function getStatusBadge(status) {
   let className = 'status-badge';
@@ -27,6 +29,8 @@ export function getStatusBadge(status) {
   else if (status === 'in-transit') className += ' status-in-transit';
   else if (status === 'delivered') className += ' status-delivered';
   else if (status === 'cancelled') className += ' status-cancelled';
+  else if (status === 'cancelled-awaiting-return') className += ' status-cancelled-awaiting-return';
+  else if (status === 'cancelled-returned') className += ' status-cancelled-returned';
   else className += ' status-other';
   return <span className={className}>{status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, ' ').replace('-', ' ')}</span>;
 }
@@ -166,6 +170,8 @@ const ShopPackages = () => {
       return filtered;
     } else if (activeTab === 'in-transit') {
       return filtered.filter(pkg => inTransitStatuses.includes(pkg.status));
+    } else if (activeTab === 'return-to-shop') {
+      return filtered.filter(pkg => returnToShopStatuses.includes(pkg.status));
     } else if (activeTab === 'pickups') {
       return filtered; // This will be handled by the pickups tab
     } else {

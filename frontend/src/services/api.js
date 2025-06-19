@@ -1,8 +1,9 @@
 import axios from 'axios';
 import { getToken } from '../utils/auth';
 
-// const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
-const API_URL = 'https://droppin-backend.vercel.app/api';
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+// const API_URL = process.env.REACT_APP_API_URL || 'http://197.37.15.124:5000/api';
+// const API_URL = 'https://droppin-backend.vercel.app/api';
 
 // Create axios instance
 const api = axios.create({

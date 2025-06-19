@@ -48,8 +48,28 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
   if (!currentUser) {
     return <Navigate to="/login" replace />;
   }
+
+  // Strict role checking - user must have exactly one of the allowed roles
+  if (!allowedRoles.includes(currentUser.role)) {
+    return <Navigate to="/unauthorized" replace />;
+  }
+
+  // Additional check to prevent cross-role access
+  const currentPath = window.location.pathname;
+  const isAdminPath = currentPath.startsWith('/admin');
+  const isShopPath = currentPath.startsWith('/shop');
+  const isDriverPath = currentPath.startsWith('/driver');
+  const isUserPath = currentPath.startsWith('/user');
+
+  // Check if user is trying to access a dashboard that doesn't match their role
+  if ((isAdminPath && currentUser.role !== 'admin') ||
+      (isShopPath && currentUser.role !== 'shop') ||
+      (isDriverPath && currentUser.role !== 'driver') ||
+      (isUserPath && currentUser.role !== 'user')) {
+    return <Navigate to="/unauthorized" replace />;
+  }
   
-  // Simply render the protected content if user exists
+  // If authorized, render the protected content
   return children;
 };
 

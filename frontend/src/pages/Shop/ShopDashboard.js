@@ -3,15 +3,19 @@ async function updatePackageStatus(packageId, newStatus) {
     const pkg = packages.find(p => p.id === packageId);
     if (!pkg) return;
 
-    // First, update the package status (so that the package is cancelled if newStatus is "cancelled")
-    await packageService.updatePackageStatus(packageId, newStatus);
+    // First, update the package status
+    // If the package is being cancelled and it's already picked up, set it to cancelled-awaiting-return
+    if (newStatus === 'cancelled' && ['pickedup', 'in-transit'].includes(pkg.status)) {
+      await packageService.updatePackageStatus(packageId, { status: 'cancelled-awaiting-return' });
+    } else {
+      await packageService.updatePackageStatus(packageId, { status: newStatus });
+    }
 
-    // If the package is cancelled, subtract its COD amount from the shop's "To Collect" (and persist the change)
-    if (newStatus === 'cancelled') {
+    // If the package is cancelled, subtract its COD amount from the shop's "To Collect"
+    if (newStatus === 'cancelled' || newStatus === 'cancelled-awaiting-return') {
       const codAmount = parseFloat(pkg.codAmount || 0);
       const newCodToCollect = Math.max(0, shopCodToCollect - codAmount);
       try {
-        // Update the shop's "To Collect" (for example, via an API call) so that the COD subtraction is persisted.
         await shopService.updateShop(shopId, { codToCollect: newCodToCollect });
         setShopCodToCollect(newCodToCollect);
       } catch (err) {

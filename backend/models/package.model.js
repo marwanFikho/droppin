@@ -52,7 +52,19 @@ const Package = sequelize.define('Package', {
     allowNull: true,
   },
   status: {
-    type: DataTypes.ENUM('awaiting_schedule', 'awaiting_pickup', 'scheduled_for_pickup', 'pending', 'assigned', 'pickedup', 'in-transit', 'delivered', 'cancelled', 'returned'),
+    type: DataTypes.ENUM(
+      'awaiting_schedule',
+      'awaiting_pickup',
+      'scheduled_for_pickup',
+      'pending',
+      'assigned',
+      'pickedup',
+      'in-transit',
+      'delivered',
+      'cancelled',
+      'cancelled-awaiting-return',
+      'cancelled-returned'
+    ),
     defaultValue: 'awaiting_schedule'
   },
   pickupContactName: {

@@ -78,7 +78,8 @@ const PackageTracking = () => {
       case 'assigned':
         return 'status-pending';
       case 'cancelled':
-      case 'returned':
+      case 'cancelled-awaiting-return':
+      case 'cancelled-returned':
         return 'status-cancelled';
       default:
         return '';

@@ -17,6 +17,21 @@ ChartJS.register(ArcElement, Tooltip, Legend);
 // Create a context to share the refresh function with child components
 export const ShopDashboardContext = React.createContext();
 
+const TABS = [
+  { label: 'All', value: 'all' },
+  { label: 'Awaiting Schedule', value: 'awaiting_schedule' },
+  { label: 'Scheduled for Pickup', value: 'scheduled_for_pickup' },
+  { label: 'Pending', value: 'pending' },
+  { label: 'In Transit', value: 'in-transit' },
+  { label: 'Delivered', value: 'delivered' },
+  { label: 'Return to Shop', value: 'return-to-shop' },
+  { label: 'Cancelled', value: 'cancelled' },
+  { label: 'Pickups', value: 'pickups' },
+];
+
+const inTransitStatuses = ['assigned', 'pickedup', 'in-transit'];
+const returnToShopStatuses = ['cancelled-awaiting-return', 'cancelled-returned'];
+
 const ShopDashboard = () => {
   const { currentUser } = useAuth();
   const [packages, setPackages] = useState([]);
@@ -45,12 +60,36 @@ const ShopDashboard = () => {
     sortBy: 'createdAt',
     sortOrder: 'DESC'
   });
+  const [activeTab, setActiveTab] = useState('all');
+  const [shopCodToCollect, setShopCodToCollect] = useState(0);
+  const [sortConfig, setSortConfig] = useState({
+    field: 'createdAt',
+    order: 'DESC'
+  });
   
   // Function to refresh dashboard data - can be called from any child component
   const refreshDashboard = () => {
     console.log('Dashboard refresh requested');
     setRefreshData(Date.now());
   };
+
+  // Add fetchPackages function
+  const fetchPackages = async () => {
+    try {
+      const response = await packageService.getPackages();
+      const pkgs = response.data?.packages || response.data || [];
+      setPackages(Array.isArray(pkgs) ? pkgs : []);
+    } catch (error) {
+      console.error('Error fetching packages:', error);
+      alert('Failed to fetch packages. Please try again.');
+      setPackages([]);
+    }
+  };
+
+  // Add useEffect to fetch packages on component mount
+  useEffect(() => {
+    fetchPackages();
+  }, []);
 
   useEffect(() => {
     console.log('Dashboard data refresh triggered:', refreshData);
@@ -313,22 +352,48 @@ const ShopDashboard = () => {
     }
   };
 
-  // Filter packages for dashboard display
-  const filterDashboardPackages = () => {
-    let filtered = packages;
-    if (search.trim()) {
-      const s = search.trim().toLowerCase();
-      filtered = filtered.filter(pkg =>
-        (pkg.trackingNumber && pkg.trackingNumber.toLowerCase().includes(s)) ||
-        (pkg.packageDescription && pkg.packageDescription.toLowerCase().includes(s)) ||
-        (pkg.deliveryContactName && pkg.deliveryContactName.toLowerCase().includes(s))
+  const filterPackages = () => {
+    let filtered = [...packages];
+
+    // Filter by search term
+    if (search) {
+      const searchLower = search.toLowerCase();
+      filtered = filtered.filter(pkg => 
+        pkg.trackingNumber?.toLowerCase().includes(searchLower) ||
+        pkg.packageDescription?.toLowerCase().includes(searchLower) ||
+        pkg.deliveryContactName?.toLowerCase().includes(searchLower) ||
+        pkg.status?.toLowerCase().includes(searchLower)
       );
     }
-    return filtered;
+
+    // Filter by active tab
+    if (activeTab === 'all') {
+      return filtered;
+    } else if (activeTab === 'in-transit') {
+      return filtered.filter(pkg => inTransitStatuses.includes(pkg.status));
+    } else if (activeTab === 'return-to-shop') {
+      return filtered.filter(pkg => returnToShopStatuses.includes(pkg.status));
+    } else if (activeTab === 'pickups') {
+      return filtered; // This will be handled by the pickups tab
+    } else {
+      return filtered.filter(pkg => pkg.status === activeTab);
+    }
   };
 
   const handleStatClick = (tab) => {
     navigate(`/shop/packages?tab=${tab}`);
+  };
+
+  // Add the handleMarkAsReturned function
+  const handleMarkAsReturned = async (pkg) => {
+    try {
+      await packageService.updatePackageStatus(pkg.id, { status: 'cancelled-returned' });
+      // Refresh packages list
+      fetchPackages();
+    } catch (error) {
+      console.error('Error marking package as returned:', error);
+      alert('Failed to mark package as returned. Please try again.');
+    }
   };
 
   return (
@@ -454,7 +519,7 @@ const ShopDashboard = () => {
                     </div>
                   ) : (
                     <div className="package-list">
-                      {filterDashboardPackages().slice(0, 4).map((pkg) => (
+                      {filterPackages().slice(0, 4).map((pkg) => (
                         <div key={pkg.id} className="package-item">
                           <div className="package-main-row">
                             <div className="package-info">
@@ -473,18 +538,27 @@ const ShopDashboard = () => {
                                   <span className={`payment-status ${pkg.isPaid ? 'paid' : 'unpaid'}`}>{pkg.isPaid ? ' (Paid)' : ' (Unpaid)'}</span>
                                 )}
                               </div>
-                              {pkg.status !== 'delivered' && pkg.status !== 'cancelled' && (
-                                <button
-                                  className="action-button"
-                                  style={{background:'#e53935',color:'#fff',padding:'0.2rem 0.6rem',fontSize:'0.8rem',marginTop:'0.3rem'}}
-                                  onClick={() => {
-                                    setPackageToCancel(pkg);
-                                    setShowCancelModal(true);
-                                  }}
-                                >
-                                  Cancel
-                                </button>
-                              )}
+                              <td>
+                                {pkg.status !== 'delivered' && pkg.status !== 'cancelled' && pkg.status !== 'cancelled-returned' && (
+                                  <button
+                                    className="action-button cancel-btn"
+                                    onClick={() => {
+                                      setPackageToCancel(pkg);
+                                      setShowCancelModal(true);
+                                    }}
+                                  >
+                                    Cancel
+                                  </button>
+                                )}
+                                {pkg.status === 'cancelled-awaiting-return' && (
+                                  <button
+                                    className="action-button return-btn"
+                                    onClick={() => handleMarkAsReturned(pkg)}
+                                  >
+                                    Mark as Returned
+                                  </button>
+                                )}
+                              </td>
                             </div>
                           </div>
                         </div>

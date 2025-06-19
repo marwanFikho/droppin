@@ -352,7 +352,7 @@ exports.updatePackageStatus = async (req, res) => {
     }
     
     // Validate status
-    const validStatuses = ['pending', 'assigned', 'pickedup', 'in-transit', 'delivered', 'cancelled', 'returned'];
+    const validStatuses = ['pending', 'assigned', 'pickedup', 'in-transit', 'delivered', 'cancelled', 'cancelled-awaiting-return', 'cancelled-returned'];
     if (!validStatuses.includes(status)) {
       await t.rollback();
       return res.status(400).json({ message: 'Invalid status' });
@@ -393,7 +393,12 @@ exports.updatePackageStatus = async (req, res) => {
     const originalStatus = package.status;
     
     // Update package status
-    await package.update({ status }, { transaction: t });
+    if (['pickedup', 'in-transit'].includes(package.status)) {
+      package.status = 'cancelled-awaiting-return';
+    } else {
+      package.status = 'cancelled';
+    }
+    await package.save({ transaction: t });
     
     // Get the shop for this package to update financial data
     const shop = await Shop.findByPk(package.shopId, { 
@@ -869,7 +874,11 @@ exports.cancelPackage = async (req, res) => {
     }
 
     // Update package status
-    pkg.status = 'cancelled';
+    if (['pickedup', 'in-transit'].includes(pkg.status)) {
+      pkg.status = 'cancelled-awaiting-return';
+    } else {
+      pkg.status = 'cancelled';
+    }
     await pkg.save({ transaction: t });
 
     // Update shop's ToCollect if needed

@@ -999,12 +999,25 @@
 }
 
 /* Packages sub-tabs */
+.packages-header {
+  margin-bottom: 1.5rem;
+}
+
 .packages-sub-tabs {
   display: flex;
+  align-items: center;
   gap: 1rem;
-  margin-bottom: 1.5rem;
-  border-bottom: 1px solid #e0e0e0;
   padding-bottom: 0.5rem;
+  border-bottom: 1px solid #e0e0e0;
+  overflow-x: auto;
+  white-space: nowrap;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.packages-sub-tabs::-webkit-scrollbar {
+  display: none;
 }
 
 .sub-tab-btn {
@@ -1014,14 +1027,47 @@
   cursor: pointer;
   font-size: 0.9rem;
   color: #666;
-  border-radius: 4px 4px 0 0;
+  border-radius: 4px;
   transition: all 0.3s ease;
   font-weight: 500;
+  white-space: nowrap;
 }
 
 .sub-tab-btn:hover {
   background-color: #f5f5f5;
   color: #333;
+}
+
+.sub-tab-btn.active {
+  background-color: #ff8c00;
+  color: white;
+}
+
+.sub-tab-btn.active:hover {
+  background-color: #e67e00;
+  color: white;
+}
+
+.bulk-assign-btn {
+  padding: 0.5rem 1rem;
+  background-color: #ff8c00;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.3s ease;
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.bulk-assign-btn:hover {
+  background-color: #e67e00;
+}
+
+.bulk-assign-btn:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
 }
 
 /* Packages filter */
@@ -1383,4 +1429,82 @@
   margin-left: 4px;
   font-size: 0.8em;
   color: #666;
+}
+
+/* Packages header layout */
+.packages-header {
+  margin-bottom: 1.5rem;
+}
+
+.packages-sub-tabs {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.bulk-assign-btn {
+  padding: 0.5rem 1rem;
+  background-color: #ff8c00;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.3s ease;
+  margin-left: 1rem;
+}
+
+.bulk-assign-btn:hover {
+  background-color: #e67e00;
+}
+
+.bulk-assign-btn:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+/* Packages filter */
+.packages-filter {
+  margin-bottom: 1rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.status-filter {
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  background: white;
+  min-width: 150px;
+}
+
+.status-filter:focus {
+  outline: none;
+  border-color: #ff8c00;
+  box-shadow: 0 0 0 2px rgba(255, 140, 0, 0.1);
+}
+
+.status-cancelled-awaiting-return {
+  background-color: #fff3e0;
+  color: #f57c00;
+  border: 1px solid #ffcc02;
+}
+
+.status-cancelled-returned {
+  background-color: #e8f5e8;
+  color: #388e3c;
+  border: 1px solid #c8e6c9;
+}
+
+.action-btn.return-btn {
+  background-color: #4caf50;
+  color: white;
+  margin-left: 0.5rem;
+}
+
+.action-btn.return-btn:hover {
+  background-color: #43a047;
 }

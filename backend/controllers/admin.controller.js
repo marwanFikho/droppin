@@ -593,6 +593,7 @@ exports.getDrivers = async (req, res) => {
           totalDeliveries: driver.totalDeliveries,
           totalAssigned: driver.totalAssigned,
           activeAssign: driver.activeAssign,
+          assignedToday: driver.assignedToday,
           stats: {
             assignedPackages: assignedPackagesCount,
             deliveredPackages: deliveredPackagesCount,

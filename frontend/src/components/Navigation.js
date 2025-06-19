@@ -12,9 +12,9 @@ const Navigation = () => {
     navigate('/');
   };
 
-  // Determine dashboard link based on user role
+  // Get dashboard link based on user role
   const getDashboardLink = () => {
-    if (!currentUser) return '/login';
+    if (!currentUser) return null;
     
     switch (currentUser.role) {
       case 'shop':
@@ -23,8 +23,10 @@ const Navigation = () => {
         return '/driver';
       case 'admin':
         return '/admin';
-      default:
+      case 'user':
         return '/user';
+      default:
+        return null;
     }
   };
 
@@ -44,7 +46,11 @@ const Navigation = () => {
           
           {currentUser ? (
             <>
-              <Link to={getDashboardLink()} className="nav-link">Dashboard</Link>
+              {getDashboardLink() && (
+                <Link to={getDashboardLink()} className="nav-link">
+                  {currentUser.role.charAt(0).toUpperCase() + currentUser.role.slice(1)} Dashboard
+                </Link>
+              )}
               <button onClick={handleLogout} className="nav-link logout-btn">Logout</button>
             </>
           ) : (

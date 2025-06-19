@@ -43,7 +43,7 @@ const AdminDashboard = () => {
   const [showPickupModal, setShowPickupModal] = useState(false);
   const [pickupPackages, setPickupPackages] = useState([]);
   const [pickupPackagesLoading, setPickupPackagesLoading] = useState(false);
-  const [packagesTab, setPackagesTab] = useState('ready-to-assign');
+  const [packagesTab, setPackagesTab] = useState('all');
   const [selectedPackages, setSelectedPackages] = useState([]);
   const [showBulkAssignModal, setShowBulkAssignModal] = useState(false);
   const [bulkAssignDriverId, setBulkAssignDriverId] = useState('');
@@ -69,6 +69,15 @@ const AdminDashboard = () => {
     field: 'createdAt',
     order: 'DESC'
   });
+
+  // Add new tab for Return to Shop
+  const PACKAGE_TABS = [
+    { label: 'All Packages', value: 'all' },
+    { label: 'Ready to Assign', value: 'ready-to-assign' },
+    { label: 'In Transit', value: 'in-transit' },
+    { label: 'Delivered', value: 'delivered' },
+    { label: 'Return to Shop', value: 'return-to-shop' }
+  ];
 
   // Function to fetch packages for a driver
   const fetchDriverPackages = async (driverId) => {
@@ -725,19 +734,27 @@ const AdminDashboard = () => {
 
   // Filter packages
   const getFilteredPackages = () => {
-    if (activeTab !== 'packages') return [];
+    let filtered = packages;
+    
+    // Apply tab filter
+    if (packagesTab === 'ready-to-assign') {
+      filtered = filtered.filter(pkg => pkg.status === 'pending');
+    } else if (packagesTab === 'in-transit') {
+      filtered = filtered.filter(pkg => ['assigned', 'pickedup', 'in-transit'].includes(pkg.status));
+    } else if (packagesTab === 'delivered') {
+      filtered = filtered.filter(pkg => pkg.status === 'delivered');
+    } else if (packagesTab === 'return-to-shop') {
+      filtered = filtered.filter(pkg => ['cancelled-awaiting-return', 'cancelled-returned'].includes(pkg.status));
+    }
 
-    let filtered = [...packages];
-
-    // Filter by search term - now works the same for both tabs
+    // Apply search filter
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase();
       filtered = filtered.filter(pkg => 
-        pkg.trackingNumber?.toLowerCase().includes(searchLower) ||
-        pkg.packageDescription?.toLowerCase().includes(searchLower) ||
-        pkg.deliveryContactName?.toLowerCase().includes(searchLower) ||
-        pkg.shop?.businessName?.toLowerCase().includes(searchLower) ||
-        pkg.status?.toLowerCase().includes(searchLower)
+        pkg.trackingNumber.toLowerCase().includes(searchLower) ||
+        pkg.packageDescription.toLowerCase().includes(searchLower) ||
+        (pkg.shop?.businessName || '').toLowerCase().includes(searchLower) ||
+        pkg.deliveryAddress.toLowerCase().includes(searchLower)
       );
     }
 
@@ -959,7 +976,7 @@ const AdminDashboard = () => {
           {filteredUsers.map(user => (
             <tr key={user.id}>
               <td>
-                {getRoleIcon(user.role)} {user.name || 'N/A'}
+                {activeTab === 'drivers' ? getRoleIcon(user.role) : getRoleIcon(user.role)} {activeTab === 'drivers' || activeTab === 'users' ? user.name : user.businessName || 'N/A'}
               </td>
               <td>{user.email}</td>
               {activeTab === 'drivers' && (
@@ -1050,19 +1067,27 @@ const AdminDashboard = () => {
     if (activeTab !== 'packages') return null;
 
     return (
-      <div className="packages-sub-tabs">
-        <button 
-          className={`sub-tab-btn ${packagesTab === 'ready-to-assign' ? 'active' : ''}`}
-          onClick={() => setPackagesTab('ready-to-assign')}
-        >
-          Ready to Assign
-        </button>
-        <button 
-          className={`sub-tab-btn ${packagesTab === 'all-packages' ? 'active' : ''}`}
-          onClick={() => setPackagesTab('all-packages')}
-        >
-          All Packages
-        </button>
+      <div className="packages-header">
+        <div className="packages-sub-tabs">
+          {PACKAGE_TABS.map(tab => (
+            <button 
+              key={tab.value}
+              className={`sub-tab-btn ${packagesTab === tab.value ? 'active' : ''}`}
+              onClick={() => setPackagesTab(tab.value)}
+            >
+              {tab.label}
+            </button>
+          ))}
+          {packagesTab === 'ready-to-assign' && selectedPackages.length > 0 && (
+            <button 
+              className="btn-primary bulk-assign-btn"
+              onClick={openBulkAssignModal}
+              disabled={selectedPackages.length === 0}
+            >
+              Assign Driver to {selectedPackages.length} Selected Package{selectedPackages.length !== 1 ? 's' : ''}
+            </button>
+          )}
+        </div>
       </div>
     );
   };
@@ -1081,82 +1106,77 @@ const AdminDashboard = () => {
     }
 
     return (
-      <>
-        <table className="admin-table">
-          <thead>
-            <tr>
+      <table className="admin-table">
+        <thead>
+          <tr>
+            {packagesTab === 'ready-to-assign' && (
+              <th>
+                <input
+                  type="checkbox"
+                  checked={isAllSelected}
+                  onChange={(e) => handleSelectAll(e.target.checked)}
+                  title="Select All"
+                />
+              </th>
+            )}
+            <th>Tracking Number</th>
+            <th>Description</th>
+            <th>Status</th>
+            <th>From</th>
+            <th>To</th>
+            <th>COD Amount</th>
+            <th>Driver</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {filteredPackages.map(pkg => (
+            <tr key={pkg.id}>
               {packagesTab === 'ready-to-assign' && (
-                <th>
+                <td>
                   <input
                     type="checkbox"
-                    checked={isAllSelected}
-                    onChange={(e) => handleSelectAll(e.target.checked)}
-                    title="Select All"
+                    checked={selectedPackages.includes(pkg.id)}
+                    onChange={(e) => handleSelectPackage(pkg.id, e.target.checked)}
                   />
-                </th>
+                </td>
               )}
-              <th>Tracking Number</th>
-              <th>Description</th>
-              <th>Status</th>
-              <th>From</th>
-              <th>To</th>
-              <th>COD Amount</th>
-              <th>Driver</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredPackages.map(pkg => (
-              <tr key={pkg.id}>
-                {packagesTab === 'ready-to-assign' && (
-                  <td>
-                    <input
-                      type="checkbox"
-                      checked={selectedPackages.includes(pkg.id)}
-                      onChange={(e) => handleSelectPackage(pkg.id, e.target.checked)}
-                    />
-                  </td>
-                )}
-                <td>{pkg.trackingNumber}</td>
-                <td>{pkg.packageDescription}</td>
-                <td>
-                  <span className={`status-badge status-${pkg.status}`}>
-                    {pkg.status.charAt(0).toUpperCase() + pkg.status.slice(1).replace('-', ' ')}
-                  </span>
-                </td>
-                <td>{pkg.shop?.businessName || 'N/A'}</td>
-                <td>{pkg.deliveryAddress}</td>
-                <td>${parseFloat(pkg.codAmount || 0).toFixed(2)}</td>
-                <td>{(() => {
-                  const driver = drivers.find(d => d.driverId === pkg.driverId || d.id === pkg.driverId);
-                  return driver ? driver.name : 'Unassigned';
-                })()}</td>
-                <td>
-                  <button 
-                    className="action-btn view-btn"
-                    onClick={() => viewDetails(pkg, 'package')}
-                    title="View Details"
+              <td>{pkg.trackingNumber}</td>
+              <td>{pkg.packageDescription}</td>
+              <td>
+                <span className={`status-badge status-${pkg.status}`}>
+                  {pkg.status.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+                </span>
+              </td>
+              <td>{pkg.shop?.businessName || 'N/A'}</td>
+              <td>{pkg.deliveryAddress}</td>
+              <td>${parseFloat(pkg.codAmount || 0).toFixed(2)}</td>
+              <td>{(() => {
+                const driver = drivers.find(d => d.driverId === pkg.driverId || d.id === pkg.driverId);
+                return driver ? driver.name : 'Unassigned';
+              })()}</td>
+              <td>
+                <button 
+                  className="action-btn view-btn"
+                  onClick={() => viewDetails(pkg, 'package')}
+                  title="View Details"
+                >
+                  <FontAwesomeIcon icon={faEye} />
+                </button>
+                {packagesTab === 'return-to-shop' && pkg.status === 'cancelled-awaiting-return' && (
+                  <button
+                    className="action-btn return-btn"
+                    onClick={() => handleMarkAsReturned(pkg)}
+                    title="Mark as Returned"
                   >
-                    <FontAwesomeIcon icon={faEye} />
+                    <FontAwesomeIcon icon={faCheck} />
                   </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        
-        {packagesTab === 'ready-to-assign' && selectedPackages.length > 0 && (
-          <div className="bulk-actions">
-            <button 
-              className="btn-primary"
-              onClick={openBulkAssignModal}
-              disabled={selectedPackages.length === 0}
-            >
-              Assign Driver to {selectedPackages.length} Selected Package{selectedPackages.length !== 1 ? 's' : ''}
-            </button>
-          </div>
-        )}
-      </>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     );
   };
 
@@ -2242,6 +2262,7 @@ const AdminDashboard = () => {
                         <br />
                         <span style={{fontSize: '0.8rem'}}>Working Area: <span style={{fontWeight: 'bold'}}>{driver.workingArea ? driver.workingArea : 'N/A'}</span></span>
                         <span style={{fontSize: '0.8rem'}}> \ Active Assigns: <span style={{fontWeight: 'bold'}}>{driver.activeAssign ? driver.activeAssign : '0'}</span></span>
+                        <span style={{fontSize: '0.8rem'}}> \ Assigned Today: <span style={{fontWeight: 'bold'}}>{driver.assignedToday ? driver.assignedToday : '0'}</span></span>
                       </div>
                       <button 
                         className={`assign-btn ${bulkAssignDriverId === driver.driverId ? 'selected' : ''}`}
@@ -2534,6 +2555,62 @@ const AdminDashboard = () => {
       </span>
     );
   };
+
+  // Add new function to handle marking package as returned
+  const handleMarkAsReturned = async (pkg) => {
+    try {
+      await packageService.updatePackageStatus(pkg.id, { status: 'cancelled-returned' });
+      // Refresh packages list
+      fetchPackages();
+    } catch (error) {
+      console.error('Error marking package as returned:', error);
+      alert('Failed to mark package as returned. Please try again.');
+    }
+  };
+
+  // Add fetchPackages function
+  const fetchPackages = async () => {
+    try {
+      setLoading(true);
+      const response = await adminService.getPackages();
+      console.log('Packages received:', response.data);
+      
+      // Filter packages based on the current tab
+      if (packagesTab === 'ready-to-assign') {
+        const pendingPackages = (response.data || []).filter(pkg => pkg.status === 'pending');
+        console.log('Filtered pending packages:', pendingPackages);
+        setPackages(pendingPackages);
+      } else if (packagesTab === 'in-transit') {
+        const inTransitPackages = (response.data || []).filter(pkg => 
+          ['assigned', 'pickedup', 'in-transit'].includes(pkg.status)
+        );
+        setPackages(inTransitPackages);
+      } else if (packagesTab === 'delivered') {
+        const deliveredPackages = (response.data || []).filter(pkg => pkg.status === 'delivered');
+        setPackages(deliveredPackages);
+      } else if (packagesTab === 'return-to-shop') {
+        const returnPackages = (response.data || []).filter(pkg => 
+          ['cancelled-awaiting-return', 'cancelled-returned'].includes(pkg.status)
+        );
+        setPackages(returnPackages);
+      } else {
+        // For 'all' tab, show all packages
+        setPackages(response.data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching packages:', error);
+      alert('Failed to fetch packages. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Add useEffect to fetch packages on component mount and when packagesTab changes
+  useEffect(() => {
+    if (activeTab === 'packages') {
+      fetchPackages();
+    }
+  }, [activeTab, packagesTab]);
 
   return (
     <div className="admin-dashboard">
