@@ -1,7 +1,9 @@
 import axios from 'axios';
+import { getToken } from '../utils/auth';
 
-const API_URL = 'http://localhost:5000/api';
-// const API_URL = 'https://droppin-production.up.railway.app/api';
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+// const API_URL = process.env.REACT_APP_API_URL || 'http://197.37.15.124:5000/api';
+// const API_URL = 'https://droppin-backend.vercel.app/api';
 
 // Create axios instance
 const api = axios.create({
@@ -25,67 +27,36 @@ api.interceptors.request.use(
   }
 );
 
-// Add a response interceptor to handle auth errors
+// Add a response interceptor to handle token expiration
 api.interceptors.response.use(
   (response) => response,
-  async (error) => {
-    const originalRequest = error.config;
-    
-    // Don't retry if we've already tried once
-    if (originalRequest._retry) {
-      return Promise.reject(error);
-    }
-
-    if (error.response) {
-      // Handle 401 Unauthorized
-      if (error.response.status === 401 && !originalRequest._retry) {
-        originalRequest._retry = true;
-        
-        // Clear auth data
-        localStorage.removeItem('token');
-        localStorage.removeItem('currentUser');
-        
-        // Redirect to login, but only if we're not already trying to login/register
-        if (!originalRequest.url.includes('/auth/')) {
-          window.location.href = '/login';
-        }
-      }
-      
-      // Handle 403 Forbidden
-      if (error.response.status === 403) {
-        // Clear auth data
-        localStorage.removeItem('token');
-        localStorage.removeItem('currentUser');
-        
-        // Redirect to login
+  (error) => {
+    if (error.response?.status === 401) {
+      // Clear invalid token
+      localStorage.removeItem('token');
+      localStorage.removeItem('currentUser');
+      // Redirect to login if not already there
+      if (!window.location.pathname.includes('/login')) {
         window.location.href = '/login';
       }
-      
-      // Handle 404 Not Found
-      if (error.response.status === 404) {
-        // If it's an admin route and we're logged in, try refreshing auth
-        if (window.location.pathname.startsWith('/admin') && localStorage.getItem('token')) {
-          // Clear auth data
-          localStorage.removeItem('token');
-          localStorage.removeItem('currentUser');
-          
-          // Redirect to login
-          window.location.href = '/login';
-        }
-      }
     }
-    
     return Promise.reject(error);
   }
 );
 
 // Authentication service
 export const authService = {
-  login: (credentials) => api.post('/auth/login', credentials),
+  login: async (credentials) => {
+    const response = await api.post('/auth/login', credentials);
+    return response;
+  },
   register: (userData) => api.post('/auth/register', userData),
   registerShop: (shopData) => api.post('/auth/register/shop', shopData),
   registerDriver: (driverData) => api.post('/auth/register/driver', driverData),
-  getProfile: () => api.get('/auth/profile'),
+  getProfile: async () => {
+    const response = await api.get('/auth/profile');
+    return response;
+  },
 };
 
 // Package service
@@ -113,7 +84,18 @@ export const packageService = {
   trackPackage: (trackingNumber) => {
     return api.get(`/packages/track/${trackingNumber}`);
   },
-  getShopProfile: () => api.get('/shops/profile')
+  getShopProfile: () => api.get('/shops/profile'),
+  updateShopProfile: (data) => api.put('/shops/profile', data),
+  cancelPackage: (id) => {
+    return api.patch(`/packages/${id}/cancel`);
+  },
+  createPickup: (pickupData) => {
+    return api.post('/pickups', pickupData);
+  },
+  getShopPickups: () => api.get('/pickups/shop'),
+  getPickupById: (id) => api.get(`/pickups/${id}`),
+  cancelPickup: (pickupId) => api.patch(`/pickups/${pickupId}/cancel`),
+  getMoneyTransactions: (params = {}) => api.get('/shops/money-transactions', { params }),
 };
 
 // Shop service
@@ -127,6 +109,8 @@ export const driverService = {
   getDrivers: () => api.get('/drivers'),
   getDriverById: (id) => api.get(`/drivers/${id}`),
   updateLocation: (data) => api.post('/drivers/location', data),
+  getDriverProfile: () => api.get('/drivers/profile'),
+  updateAvailability: (isAvailable) => api.patch('/drivers/availability', { isAvailable }),
 };
 
 // Admin service
@@ -140,6 +124,7 @@ export const adminService = {
   createUser: (userData) => api.post('/admin/users', userData),
   updateUser: (id, userData) => api.put(`/admin/users/${id}`, userData),
   approveUser: (id, approved) => api.patch(`/admin/users/${id}/approve`, { approved }),
+  deleteUser: (id) => api.delete(`/admin/users/${id}`),
   
   // Shop management
   getShops: (filters = {}) => api.get('/admin/shops', { params: filters }),
@@ -149,15 +134,23 @@ export const adminService = {
   // Driver management
   getDrivers: (filters = {}) => api.get('/admin/drivers', { params: filters }),
   approveDriver: (id, approved) => api.patch(`/admin/drivers/${id}/approve`, { approved }),
+  updateDriverWorkingArea: (driverId, workingArea) => api.patch(`/drivers/${driverId}/working-area`, { workingArea }),
   
   // Package management
   getPackages: (filters = {}) => api.get('/admin/packages', { params: filters }),
-  assignDriverToPackage: (packageId, driverId) => api.post(`/admin/packages/${packageId}/assign-driver`, { driverId }),
+  assignDriverToPackage: (packageId, driverId) => {
+    console.log('API call - assignDriverToPackage:', { packageId, driverId });
+    return api.post(`/admin/packages/${packageId}/assign-driver`, { driverId });
+  },
   
+  // Pickup management
+  getAllPickups: () => api.get('/pickups/admin/all'),
+  markPickupAsPickedUp: (pickupId) => api.patch(`/pickups/${pickupId}/pickup`),
   // Financial management
   settleShopPayments: (shopId, data) => api.post(`/admin/shops/${shopId}/settle-payments`, data),
   updatePackagePayment: (packageId, data) => api.patch(`/admin/packages/${packageId}/payment`, data),
   getShopPackages: (shopId) => api.get(`/admin/packages`, { params: { shopId } }),
+  getMoneyTransactions: (params = {}) => api.get('/admin/money', { params }),
 };
 
 export default api;

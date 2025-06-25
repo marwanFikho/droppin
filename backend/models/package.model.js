@@ -10,6 +10,14 @@ const Package = sequelize.define('Package', {
       key: 'id'
     }
   },
+  pickupId: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: 'Pickups',
+      key: 'id'
+    }
+  },
   driverId: {
     type: DataTypes.INTEGER,
     allowNull: true,
@@ -44,8 +52,20 @@ const Package = sequelize.define('Package', {
     allowNull: true,
   },
   status: {
-    type: DataTypes.ENUM('pending', 'assigned', 'pickedup', 'in-transit', 'delivered', 'cancelled', 'returned'),
-    defaultValue: 'pending'
+    type: DataTypes.ENUM(
+      'awaiting_schedule',
+      'awaiting_pickup',
+      'scheduled_for_pickup',
+      'pending',
+      'assigned',
+      'pickedup',
+      'in-transit',
+      'delivered',
+      'cancelled',
+      'cancelled-awaiting-return',
+      'cancelled-returned'
+    ),
+    defaultValue: 'awaiting_schedule'
   },
   pickupContactName: {
     type: DataTypes.STRING,
@@ -72,19 +92,19 @@ const Package = sequelize.define('Package', {
     allowNull: false
   },
   schedulePickupTime: {
-    type: DataTypes.DATE,
+    type: DataTypes.STRING,
     allowNull: false
   },
   estimatedDeliveryTime: {
-    type: DataTypes.DATE,
+    type: DataTypes.STRING,
     allowNull: true
   },
   actualPickupTime: {
-    type: DataTypes.DATE,
+    type: DataTypes.STRING,
     allowNull: true
   },
   actualDeliveryTime: {
-    type: DataTypes.DATE,
+    type: DataTypes.STRING,
     allowNull: true
   },
   priority: {
@@ -96,19 +116,45 @@ const Package = sequelize.define('Package', {
     defaultValue: 'pending'
   },
   codAmount: {
-    type: DataTypes.DECIMAL(10, 2),
-    defaultValue: 0.00,
-    allowNull: false
+    type: DataTypes.FLOAT,
+    defaultValue: 0
+  },
+  deliveryCost: {
+    type: DataTypes.FLOAT,
+    defaultValue: 0
+  },
+  paymentMethod: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  paymentNotes: {
+    type: DataTypes.TEXT,
+    allowNull: true
   },
   isPaid: {
     type: DataTypes.BOOLEAN,
     defaultValue: false
   },
   paymentDate: {
-    type: DataTypes.DATE,
+    type: DataTypes.STRING,
     allowNull: true
   },
-  // No additional fields - model must match database exactly
+  notes: {
+    type: DataTypes.TEXT,
+    allowNull: true
+  },
+  signature: {
+    type: DataTypes.JSON,
+    defaultValue: null
+  },
+  deliveryPhotos: {
+    type: DataTypes.JSON,
+    defaultValue: null
+  },
+  statusHistory: {
+    type: DataTypes.JSON,
+    defaultValue: []
+  }
 }, {
   hooks: {
     beforeCreate: (package) => {

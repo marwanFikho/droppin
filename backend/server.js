@@ -5,6 +5,8 @@ const morgan = require('morgan');
 const path = require('path');
 const fs = require('fs');
 const { sequelize, testConnection } = require('./config/db.config');
+const cron = require('node-cron');
+const { Driver } = require('./models');
 
 // Load environment variables
 dotenv.config();
@@ -32,6 +34,7 @@ const driverRoutes = require('./routes/driver.routes');
 const packageRoutes = require('./routes/package.routes');
 const adminRoutes = require('./routes/admin.routes');
 const infoRoutes = require('./routes/info.routes');
+const pickupRoutes = require('./routes/pickup.routes');
 
 // API routes
 app.use('/api/auth', authRoutes);
@@ -41,13 +44,14 @@ app.use('/api/drivers', driverRoutes);
 app.use('/api/packages', packageRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/info', infoRoutes);
+app.use('/api/pickups', pickupRoutes);
 
 // Default route
 app.get('/', (req, res) => {
   res.send('Welcome to Droppin Delivery API');
 });
 
-// ✅ ✅ ✅ INSERTED DOWNLOAD ROUTE
+// DOWNLOAD ROUTE
 app.get('/download-db', (req, res) => {
   const dbPath = path.join(__dirname, 'db', 'dropin.sqlite');
 
@@ -62,7 +66,6 @@ app.get('/download-db', (req, res) => {
     }
   });
 });
-// ✅ ✅ ✅ END OF INSERTION
 
 // Create the database directory if it doesn't exist
 const dbDir = path.join(__dirname, 'db');
@@ -111,6 +114,16 @@ const startServer = async () => {
         isActive: newAdmin.isActive
       });
     }
+
+    // Reset assignedToday for all drivers at midnight every day
+    cron.schedule('0 0 * * *', async () => {
+      try {
+        await Driver.update({ assignedToday: 0 }, { where: {} });
+        console.log('Reset assignedToday for all drivers at midnight');
+      } catch (error) {
+        console.error('Error resetting assignedToday:', error);
+      }
+    });
 
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);

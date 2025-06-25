@@ -13,6 +13,7 @@ router.get('/stats', adminController.getDashboardStats);
 router.get('/users', adminController.getUsers);
 router.get('/users/pending', adminController.getPendingApprovals);
 router.patch('/users/:id/approve', adminController.approveUser);
+router.delete('/users/:id', adminController.deleteUser);
 
 // Shop management
 router.get('/shops', adminController.getShops);
@@ -30,5 +31,8 @@ router.patch('/packages/:packageId/payment', adminController.updatePackagePaymen
 
 // Financial management
 router.post('/shops/:shopId/settle-payments', adminController.settleShopPayments);
+
+// Money transactions
+router.get('/money', adminController.getMoneyTransactions);
 
 module.exports = router;

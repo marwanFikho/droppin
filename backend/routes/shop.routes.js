@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const { authenticate, authorize } = require('../middleware/auth.middleware');
-const { Shop, User, Package, sequelize } = require('../models');
-const { QueryTypes } = require('sequelize');
+const { Shop, User, Package, MoneyTransaction, sequelize } = require('../models');
+const { QueryTypes, Op } = require('sequelize');
 
 // Get shop profile data with financial columns
 router.get('/profile', authenticate, authorize('shop'), async (req, res) => {
@@ -20,7 +20,7 @@ router.get('/profile', authenticate, authorize('shop'), async (req, res) => {
     // Use direct SQL query to get the exact values from the database
     const [rawShopData] = await sequelize.query(
       `SELECT id, userId, businessName, businessType, contactPersonName, contactPersonPhone, 
-              contactPersonEmail, createdAt, updatedAt, ToCollect, TotalCollected 
+              contactPersonEmail, address, createdAt, updatedAt, ToCollect, TotalCollected 
        FROM Shops WHERE id = :shopId`,
       {
         replacements: { shopId: shop.id },
@@ -40,27 +40,21 @@ router.get('/profile', authenticate, authorize('shop'), async (req, res) => {
       attributes: ['id', 'codAmount', 'isPaid', 'status'] 
     });
     
-    // If ToCollect or TotalCollected aren't set in the database, calculate them
-    if (rawShopData.ToCollect === null || rawShopData.TotalCollected === null) {
+    // If TotalCollected is null (legacy rows), calculate it; leave ToCollect as-is to avoid double counting
+    if (rawShopData.TotalCollected === null) {
       console.log('Need to calculate financial totals for shop ID:', shop.id);
       
       // Calculate financial totals
-      let totalToCollect = 0;
       let totalCollected = 0;
       
       packages.forEach(pkg => {
-        // Packages with COD amount that are not delivered yet
-        if (pkg.codAmount > 0 && !pkg.isPaid) {
-          totalToCollect += parseFloat(pkg.codAmount);
-        }
-        
         // Packages with COD that have been paid but not settled
         if (pkg.codAmount > 0 && pkg.isPaid) {
           totalCollected += parseFloat(pkg.codAmount);
         }
       });
       
-      console.log('Calculated financial values:', { totalToCollect, totalCollected });
+      console.log('Calculated financial TotalCollected value:', { totalCollected });
       
       // Update the shop with calculated values
       await sequelize.query(
@@ -69,7 +63,7 @@ router.get('/profile', authenticate, authorize('shop'), async (req, res) => {
         {
           replacements: { 
             shopId: shop.id,
-            toCollect: totalToCollect,
+            toCollect: rawShopData.ToCollect || 0,
             totalCollected: totalCollected 
           },
           type: QueryTypes.UPDATE
@@ -107,6 +101,111 @@ router.get('/profile', authenticate, authorize('shop'), async (req, res) => {
   } catch (error) {
     console.error('Error fetching shop profile:', error);
     res.status(500).json({ message: error.message });
+  }
+});
+
+// Update shop profile data
+router.put('/profile', authenticate, authorize('shop'), async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const shop = await Shop.findOne({ where: { userId } });
+    if (!shop) {
+      return res.status(404).json({ message: 'Shop not found' });
+    }
+    const { businessName, contactPerson, address } = req.body;
+    // Update fields if provided
+    if (businessName) shop.businessName = businessName;
+    if (contactPerson) {
+      shop.contactPersonName = contactPerson.name || shop.contactPersonName;
+      shop.contactPersonPhone = contactPerson.phone || shop.contactPersonPhone;
+      shop.contactPersonEmail = contactPerson.email || shop.contactPersonEmail;
+    }
+    if (address) {
+      shop.address = address; // Save as a single string
+    }
+    await shop.save();
+    res.json({ message: 'Shop profile updated successfully' });
+  } catch (error) {
+    console.error('Error updating shop profile:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Get shop's money transactions
+router.get('/money-transactions', authenticate, authorize('shop'), async (req, res) => {
+  try {
+    const { 
+      page = 1, 
+      limit = 20,
+      startDate,
+      endDate,
+      attribute,
+      changeType,
+      sortBy = 'createdAt',
+      sortOrder = 'DESC',
+      search
+    } = req.query;
+
+    // First, get the shop ID for the current user
+    const shop = await Shop.findOne({ 
+      where: { userId: req.user.id },
+      attributes: ['id']
+    });
+    
+    if (!shop) {
+      return res.status(404).json({ message: 'Shop not found' });
+    }
+
+    // Build where clause
+    const where = { shopId: shop.id };
+    if (attribute) where.attribute = attribute;
+    if (changeType) where.changeType = changeType;
+    
+    // Add date range filter
+    if (startDate || endDate) {
+      where.createdAt = {};
+      if (startDate) where.createdAt[Op.gte] = new Date(startDate);
+      if (endDate) where.createdAt[Op.lte] = new Date(endDate);
+    }
+
+    // Add search functionality
+    if (search) {
+      where[Op.or] = [
+        { description: { [Op.like]: `%${search}%` } }
+      ];
+    }
+
+    const offset = (page - 1) * limit;
+
+    // Validate sort field
+    const validSortFields = ['createdAt', 'amount', 'attribute', 'changeType'];
+    const actualSortBy = validSortFields.includes(sortBy) ? sortBy : 'createdAt';
+    const actualSortOrder = ['ASC', 'DESC'].includes(sortOrder?.toUpperCase()) ? sortOrder.toUpperCase() : 'DESC';
+
+    const { count, rows } = await MoneyTransaction.findAndCountAll({
+      where,
+      limit: parseInt(limit),
+      offset,
+      order: [[actualSortBy, actualSortOrder]]
+    });
+
+    res.json({
+      transactions: rows,
+      total: count,
+      totalPages: Math.ceil(count / limit),
+      currentPage: parseInt(page),
+      filters: {
+        startDate,
+        endDate,
+        attribute,
+        changeType,
+        sortBy: actualSortBy,
+        sortOrder: actualSortOrder
+      }
+    });
+  } catch (err) {
+    console.error('Error fetching money transactions:', err);
+    res.status(500).json({ message: err.message });
   }
 });
 

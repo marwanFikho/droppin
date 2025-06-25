@@ -15,9 +15,9 @@ const Navigation = () => {
     navigate('/');
   };
 
-  // Determine dashboard link based on user role
+  // Get dashboard link based on user role
   const getDashboardLink = () => {
-    if (!currentUser) return '/login';
+    if (!currentUser) return null;
     
     switch (currentUser.role) {
       case 'shop':
@@ -26,7 +26,7 @@ const Navigation = () => {
         return '/driver';
       case 'admin':
         return '/admin';
-      default:
+      case 'user':
         return '/user';
     }
   };

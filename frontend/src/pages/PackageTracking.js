@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { packageService } from '../services/api';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faBox, faTruck, faStore, faMapMarkerAlt, faPhone, faWeight, faRuler } from '@fortawesome/free-solid-svg-icons';
+import './PackageTracking.css';
 
 const PackageTracking = () => {
   const [trackingNumber, setTrackingNumber] = useState('');
@@ -30,7 +33,6 @@ const PackageTracking = () => {
   }, [i18n.language]);
   
   useEffect(() => {
-    // If tracking number is provided in URL, use it
     if (trackingParam) {
       setTrackingNumber(trackingParam);
       trackPackage(trackingParam);
@@ -47,8 +49,6 @@ const PackageTracking = () => {
       console.log('Translation Key:', `tracking.status.${response.data.status}`);
       console.log('Translated Value:', t(`tracking.status.${response.data.status}`));
       setPackageData(response.data);
-      
-      // Save to tracking history in localStorage
       saveToTrackingHistory(response.data);
     } catch (err) {
       console.error('Tracking Error:', err);
@@ -59,16 +59,12 @@ const PackageTracking = () => {
     }
   };
   
-  // Save package tracking to history
   const saveToTrackingHistory = (packageData) => {
     try {
       const history = JSON.parse(localStorage.getItem('trackingHistory')) || [];
-      
-      // Check if this tracking number already exists in history
       const exists = history.some(item => item.trackingNumber === packageData.trackingNumber);
       
       if (!exists) {
-        // Add to beginning of array (most recent first)
         const updatedHistory = [
           {
             trackingNumber: packageData.trackingNumber,
@@ -77,7 +73,7 @@ const PackageTracking = () => {
             date: new Date().toISOString()
           },
           ...history
-        ].slice(0, 10); // Keep only the 10 most recent
+        ].slice(0, 10);
         
         localStorage.setItem('trackingHistory', JSON.stringify(updatedHistory));
       }
@@ -151,7 +147,7 @@ const PackageTracking = () => {
       )}
       
       {packageData && (
-        <div className="tracking-result">
+        <div className="tracking-result tracking-centered">
           <div className="tracking-info">
             <h2>{t('tracking.packageInfo')}</h2>
             <div className="tracking-details">

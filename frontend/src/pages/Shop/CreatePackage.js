@@ -1,21 +1,38 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { packageService } from '../../services/api';
 import { ShopDashboardContext } from './Dashboard'; // Import the ShopDashboardContext
+
+const CATEGORY_OPTIONS = [
+  'Shoes',
+  'Perfumes',
+  'Clothes',
+  'Electronics',
+  'Accessories',
+  'Books',
+  'Other'
+];
+
+const parseAddress = (addressStr) => {
+  if (!addressStr) return { street: '', city: '', state: '', zipCode: '', country: '' };
+  const [street, city, state, zipCode, country] = addressStr.split(',').map(s => s.trim());
+  return { street: street || '', city: city || '', state: state || '', zipCode: zipCode || '', country: country || '' };
+};
 
 const CreatePackage = () => {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
   
   // Get access to the dashboard refresh function
   const { refreshDashboard } = useContext(ShopDashboardContext);
   
   const [formData, setFormData] = useState({
     packageDescription: '',
+    category: '',
     weight: '',
     dimensions: {
       length: '',
@@ -41,11 +58,30 @@ const CreatePackage = () => {
       instructions: ''
     },
     schedulePickupTime: '',
-    priority: 'normal',
     notes: '',
-    // Financial fields
-    codAmount: ''
+    codAmount: '',
+    deliveryCost: '',
+    paymentMethod: '',
+    paymentNotes: ''
   });
+
+  // Fetch shop address on mount
+  useEffect(() => {
+    const fetchShopProfile = async () => {
+      try {
+        const res = await packageService.getShopProfile();
+        const shop = res.data;
+        const pickupAddress = parseAddress(shop.address);
+        setFormData(prev => ({
+          ...prev,
+          pickupAddress: { ...pickupAddress, instructions: '' }
+        }));
+      } catch (err) {
+        setError('Failed to load shop address.');
+      }
+    };
+    fetchShopProfile();
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -71,11 +107,10 @@ const CreatePackage = () => {
     e.preventDefault();
     setIsSubmitting(true);
     setError('');
-    setSuccess('');
     
     try {
       // Validate required fields
-      if (!formData.packageDescription || !formData.weight || !formData.schedulePickupTime) {
+      if (!formData.packageDescription || !formData.weight || !formData.category) {
         throw new Error('Please fill in all required fields');
       }
       
@@ -96,23 +131,27 @@ const CreatePackage = () => {
           height: formData.dimensions.height ? parseFloat(formData.dimensions.height) : 0
         },
         // Format financial fields as numbers
-        codAmount: formData.codAmount ? parseFloat(formData.codAmount) : 0
+        codAmount: formData.codAmount ? parseFloat(formData.codAmount) : 0,
+        deliveryCost: formData.deliveryCost ? parseFloat(formData.deliveryCost) : 0,
+        paymentMethod: formData.paymentMethod || null,
+        paymentNotes: formData.paymentNotes || null
       };
       
       // Submit to API
       const response = await packageService.createPackage(packageData);
       
-      setSuccess('Package created successfully!');
+      // Show success modal instead of text alert
+      setShowSuccessModal(true);
       
-      // Refresh the dashboard without logging out
+      // Refresh the dashboard
       if (refreshDashboard) {
-        console.log('Refreshing dashboard after package creation');
         refreshDashboard();
       }
       
       // Reset form
       setFormData({
         packageDescription: '',
+        category: '',
         weight: '',
         dimensions: {
           length: '',
@@ -138,16 +177,17 @@ const CreatePackage = () => {
           instructions: ''
         },
         schedulePickupTime: '',
-        priority: 'normal',
         notes: '',
-        codAmount: ''
+        codAmount: '',
+        deliveryCost: '',
+        paymentMethod: '',
+        paymentNotes: ''
       });
       
-      // Redirect to packages list after a short delay
-      // We'll show the success message briefly before redirecting
+      // Redirect after modal is shown
       setTimeout(() => {
-        navigate('/shop/packages', { replace: true }); // Use replace to avoid breaking browser history
-      }, 2000);
+        navigate('/shop/packages', { replace: true });
+      }, 4000);
       
     } catch (err) {
       setError(err.message || 'Failed to create package. Please try again.');
@@ -159,33 +199,98 @@ const CreatePackage = () => {
 
   return (
     <div className="dashboard-content">
-      <div className="content-header">
-        <h1>Create New Package</h1>
-        <p>Fill in the details to create a new delivery package</p>
-      </div>
-      
       {error && <div className="alert alert-error">{error}</div>}
-      {success && <div className="alert alert-success">{success}</div>}
       
-      <div className="form-container">
-        <form onSubmit={handleSubmit} className="create-package-form">
-          <div className="form-section">
-            <h2>Package Information</h2>
-            
-            <div className="form-group">
-              <label htmlFor="packageDescription">Package Description*</label>
-              <input
-                type="text"
-                id="packageDescription"
-                name="packageDescription"
-                value={formData.packageDescription}
-                onChange={handleChange}
-                placeholder="Describe the package contents"
-                required
-              />
+      {/* Success Modal */}
+      {showSuccessModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            padding: '2rem',
+            borderRadius: '8px',
+            boxShadow: '0 2px 10px rgba(0, 0, 0, 0.1)',
+            maxWidth: '400px',
+            width: '90%',
+            textAlign: 'center'
+          }}>
+            <div style={{
+              fontSize: '3rem',
+              color: '#4CAF50',
+              marginBottom: '1rem'
+            }}>
+              ✓
             </div>
+            <h2 style={{
+              fontSize: '1.5rem',
+              color: '#333',
+              marginBottom: '1rem'
+            }}>
+              Package Created Successfully!
+            </h2>
+            <p style={{
+              color: '#666',
+              marginBottom: '1.5rem'
+            }}>
+              Your package has been created and is ready for pickup.
+            </p>
+            <div style={{
+              fontSize: '0.9rem',
+              color: '#888'
+            }}>
+              Redirecting to packages list...
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="form-container" style={{ maxWidth: '800px', margin: '0 auto' }}>
+        <form onSubmit={handleSubmit} className="create-package-form">
+          <div className="form-section" style={{ marginBottom: '1rem' }}>
+            <h2 style={{ fontSize: '1.2rem', marginBottom: '0.5rem', color: '#ff8c00' }}>Package Information</h2>
             
-            <div className="form-row">
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+              <div className="form-group">
+                <label htmlFor="packageDescription">Description*</label>
+                <input
+                  type="text"
+                  id="packageDescription"
+                  name="packageDescription"
+                  value={formData.packageDescription}
+                  onChange={handleChange}
+                  placeholder="Describe contents"
+                  required
+                />
+              </div>
+              
+              <div className="form-group">
+                <label htmlFor="category">Category*</label>
+                <select
+                  id="category"
+                  name="category"
+                  value={formData.category}
+                  onChange={handleChange}
+                  required
+                >
+                  <option value="">Select category</option>
+                  {CATEGORY_OPTIONS.map(opt => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)'}}>
               <div className="form-group">
                 <label htmlFor="weight">Weight (kg)*</label>
                 <input
@@ -194,29 +299,14 @@ const CreatePackage = () => {
                   name="weight"
                   value={formData.weight}
                   onChange={handleChange}
-                  placeholder="Package weight"
+                  placeholder="Weight"
                   step="0.01"
                   min="0.01"
                   required
+                  style={{ padding: '0.5rem' }}
                 />
               </div>
               
-              <div className="form-group">
-                <label htmlFor="priority">Priority</label>
-                <select
-                  id="priority"
-                  name="priority"
-                  value={formData.priority}
-                  onChange={handleChange}
-                >
-                  <option value="normal">Normal</option>
-                  <option value="express">Express</option>
-                  <option value="same-day">Same Day</option>
-                </select>
-              </div>
-            </div>
-            
-            <div className="form-row">
               <div className="form-group">
                 <label htmlFor="dimensions.length">Length (cm)</label>
                 <input
@@ -228,6 +318,7 @@ const CreatePackage = () => {
                   placeholder="Length"
                   min="0"
                   step="0.1"
+                  style={{ padding: '0.5rem' }}
                 />
               </div>
               
@@ -242,6 +333,7 @@ const CreatePackage = () => {
                   placeholder="Width"
                   min="0"
                   step="0.1"
+                  style={{ padding: '0.5rem' }}
                 />
               </div>
               
@@ -256,107 +348,16 @@ const CreatePackage = () => {
                   placeholder="Height"
                   min="0"
                   step="0.1"
+                  style={{ padding: '0.5rem' }}
                 />
               </div>
             </div>
           </div>
           
           <div className="form-section">
-            <h2>Pickup Information</h2>
+            <h2 style={{ fontSize: '1.2rem', color: '#ff8c00' }}>Delivery Information</h2>
             
-            <div className="form-group">
-              <label htmlFor="schedulePickupTime">Scheduled Pickup Time*</label>
-              <input
-                type="datetime-local"
-                id="schedulePickupTime"
-                name="schedulePickupTime"
-                value={formData.schedulePickupTime}
-                onChange={handleChange}
-                required
-              />
-            </div>
-            
-            <div className="form-group">
-              <label htmlFor="pickupAddress.street">Street Address</label>
-              <input
-                type="text"
-                id="pickupAddress.street"
-                name="pickupAddress.street"
-                value={formData.pickupAddress.street}
-                onChange={handleChange}
-                placeholder="Street address"
-              />
-            </div>
-            
-            <div className="form-row">
-              <div className="form-group">
-                <label htmlFor="pickupAddress.city">City</label>
-                <input
-                  type="text"
-                  id="pickupAddress.city"
-                  name="pickupAddress.city"
-                  value={formData.pickupAddress.city}
-                  onChange={handleChange}
-                  placeholder="City"
-                />
-              </div>
-              
-              <div className="form-group">
-                <label htmlFor="pickupAddress.state">State/Province</label>
-                <input
-                  type="text"
-                  id="pickupAddress.state"
-                  name="pickupAddress.state"
-                  value={formData.pickupAddress.state}
-                  onChange={handleChange}
-                  placeholder="State/Province"
-                />
-              </div>
-            </div>
-            
-            <div className="form-row">
-              <div className="form-group">
-                <label htmlFor="pickupAddress.zipCode">Zip/Postal Code</label>
-                <input
-                  type="text"
-                  id="pickupAddress.zipCode"
-                  name="pickupAddress.zipCode"
-                  value={formData.pickupAddress.zipCode}
-                  onChange={handleChange}
-                  placeholder="Zip/Postal code"
-                />
-              </div>
-              
-              <div className="form-group">
-                <label htmlFor="pickupAddress.country">Country</label>
-                <input
-                  type="text"
-                  id="pickupAddress.country"
-                  name="pickupAddress.country"
-                  value={formData.pickupAddress.country}
-                  onChange={handleChange}
-                  placeholder="Country"
-                />
-              </div>
-            </div>
-            
-            <div className="form-group">
-              <label htmlFor="pickupAddress.instructions">Pickup Instructions</label>
-              <textarea
-                id="pickupAddress.instructions"
-                name="pickupAddress.instructions"
-                value={formData.pickupAddress.instructions}
-                onChange={handleChange}
-                placeholder="Special instructions for pickup"
-                rows="2"
-              ></textarea>
-            </div>
-          </div>
-          
-          <div className="form-section">
-            <h2>Delivery Information</h2>
-            
-            <div className="form-row">
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
               <div className="form-group">
                 <label htmlFor="deliveryAddress.contactName">Contact Name*</label>
                 <input
@@ -383,21 +384,22 @@ const CreatePackage = () => {
                 />
               </div>
             </div>
-            
-            <div className="form-group">
-              <label htmlFor="deliveryAddress.street">Street Address*</label>
-              <input
-                type="text"
-                id="deliveryAddress.street"
-                name="deliveryAddress.street"
-                value={formData.deliveryAddress.street}
-                onChange={handleChange}
-                placeholder="Street address"
-                required
-              />
-            </div>
-            
-            <div className="form-row">
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem'}}>
+              <div className="form-group">
+                <label htmlFor="deliveryAddress.street">Street Address*</label>
+                <input
+                  type="text"
+                  id="deliveryAddress.street"
+                  name="deliveryAddress.street"
+                  value={formData.deliveryAddress.street}
+                  onChange={handleChange}
+                  placeholder="Street address"
+                  required
+                  style={{ padding: '0.5rem' }}
+                />
+              </div>
+              
               <div className="form-group">
                 <label htmlFor="deliveryAddress.city">City*</label>
                 <input
@@ -408,34 +410,37 @@ const CreatePackage = () => {
                   onChange={handleChange}
                   placeholder="City"
                   required
+                  style={{ padding: '0.5rem' }}
                 />
               </div>
-              
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem', marginTop: '0.5rem' }}>
               <div className="form-group">
-                <label htmlFor="deliveryAddress.state">State/Province*</label>
+                <label htmlFor="deliveryAddress.state">State*</label>
                 <input
                   type="text"
                   id="deliveryAddress.state"
                   name="deliveryAddress.state"
                   value={formData.deliveryAddress.state}
                   onChange={handleChange}
-                  placeholder="State/Province"
+                  placeholder="State"
                   required
+                  style={{ padding: '0.5rem' }}
                 />
               </div>
-            </div>
-            
-            <div className="form-row">
+              
               <div className="form-group">
-                <label htmlFor="deliveryAddress.zipCode">Zip/Postal Code*</label>
+                <label htmlFor="deliveryAddress.zipCode">Zip Code*</label>
                 <input
                   type="text"
                   id="deliveryAddress.zipCode"
                   name="deliveryAddress.zipCode"
                   value={formData.deliveryAddress.zipCode}
                   onChange={handleChange}
-                  placeholder="Zip/Postal code"
+                  placeholder="Zip code"
                   required
+                  style={{ padding: '0.5rem' }}
                 />
               </div>
               
@@ -449,11 +454,12 @@ const CreatePackage = () => {
                   onChange={handleChange}
                   placeholder="Country"
                   required
+                  style={{ padding: '0.5rem' }}
                 />
               </div>
             </div>
-            
-            <div className="form-group">
+
+            <div className="form-group" style={{ marginTop: '0.5rem' }}>
               <label htmlFor="deliveryAddress.instructions">Delivery Instructions</label>
               <textarea
                 id="deliveryAddress.instructions"
@@ -462,63 +468,62 @@ const CreatePackage = () => {
                 onChange={handleChange}
                 placeholder="Special instructions for delivery"
                 rows="2"
+                style={{ padding: '0.5rem', width: '100%' }}
               ></textarea>
             </div>
           </div>
           
-          <div className="form-section">
-            <h2>Financial Information</h2>
+          <div className="form-section" style={{ marginBottom: '1rem' }}>
+            <h2 style={{ fontSize: '1.2rem', color: '#ff8c00' }}>Additional Information</h2>
             
-            <div className="form-row">
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
               <div className="form-group">
-                <label htmlFor="codAmount">Cash on Delivery Amount ($)</label>
+                <label htmlFor="notes">Notes</label>
+                <textarea
+                  id="notes"
+                  name="notes"
+                  value={formData.notes}
+                  onChange={handleChange}
+                  placeholder="Additional notes"
+                  rows="2"
+                  style={{ padding: '0.5rem', width: '100%' }}
+                ></textarea>
+              </div>
+              
+              <div className="form-group">
+                <label htmlFor="codAmount">COD Amount (Cash on Delivery)</label>
                 <input
                   type="number"
                   id="codAmount"
                   name="codAmount"
                   value={formData.codAmount}
                   onChange={handleChange}
-                  placeholder="Amount to collect from recipient"
-                  step="0.01"
+                  placeholder="Leave blank if COD is not required"
                   min="0"
+                  step="0.01"
+                  style={{ padding: '0.5rem' }}
                 />
-                <small className="form-text">Leave at 0 if no payment collection is needed</small>
               </div>
             </div>
           </div>
-
-          <div className="form-section">
-            <h2>Additional Information</h2>
-            
-            <div className="form-group">
-              <label htmlFor="notes">Notes</label>
-              <textarea
-                id="notes"
-                name="notes"
-                value={formData.notes}
-                onChange={handleChange}
-                placeholder="Any additional notes"
-                rows="3"
-              ></textarea>
-            </div>
-          </div>
           
-          <div className="form-actions">
-            <button 
-              type="button" 
-              className="btn-secondary"
-              onClick={() => navigate('/shop')}
-            >
-              Cancel
-            </button>
-            <button 
-              type="submit" 
-              className="btn-primary"
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? 'Creating...' : 'Create Package'}
-            </button>
-          </div>
+          <button 
+            type="submit" 
+            className="submit-btn" 
+            disabled={isSubmitting}
+            style={{
+              width: '100%',
+              padding: '0.75rem',
+              backgroundColor: '#ff8c00',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: isSubmitting ? 'not-allowed' : 'pointer',
+              opacity: isSubmitting ? 0.7 : 1
+            }}
+          >
+            {isSubmitting ? 'Creating...' : 'Create Package'}
+          </button>
         </form>
       </div>
     </div>

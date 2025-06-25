@@ -119,7 +119,7 @@
 }
 
 .user-role {
-  color: var(--secondary-color);
+  color: ba;
   font-size: 0.9rem;
 }
 
@@ -270,8 +270,8 @@
 }
 
 .status-assigned {
-  background-color: #e3f2fd;
-  color: #1976d2;
+  background-color: #fff3e0;
+  color: #ff8c00;
 }
 
 .status-pickedup, .status-in-transit {

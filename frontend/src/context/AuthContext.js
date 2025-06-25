@@ -58,16 +58,8 @@ export const AuthProvider = ({ children }) => {
       setLoading(true);
       setError(null);
       
-      // Using real API call for all environments
       const response = await authService.login(credentials);
-      
       const { token, ...userData } = response.data;
-      
-      // Check if user is a shop and is approved
-      if (userData.role === 'shop' && !userData.isApproved) {
-        setError('Your shop account is pending approval. Please wait for an administrator to approve your account.');
-        throw new Error('Shop account pending approval');
-      }
       
       localStorage.setItem('token', token);
       localStorage.setItem('currentUser', JSON.stringify(userData));
@@ -87,16 +79,12 @@ export const AuthProvider = ({ children }) => {
       setLoading(true);
       setError(null);
       
-      console.log(`Attempting to register ${userType} with data:`, userData);
-      
-      // Use real API endpoints for all environments
       let response;
-      
-      // Call the appropriate API endpoint based on user type
       switch(userType) {
         case 'shop':
           response = await authService.registerShop(userData);
-          break;
+          // Don't store token or user data for shops
+          return response.data;
         case 'driver':
           response = await authService.registerDriver(userData);
           break;
@@ -104,24 +92,13 @@ export const AuthProvider = ({ children }) => {
           response = await authService.register(userData);
       }
       
-      console.log('Registration successful, response:', response.data);
-      
       const { token, ...newUserData } = response.data;
       localStorage.setItem('token', token);
+      localStorage.setItem('currentUser', JSON.stringify(newUserData));
       setCurrentUser(newUserData);
       return newUserData;
     } catch (err) {
-      console.error('Registration error:', err);
-      
-      // Provide more detailed error information
       const errorMessage = err.response?.data?.message || 'Registration failed';
-      console.error('Error details:', {
-        status: err.response?.status,
-        statusText: err.response?.statusText,
-        data: err.response?.data,
-        message: errorMessage
-      });
-      
       setError(errorMessage);
       throw err;
     } finally {
@@ -143,7 +120,7 @@ export const AuthProvider = ({ children }) => {
     error,
     login,
     register,
-    logout,
+    logout
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
