@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { adminService, packageService } from '../../services/api';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faUser, faStore, faTruck, faBox, faSearch, faEye, faCheck, faTimes, faChartBar, faUserPlus, faTimes as faClose, faSpinner } from '@fortawesome/free-solid-svg-icons';
+import { faUser, faStore, faTruck, faBox, faSearch, faEye, faCheck, faTimes, faChartBar, faUserPlus, faTimes as faClose, faSpinner, faEdit } from '@fortawesome/free-solid-svg-icons';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 import './AdminDashboard.css';
@@ -37,6 +37,40 @@ const AdminDashboard = () => {
   const [confirmationDialogTitle, setConfirmationDialogTitle] = useState('');
   const [confirmationDialogText, setConfirmationDialogText] = useState('');
   const { t } = useTranslation();
+  const [sortConfig, setSortConfig] = useState({ field: 'createdAt', order: 'DESC' });
+  const [pickups, setPickups] = useState([]);
+  const [packagesTab, setPackagesTab] = useState('all');
+  const [drivers, setDrivers] = useState([]);
+  const [moneyTransactions, setMoneyTransactions] = useState([]);
+  const [selectedPackages, setSelectedPackages] = useState([]);
+  const [showWorkingAreaModal, setShowWorkingAreaModal] = useState(false);
+  const [selectedDriverForWorkingArea, setSelectedDriverForWorkingArea] = useState(null);
+  const [workingAreaInput, setWorkingAreaInput] = useState('');
+  const [updatingWorkingArea, setUpdatingWorkingArea] = useState(false);
+  const [showPickupModal, setShowPickupModal] = useState(false);
+  const [selectedPickup, setSelectedPickup] = useState(null);
+  const [pickupPackages, setPickupPackages] = useState([]);
+  const [pickupPackagesLoading, setPickupPackagesLoading] = useState(false);
+  const [bulkAssignDriverId, setBulkAssignDriverId] = useState('');
+  const [bulkAssigning, setBulkAssigning] = useState(false);
+  const [showBulkAssignModal, setShowBulkAssignModal] = useState(false);
+  const [showDriverPackages, setShowDriverPackages] = useState(false);
+  const [selectedDriverForPackages, setSelectedDriverForPackages] = useState(null);
+  const [driverPackages, setDriverPackages] = useState([]);
+  const [forwardingPackageId, setForwardingPackageId] = useState(null);
+  const [forwardPackageStatus, setForwardPackageStatus] = useState('');
+  const [settleAmountInput, setSettleAmountInput] = useState('');
+  const [moneyFilters, setMoneyFilters] = useState({
+    startDate: '',
+    endDate: '',
+    attribute: '',
+    changeType: '',
+    search: '',
+    sortBy: 'createdAt',
+    sortOrder: 'DESC'
+  });
+  const [search, setSearch] = useState('');
+  const PACKAGE_TABS = ['all', 'pending', 'approved', 'rejected'];
 
   // Set active tab based on URL path
   useEffect(() => {
@@ -351,12 +385,12 @@ const AdminDashboard = () => {
       }
       
       setShowAssignDriverModal(false);
-      setStatusMessage({ type: 'success', text: 'Driver assigned successfully!' });
+      setStatusMessage({ type: 'success', text: t('admin.success.driverAssigned') });
     } catch (error) {
       console.error('Error assigning driver:', error);
       setStatusMessage({ 
         type: 'error', 
-        text: `Error: ${error.response?.data?.message || 'Failed to assign driver'}` 
+        text: t('admin.errors.assignDriver', { error: error.response?.data?.message || 'Failed to assign driver' })
       });
     } finally {
       setAssigningDriver(false);
@@ -583,7 +617,7 @@ const AdminDashboard = () => {
         // Update the UI with a success message
         setStatusMessage({
           type: 'success',
-          text: `Successfully processed payment of $${totalAmount.toFixed(2)} to shop`
+          text: t('admin.settlement.success', { amount: totalAmount.toFixed(2) })
         });
         
         // Clear the unpaid packages and reset collected money UI
@@ -601,7 +635,7 @@ const AdminDashboard = () => {
         console.error('Error settling shop payments:', error);
         setStatusMessage({
           type: 'error',
-          text: `Error processing shop payment: ${error.response?.data?.message || error.message || 'Unknown error'}`
+          text: t('admin.settlement.error', { error: error.response?.data?.message || error.message || t('common.unknownError') })
         });
       } finally {
         // Close the confirmation dialog
@@ -610,8 +644,8 @@ const AdminDashboard = () => {
     };
     
     // Set confirmation dialog content
-    setConfirmationDialogTitle('Confirm Settlement');
-    setConfirmationDialogText(`Are you sure you want to settle payments for this shop? This will mark all selected packages as paid out.`);
+    setConfirmationDialogTitle(t('admin.settlement.confirmTitle'));
+    setConfirmationDialogText(t('admin.settlement.confirmText'));
     setConfirmAction(() => action);
     setShowConfirmationDialog(true);
   };
@@ -756,7 +790,7 @@ const AdminDashboard = () => {
               onClick={openBulkAssignModal}
               disabled={selectedPackages.length === 0}
             >
-              Assign Driver to {selectedPackages.length} Selected Package{selectedPackages.length !== 1 ? 's' : ''}
+              {t('admin.packages.bulkAssign', { count: selectedPackages.length })}
             </button>
           )}
         </div>
@@ -1147,7 +1181,7 @@ const AdminDashboard = () => {
       
       setStatusMessage({
         type: 'success',
-        text: 'Driver working area updated successfully'
+        text: t('admin.success.workingAreaUpdated')
       });
       
       setShowWorkingAreaModal(false);
@@ -1157,7 +1191,7 @@ const AdminDashboard = () => {
       console.error('Error updating driver working area:', error);
       setStatusMessage({
         type: 'error',
-        text: `Error updating working area: ${error.response?.data?.message || error.message || 'Unknown error'}`
+        text: t('admin.errors.workingAreaUpdate', { error: error.response?.data?.message || error.message || t('common.unknownError') })
       });
     } finally {
       setUpdatingWorkingArea(false);
@@ -1180,7 +1214,7 @@ const AdminDashboard = () => {
         <div className="modal-content" onClick={e => e.stopPropagation()}>
           <div className="modal-header">
             <h2>
-              <FontAwesomeIcon icon={faEdit} /> Update Working Area
+              <FontAwesomeIcon icon={faEdit} /> {t('admin.workingArea.updateTitle')}
             </h2>
             <button 
               className="close-btn"
@@ -1192,7 +1226,7 @@ const AdminDashboard = () => {
           
           <div className="modal-body">
             <div className="working-area-input">
-              <label htmlFor="workingArea">Working Area:</label>
+              <label htmlFor="workingArea">{t('admin.workingArea.label')}:</label>
               <input 
                 type="text" 
                 id="workingArea" 
@@ -1209,13 +1243,13 @@ const AdminDashboard = () => {
                 updateDriverWorkingArea(selectedDriverForWorkingArea, workingAreaInput);
               }}
             >
-              Update
+              {t('common.update')}
             </button>
             <button 
               className="btn-secondary"
               onClick={() => setShowWorkingAreaModal(false)}
             >
-              Cancel
+              {t('common.cancel')}
             </button>
           </div>
         </div>
@@ -1268,12 +1302,12 @@ const AdminDashboard = () => {
         setPackages(filteredPackages);
       }
       
-      setStatusMessage({ type: 'success', text: 'Pickup marked as picked up successfully!' });
+      setStatusMessage({ type: 'success', text: t('admin.success.pickupMarked') });
     } catch (error) {
       console.error('Error marking pickup as picked up:', error);
       setStatusMessage({ 
         type: 'error', 
-        text: `Error: ${error.response?.data?.message || 'Failed to mark pickup as picked up'}` 
+        text: t('admin.errors.markPickup', { error: error.response?.data?.message || 'Failed to mark pickup as picked up' })
       });
     }
   };
@@ -1287,7 +1321,7 @@ const AdminDashboard = () => {
       <div className={`modal-overlay ${showPickupModal ? 'show' : ''}`} onClick={() => setShowPickupModal(false)}>
         <div className="modal-content" onClick={e => e.stopPropagation()}>
           <div className="modal-header">
-            <h3>Pickup Details</h3>
+            <h3>{t('admin.pickup.detailsTitle')}</h3>
             <button 
               className="modal-close"
               onClick={() => setShowPickupModal(false)}
@@ -1299,33 +1333,33 @@ const AdminDashboard = () => {
             {selectedPickup ? (
               <>
                 <div className="pickup-info">
-                  <p><strong>Shop:</strong> {selectedPickup.Shop?.businessName || 'N/A'}</p>
-                  <p><strong>Scheduled Time:</strong> {new Date(selectedPickup.scheduledTime).toLocaleString()}</p>
-                  <p><strong>Address:</strong> {selectedPickup.pickupAddress}</p>
-                  <p><strong>Status:</strong> 
+                  <p><strong>{t('admin.pickup.shop')}:</strong> {selectedPickup.Shop?.businessName || t('common.notAvailable')}</p>
+                  <p><strong>{t('admin.pickup.scheduledTime')}:</strong> {new Date(selectedPickup.scheduledTime).toLocaleString()}</p>
+                  <p><strong>{t('admin.pickup.address')}:</strong> {selectedPickup.pickupAddress}</p>
+                  <p><strong>{t('admin.pickup.status')}:</strong> 
                     <span className={`status-badge status-${selectedPickup.status}`}>
                       {selectedPickup.status.charAt(0).toUpperCase() + selectedPickup.status.slice(1).replace('_', ' ')}
                     </span>
                   </p>
                   {selectedPickup.actualPickupTime && (
-                    <p><strong>Actual Pickup Time:</strong> {new Date(selectedPickup.actualPickupTime).toLocaleString()}</p>
+                    <p><strong>{t('admin.pickup.actualPickupTime')}:</strong> {new Date(selectedPickup.actualPickupTime).toLocaleString()}</p>
                   )}
                 </div>
                 
                 <div className="packages-section">
-                  <h4>Packages in this Pickup</h4>
+                  <h4>{t('admin.pickup.packages')}</h4>
                   {pickupPackagesLoading ? (
-                    <p>Loading packages...</p>
+                    <p>{t('common.loading')}</p>
                   ) : pickupPackages.length === 0 ? (
-                    <p>No packages found in this pickup.</p>
+                    <p>{t('admin.packages.noPackages')}</p>
                   ) : (
                     <table className="packages-table">
                       <thead>
                         <tr>
-                          <th>Tracking #</th>
-                          <th>Description</th>
-                          <th>Status</th>
-                          <th>Address</th>
+                          <th>{t('admin.table.trackingNumber')}</th>
+                          <th>{t('admin.table.description')}</th>
+                          <th>{t('admin.table.status')}</th>
+                          <th>{t('admin.table.address')}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1347,7 +1381,7 @@ const AdminDashboard = () => {
                 </div>
               </>
             ) : (
-              <p>No pickup data available.</p>
+              <p>{t('admin.pickup.noData')}</p>
             )}
           </div>
         </div>
@@ -1428,7 +1462,7 @@ const AdminDashboard = () => {
       setSelectedPackages([]);
       setBulkAssignDriverId('');
       setShowBulkAssignModal(false);
-      setStatusMessage({ type: 'success', text: 'Packages assigned to driver successfully!' });
+      setStatusMessage({ type: 'success', text: t('admin.success.packagesAssigned') });
     } catch (error) {
       console.error('Error in bulk assign:', error);
       alert('Error assigning driver to packages. Please try again.');
@@ -1454,7 +1488,7 @@ const AdminDashboard = () => {
       <div className={`modal-overlay ${showBulkAssignModal ? 'show' : ''}`}>
         <div className="modal-content">
           <div className="modal-header">
-            <h3>Bulk Assign Driver</h3>
+            <h3>{t('admin.bulkAssign.title')}</h3>
             <button 
               className="modal-close"
               onClick={() => setShowBulkAssignModal(false)}
@@ -1464,24 +1498,24 @@ const AdminDashboard = () => {
           </div>
           <div className="modal-body">
             <div className="selected-packages">
-              <h4>Selected Packages ({selectedPackages.length})</h4>
+              <h4>{t('admin.bulkAssign.selectedPackages', { count: selectedPackages.length })}</h4>
               <div className="packages-list">
                 {selectedPackageDetails.map(pkg => (
                   <div key={pkg.id} className="package-item">
                     <strong>{pkg.trackingNumber}</strong> - {pkg.packageDescription}
                     <br />
-                    <small>From: {pkg.shop?.businessName || 'N/A'} | To: {pkg.deliveryAddress}</small>
+                    <small>{t('admin.bulkAssign.fromTo', { from: pkg.shop?.businessName || t('common.notAvailable'), to: pkg.deliveryAddress })}</small>
                   </div>
                 ))}
               </div>
             </div>
             
             <div className="driver-selection">
-              <h4>Select Driver</h4>
+              <h4>{t('admin.bulkAssign.selectDriver')}</h4>
               <div className="search-section">
                 <input
                   type="text"
-                  placeholder="Search drivers..."
+                  placeholder={t('admin.bulkAssign.searchPlaceholder')}
                   value={driverSearchTerm}
                   onChange={(e) => setDriverSearchTerm(e.target.value)}
                   className="search-input"
@@ -1490,7 +1524,7 @@ const AdminDashboard = () => {
               
               <div className="drivers-list">
                 {filteredDrivers.length === 0 ? (
-                  <p>No available drivers found.</p>
+                  <p>{t('admin.bulkAssign.noDrivers')}</p>
                 ) : (
                   filteredDrivers.map(driver => (
                     <div 
@@ -1500,20 +1534,20 @@ const AdminDashboard = () => {
                       <div className="driver-info">
                         <span style={{fontWeight: 'bold', fontSize: '0.9rem'}}>{driver.name}</span>
                         <span className={`driver-availability-status ${driver.isAvailable ? 'available' : 'unavailable'}`}>
-                          {driver.isAvailable ? 'Available' : 'Unavailable'}
+                          {driver.isAvailable ? t('admin.bulkAssign.available') : t('admin.bulkAssign.unavailable')}
                         </span>
                         <br />
-                        <span style={{fontSize: '0.8rem'}}>Working Area: <span style={{fontWeight: 'bold'}}>{driver.workingArea ? driver.workingArea : 'N/A'}</span></span>
-                        <span style={{fontSize: '0.8rem'}}> \ Active Assigns: <span style={{fontWeight: 'bold'}}>{driver.activeAssign ? driver.activeAssign : '0'}</span></span>
-                        <span style={{fontSize: '0.8rem'}}> \ Assigned Today: <span style={{fontWeight: 'bold'}}>{driver.assignedToday ? driver.assignedToday : '0'}</span></span>
+                        <span style={{fontSize: '0.8rem'}}>{t('admin.bulkAssign.workingArea', { area: driver.workingArea ? driver.workingArea : t('common.notAvailable') })}</span>
+                        <span style={{fontSize: '0.8rem'}}> {t('admin.bulkAssign.activeAssigns', { count: driver.activeAssign ? driver.activeAssign : '0' })}</span>
+                        <span style={{fontSize: '0.8rem'}}> {t('admin.bulkAssign.assignedToday', { count: driver.assignedToday ? driver.assignedToday : '0' })}</span>
                       </div>
                       <button 
                         className={`assign-btn ${bulkAssignDriverId === driver.driverId ? 'selected' : ''}`}
                         onClick={() => setBulkAssignDriverId(driver.driverId)}
                         disabled={!driver.isAvailable || bulkAssigning}
                       >
-                        {!driver.isAvailable ? 'Unavailable' : 
-                         bulkAssignDriverId === driver.driverId ? 'Selected' : 'Select'}
+                        {!driver.isAvailable ? t('admin.bulkAssign.unavailable') : 
+                         bulkAssignDriverId === driver.driverId ? t('admin.bulkAssign.selected') : t('admin.bulkAssign.select')}
                       </button>
                     </div>
                   ))
@@ -1527,14 +1561,14 @@ const AdminDashboard = () => {
                 onClick={() => setShowBulkAssignModal(false)}
                 disabled={bulkAssigning}
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button 
                 className="btn-primary"
                 onClick={handleBulkAssign}
                 disabled={!bulkAssignDriverId || bulkAssigning}
               >
-                {bulkAssigning ? 'Assigning...' : `Assign to ${selectedPackages.length} Package${selectedPackages.length !== 1 ? 's' : ''}`}
+                {bulkAssigning ? t('admin.bulkAssign.assigning') : t('admin.bulkAssign.assign', { count: selectedPackages.length })}
               </button>
             </div>
           </div>
@@ -1550,23 +1584,23 @@ const AdminDashboard = () => {
       <div className="modal-overlay show" onClick={() => setShowDriverPackages(false)}>
         <div className="modal-content" onClick={e => e.stopPropagation()} style={{ minWidth: 700 }}>
           <div className="modal-header">
-            <h3>Package History for {selectedDriverForPackages?.name}</h3>
+            <h3>{t('admin.driverPackages.title', { name: selectedDriverForPackages?.name })}</h3>
             <button className="modal-close" onClick={() => setShowDriverPackages(false)}>
               <FontAwesomeIcon icon={faClose} />
             </button>
           </div>
           <div className="modal-body">
             {driverPackages.length === 0 ? (
-              <div>No packages found for this driver.</div>
+              <div>{t('admin.packages.noPackages')}</div>
             ) : (
               <table className="admin-table">
                 <thead>
                   <tr>
-                    <th>Tracking #</th>
-                    <th>Description</th>
-                    <th>Status</th>
-                    <th>Recipient</th>
-                    <th>Actions</th>
+                    <th>{t('admin.table.trackingNumber')}</th>
+                    <th>{t('admin.table.description')}</th>
+                    <th>{t('admin.table.status')}</th>
+                    <th>{t('admin.table.recipient')}</th>
+                    <th>{t('admin.table.actions')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1582,7 +1616,7 @@ const AdminDashboard = () => {
                           disabled={forwardingPackageId === pkg.id || pkg.status === 'delivered'}
                           onClick={() => forwardPackageStatus(pkg)}
                         >
-                          {pkg.status === 'delivered' ? 'Delivered' : forwardingPackageId === pkg.id ? 'Forwarding...' : 'Forward Status'}
+                          {pkg.status === 'delivered' ? t('admin.status.delivered') : forwardingPackageId === pkg.id ? t('admin.status.forwarding') : t('admin.status.forwardStatus') }
                         </button>
                       </td>
                     </tr>
@@ -1632,11 +1666,11 @@ const AdminDashboard = () => {
         return user;
       }));
 
-      setStatusMessage({ type: 'success', text: `Settled $${amount.toFixed(2)} with shop successfully` });
+      setStatusMessage({ type: 'success', text: t('admin.settlement.success', { amount: amount.toFixed(2) }) });
       setSettleAmountInput('');
     } catch (error) {
       console.error('Error settling amount with shop:', error);
-      alert(error.response?.data?.message || 'Failed to settle amount');
+      alert(t('admin.errors.settleAmount', { error: error.response?.data?.message || 'Failed to settle amount' }));
     }
   };
 
@@ -1688,7 +1722,7 @@ const AdminDashboard = () => {
       console.error('Error fetching money transactions:', error);
       setStatusMessage({
         type: 'error',
-        text: 'Failed to fetch money transactions'
+        text: t('admin.errors.fetchMoneyTransactions', { error: t('common.unknownError') })
       });
     }
   };
@@ -1702,7 +1736,7 @@ const AdminDashboard = () => {
 
   const renderMoneyTable = () => {
     if (moneyTransactions.length === 0) {
-      return <p style={{textAlign:'center'}}>No transactions found.</p>;
+      return <p style={{textAlign:'center'}}>{t('admin.money.noTransactions')}</p>;
     }
 
     const renderSortIcon = (field) => {
@@ -1726,28 +1760,28 @@ const AdminDashboard = () => {
                 onClick={() => handleMoneyFilterChange('sortBy', 'createdAt')} 
                 className="sortable-header"
               >
-                Date {renderSortIcon('createdAt')}
+                {t('admin.money.date')} {renderSortIcon('createdAt')}
               </th>
-              <th>Shop</th>
+              <th>{t('admin.money.shop')}</th>
               <th 
                 onClick={() => handleMoneyFilterChange('sortBy', 'attribute')} 
                 className="sortable-header"
               >
-                Attribute {renderSortIcon('attribute')}
+                {t('admin.money.attribute')} {renderSortIcon('attribute')}
               </th>
               <th 
                 onClick={() => handleMoneyFilterChange('sortBy', 'changeType')} 
                 className="sortable-header"
               >
-                Type {renderSortIcon('changeType')}
+                {t('admin.money.type')} {renderSortIcon('changeType')}
               </th>
               <th 
                 onClick={() => handleMoneyFilterChange('sortBy', 'amount')} 
                 className="sortable-header"
               >
-                Amount ($) {renderSortIcon('amount')}
+                {t('admin.money.amount')} ($) {renderSortIcon('amount')}
               </th>
-              <th>Description</th>
+              <th>{t('admin.money.description')}</th>
             </tr>
           </thead>
           <tbody>

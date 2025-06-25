@@ -3,15 +3,16 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { packageService } from '../../services/api';
 import { ShopDashboardContext } from './Dashboard'; // Import the ShopDashboardContext
+import { useTranslation } from 'react-i18next';
 
 const CATEGORY_OPTIONS = [
-  'Shoes',
-  'Perfumes',
-  'Clothes',
-  'Electronics',
-  'Accessories',
-  'Books',
-  'Other'
+  'shoes',
+  'perfumes',
+  'clothes',
+  'electronics',
+  'accessories',
+  'books',
+  'other'
 ];
 
 const parseAddress = (addressStr) => {
@@ -29,6 +30,8 @@ const CreatePackage = () => {
   
   // Get access to the dashboard refresh function
   const { refreshDashboard } = useContext(ShopDashboardContext);
+  
+  const { t } = useTranslation();
   
   const [formData, setFormData] = useState({
     packageDescription: '',
@@ -77,11 +80,11 @@ const CreatePackage = () => {
           pickupAddress: { ...pickupAddress, instructions: '' }
         }));
       } catch (err) {
-        setError('Failed to load shop address.');
+        setError(t('shop.createPackage.error.loadAddress'));
       }
     };
     fetchShopProfile();
-  }, []);
+  }, [t]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -111,14 +114,14 @@ const CreatePackage = () => {
     try {
       // Validate required fields
       if (!formData.packageDescription || !formData.weight || !formData.category) {
-        throw new Error('Please fill in all required fields');
+        throw new Error(t('shop.createPackage.error.requiredFields'));
       }
       
       if (!formData.deliveryAddress.contactName || !formData.deliveryAddress.contactPhone ||
           !formData.deliveryAddress.street || !formData.deliveryAddress.city ||
           !formData.deliveryAddress.state || !formData.deliveryAddress.zipCode ||
           !formData.deliveryAddress.country) {
-        throw new Error('Please complete all delivery address fields');
+        throw new Error(t('shop.createPackage.error.deliveryFields'));
       }
       
       // Format data for API
@@ -190,7 +193,7 @@ const CreatePackage = () => {
       }, 4000);
       
     } catch (err) {
-      setError(err.message || 'Failed to create package. Please try again.');
+      setError(err.message || t('shop.createPackage.error.createFailed'));
       console.error('Error creating package:', err);
     } finally {
       setIsSubmitting(false);
@@ -236,19 +239,19 @@ const CreatePackage = () => {
               color: '#333',
               marginBottom: '1rem'
             }}>
-              Package Created Successfully!
+              {t('shop.createPackage.success.title')}
             </h2>
             <p style={{
               color: '#666',
               marginBottom: '1.5rem'
             }}>
-              Your package has been created and is ready for pickup.
+              {t('shop.createPackage.success.message')}
             </p>
             <div style={{
               fontSize: '0.9rem',
               color: '#888'
             }}>
-              Redirecting to packages list...
+              {t('shop.createPackage.success.redirect')}
             </div>
           </div>
         </div>
@@ -257,24 +260,24 @@ const CreatePackage = () => {
       <div className="form-container" style={{ maxWidth: '800px', margin: '0 auto' }}>
         <form onSubmit={handleSubmit} className="create-package-form">
           <div className="form-section" style={{ marginBottom: '1rem' }}>
-            <h2 style={{ fontSize: '1.2rem', marginBottom: '0.5rem', color: '#ff8c00' }}>Package Information</h2>
+            <h2 style={{ fontSize: '1.2rem', marginBottom: '0.5rem', color: '#ff8c00' }}>{t('shop.createPackage.section.packageInfo')}</h2>
             
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
               <div className="form-group">
-                <label htmlFor="packageDescription">Description*</label>
+                <label htmlFor="packageDescription">{t('shop.createPackage.label.description')}*</label>
                 <input
                   type="text"
                   id="packageDescription"
                   name="packageDescription"
                   value={formData.packageDescription}
                   onChange={handleChange}
-                  placeholder="Describe contents"
+                  placeholder={t('shop.createPackage.placeholder.description')}
                   required
                 />
               </div>
               
               <div className="form-group">
-                <label htmlFor="category">Category*</label>
+                <label htmlFor="category">{t('shop.createPackage.label.category')}*</label>
                 <select
                   id="category"
                   name="category"
@@ -282,9 +285,9 @@ const CreatePackage = () => {
                   onChange={handleChange}
                   required
                 >
-                  <option value="">Select category</option>
+                  <option value="">{t('shop.createPackage.placeholder.selectCategory')}</option>
                   {CATEGORY_OPTIONS.map(opt => (
-                    <option key={opt} value={opt}>{opt}</option>
+                    <option key={opt} value={opt}>{t(`shop.createPackage.category.${opt}`)}</option>
                   ))}
                 </select>
               </div>
@@ -292,14 +295,14 @@ const CreatePackage = () => {
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)'}}>
               <div className="form-group">
-                <label htmlFor="weight">Weight (kg)*</label>
+                <label htmlFor="weight">{t('shop.createPackage.label.weight')}*</label>
                 <input
                   type="number"
                   id="weight"
                   name="weight"
                   value={formData.weight}
                   onChange={handleChange}
-                  placeholder="Weight"
+                  placeholder={t('shop.createPackage.placeholder.weight')}
                   step="0.01"
                   min="0.01"
                   required
@@ -308,14 +311,14 @@ const CreatePackage = () => {
               </div>
               
               <div className="form-group">
-                <label htmlFor="dimensions.length">Length (cm)</label>
+                <label htmlFor="dimensions.length">{t('shop.createPackage.label.length')}</label>
                 <input
                   type="number"
                   id="dimensions.length"
                   name="dimensions.length"
                   value={formData.dimensions.length}
                   onChange={handleChange}
-                  placeholder="Length"
+                  placeholder={t('shop.createPackage.placeholder.length')}
                   min="0"
                   step="0.1"
                   style={{ padding: '0.5rem' }}
@@ -323,14 +326,14 @@ const CreatePackage = () => {
               </div>
               
               <div className="form-group">
-                <label htmlFor="dimensions.width">Width (cm)</label>
+                <label htmlFor="dimensions.width">{t('shop.createPackage.label.width')}</label>
                 <input
                   type="number"
                   id="dimensions.width"
                   name="dimensions.width"
                   value={formData.dimensions.width}
                   onChange={handleChange}
-                  placeholder="Width"
+                  placeholder={t('shop.createPackage.placeholder.width')}
                   min="0"
                   step="0.1"
                   style={{ padding: '0.5rem' }}
@@ -338,14 +341,14 @@ const CreatePackage = () => {
               </div>
               
               <div className="form-group">
-                <label htmlFor="dimensions.height">Height (cm)</label>
+                <label htmlFor="dimensions.height">{t('shop.createPackage.label.height')}</label>
                 <input
                   type="number"
                   id="dimensions.height"
                   name="dimensions.height"
                   value={formData.dimensions.height}
                   onChange={handleChange}
-                  placeholder="Height"
+                  placeholder={t('shop.createPackage.placeholder.height')}
                   min="0"
                   step="0.1"
                   style={{ padding: '0.5rem' }}
@@ -355,31 +358,31 @@ const CreatePackage = () => {
           </div>
           
           <div className="form-section">
-            <h2 style={{ fontSize: '1.2rem', color: '#ff8c00' }}>Delivery Information</h2>
+            <h2 style={{ fontSize: '1.2rem', color: '#ff8c00' }}>{t('shop.createPackage.section.deliveryInfo')}</h2>
             
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
               <div className="form-group">
-                <label htmlFor="deliveryAddress.contactName">Contact Name*</label>
+                <label htmlFor="deliveryAddress.contactName">{t('shop.createPackage.label.contactName')}*</label>
                 <input
                   type="text"
                   id="deliveryAddress.contactName"
                   name="deliveryAddress.contactName"
                   value={formData.deliveryAddress.contactName}
                   onChange={handleChange}
-                  placeholder="Recipient's name"
+                  placeholder={t('shop.createPackage.placeholder.contactName')}
                   required
                 />
               </div>
               
               <div className="form-group">
-                <label htmlFor="deliveryAddress.contactPhone">Contact Phone*</label>
+                <label htmlFor="deliveryAddress.contactPhone">{t('shop.createPackage.label.contactPhone')}*</label>
                 <input
                   type="tel"
                   id="deliveryAddress.contactPhone"
                   name="deliveryAddress.contactPhone"
                   value={formData.deliveryAddress.contactPhone}
                   onChange={handleChange}
-                  placeholder="Recipient's phone"
+                  placeholder={t('shop.createPackage.placeholder.contactPhone')}
                   required
                 />
               </div>
@@ -387,28 +390,28 @@ const CreatePackage = () => {
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem'}}>
               <div className="form-group">
-                <label htmlFor="deliveryAddress.street">Street Address*</label>
+                <label htmlFor="deliveryAddress.street">{t('shop.createPackage.label.street')}*</label>
                 <input
                   type="text"
                   id="deliveryAddress.street"
                   name="deliveryAddress.street"
                   value={formData.deliveryAddress.street}
                   onChange={handleChange}
-                  placeholder="Street address"
+                  placeholder={t('shop.createPackage.placeholder.street')}
                   required
                   style={{ padding: '0.5rem' }}
                 />
               </div>
               
               <div className="form-group">
-                <label htmlFor="deliveryAddress.city">City*</label>
+                <label htmlFor="deliveryAddress.city">{t('shop.createPackage.label.city')}*</label>
                 <input
                   type="text"
                   id="deliveryAddress.city"
                   name="deliveryAddress.city"
                   value={formData.deliveryAddress.city}
                   onChange={handleChange}
-                  placeholder="City"
+                  placeholder={t('shop.createPackage.placeholder.city')}
                   required
                   style={{ padding: '0.5rem' }}
                 />
@@ -417,42 +420,42 @@ const CreatePackage = () => {
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem', marginTop: '0.5rem' }}>
               <div className="form-group">
-                <label htmlFor="deliveryAddress.state">State*</label>
+                <label htmlFor="deliveryAddress.state">{t('shop.createPackage.label.state')}*</label>
                 <input
                   type="text"
                   id="deliveryAddress.state"
                   name="deliveryAddress.state"
                   value={formData.deliveryAddress.state}
                   onChange={handleChange}
-                  placeholder="State"
+                  placeholder={t('shop.createPackage.placeholder.state')}
                   required
                   style={{ padding: '0.5rem' }}
                 />
               </div>
               
               <div className="form-group">
-                <label htmlFor="deliveryAddress.zipCode">Zip Code*</label>
+                <label htmlFor="deliveryAddress.zipCode">{t('shop.createPackage.label.zipCode')}*</label>
                 <input
                   type="text"
                   id="deliveryAddress.zipCode"
                   name="deliveryAddress.zipCode"
                   value={formData.deliveryAddress.zipCode}
                   onChange={handleChange}
-                  placeholder="Zip code"
+                  placeholder={t('shop.createPackage.placeholder.zipCode')}
                   required
                   style={{ padding: '0.5rem' }}
                 />
               </div>
               
               <div className="form-group">
-                <label htmlFor="deliveryAddress.country">Country*</label>
+                <label htmlFor="deliveryAddress.country">{t('shop.createPackage.label.country')}*</label>
                 <input
                   type="text"
                   id="deliveryAddress.country"
                   name="deliveryAddress.country"
                   value={formData.deliveryAddress.country}
                   onChange={handleChange}
-                  placeholder="Country"
+                  placeholder={t('shop.createPackage.placeholder.country')}
                   required
                   style={{ padding: '0.5rem' }}
                 />
@@ -460,13 +463,13 @@ const CreatePackage = () => {
             </div>
 
             <div className="form-group" style={{ marginTop: '0.5rem' }}>
-              <label htmlFor="deliveryAddress.instructions">Delivery Instructions</label>
+              <label htmlFor="deliveryAddress.instructions">{t('shop.createPackage.label.instructions')}</label>
               <textarea
                 id="deliveryAddress.instructions"
                 name="deliveryAddress.instructions"
                 value={formData.deliveryAddress.instructions}
                 onChange={handleChange}
-                placeholder="Special instructions for delivery"
+                placeholder={t('shop.createPackage.placeholder.instructions')}
                 rows="2"
                 style={{ padding: '0.5rem', width: '100%' }}
               ></textarea>
@@ -474,31 +477,31 @@ const CreatePackage = () => {
           </div>
           
           <div className="form-section" style={{ marginBottom: '1rem' }}>
-            <h2 style={{ fontSize: '1.2rem', color: '#ff8c00' }}>Additional Information</h2>
+            <h2 style={{ fontSize: '1.2rem', color: '#ff8c00' }}>{t('shop.createPackage.section.additionalInfo')}</h2>
             
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
               <div className="form-group">
-                <label htmlFor="notes">Notes</label>
+                <label htmlFor="notes">{t('shop.createPackage.label.notes')}</label>
                 <textarea
                   id="notes"
                   name="notes"
                   value={formData.notes}
                   onChange={handleChange}
-                  placeholder="Additional notes"
+                  placeholder={t('shop.createPackage.placeholder.notes')}
                   rows="2"
                   style={{ padding: '0.5rem', width: '100%' }}
                 ></textarea>
               </div>
               
               <div className="form-group">
-                <label htmlFor="codAmount">COD Amount (Cash on Delivery)</label>
+                <label htmlFor="codAmount">{t('shop.createPackage.label.codAmount')} ({t('shop.createPackage.label.codAbbr')})</label>
                 <input
                   type="number"
                   id="codAmount"
                   name="codAmount"
                   value={formData.codAmount}
                   onChange={handleChange}
-                  placeholder="Leave blank if COD is not required"
+                  placeholder={t('shop.createPackage.placeholder.codAmount')}
                   min="0"
                   step="0.01"
                   style={{ padding: '0.5rem' }}
@@ -522,7 +525,7 @@ const CreatePackage = () => {
               opacity: isSubmitting ? 0.7 : 1
             }}
           >
-            {isSubmitting ? 'Creating...' : 'Create Package'}
+            {isSubmitting ? t('shop.createPackage.button.loading') : t('shop.createPackage.button.create')}
           </button>
         </form>
       </div>

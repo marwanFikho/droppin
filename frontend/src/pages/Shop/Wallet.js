@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { packageService } from '../../services/api';
 import './ShopDashboard.css';
+import { useTranslation } from 'react-i18next';
 
 const Wallet = () => {
   const [loading, setLoading] = useState(true);
@@ -19,6 +20,7 @@ const Wallet = () => {
     sortBy: 'createdAt',
     sortOrder: 'DESC'
   });
+  const { t } = useTranslation();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -47,7 +49,7 @@ const Wallet = () => {
         const moneyResponse = await packageService.getMoneyTransactions(moneyFilters);
         setMoneyTransactions(moneyResponse.data.transactions || []);
       } catch (err) {
-        setError('Failed to load data. Please try again later.');
+        setError(t('shop.wallet.errors.loadData'));
         console.error('Error fetching data:', err);
       } finally {
         setLoading(false);
@@ -55,7 +57,7 @@ const Wallet = () => {
     };
 
     fetchData();
-  }, [moneyFilters]);
+  }, [moneyFilters, t]);
 
   // Add function to handle money transaction filters
   const handleMoneyFilterChange = (field, value) => {
@@ -90,7 +92,7 @@ const Wallet = () => {
   };
 
   if (loading) {
-    return <div className="loading-message">Loading wallet data...</div>;
+    return <div className="loading-message">{t('shop.wallet.loading')}</div>;
   }
 
   if (error) {
@@ -100,7 +102,7 @@ const Wallet = () => {
   return (
     <div className="wallet-page">
       <div className="page-header">
-        <h1>Wallet</h1>
+        <h1>{t('shop.wallet.title')}</h1>
       </div>
 
       {/* Financial Stats */}
@@ -109,19 +111,19 @@ const Wallet = () => {
           <div className="stat-value">
             ${(parseFloat(financialStats.rawToCollect || 0)).toFixed(2)}
           </div>
-          <div className="stat-label">To Collect</div>
+          <div className="stat-label">{t('shop.wallet.toCollect')}</div>
         </div>
         <div className="stat-card">
           <div className="stat-value">
             ${(parseFloat(financialStats.rawTotalCollected || 0)).toFixed(2)}
           </div>
-          <div className="stat-label">Collected (Waiting Withdraw)</div>
+          <div className="stat-label">{t('shop.wallet.collected')}</div>
         </div>
       </div>
 
       {/* Money Transactions */}
       <div className="money-transactions-container">
-        <h3>Transaction History</h3>
+        <h3>{t('shop.wallet.transactionHistory')}</h3>
         <div className="money-transactions-section">
           <div className="filters-section">
             <div className="filter-group">
@@ -130,14 +132,14 @@ const Wallet = () => {
                 className="filter-input"
                 value={moneyFilters.startDate}
                 onChange={e => handleMoneyFilterChange('startDate', e.target.value)}
-                placeholder="Start Date"
+                placeholder={t('shop.wallet.filters.startDate')}
               />
               <input
                 type="date"
                 className="filter-input"
                 value={moneyFilters.endDate}
                 onChange={e => handleMoneyFilterChange('endDate', e.target.value)}
-                placeholder="End Date"
+                placeholder={t('shop.wallet.filters.endDate')}
               />
             </div>
             <div className="filter-group">
@@ -146,18 +148,18 @@ const Wallet = () => {
                 value={moneyFilters.attribute}
                 onChange={e => handleMoneyFilterChange('attribute', e.target.value)}
               >
-                <option value="">All Attributes</option>
-                <option value="ToCollect">To Collect</option>
-                <option value="TotalCollected">Total Collected</option>
+                <option value="">{t('shop.wallet.filters.allAttributes')}</option>
+                <option value="ToCollect">{t('shop.wallet.filters.toCollect')}</option>
+                <option value="TotalCollected">{t('shop.wallet.filters.totalCollected')}</option>
               </select>
               <select
                 className="filter-select"
                 value={moneyFilters.changeType}
                 onChange={e => handleMoneyFilterChange('changeType', e.target.value)}
               >
-                <option value="">All Types</option>
-                <option value="increase">Increase</option>
-                <option value="decrease">Decrease</option>
+                <option value="">{t('shop.wallet.filters.allTypes')}</option>
+                <option value="increase">{t('shop.wallet.filters.increase')}</option>
+                <option value="decrease">{t('shop.wallet.filters.decrease')}</option>
               </select>
             </div>
             <div className="filter-group">
@@ -166,13 +168,13 @@ const Wallet = () => {
                 className="filter-input"
                 value={moneyFilters.search}
                 onChange={e => handleMoneyFilterChange('search', e.target.value)}
-                placeholder="Search transactions..."
+                placeholder={t('shop.wallet.filters.searchTransactions')}
               />
             </div>
           </div>
 
           {moneyTransactions.length === 0 ? (
-            <p style={{textAlign:'center'}}>No transactions found.</p>
+            <p style={{textAlign:'center'}}>{t('shop.wallet.noTransactions')}</p>
           ) : (
             <table className="admin-table money-table">
               <thead>
@@ -181,27 +183,27 @@ const Wallet = () => {
                     onClick={() => handleMoneyFilterChange('sortBy', 'createdAt')} 
                     className="sortable-header"
                   >
-                    Date {renderSortIcon('createdAt')}
+                    {t('shop.wallet.table.date')} {renderSortIcon('createdAt')}
                   </th>
                   <th 
                     onClick={() => handleMoneyFilterChange('sortBy', 'attribute')} 
                     className="sortable-header"
                   >
-                    Attribute {renderSortIcon('attribute')}
+                    {t('shop.wallet.table.attribute')} {renderSortIcon('attribute')}
                   </th>
                   <th 
                     onClick={() => handleMoneyFilterChange('sortBy', 'changeType')} 
                     className="sortable-header"
                   >
-                    Type {renderSortIcon('changeType')}
+                    {t('shop.wallet.table.type')} {renderSortIcon('changeType')}
                   </th>
                   <th 
                     onClick={() => handleMoneyFilterChange('sortBy', 'amount')} 
                     className="sortable-header"
                   >
-                    Amount ($) {renderSortIcon('amount')}
+                    {t('shop.wallet.table.amount')} {renderSortIcon('amount')}
                   </th>
-                  <th>Description</th>
+                  <th>{t('shop.wallet.table.description')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -211,7 +213,7 @@ const Wallet = () => {
                     <td>{tx.attribute}</td>
                     <td>
                       <span className={`change-type ${tx.changeType}`}>
-                        {tx.changeType}
+                        {t(`shop.wallet.table.${tx.changeType}`)}
                       </span>
                     </td>
                     <td className={`financial-cell ${tx.changeType}`}>

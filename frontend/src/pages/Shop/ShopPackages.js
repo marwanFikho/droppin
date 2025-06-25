@@ -2,17 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { packageService } from '../../services/api';
 import { useLocation } from 'react-router-dom';
 import './ShopDashboard.css';
+import { useTranslation } from 'react-i18next';
 
 const TABS = [
-  { label: 'All', value: 'all' },
-  { label: 'Awaiting Schedule', value: 'awaiting_schedule' },
-  { label: 'Scheduled for Pickup', value: 'scheduled_for_pickup' },
-  { label: 'Pending', value: 'pending' },
-  { label: 'In Transit', value: 'in-transit' },
-  { label: 'Delivered', value: 'delivered' },
-  { label: 'Return to Shop', value: 'return-to-shop' },
-  { label: 'Cancelled', value: 'cancelled' },
-  { label: 'Pickups', value: 'pickups' },
+  { label: 'shop.packages.tabs.all', value: 'all' },
+  { label: 'shop.packages.tabs.awaitingSchedule', value: 'awaiting_schedule' },
+  { label: 'shop.packages.tabs.scheduledForPickup', value: 'scheduled_for_pickup' },
+  { label: 'shop.packages.tabs.pending', value: 'pending' },
+  { label: 'shop.packages.tabs.inTransit', value: 'in-transit' },
+  { label: 'shop.packages.tabs.delivered', value: 'delivered' },
+  { label: 'shop.packages.tabs.returnToShop', value: 'return-to-shop' },
+  { label: 'shop.packages.tabs.cancelled', value: 'cancelled' },
+  { label: 'shop.packages.tabs.pickups', value: 'pickups' },
 ];
 
 const inTransitStatuses = ['assigned', 'pickedup', 'in-transit'];
@@ -35,10 +36,10 @@ export function getStatusBadge(status) {
   return <span className={className}>{status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, ' ').replace('-', ' ')}</span>;
 }
 
-function getCodBadge(isPaid) {
+function getCodBadge(isPaid, t) {
   return isPaid
-    ? <span className="cod-badge cod-paid">Paid</span>
-    : <span className="cod-badge cod-unpaid">Unpaid</span>;
+    ? <span className="cod-badge cod-paid">{t('shop.packages.cod.paid')}</span>
+    : <span className="cod-badge cod-unpaid">{t('shop.packages.cod.unpaid')}</span>;
 }
 
 function getPickupStatusBadge(status) {
@@ -69,6 +70,7 @@ const ShopPackages = () => {
   const [pickupToCancel, setPickupToCancel] = useState(null);
   const [pickupCancelError, setPickupCancelError] = useState(null);
   const location = useLocation();
+  const { t } = useTranslation();
 
   useEffect(() => {
     const fetchPackages = async () => {
@@ -77,13 +79,13 @@ const ShopPackages = () => {
         const res = await packageService.getPackages();
         setPackages(res.data.packages || res.data || []);
       } catch (err) {
-        setError('Failed to load packages.');
+        setError(t('shop.packages.errors.loadPackages'));
       } finally {
         setLoading(false);
       }
     };
     fetchPackages();
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     // Set tab from query param if present
@@ -101,10 +103,10 @@ const ShopPackages = () => {
         .then(res => {
           setPickups(res.data);
         })
-        .catch(() => setError('Failed to load pickups.'))
+        .catch(() => setError(t('shop.packages.errors.loadPickups')))
         .finally(() => setPickupLoading(false));
     }
-  }, [activeTab]);
+  }, [activeTab, t]);
 
   const handleCancel = async () => {
     if (!packageToCancel) return;
@@ -115,7 +117,7 @@ const ShopPackages = () => {
       setPackageToCancel(null);
       setCancelError(null);
     } catch (err) {
-      setCancelError(err.response?.data?.message || 'Failed to cancel package.'); 
+      setCancelError(err.response?.data?.message || t('shop.packages.errors.cancelPackage'));
     }
   };
 
@@ -147,7 +149,7 @@ const ShopPackages = () => {
       setPickupToCancel(null);
       setPickupCancelError(null);
     } catch (err) {
-      setPickupCancelError(err.response?.data?.message || 'Failed to cancel pickup.');
+      setPickupCancelError(err.response?.data?.message || t('shop.packages.errors.cancelPickup'));
     }
   };
 
@@ -181,7 +183,7 @@ const ShopPackages = () => {
 
   return (
     <div className="shop-packages-page">
-      <h2>Packages</h2>
+      <h2>{t('shop.packages.title')}</h2>
       <div className="packages-tabs">
         {TABS.map(tab => (
           <button
@@ -189,31 +191,31 @@ const ShopPackages = () => {
             className={`tab-btn${activeTab === tab.value ? ' active' : ''}`}
             onClick={() => setActiveTab(tab.value)}
           >
-            {tab.label}
+            {t(tab.label)}
           </button>
         ))}
         <input
           className="package-search"
           type="text"
-          placeholder="Search packages..."
+          placeholder={t('shop.packages.searchPlaceholder')}
           value={search}
           onChange={e => setSearch(e.target.value)}
         />
       </div>
       {activeTab === 'pickups' ? (
         pickupLoading ? (
-          <div>Loading pickups...</div>
+          <div>{t('shop.packages.loadingPickups')}</div>
         ) : pickups.length === 0 ? (
-          <div>No pickups found.</div>
+          <div>{t('shop.packages.noPickups')}</div>
         ) : (
           <div className="pickups-table-wrapper">
             <table className="packages-table">
               <thead>
                 <tr>
-                  <th>Pickup Date</th>
-                  <th>Address</th>
-                  <th>Status</th>
-                  <th>Action</th>
+                  <th>{t('shop.packages.pickups.date')}</th>
+                  <th>{t('shop.packages.pickups.address')}</th>
+                  <th>{t('shop.packages.pickups.status')}</th>
+                  <th>{t('shop.packages.pickups.action')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -224,11 +226,11 @@ const ShopPackages = () => {
                     <td>{getPickupStatusBadge(pickup.status)}</td>
                     <td style={{display:'flex',gap:'0.5rem'}}>
                       <button className="btn btn-primary" onClick={() => handlePickupClick(pickup)}>
-                        View Packages
+                        {t('shop.packages.pickups.viewPackages')}
                       </button>
                       {pickup.status === 'scheduled' && (
                         <button className="btn btn-danger" onClick={() => { setPickupToCancel(pickup); setShowPickupCancelModal(true); }}>
-                          Cancel
+                          {t('shop.packages.pickups.cancel')}
                         </button>
                       )}
                     </td>
@@ -239,7 +241,7 @@ const ShopPackages = () => {
           </div>
         )
       ) : loading ? (
-        <div>Loading packages...</div>
+        <div>{t('shop.packages.loadingPackages')}</div>
       ) : error ? (
         <div className="error-message">{error}</div>
       ) : (
@@ -247,12 +249,12 @@ const ShopPackages = () => {
           {showCancelModal && (
             <div className="confirmation-overlay" onClick={() => { setShowCancelModal(false); setCancelError(null); }}>
               <div className="confirmation-dialog warning-dialog" onClick={e => e.stopPropagation()}>
-                <h3>Cancel Package</h3>
-                <p>Are you sure you want to cancel this package?</p>
+                <h3>{t('shop.packages.cancelModal.title')}</h3>
+                <p>{t('shop.packages.cancelModal.confirmText')}</p>
                 {cancelError && <div style={{color:'#dc3545',marginBottom:'0.5rem'}}>{cancelError}</div>}
                 <div className="confirmation-buttons">
-                  <button className="btn-secondary" onClick={() => { setShowCancelModal(false); setCancelError(null); }}>No</button>
-                  <button className="btn-primary danger" onClick={handleCancel}>Yes, Cancel</button>
+                  <button className="btn-secondary" onClick={() => { setShowCancelModal(false); setCancelError(null); }}>{t('common.no')}</button>
+                  <button className="btn-primary danger" onClick={handleCancel}>{t('shop.packages.cancelModal.yesCancel')}</button>
                 </div>
               </div>
             </div>
@@ -261,25 +263,25 @@ const ShopPackages = () => {
             <table className="packages-table">
               <thead>
                 <tr>
-                  <th>Tracking #</th>
-                  <th>Description</th>
-                  <th>Recipient</th>
-                  <th>Status</th>
-                  <th>COD</th>
-                  <th>Date</th>
-                  <th>Action</th>
+                  <th>{t('shop.packages.table.trackingNumber')}</th>
+                  <th>{t('shop.packages.table.description')}</th>
+                  <th>{t('shop.packages.table.recipient')}</th>
+                  <th>{t('shop.packages.table.status')}</th>
+                  <th>{t('shop.packages.table.cod')}</th>
+                  <th>{t('shop.packages.table.date')}</th>
+                  <th>{t('shop.packages.table.action')}</th>
                 </tr>
               </thead>
               <tbody>
                 {filterPackages().length === 0 ? (
-                  <tr><td colSpan={7} style={{textAlign:'center'}}>No packages found.</td></tr>
+                  <tr><td colSpan={7} style={{textAlign:'center'}}>{t('shop.packages.table.noPackages')}</td></tr>
                 ) : filterPackages().map(pkg => (
                   <tr key={pkg.id}>
                     <td>{pkg.trackingNumber}</td>
                     <td>{pkg.packageDescription}</td>
                     <td>{pkg.deliveryContactName}</td>
                     <td>{getStatusBadge(pkg.status)}</td>
-                    <td>${parseFloat(pkg.codAmount || 0).toFixed(2)} {getCodBadge(pkg.isPaid)}</td>
+                    <td>${parseFloat(pkg.codAmount || 0).toFixed(2)} {getCodBadge(pkg.isPaid, t)}</td>
                     <td>{new Date(pkg.createdAt).toLocaleDateString()}</td>
                     <td>
                       {pkg.status !== 'delivered' && pkg.status !== 'cancelled' && (
@@ -291,7 +293,7 @@ const ShopPackages = () => {
                             setShowCancelModal(true);
                           }}
                         >
-                          Cancel
+                          {t('shop.packages.table.cancel')}
                         </button>
                       )}
                     </td>
@@ -306,11 +308,11 @@ const ShopPackages = () => {
       {showPickupModal && (
         <div className="confirmation-overlay" onClick={() => setShowPickupModal(false)}>
           <div className="confirmation-dialog" onClick={e => e.stopPropagation()} style={{minWidth:'350px'}}>
-            <h3>Pickup Packages</h3>
+            <h3>{t('shop.packages.pickupModal.title')}</h3>
             {pickupPackagesLoading ? (
-              <div>Loading packages...</div>
+              <div>{t('shop.packages.pickupModal.loading')}</div>
             ) : pickupPackages.length === 0 ? (
-              <div>No packages found for this pickup.</div>
+              <div>{t('shop.packages.pickupModal.noPackages')}</div>
             ) : (
               <ul style={{paddingLeft:0}}>
                 {pickupPackages.map(pkg => (
@@ -320,7 +322,7 @@ const ShopPackages = () => {
                 ))}
               </ul>
             )}
-            <button className="btn btn-secondary" onClick={() => setShowPickupModal(false)} style={{marginTop:'1rem'}}>Close</button>
+            <button className="btn btn-secondary" onClick={() => setShowPickupModal(false)} style={{marginTop:'1rem'}}>{t('common.close')}</button>
           </div>
         </div>
       )}
@@ -328,12 +330,12 @@ const ShopPackages = () => {
       {showPickupCancelModal && (
         <div className="confirmation-overlay" onClick={() => { setShowPickupCancelModal(false); setPickupCancelError(null); }}>
           <div className="confirmation-dialog warning-dialog" onClick={e => e.stopPropagation()}>
-            <h3>Cancel Pickup</h3>
-            <p>Are you sure you want to cancel this pickup? All packages will be reset to pending.</p>
+            <h3>{t('shop.packages.pickupCancelModal.title')}</h3>
+            <p>{t('shop.packages.pickupCancelModal.confirmText')}</p>
             {pickupCancelError && <div style={{color:'#dc3545',marginBottom:'0.5rem'}}>{pickupCancelError}</div>}
             <div className="confirmation-buttons">
-              <button className="btn-secondary" onClick={() => { setShowPickupCancelModal(false); setPickupCancelError(null); }}>No</button>
-              <button className="btn-danger" onClick={handleCancelPickup}>Yes, Cancel</button>
+              <button className="btn-secondary" onClick={() => { setShowPickupCancelModal(false); setPickupCancelError(null); }}>{t('common.no')}</button>
+              <button className="btn-danger" onClick={handleCancelPickup}>{t('shop.packages.pickupCancelModal.yesCancel')}</button>
             </div>
           </div>
         </div>

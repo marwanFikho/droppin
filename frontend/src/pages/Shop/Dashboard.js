@@ -44,7 +44,7 @@ const inTransitStatuses = ['assigned', 'pickedup', 'in-transit'];
 const returnToShopStatuses = ['cancelled-awaiting-return', 'cancelled-returned'];
 
 const ShopDashboard = () => {
-  const { currentUser } = useAuth();
+  const { currentUser, logout } = useAuth();
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState('current');
   const [packages, setPackages] = useState([]);
@@ -83,12 +83,12 @@ const ShopDashboard = () => {
     sortBy: 'createdAt',
     sortOrder: 'DESC'
   });
-  const [activeTab, setActiveTab] = useState('all');
   const [shopCodToCollect, setShopCodToCollect] = useState(0);
   const [sortConfig, setSortConfig] = useState({
     field: 'createdAt',
     order: 'DESC'
   });
+  const [refreshData, setRefreshData] = useState(Date.now());
   
   // Function to refresh dashboard data - can be called from any child component
   const refreshDashboard = () => {
@@ -113,7 +113,7 @@ const ShopDashboard = () => {
       setPackages(Array.isArray(pkgs) ? pkgs : []);
     } catch (error) {
       console.error('Error fetching packages:', error);
-      alert('Failed to fetch packages. Please try again.');
+      alert(t('shop.errors.fetchPackages'));
       setPackages([]);
     }
   };
@@ -392,9 +392,9 @@ const ShopDashboard = () => {
       fetchPackages();
     } catch (error) {
       console.error('Error marking package as returned:', error);
-      alert('Failed to mark package as returned. Please try again.');
+      alert(t('shop.errors.markReturned'));
     }
-  }, [t]);
+  };
 
   // Filter packages based on search term and active tab
   const getFilteredPackages = () => {
@@ -547,34 +547,34 @@ const ShopDashboard = () => {
       <div className="dashboard-container">
         <div className="dashboard-sidebar">
           <div className="sidebar-header">
-            <h2>Droppin</h2>
-            <p>Shop Portal</p>
+            <h2>{t('shop.dashboard.sidebar.droppin')}</h2>
+            <p>{t('shop.dashboard.sidebar.portal')}</p>
           </div>
         
           <div className="sidebar-menu">
             <Link to="/shop" className={`menu-item${location.pathname === '/shop' ? ' active' : ''}`}> 
               <i className="menu-icon">📊</i>
-              Dashboard
+              {t('shop.dashboard.sidebar.dashboard')}
             </Link>
             <Link to="/shop/packages" className={`menu-item${location.pathname.startsWith('/shop/packages') ? ' active' : ''}`}> 
               <i className="menu-icon">📦</i>
-              Packages
+              {t('shop.dashboard.sidebar.packages')}
             </Link>
             <Link to="/shop/create-package" className={`menu-item${location.pathname === '/shop/create-package' ? ' active' : ''}`}> 
               <i className="menu-icon">➕</i>
-              New Package
+              {t('shop.dashboard.sidebar.newPackage')}
             </Link>
             <Link to="/shop/new-pickup" className={`menu-item${location.pathname === '/shop/new-pickup' ? ' active' : ''}`}> 
               <i className="menu-icon">🚚</i>
-              New Pickup
+              {t('shop.dashboard.sidebar.newPickup')}
             </Link>
             <Link to="/shop/wallet" className={`menu-item${location.pathname === '/shop/wallet' ? ' active' : ''}`}> 
               <i className="menu-icon">💰</i>
-              Wallet
+              {t('shop.dashboard.sidebar.wallet')}
             </Link>
             <Link to="/shop/profile" className={`menu-item${location.pathname === '/shop/profile' ? ' active' : ''}`}> 
               <i className="menu-icon">👤</i>
-              Profile
+              {t('shop.dashboard.sidebar.profile')}
             </Link>
           </div>
         </div>
@@ -589,12 +589,12 @@ const ShopDashboard = () => {
             <div className="dashboard-content">
               <div className="dashboard-header">
                 <div className="welcome-message">
-                  <h1 style={{color:'white'}}>Welcome, {currentUser?.name || 'Shop Owner'}</h1>
-                  <p style={{color:'white'}}>Manage your deliveries with ease</p>
+                  <h1 style={{color:'white'}}>{t('shop.dashboard.header.welcome', { name: currentUser?.name || t('shop.dashboard.header.shopOwner') })}</h1>
+                  <p style={{color:'white'}}>{t('shop.dashboard.header.manageDeliveries')}</p>
                 </div>
                 <div className="user-info">
                   <span className="business-name">{currentUser?.businessName}</span>
-                  <span>Shop Account</span>
+                  <span>{t('shop.dashboard.header.account')}</span>
                 </div>
               </div>
               
@@ -605,257 +605,98 @@ const ShopDashboard = () => {
                   <div className="dashboard-stats package-stats">
                     <div className="stat-card" style={{cursor:'pointer'}} onClick={() => handleStatClick('pending')}>
                       <div className="stat-value">{packages.filter(p => p.status === 'pending').length}</div>
-                      <div className="stat-label">Pending</div>
+                      <div className="stat-label">{t('shop.dashboard.stats.pending')}</div>
                     </div>
                     <div className="stat-card" style={{cursor:'pointer'}} onClick={() => handleStatClick('in-transit')}>
                       <div className="stat-value">{packages.filter(p => ['assigned', 'pickedup', 'in-transit'].includes(p.status)).length}</div>
-                      <div className="stat-label">In Transit</div>
+                      <div className="stat-label">{t('shop.dashboard.stats.inTransit')}</div>
                     </div>
                     <div className="stat-card" style={{cursor:'pointer'}} onClick={() => handleStatClick('delivered')}>
                       <div className="stat-value">{packages.filter(p => p.status === 'delivered').length}</div>
-                      <div className="stat-label">Delivered</div>
+                      <div className="stat-label">{t('shop.dashboard.stats.delivered')}</div>
                     </div>
                     <div className="stat-card" style={{cursor:'pointer'}} onClick={() => handleStatClick('all')}>
                       <div className="stat-value">{packages.length}</div>
-                      <div className="stat-label">Total</div>
+                      <div className="stat-label">{t('shop.dashboard.stats.total')}</div>
                     </div>
                   </div>
 
                   {/* Package Distribution Chart */}
                   <div className="chart-container">
-                    <h3>Package Distribution</h3>
+                    <h3>{t('shop.dashboard.chart.packageDistribution')}</h3>
                     <div>
                       <Pie data={getChartData()} options={chartOptions} />
                     </div>
                   </div>
-        <div className="sidebar-menu">
-          <Link to="/shop" className="menu-item active">
-            <i className="menu-icon">📊</i>
-            Dashboard
-          </Link>
-          <Link to="/shop/packages" className="menu-item">
-            <i className="menu-icon">📦</i>
-            Packages
-          </Link>
-          <Link to="/shop/create-package" className="menu-item">
-            <i className="menu-icon">➕</i>
-            New Package
-          </Link>
-          <Link to="/shop/profile" className="menu-item">
-            <i className="menu-icon">👤</i>
-            Profile
-          </Link>
-          <button onClick={handleLogout} className="menu-item logout">
-            <i className="menu-icon">🚪</i>
-            Logout
-          </button>
-        </div>
-      </div>
-      
-      <Routes>
-        <Route path="create-package" element={<CreatePackage />} />
-        <Route path="*" element={
-          <div className="dashboard-content">
-            <div className="dashboard-header">
-              <div className="welcome-message">
-                <h1>Welcome, {currentUser?.name || 'Shop Owner'}</h1>
-                <p>Manage your deliveries with ease</p>
-              </div>
-              <div className="user-info">
-                <span className="business-name">{currentUser?.businessName}</span>
-                <span className="user-role">Shop Account</span>
-              </div>
-            </div>
-            
-            <div className="dashboard-stats">
-              <div className="stats-section">
-                <h2>{t('shop.overview.packages.title')}</h2>
-                <div className="stats-grid">
-              <div className="stat-card">
-                    <FontAwesomeIcon icon={faBox} />
-                    <div className="stat-info">
-                      <h3>{t('shop.overview.packages.total')}</h3>
-                      <p>{stats.packages.total}</p>
-                    </div>
-              </div>
-              <div className="stat-card">
-                    <FontAwesomeIcon icon={faBoxOpen} />
-                    <div className="stat-info">
-                      <h3>{t('shop.overview.packages.pending')}</h3>
-                      <p>{stats.packages.pending}</p>
-                    </div>
-              </div>
-              <div className="stat-card">
-                    <FontAwesomeIcon icon={faTruck} />
-                    <div className="stat-info">
-                      <h3>{t('shop.overview.packages.inTransit')}</h3>
-                      <p>{stats.packages.inTransit}</p>
-                    </div>
-              </div>
-              <div className="stat-card">
-                    <FontAwesomeIcon icon={faCheckCircle} />
-                    <div className="stat-info">
-                      <h3>{t('shop.overview.packages.delivered')}</h3>
-                      <p>{stats.packages.delivered}</p>
-              </div>
-            </div>
                 </div>
 
-                {/* Financial Stats Row */}
-                <div className="dashboard-stats financial-stats">
-                  <div className="stat-card">
-                    <div className="stat-value">
-                      ${(parseFloat(financialStats.rawToCollect || 0)).toFixed(2)}
-                    </div>
-                    <div className="stat-label">To Collect</div>
+                <div className="stats-section">
+                  <h2>{t('shop.overview.financial.title')}</h2>
+                  <div className="stats-grid">
+                <div className="stat-card">
+                      <FontAwesomeIcon icon={faMoneyBill} />
+                      <div className="stat-info">
+                        <h3>{t('shop.overview.financial.toCollect')}</h3>
+                        <p>${stats.financial.toCollect}</p>
                   </div>
-                  <div className="stat-card">
-                    <div className="stat-value">
-                      ${(parseFloat(financialStats.rawTotalCollected || 0)).toFixed(2)}
+                </div>
+                <div className="stat-card">
+                      <FontAwesomeIcon icon={faMoneyBill} />
+                      <div className="stat-info">
+                        <h3>{t('shop.overview.financial.collected')}</h3>
+                        <p>${stats.financial.collected}</p>
+                      </div>
                     </div>
-                    <div className="stat-label">Collected (Waiting Withdraw)</div>
                   </div>
                 </div>
               </div>
               
-              <div className="dashboard-main">
-                <div className="recent-packages">
-                  <div className="section-header">
-                    <h2>Recent Packages</h2>
-                    <Link to="/shop/packages" className="view-all">View All</Link>
-                  </div>
-                  
-                  {loading ? (
-                    <div className="loading-message">Loading recent packages...</div>
-                  ) : error ? (
-                    <div className="error-message">{error}</div>
-                  ) : packages.length === 0 ? (
-                    <div className="empty-state">
-                      <p>No packages found. Create your first delivery package now!</p>
-                      <Link to="/shop/create-package" className="action-button">Create Package</Link>
-                    </div>
-                  ) : (
-                    <div className="package-list">
-                      {filterPackages().slice(0, 4).map((pkg) => (
-                        <div key={pkg.id} className="package-item">
-                          <div className="package-main-row">
-                            <div className="package-info">
-                              <div style={{display:'flex',flexDirection:'column'}}>
-                                <div className="tracking-number">{pkg.trackingNumber}</div>
-                                <div className="recipient-name">{pkg.deliveryContactName || 'No recipient'}</div>
-                              </div>
-                              <div className="package-description">{pkg.packageDescription}</div>
-                              {getStatusBadge(pkg.status)}
-                            </div>
-                            <div className="package-details-right">
-                              <div className="package-date">{new Date(pkg.createdAt).toLocaleDateString()}</div>
-                              <div className="package-cod">
-                                COD: ${parseFloat(pkg.codAmount || 0).toFixed(2)}
-                                {pkg.codAmount > 0 && (
-                                  <span className={`payment-status ${pkg.isPaid ? 'paid' : 'unpaid'}`}>{pkg.isPaid ? ' (Paid)' : ' (Unpaid)'}</span>
-                                )}
-                              </div>
-                              <td>
-                                {pkg.status !== 'delivered' && pkg.status !== 'cancelled' && pkg.status !== 'cancelled-returned' && (
-                                  <button
-                                    className="action-button cancel-btn"
-                                    onClick={() => {
-                                      setPackageToCancel(pkg);
-                                      setShowCancelModal(true);
-                                    }}
-                                  >
-                                    Cancel
-                                  </button>
-                                )}
-                                {pkg.status === 'cancelled-awaiting-return' && (
-                                  <button
-                                    className="action-button return-btn"
-                                    onClick={() => handleMarkAsReturned(pkg)}
-                                  >
-                                    Mark as Returned
-                                  </button>
-                                )}
-                              </td>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+              <div className="dashboard-tabs">
+                <button 
+                  className={`tab-button ${activeTab === 'current' ? 'active' : ''}`}
+                  onClick={() => handleTabChange('current')}
+                >
+                  {t('shop.tabs.current')}
+                </button>
+                <button 
+                  className={`tab-button ${activeTab === 'pending' ? 'active' : ''}`}
+                  onClick={() => handleTabChange('pending')}
+                >
+                  {t('shop.tabs.pending')}
+                </button>
+                <button 
+                  className={`tab-button ${activeTab === 'delivered' ? 'active' : ''}`}
+                  onClick={() => handleTabChange('delivered')}
+                >
+                  {t('shop.tabs.delivered')}
+                </button>
+              </div>
+              
+              <div className="search-section">
+                <div className="search-bar">
+                  <FontAwesomeIcon icon={faSearch} />
+                  <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder={t('common.search')}
+                  />
                 </div>
               </div>
+              
+              {loading ? (
+                <div className="loading-container">
+                  <div className="loading">
+                    <FontAwesomeIcon icon={faSpinner} />
+                    {t('common.loading')}
+                  </div>
+                </div>
+              ) : (
+                renderPackagesTable()
+              )}
             </div>
           } />
         </Routes>
-              </div>
-
-              <div className="stats-section">
-                <h2>{t('shop.overview.financial.title')}</h2>
-                <div className="stats-grid">
-              <div className="stat-card">
-                    <FontAwesomeIcon icon={faMoneyBill} />
-                    <div className="stat-info">
-                      <h3>{t('shop.overview.financial.toCollect')}</h3>
-                      <p>${stats.financial.toCollect}</p>
-                </div>
-              </div>
-              <div className="stat-card">
-                    <FontAwesomeIcon icon={faMoneyBill} />
-                    <div className="stat-info">
-                      <h3>{t('shop.overview.financial.collected')}</h3>
-                      <p>${stats.financial.collected}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <div className="dashboard-tabs">
-              <button 
-                className={`tab-button ${activeTab === 'current' ? 'active' : ''}`}
-                onClick={() => handleTabChange('current')}
-              >
-                {t('shop.tabs.current')}
-              </button>
-              <button 
-                className={`tab-button ${activeTab === 'pending' ? 'active' : ''}`}
-                onClick={() => handleTabChange('pending')}
-              >
-                {t('shop.tabs.pending')}
-              </button>
-              <button 
-                className={`tab-button ${activeTab === 'delivered' ? 'active' : ''}`}
-                onClick={() => handleTabChange('delivered')}
-              >
-                {t('shop.tabs.delivered')}
-              </button>
-                </div>
-                
-            <div className="search-section">
-              <div className="search-bar">
-                <FontAwesomeIcon icon={faSearch} />
-                <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder={t('common.search')}
-                />
-              </div>
-              </div>
-              
-            {loading ? (
-              <div className="loading-container">
-                <div className="loading">
-                  <FontAwesomeIcon icon={faSpinner} />
-                  {t('common.loading')}
-                </div>
-              </div>
-            ) : (
-              renderPackagesTable()
-            )}
-          </div>
-        } />
-      </Routes>
       </div>
       {showCancelModal && (
         <div className="confirmation-overlay" onClick={() => { setShowCancelModal(false); setCancelError(null); }}>

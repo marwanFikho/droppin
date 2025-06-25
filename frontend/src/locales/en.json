@@ -343,12 +343,103 @@
       "quickActions": {
         "title": "Quick Actions",
         "createPackage": "Create New Package"
+      },
+      "sidebar": {
+        "droppin": "Droppin",
+        "portal": "Shop Portal",
+        "dashboard": "Dashboard",
+        "packages": "Packages",
+        "newPackage": "New Package",
+        "newPickup": "New Pickup",
+        "wallet": "Wallet",
+        "profile": "Profile"
+      },
+      "header": {
+        "welcome": "Welcome, {{name}}",
+        "shopOwner": "Shop Owner",
+        "manageDeliveries": "Manage your deliveries with ease",
+        "account": "Shop Account"
+      },
+      "chart": {
+        "packageDistribution": "Package Distribution"
       }
     },
     "businessName": "Business Name",
     "businessType": "Business Type",
     "registrationNumber": "Registration Number",
-    "taxId": "Tax ID"
+    "taxId": "Tax ID",
+    "errors": {
+      "fetchPackages": "Failed to fetch packages. Please try again.",
+      "markReturned": "Failed to mark package as returned. Please try again."
+    },
+    "createPackage": {
+      "section": {
+        "packageInfo": "Package Information",
+        "deliveryInfo": "Delivery Information",
+        "additionalInfo": "Additional Information"
+      },
+      "label": {
+        "description": "Package Description",
+        "category": "Category",
+        "weight": "Weight (kg)",
+        "length": "Length (cm)",
+        "width": "Width (cm)",
+        "height": "Height (cm)",
+        "contactName": "Recipient Name",
+        "contactPhone": "Recipient Phone",
+        "street": "Street Address",
+        "city": "City",
+        "state": "State/Province",
+        "zipCode": "Zip/Postal Code",
+        "country": "Country",
+        "instructions": "Delivery Instructions",
+        "notes": "Notes",
+        "codAmount": "Cash on Delivery Amount",
+        "codAbbr": "COD"
+      },
+      "placeholder": {
+        "description": "Enter package description",
+        "selectCategory": "Select category",
+        "weight": "Enter weight (kg)",
+        "length": "Enter length (cm)",
+        "width": "Enter width (cm)",
+        "height": "Enter height (cm)",
+        "contactName": "Enter recipient name",
+        "contactPhone": "Enter recipient phone",
+        "street": "Enter street address",
+        "city": "Enter city",
+        "state": "Enter state/province",
+        "zipCode": "Enter zip/postal code",
+        "country": "Enter country",
+        "instructions": "Special instructions for delivery",
+        "notes": "Additional notes",
+        "codAmount": "Leave blank if COD is not required"
+      },
+      "category": {
+        "shoes": "Shoes",
+        "perfumes": "Perfumes",
+        "clothes": "Clothes",
+        "electronics": "Electronics",
+        "accessories": "Accessories",
+        "books": "Books",
+        "other": "Other"
+      },
+      "button": {
+        "create": "Create Package",
+        "loading": "Creating..."
+      },
+      "success": {
+        "title": "Package Created!",
+        "message": "Your package has been created successfully.",
+        "redirect": "You will be redirected to your packages shortly."
+      },
+      "error": {
+        "requiredFields": "Please fill in all required fields.",
+        "deliveryFields": "Please complete all delivery address fields.",
+        "loadAddress": "Failed to load shop address.",
+        "createFailed": "Failed to create package. Please try again."
+      }
+    }
   },
 
   "user": {

@@ -14,7 +14,8 @@ const LanguageSwitcher = () => {
   return (
     <button
       onClick={toggleLanguage}
-      className="btn btn-outline-secondary d-flex align-items-center language-switcher"
+      className="btn language-switcher"
+      style={{ backgroundColor: '#f26226', color: '#fff', border: 'none' }}
       title={t('language')}
     >
       <FontAwesomeIcon 

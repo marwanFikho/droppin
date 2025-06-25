@@ -297,6 +297,31 @@
 
   "shop": {
     "dashboard": {
+      "sidebar": {
+        "droppin": "دروبين",
+        "portal": "بوابة المتجر",
+        "dashboard": "لوحة التحكم",
+        "packages": "الطرود",
+        "newPackage": "طرد جديد",
+        "newPickup": "استلام جديد",
+        "wallet": "المحفظة",
+        "profile": "الملف الشخصي"
+      },
+      "header": {
+        "welcome": "مرحباً، {{name}}",
+        "shopOwner": "صاحب المتجر",
+        "manageDeliveries": "إدارة عمليات التوصيل بسهولة",
+        "account": "حساب المتجر"
+      },
+      "stats": {
+        "pending": "قيد الانتظار",
+        "inTransit": "قيد التوصيل",
+        "delivered": "تم التوصيل",
+        "total": "الإجمالي"
+      },
+      "chart": {
+        "packageDistribution": "توزيع الطرود"
+      },
       "title": "بوابة المتجر",
       "welcome": "مرحباً، {{name}}",
       "subtitle": "إدارة عمليات التوصيل بسهولة",
@@ -306,15 +331,6 @@
         "newPackage": "طرد جديد",
         "profile": "الملف الشخصي",
         "logout": "تسجيل الخروج"
-      },
-      "stats": {
-        "pending": "قيد الانتظار",
-        "inTransit": "قيد التوصيل",
-        "delivered": "تم التوصيل",
-        "total": "المجموع",
-        "toCollect": "للتحصيل (الدفع عند الاستلام المعلق)",
-        "collected": "تم التحصيل (في انتظار التسوية)",
-        "collectionRate": "معدل التحصيل"
       },
       "recentPackages": {
         "title": "الطرود الأخيرة",
@@ -342,6 +358,78 @@
       "quickActions": {
         "title": "إجراءات سريعة",
         "createPackage": "إنشاء طرد جديد"
+      }
+    },
+    "errors": {
+      "fetchPackages": "فشل في جلب الطرود. يرجى المحاولة مرة أخرى.",
+      "markReturned": "فشل في وضع الطرد كمرتجع. يرجى المحاولة مرة أخرى."
+    },
+    "createPackage": {
+      "section": {
+        "packageInfo": "معلومات الطرد",
+        "deliveryInfo": "معلومات التوصيل",
+        "additionalInfo": "معلومات إضافية"
+      },
+      "label": {
+        "description": "وصف الطرد",
+        "category": "الفئة",
+        "weight": "الوزن (كجم)",
+        "length": "الطول (سم)",
+        "width": "العرض (سم)",
+        "height": "الارتفاع (سم)",
+        "contactName": "اسم المستلم",
+        "contactPhone": "هاتف المستلم",
+        "street": "عنوان الشارع",
+        "city": "المدينة",
+        "state": "المنطقة/المحافظة",
+        "zipCode": "الرمز البريدي",
+        "country": "الدولة",
+        "instructions": "تعليمات التوصيل",
+        "notes": "ملاحظات",
+        "codAmount": "مبلغ الدفع عند الاستلام",
+        "codAbbr": "الدفع عند الاستلام"
+      },
+      "placeholder": {
+        "description": "أدخل وصف الطرد",
+        "selectCategory": "اختر الفئة",
+        "weight": "أدخل الوزن (كجم)",
+        "length": "أدخل الطول (سم)",
+        "width": "أدخل العرض (سم)",
+        "height": "أدخل الارتفاع (سم)",
+        "contactName": "أدخل اسم المستلم",
+        "contactPhone": "أدخل هاتف المستلم",
+        "street": "أدخل عنوان الشارع",
+        "city": "أدخل المدينة",
+        "state": "أدخل المنطقة/المحافظة",
+        "zipCode": "أدخل الرمز البريدي",
+        "country": "أدخل الدولة",
+        "instructions": "تعليمات خاصة للتوصيل",
+        "notes": "ملاحظات إضافية",
+        "codAmount": "اتركه فارغًا إذا لم يكن هناك دفع عند الاستلام"
+      },
+      "category": {
+        "shoes": "أحذية",
+        "perfumes": "عطور",
+        "clothes": "ملابس",
+        "electronics": "إلكترونيات",
+        "accessories": "إكسسوارات",
+        "books": "كتب",
+        "other": "أخرى"
+      },
+      "button": {
+        "create": "إنشاء طرد",
+        "loading": "جاري الإنشاء..."
+      },
+      "success": {
+        "title": "تم إنشاء الطرد!",
+        "message": "تم إنشاء الطرد بنجاح.",
+        "redirect": "سيتم تحويلك إلى صفحة الطرود قريبًا."
+      },
+      "error": {
+        "requiredFields": "يرجى تعبئة جميع الحقول المطلوبة.",
+        "deliveryFields": "يرجى إكمال جميع حقول عنوان التوصيل.",
+        "loadAddress": "فشل في تحميل عنوان المتجر.",
+        "createFailed": "فشل في إنشاء الطرد. يرجى المحاولة مرة أخرى."
       }
     }
   },

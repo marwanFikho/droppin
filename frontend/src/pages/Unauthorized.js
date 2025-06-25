@@ -1,10 +1,12 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useTranslation } from 'react-i18next';
 
 const Unauthorized = () => {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
+  const { t } = useTranslation();
 
   const handleGoBack = () => {
     navigate(-1);
@@ -34,15 +36,15 @@ const Unauthorized = () => {
   return (
     <div className="unauthorized-container">
       <div className="unauthorized-content">
-        <h1>Access Denied</h1>
+        <h1>{t('errors.unauthorized.title')}</h1>
         <div className="unauthorized-icon">⚠️</div>
-        <p>You don't have permission to access this page.</p>
+        <p>{t('errors.unauthorized.message')}</p>
         <div className="unauthorized-actions">
           <button onClick={handleGoBack} className="btn-secondary">
-            Go Back
+            {t('errors.unauthorized.goBack')}
           </button>
           <button onClick={handleGoHome} className="btn-primary">
-            Go to {currentUser ? 'Dashboard' : 'Home'}
+            {t(currentUser ? 'errors.unauthorized.goToDashboard' : 'errors.unauthorized.goToHome')}
           </button>
         </div>
       </div>
