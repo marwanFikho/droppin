@@ -12,6 +12,7 @@ const TABS = [
   { label: 'Delivered', value: 'delivered' },
   { label: 'Return to Shop', value: 'return-to-shop' },
   { label: 'Cancelled', value: 'cancelled' },
+  { label: 'Rejected', value: 'rejected' },
   { label: 'Pickups', value: 'pickups' },
 ];
 
@@ -35,7 +36,7 @@ export function getStatusBadge(status) {
   return <span className={className}>{status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, ' ').replace('-', ' ')}</span>;
 }
 
-function getCodBadge(isPaid) {
+export function getCodBadge(isPaid) {
   return isPaid
     ? <span className="cod-badge cod-paid">Paid</span>
     : <span className="cod-badge cod-unpaid">Unpaid</span>;
@@ -68,13 +69,18 @@ const ShopPackages = () => {
   const [showPickupCancelModal, setShowPickupCancelModal] = useState(false);
   const [pickupToCancel, setPickupToCancel] = useState(null);
   const [pickupCancelError, setPickupCancelError] = useState(null);
+  const [showPackageDetailsModal, setShowPackageDetailsModal] = useState(false);
+  const [selectedPackage, setSelectedPackage] = useState(null);
+  const [editingNotes, setEditingNotes] = useState('');
+  const [notesSaving, setNotesSaving] = useState(false);
+  const [notesError, setNotesError] = useState(null);
   const location = useLocation();
 
   useEffect(() => {
     const fetchPackages = async () => {
       setLoading(true);
       try {
-        const res = await packageService.getPackages();
+        const res = await packageService.getPackages({ limit: 10000 });
         setPackages(res.data.packages || res.data || []);
       } catch (err) {
         setError('Failed to load packages.');
@@ -172,10 +178,32 @@ const ShopPackages = () => {
       return filtered.filter(pkg => inTransitStatuses.includes(pkg.status));
     } else if (activeTab === 'return-to-shop') {
       return filtered.filter(pkg => returnToShopStatuses.includes(pkg.status));
+    } else if (activeTab === 'cancelled') {
+      // Show all cancelled-related statuses in the Cancelled tab
+      return filtered.filter(pkg => ['cancelled', 'cancelled-awaiting-return', 'cancelled-returned'].includes(pkg.status));
+    } else if (activeTab === 'rejected') {
+      return filtered.filter(pkg => pkg.status === 'rejected');
     } else if (activeTab === 'pickups') {
       return filtered; // This will be handled by the pickups tab
     } else {
       return filtered.filter(pkg => pkg.status === activeTab);
+    }
+  };
+
+  const openDetailsModal = (pkg) => {
+    setSelectedPackage(pkg);
+    setShowPackageDetailsModal(true);
+  };
+
+  const handleMarkAsReturned = async (pkg) => {
+    try {
+      await packageService.markAsReturned(pkg.id);
+      setPackages(prev => prev.map(p => p.id === pkg.id ? { ...p, status: 'cancelled-returned' } : p));
+      setShowCancelModal(false);
+      setPackageToCancel(null);
+      setCancelError(null);
+    } catch (err) {
+      setCancelError(err.response?.data?.message || 'Failed to mark as returned.');
     }
   };
 
@@ -267,34 +295,40 @@ const ShopPackages = () => {
                   <th>Status</th>
                   <th>COD</th>
                   <th>Date</th>
-                  <th>Action</th>
+                  {activeTab !== 'cancelled' && activeTab !== 'return-to-shop' && <th>Action</th>}
                 </tr>
               </thead>
               <tbody>
                 {filterPackages().length === 0 ? (
                   <tr><td colSpan={7} style={{textAlign:'center'}}>No packages found.</td></tr>
                 ) : filterPackages().map(pkg => (
-                  <tr key={pkg.id}>
-                    <td>{pkg.trackingNumber}</td>
-                    <td>{pkg.packageDescription}</td>
-                    <td>{pkg.deliveryContactName}</td>
-                    <td>{getStatusBadge(pkg.status)}</td>
-                    <td>${parseFloat(pkg.codAmount || 0).toFixed(2)} {getCodBadge(pkg.isPaid)}</td>
-                    <td>{new Date(pkg.createdAt).toLocaleDateString()}</td>
-                    <td>
-                      {pkg.status !== 'delivered' && pkg.status !== 'cancelled' && (
-                        <button
-                          className="action-button"
-                          style={{background:'#e53935',color:'#fff',padding:'0.3rem 0.7rem',fontSize:'0.85rem'}}
-                          onClick={() => {
-                            setPackageToCancel(pkg);
-                            setShowCancelModal(true);
-                          }}
-                        >
-                          Cancel
-                        </button>
-                      )}
-                    </td>
+                  <tr key={pkg.id} style={{cursor:'pointer'}} onClick={e => {
+                    // Prevent opening modal when clicking the cancel button
+                    if (e.target.closest('button')) return;
+                    openDetailsModal(pkg);
+                  }}>
+                    <td data-label="Tracking #">{pkg.trackingNumber}</td>
+                    <td data-label="Description">{pkg.packageDescription}</td>
+                    <td data-label="Recipient">{pkg.deliveryContactName}</td>
+                    <td data-label="Status">{getStatusBadge(pkg.status)}</td>
+                    <td data-label="COD">${parseFloat(pkg.codAmount || 0).toFixed(2)} {getCodBadge(pkg.isPaid)}</td>
+                    <td data-label="Date">{new Date(pkg.createdAt).toLocaleDateString()}</td>
+                    {activeTab !== 'cancelled' && (
+                      <td data-label="Actions" className="actions-cell">
+                        {pkg.status !== 'cancelled' && pkg.status !== 'delivered' && pkg.status !== 'cancelled-returned' && pkg.status !== 'cancelled-awaiting-return' && pkg.status !== 'rejected' &&(
+                          <button
+                            className="action-button cancel-btn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPackageToCancel(pkg);
+                              setShowCancelModal(true);
+                            }}
+                          >
+                            Cancel
+                          </button>
+                        )}
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -334,6 +368,128 @@ const ShopPackages = () => {
             <div className="confirmation-buttons">
               <button className="btn-secondary" onClick={() => { setShowPickupCancelModal(false); setPickupCancelError(null); }}>No</button>
               <button className="btn-danger" onClick={handleCancelPickup}>Yes, Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Package Details Modal */}
+      {showPackageDetailsModal && selectedPackage && (
+        <div className="confirmation-overlay" onClick={() => setShowPackageDetailsModal(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Package Details</h2>
+              <button className="btn close-btn" onClick={() => setShowPackageDetailsModal(false)}>&times;</button>
+            </div>
+            <div className="modal-body">
+              <div className="details-grid">
+                <div className="detail-item">
+                  <span className="label">Tracking #</span>
+                  <span>{selectedPackage.trackingNumber}</span>
+                </div>
+                <div className="detail-item">
+                  <span className="label">Status</span>
+                  <span>{getStatusBadge(selectedPackage.status)}</span>
+                </div>
+                <div className="detail-item">
+                  <span className="label">Created</span>
+                  <span>{new Date(selectedPackage.createdAt).toLocaleString()}</span>
+                </div>
+                <div className="detail-item full-width">
+                  <span className="label">Description</span>
+                  <span>{selectedPackage.packageDescription || 'No description'}</span>
+                </div>
+                <div className="detail-item">
+                  <span className="label">Recipient</span>
+                  <span>{selectedPackage.deliveryContactName || 'N/A'}</span>
+                </div>
+                {selectedPackage.deliveryContactPhone && (
+                  <div className="detail-item">
+                    <span className="label">Recipient Phone</span>
+                    <span>{selectedPackage.deliveryContactPhone}</span>
+                  </div>
+                )}
+                {selectedPackage.deliveryAddress && (
+                  <div className="detail-item full-width">
+                    <span className="label">Delivery Address</span>
+                    <span>{selectedPackage.deliveryAddress}</span>
+                  </div>
+                )}
+                <div className="detail-item">
+                  <span className="label">COD</span>
+                  <span>${parseFloat(selectedPackage.codAmount || 0).toFixed(2)} {getCodBadge(selectedPackage.isPaid)}</span>
+                </div>
+                {selectedPackage.weight && (
+                  <div className="detail-item">
+                    <span className="label">Weight</span>
+                    <span>{selectedPackage.weight} kg</span>
+                  </div>
+                )}
+                {selectedPackage.dimensions && (
+                  <div className="detail-item">
+                    <span className="label">Dimensions</span>
+                    <span>{selectedPackage.dimensions}</span>
+                  </div>
+                )}
+                {selectedPackage.shopNotes && (
+                  <div className="detail-item full-width">
+                    <span className="label">Shop Notes</span>
+                    <span>{selectedPackage.shopNotes}</span>
+                  </div>
+                )}
+              </div>
+              {/* Shop actions for rejected packages */}
+              {selectedPackage.status === 'rejected' && (
+                <div className="modal-actions">
+                  <button className="btn btn-primary" onClick={async () => {
+                    await packageService.updatePackageStatus(selectedPackage.id, { status: 'pending' });
+                    setShowPackageDetailsModal(false);
+                    setPackages(prev => prev.map(p => p.id === selectedPackage.id ? { ...p, status: 'pending' } : p));
+                  }}>Mark as Pending</button>
+                  <button className="btn btn-danger" onClick={async () => {
+                    await packageService.updatePackageStatus(selectedPackage.id, { status: 'cancelled-awaiting-return' });
+                    setShowPackageDetailsModal(false);
+                    setPackages(prev => prev.map(p => p.id === selectedPackage.id ? { ...p, status: 'cancelled-awaiting-return' } : p));
+                  }}>Mark as Cancelled Awaiting Return</button>
+                </div>
+              )}
+              {/* Notes Log Section - moved above Close button and improved UI */}
+              <div className="package-notes-log-section" style={{marginTop:'2rem', marginBottom:'1.5rem'}}>
+                <h4 style={{marginBottom:'0.75rem'}}>Notes Log</h4>
+                <div className="notes-log-list" style={{display:'flex', flexDirection:'column', gap:'0.75rem'}}>
+                  {(() => {
+                    let notesArr = [];
+                    if (Array.isArray(selectedPackage?.notes)) {
+                      notesArr = selectedPackage.notes;
+                    } else if (typeof selectedPackage?.notes === 'string') {
+                      try {
+                        notesArr = JSON.parse(selectedPackage.notes);
+                      } catch {
+                        notesArr = [];
+                      }
+                    }
+                    notesArr = notesArr
+                      .filter(n => n && typeof n.text === 'string' && n.text.trim())
+                      .sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
+                    return (notesArr.length > 0) ? (
+                      notesArr.map((n, idx) => (
+                        <div key={idx} className="notes-log-entry" style={{background:'#f8f9fa', borderRadius:'6px', padding:'0.75rem 1rem', boxShadow:'0 1px 2px rgba(0,0,0,0.03)', border:'1px solid #ececec'}}>
+                          <div className="notes-log-meta" style={{marginBottom:'0.25rem'}}>
+                            <span className="notes-log-date" style={{fontSize:'0.92em', color:'#888'}}>
+                              {n.createdAt ? new Date(n.createdAt).toLocaleString() : 'Unknown date'}
+                            </span>
+                          </div>
+                          <div className="notes-log-text" style={{whiteSpace:'pre-line', fontSize:'1.05em', color:'#222'}}>{n.text}</div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="notes-log-empty" style={{color:'#888', fontStyle:'italic'}}>No notes yet.</div>
+                    );
+                  })()}
+                </div>
+              </div>
+              <div className="modal-actions">
+                <button className="btn close-btn" onClick={() => setShowPackageDetailsModal(false)}>Close</button>
+              </div>
             </div>
           </div>
         </div>

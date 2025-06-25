@@ -19,5 +19,6 @@ router.patch('/:id/payment', authorize('shop', 'driver', 'admin'), packageContro
 router.post('/:id/photos', authorize('driver', 'admin'), packageController.addDeliveryPhoto);
 router.post('/:id/signature', authorize('driver', 'admin'), packageController.addDeliverySignature);
 router.patch('/:id/cancel', authorize('shop'), packageController.cancelPackage);
+router.patch('/:id/notes', authorize('driver', 'shop', 'admin'), packageController.updatePackageNotes);
 
 module.exports = router;

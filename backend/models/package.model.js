@@ -63,7 +63,8 @@ const Package = sequelize.define('Package', {
       'delivered',
       'cancelled',
       'cancelled-awaiting-return',
-      'cancelled-returned'
+      'cancelled-returned',
+      'rejected'
     ),
     defaultValue: 'awaiting_schedule'
   },
@@ -100,11 +101,11 @@ const Package = sequelize.define('Package', {
     allowNull: true
   },
   actualPickupTime: {
-    type: DataTypes.STRING,
+    type: DataTypes.DATE,
     allowNull: true
   },
   actualDeliveryTime: {
-    type: DataTypes.STRING,
+    type: DataTypes.DATE,
     allowNull: true
   },
   priority: {
@@ -140,6 +141,10 @@ const Package = sequelize.define('Package', {
     allowNull: true
   },
   notes: {
+    type: DataTypes.JSON, // Array of note objects: { text, createdAt, author }
+    allowNull: true
+  },
+  shopNotes: {
     type: DataTypes.TEXT,
     allowNull: true
   },

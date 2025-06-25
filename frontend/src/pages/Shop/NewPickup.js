@@ -18,7 +18,7 @@ const NewPickup = () => {
       try {
         setLoading(true);
         // Fetch packages that are awaiting schedule
-        const packagesResponse = await packageService.getPackages();
+        const packagesResponse = await packageService.getPackages({limit: 10000});
         const packages = packagesResponse.data.packages || packagesResponse.data || [];
         const awaitingSchedulePackages = packages.filter(pkg => pkg.status === 'awaiting_schedule');
         setPackages(awaitingSchedulePackages);

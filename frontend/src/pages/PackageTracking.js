@@ -224,6 +224,42 @@ const PackageTracking = () => {
                 )}
               </div>
             </div>
+
+            {/* Notes Log Section (copied exactly from mobile tracker) */}
+            <div className="mobile-tracking-notes-log" style={{background:'#fff', border:'1px solid #e0e0e0', borderRadius:'8px', padding:'1.25rem', marginTop:'1.5rem', marginBottom:'1.5rem'}}>
+              <span style={{fontWeight:'bold', fontSize:'1.08em', marginBottom:'0.5rem', display:'block'}}>Notes Log</span>
+              <div className="notes-log-list">
+                {(() => {
+                  let notesArr = [];
+                  if (Array.isArray(packageData?.notes)) {
+                    notesArr = packageData.notes;
+                  } else if (typeof packageData?.notes === 'string') {
+                    try {
+                      notesArr = JSON.parse(packageData.notes);
+                    } catch {
+                      notesArr = [];
+                    }
+                  }
+                  notesArr = notesArr
+                    .filter(n => n && typeof n.text === 'string' && n.text.trim())
+                    .sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
+                  return (notesArr.length > 0) ? (
+                    notesArr.map((n, idx) => (
+                      <div key={idx} className="notes-log-entry">
+                        <div className="notes-log-meta">
+                          <span className="notes-log-date">
+                            {n.createdAt ? new Date(n.createdAt).toLocaleString() : 'Unknown date'}
+                          </span>
+                        </div>
+                        <div className="notes-log-text">{n.text}</div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="notes-log-empty">No notes yet.</div>
+                  );
+                })()}
+              </div>
+            </div>
           </div>
         </div>
       )}

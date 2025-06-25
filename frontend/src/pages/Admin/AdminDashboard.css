@@ -1412,6 +1412,77 @@
   .filter-select {
     width: 100%;
   }
+
+  .dashboard-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .admin-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+
+  .search-bar {
+    width: 100%;
+  }
+
+  .tabs {
+    flex-wrap: wrap;
+  }
+
+  .admin-table {
+    border: none;
+    box-shadow: none;
+  }
+
+  .admin-table thead {
+    display: none;
+  }
+
+  .admin-table tr {
+    display: block;
+    margin-bottom: 1rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    background-color: white;
+    border: 1px solid #eee;
+    padding: 0;
+  }
+
+  .admin-table td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 15px;
+    border-bottom: 1px solid #eee;
+    text-align: right;
+  }
+  
+  .admin-table td:last-child {
+    border-bottom: none;
+  }
+
+  .admin-table td::before {
+    content: attr(data-label);
+    font-weight: bold;
+    text-align: left;
+    margin-right: 1rem;
+    color: #333;
+    white-space: nowrap;
+  }
+
+  .dashboard-content {
+    width: 100%;
+    padding: 1rem;
+  }
+
+  .filters-section {
+    flex-direction: column;
+    gap: 1rem;
+  }
 }
 
 .sortable-header {
@@ -1494,9 +1565,9 @@
 }
 
 .status-cancelled-returned {
-  background-color: #e8f5e8;
-  color: #388e3c;
-  border: 1px solid #c8e6c9;
+  background-color: #ffebee;
+  color: #d32f2f;
+  border: 1px solid #ffcdd2;
 }
 
 .action-btn.return-btn {

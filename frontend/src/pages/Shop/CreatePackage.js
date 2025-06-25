@@ -58,7 +58,7 @@ const CreatePackage = () => {
       instructions: ''
     },
     schedulePickupTime: '',
-    notes: '',
+    shopNotes: '',
     codAmount: '',
     deliveryCost: '',
     paymentMethod: '',
@@ -97,7 +97,11 @@ const CreatePackage = () => {
         }
       });
     } else {
-      setFormData({ ...formData, [name]: value });
+      if (name === 'notes') {
+        setFormData({ ...formData, shopNotes: value });
+      } else {
+        setFormData({ ...formData, [name]: value });
+      }
     }
     
     setError('');
@@ -116,7 +120,6 @@ const CreatePackage = () => {
       
       if (!formData.deliveryAddress.contactName || !formData.deliveryAddress.contactPhone ||
           !formData.deliveryAddress.street || !formData.deliveryAddress.city ||
-          !formData.deliveryAddress.state || !formData.deliveryAddress.zipCode ||
           !formData.deliveryAddress.country) {
         throw new Error('Please complete all delivery address fields');
       }
@@ -134,7 +137,8 @@ const CreatePackage = () => {
         codAmount: formData.codAmount ? parseFloat(formData.codAmount) : 0,
         deliveryCost: formData.deliveryCost ? parseFloat(formData.deliveryCost) : 0,
         paymentMethod: formData.paymentMethod || null,
-        paymentNotes: formData.paymentNotes || null
+        paymentNotes: formData.paymentNotes || null,
+        shopNotes: formData.shopNotes
       };
       
       // Submit to API
@@ -177,7 +181,7 @@ const CreatePackage = () => {
           instructions: ''
         },
         schedulePickupTime: '',
-        notes: '',
+        shopNotes: '',
         codAmount: '',
         deliveryCost: '',
         paymentMethod: '',
@@ -417,7 +421,7 @@ const CreatePackage = () => {
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem', marginTop: '0.5rem' }}>
               <div className="form-group">
-                <label htmlFor="deliveryAddress.state">State*</label>
+                <label htmlFor="deliveryAddress.state">State</label>
                 <input
                   type="text"
                   id="deliveryAddress.state"
@@ -425,13 +429,12 @@ const CreatePackage = () => {
                   value={formData.deliveryAddress.state}
                   onChange={handleChange}
                   placeholder="State"
-                  required
                   style={{ padding: '0.5rem' }}
                 />
               </div>
               
               <div className="form-group">
-                <label htmlFor="deliveryAddress.zipCode">Zip Code*</label>
+                <label htmlFor="deliveryAddress.zipCode">Zip Code</label>
                 <input
                   type="text"
                   id="deliveryAddress.zipCode"
@@ -439,7 +442,6 @@ const CreatePackage = () => {
                   value={formData.deliveryAddress.zipCode}
                   onChange={handleChange}
                   placeholder="Zip code"
-                  required
                   style={{ padding: '0.5rem' }}
                 />
               </div>
@@ -458,19 +460,6 @@ const CreatePackage = () => {
                 />
               </div>
             </div>
-
-            <div className="form-group" style={{ marginTop: '0.5rem' }}>
-              <label htmlFor="deliveryAddress.instructions">Delivery Instructions</label>
-              <textarea
-                id="deliveryAddress.instructions"
-                name="deliveryAddress.instructions"
-                value={formData.deliveryAddress.instructions}
-                onChange={handleChange}
-                placeholder="Special instructions for delivery"
-                rows="2"
-                style={{ padding: '0.5rem', width: '100%' }}
-              ></textarea>
-            </div>
           </div>
           
           <div className="form-section" style={{ marginBottom: '1rem' }}>
@@ -478,13 +467,13 @@ const CreatePackage = () => {
             
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
               <div className="form-group">
-                <label htmlFor="notes">Notes</label>
+                <label htmlFor="shopNotes">Shop Notes</label>
                 <textarea
-                  id="notes"
+                  id="shopNotes"
                   name="notes"
-                  value={formData.notes}
+                  value={formData.shopNotes}
                   onChange={handleChange}
-                  placeholder="Additional notes"
+                  placeholder="Additional notes from the shop"
                   rows="2"
                   style={{ padding: '0.5rem', width: '100%' }}
                 ></textarea>

@@ -1,9 +1,8 @@
 import axios from 'axios';
 import { getToken } from '../utils/auth';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const API_URL = process.env.REACT_APP_API_URL || 'http://41.36.105.137:5000/api';
 // const API_URL = process.env.REACT_APP_API_URL || 'http://197.37.15.124:5000/api';
-// const API_URL = 'https://droppin-backend.vercel.app/api';
 
 // Create axios instance
 const api = axios.create({
@@ -96,6 +95,9 @@ export const packageService = {
   getPickupById: (id) => api.get(`/pickups/${id}`),
   cancelPickup: (pickupId) => api.patch(`/pickups/${pickupId}/cancel`),
   getMoneyTransactions: (params = {}) => api.get('/shops/money-transactions', { params }),
+  updatePackageNotes: (id, note) => {
+    return api.patch(`/packages/${id}/notes`, { note });
+  },
 };
 
 // Shop service
@@ -151,6 +153,11 @@ export const adminService = {
   updatePackagePayment: (packageId, data) => api.patch(`/admin/packages/${packageId}/payment`, data),
   getShopPackages: (shopId) => api.get(`/admin/packages`, { params: { shopId } }),
   getMoneyTransactions: (params = {}) => api.get('/admin/money', { params }),
+  // Analytics endpoints
+  getPackagesPerMonth: () => api.get('/admin/analytics/packages-per-month'),
+  getCodCollectedPerMonth: () => api.get('/admin/analytics/cod-per-month'),
+  getPackageStatusDistribution: () => api.get('/admin/analytics/package-status-distribution'),
+  getTopShops: () => api.get('/admin/analytics/top-shops'),
 };
 
 export default api;

@@ -1,0 +1,58 @@
+{
+  "name": "droppin-unified-frontend",
+  "version": "1.0.0",
+  "description": "Unified frontend for Droppin delivery platform with automatic device detection",
+  "private": true,
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject",
+    "dev": "concurrently \"npm run start\" \"npm run start-backend\"",
+    "start-backend": "cd backend && npm start",
+    "install-all": "npm install && cd frontend && npm install && cd ../mobile-frontend && npm install && cd ../backend && npm install"
+  },
+  "dependencies": {
+    "@fortawesome/fontawesome-free": "^6.7.2",
+    "@fortawesome/fontawesome-svg-core": "^6.7.2",
+    "@fortawesome/free-solid-svg-icons": "^6.7.2",
+    "@fortawesome/react-fontawesome": "^0.2.2",
+    "@testing-library/dom": "^10.4.0",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^13.5.0",
+    "antd": "^5.26.1",
+    "axios": "^1.10.0",
+    "bootstrap": "^5.3.7",
+    "chart.js": "^4.5.0",
+    "concurrently": "^8.2.2",
+    "express": "^5.1.0",
+    "moment-timezone": "^0.6.0",
+    "react": "^19.1.0",
+    "react-chartjs-2": "^5.3.0",
+    "react-dom": "^19.1.0",
+    "react-router-dom": "^6.30.1",
+    "react-scripts": "5.0.1",
+    "sequelize": "^6.37.7",
+    "twilio": "^5.7.1",
+    "web-vitals": "^2.1.4"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  }
+}

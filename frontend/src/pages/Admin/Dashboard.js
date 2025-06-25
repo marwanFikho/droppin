@@ -5,10 +5,34 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faUser, faStore, faTruck, faBox, faSearch, faEye, faCheck, faTimes, faChartBar, faUserPlus, faTimes as faClose, faEdit, faSignOutAlt, faTrash, faDollarSign } from '@fortawesome/free-solid-svg-icons';
 import { formatDate } from '../../utils/dateUtils';
 import './AdminDashboard.css';
+import { Line, Bar, Pie } from 'react-chartjs-2';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend
+} from 'chart.js';
+import { Card, Statistic, Flex, Row, Col, Spin } from 'antd';
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend
+);
 
 const AdminDashboard = () => {
   const { currentUser, logout } = useAuth();
-  const [activeTab, setActiveTab] = useState('pending');
+  const [activeTab, setActiveTab] = useState('dashboard');
   const [users, setUsers] = useState([]);
   const [packages, setPackages] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -22,7 +46,8 @@ const AdminDashboard = () => {
   const [assigningDriver, setAssigningDriver] = useState(false);
   const [stats, setStats] = useState({
     users: { total: 0, shops: 0, drivers: 0, customers: 0 },
-    packages: { total: 0, pending: 0, inTransit: 0, delivered: 0 }
+    packages: { total: 0, pending: 0, inTransit: 0, delivered: 0 },
+    cod: { totalCollected: 0, totalToCollect: 0 }
   });
   const [shopPackages, setShopPackages] = useState([]);
   const [isLoadingShopPackages, setIsLoadingShopPackages] = useState(false);
@@ -55,6 +80,13 @@ const AdminDashboard = () => {
   const [forwardingPackageId, setForwardingPackageId] = useState(null);
   const [settleAmountInput, setSettleAmountInput] = useState('');
   const [moneyTransactions, setMoneyTransactions] = useState([]);
+  const [dashboardData, setDashboardData] = useState({
+    packagesChart: { labels: [], datasets: [] },
+    codChart: { labels: [], datasets: [] },
+    recentPackages: [],
+    recentSettlements: [],
+    totalCodCollected: 0
+  });
   // Add new state variables for money transactions
   const [moneyFilters, setMoneyFilters] = useState({
     startDate: '',
@@ -69,6 +101,20 @@ const AdminDashboard = () => {
     field: 'createdAt',
     order: 'DESC'
   });
+  const [analytics, setAnalytics] = useState({
+    packagesPerMonth: [],
+    codPerMonth: [],
+    statusDistribution: [],
+    topShops: { volume: [], cod: [] }
+  });
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  // --- Notes Log Section ---
+  const [editingNotes, setEditingNotes] = useState('');
+  const [notesSaving, setNotesSaving] = useState(false);
+  const [notesError, setNotesError] = useState(null);
+  const [showForwardPackageModal, setShowForwardPackageModal] = useState(false);
+  const [showRejectPackageModal, setShowRejectPackageModal] = useState(false);
+  const [packageToAction, setPackageToAction] = useState(null);
 
   // Add new tab for Return to Shop
   const PACKAGE_TABS = [
@@ -107,6 +153,38 @@ const AdminDashboard = () => {
       // Optionally show error
     } finally {
       setForwardingPackageId(null);
+    }
+  };
+
+  // Add reject package function
+  const rejectPackage = async (pkg) => {
+    try {
+      await packageService.updatePackageStatus(pkg.id, { status: 'rejected' });
+      setPackages(prev => prev.map(p => p.id === pkg.id ? { ...p, status: 'rejected' } : p));
+      setShowRejectPackageModal(false);
+      setPackageToAction(null);
+      setShowDetailsModal(false);
+    } catch (err) {
+      console.error('Error rejecting package:', err);
+    }
+  };
+
+  // Add forward package function with confirmation
+  const forwardPackage = async (pkg) => {
+    try {
+      const statusFlow = ['assigned', 'pickedup', 'in-transit', 'delivered'];
+      const currentIndex = statusFlow.indexOf(pkg.status);
+      if (currentIndex === -1 || currentIndex === statusFlow.length - 1) {
+        return;
+      }
+      const nextStatus = statusFlow[currentIndex + 1];
+      await packageService.updatePackageStatus(pkg.id, { status: nextStatus });
+      setPackages(prev => prev.map(p => p.id === pkg.id ? { ...p, status: nextStatus } : p));
+      setShowForwardPackageModal(false);
+      setPackageToAction(null);
+      setShowDetailsModal(false);
+    } catch (err) {
+      console.error('Error forwarding package:', err);
     }
   };
 
@@ -175,6 +253,30 @@ const AdminDashboard = () => {
         console.log('Dashboard stats received:', statsResponse.data);
         setStats(statsResponse.data);
         
+        // For dashboard, we need packages and transactions
+        if (activeTab === 'dashboard') {
+          // Calculate 7 days ago date string
+          const now = new Date();
+          const sevenDaysAgo = new Date();
+          sevenDaysAgo.setDate(now.getDate() - 6); // 6 to include today as the 7th day
+          sevenDaysAgo.setHours(0, 0, 0, 0);
+          const createdAfter = sevenDaysAgo.toISOString();
+          const deliveredAfter = createdAfter;
+          // Fetch packages created OR delivered in the last 7 days
+          const [createdPkgs, deliveredPkgs, trans] = await Promise.all([
+            adminService.getPackages({ createdAfter }),
+            adminService.getPackages({ deliveredAfter }),
+            adminService.getMoneyTransactions()
+          ]);
+          // Merge and deduplicate packages by ID
+          const pkgsMap = {};
+          (createdPkgs.data || []).forEach(pkg => { pkgsMap[pkg.id] = pkg; });
+          (deliveredPkgs.data || []).forEach(pkg => { pkgsMap[pkg.id] = pkg; });
+          const pkgs = Object.values(pkgsMap);
+          setPackages(pkgs);
+          setMoneyTransactions(trans.data.transactions || []);
+        }
+        
         // Load appropriate data based on active tab
         switch (activeTab) {
           case 'pending':
@@ -226,6 +328,107 @@ const AdminDashboard = () => {
     
     fetchData();
   }, [activeTab, packagesTab, sortConfig]);
+
+  // New useEffect for processing dashboard data
+  useEffect(() => {
+    if (activeTab === 'dashboard' && packages.length > 0) {
+      // Process Packages Over Time (last 7 days)
+      const last7DaysLabels = [...Array(7)].map((_, i) => {
+        const d = new Date();
+        d.setDate(d.getDate() - (6 - i));
+        return d.toLocaleDateString('en-US', { weekday: 'short' });
+      });
+
+      const createdPerDay = Array(7).fill(0);
+      const deliveredPerDay = Array(7).fill(0);
+
+      packages.forEach(pkg => {
+        const now = new Date();
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(now.getDate() - 7);
+
+        const createdAt = new Date(pkg.createdAt);
+        if (createdAt >= sevenDaysAgo) {
+          const dayIndex = 6 - Math.floor((now - createdAt) / (1000 * 60 * 60 * 24));
+          if(dayIndex >= 0 && dayIndex < 7) createdPerDay[dayIndex]++;
+        }
+
+        // Count as delivered if status is exactly 'delivered', regardless of actualDeliveryTime
+        if (pkg.status === 'delivered') {
+          const deliveredAt = pkg.actualDeliveryTime ? new Date(pkg.actualDeliveryTime) : new Date(pkg.updatedAt || pkg.createdAt);
+          if (deliveredAt >= sevenDaysAgo) {
+            const dayIndex = 6 - Math.floor((now - deliveredAt) / (1000 * 60 * 60 * 24));
+            if(dayIndex >= 0 && dayIndex < 7) deliveredPerDay[dayIndex]++;
+          }
+        }
+      });
+      
+      const packagesChart = {
+        labels: last7DaysLabels,
+        datasets: [
+          {
+            label: 'Created',
+            data: createdPerDay,
+            borderColor: 'rgba(75,192,192,1)',
+            backgroundColor: 'rgba(75,192,192,0.2)',
+            tension: 0.4,
+          },
+          {
+            label: 'Delivered',
+            data: deliveredPerDay,
+            borderColor: 'rgba(54,162,235,1)',
+            backgroundColor: 'rgba(54,162,235,0.2)',
+            tension: 0.4,
+          },
+        ],
+      };
+
+      // Process COD Collected
+      const totalCod = packages
+        .filter(p => p.status === 'delivered' && p.codAmount > 0)
+        .reduce((sum, p) => sum + parseFloat(p.codAmount), 0);
+      
+      const weeklyCod = [0, 0, 0, 0];
+      const today = new Date();
+      packages.filter(p => p.status === 'delivered' && p.codAmount > 0 && p.actualDeliveryTime).forEach(p => {
+        const deliveryDate = new Date(p.actualDeliveryTime);
+        const weeksAgo = Math.floor((today - deliveryDate) / (1000 * 60 * 60 * 24 * 7));
+        if (weeksAgo < 4) {
+          weeklyCod[3 - weeksAgo] += parseFloat(p.codAmount);
+        }
+      });
+
+      const codChart = {
+        labels: ['3 wks ago', '2 wks ago', 'Last wk', 'This wk'],
+        datasets: [{
+          label: 'COD Collected',
+          data: weeklyCod,
+          backgroundColor: 'rgba(255, 206, 86, 0.6)',
+          borderColor: 'rgba(255, 206, 86, 1)',
+          borderWidth: 1,
+        }]
+      };
+
+      // Recent Packages
+      const recentPackages = [...packages]
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+        .slice(0, 5);
+      
+      // Recent Settlements
+      const recentSettlements = moneyTransactions
+        .filter(tx => tx.description && (tx.description.toLowerCase().includes('settle') || tx.changeType === 'payout'))
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+        .slice(0, 5);
+
+      setDashboardData({
+        packagesChart,
+        codChart,
+        recentPackages,
+        recentSettlements,
+        totalCodCollected: totalCod
+      });
+    }
+  }, [activeTab, packages, moneyTransactions]);
 
   // Clear selected packages when switching tabs or when packages change
   useEffect(() => {
@@ -466,6 +669,14 @@ const AdminDashboard = () => {
                   const packagesResponse = await adminService.getPackages();
                   setPackages(packagesResponse.data || []);
                   break;
+                case 'dashboard':
+                  const [pkgs, trans] = await Promise.all([
+                    adminService.getPackages(),
+                    adminService.getMoneyTransactions()
+                  ]);
+                  setPackages(pkgs.data || []);
+                  setMoneyTransactions(trans.data.transactions || []);
+                  break;
                 default:
                   break;
               }
@@ -542,6 +753,14 @@ const AdminDashboard = () => {
                   );
                   setPackages(filteredPackages);
                 }
+                break;
+              case 'dashboard':
+                const [pkgs, trans] = await Promise.all([
+                  adminService.getPackages(),
+                  adminService.getMoneyTransactions()
+                ]);
+                setPackages(pkgs.data || []);
+                setMoneyTransactions(trans.data.transactions || []);
                 break;
               default:
                 break;
@@ -777,11 +996,22 @@ const AdminDashboard = () => {
 
   // View entity details
   const viewDetails = (entity, type) => {
-    console.log('Viewing details for:', entity, type);
+    // Parse notes as array if this is a package
+    let notesArr = [];
+    if (type === 'package') {
+      if (Array.isArray(entity.notes)) {
+        notesArr = entity.notes;
+      } else if (typeof entity.notes === 'string') {
+        try {
+          notesArr = JSON.parse(entity.notes);
+        } catch {
+          notesArr = [];
+        }
+      }
+    }
     entity.entityType = type;
-    setSelectedEntity(entity);
+    setSelectedEntity(type === 'package' ? { ...entity, notes: notesArr } : entity);
     setShowDetailsModal(true);
-    
     // Reset shop packages when viewing a new entity
     setShopPackages([]);
     setShopPackagesWithUnpaidMoney([]);
@@ -975,12 +1205,12 @@ const AdminDashboard = () => {
         <tbody>
           {filteredUsers.map(user => (
             <tr key={user.id}>
-              <td>
+              <td data-label="Name">
                 {activeTab === 'drivers' ? getRoleIcon(user.role) : getRoleIcon(user.role)} {activeTab === 'drivers' || activeTab === 'users' ? user.name : user.businessName || 'N/A'}
               </td>
-              <td>{user.email}</td>
+              <td data-label="Email">{user.email}</td>
               {activeTab === 'drivers' && (
-              <td>
+              <td data-label="Status">
                 <span style={{color: user.isAvailable ? '#2e7d32' : '#d32f2f', backgroundColor: user.isAvailable ? '#e8f5e9' : '#ffcdd2', padding: '5px 10px', borderRadius: '20px', fontSize: '14px', fontWeight: '500'}}>
                   {user.isAvailable ? 'Available' : 'Unavailable'}
                 </span>
@@ -988,17 +1218,17 @@ const AdminDashboard = () => {
               )}
               {activeTab === 'shops' && (
                 <>
-                  <td className="financial-cell" style={{fontSize: '15px'}}>
+                  <td data-label="To Collect ($)" className="financial-cell" style={{fontSize: '15px'}}>
                     ${parseFloat(user.ToCollect || 0).toFixed(2)}
                   </td>
-                  <td className="financial-cell" style={{fontSize: '15px'}}>
+                  <td data-label="Collected ($)" className="financial-cell" style={{fontSize: '15px'}}>
                     ${parseFloat(user.TotalCollected || 0).toFixed(2)}
                   </td>
                 </>
               )}
               {activeTab === 'drivers' && (
                 <>
-                  <td className="working-area-cell">
+                  <td data-label="Working Area" className="working-area-cell">
                     {user.workingArea || 'Not assigned'}
                     <button 
                       className="action-btn edit-btn"
@@ -1009,12 +1239,12 @@ const AdminDashboard = () => {
                       <FontAwesomeIcon icon={faEdit} />
                     </button>
                   </td>
-                  <td>{user.totalAssigned || 0}</td>
-                  <td>{user.activeAssign || 0}</td>
-                  <td>{user.totalDeliveries || 0}</td>
+                  <td data-label="Total Assigned">{user.totalAssigned || 0}</td>
+                  <td data-label="Active Assignments">{user.activeAssign || 0}</td>
+                  <td data-label="Total Delivered">{user.totalDeliveries || 0}</td>
                 </>
               )}
-              <td className="actions-cell">
+              <td data-label="Actions" className="actions-cell">
                 {!user.isApproved && (
                   <>
                     <button 
@@ -1133,7 +1363,7 @@ const AdminDashboard = () => {
           {filteredPackages.map(pkg => (
             <tr key={pkg.id}>
               {packagesTab === 'ready-to-assign' && (
-                <td>
+                <td data-label="Select">
                   <input
                     type="checkbox"
                     checked={selectedPackages.includes(pkg.id)}
@@ -1141,21 +1371,21 @@ const AdminDashboard = () => {
                   />
                 </td>
               )}
-              <td>{pkg.trackingNumber}</td>
-              <td>{pkg.packageDescription}</td>
-              <td>
+              <td data-label="Tracking Number">{pkg.trackingNumber}</td>
+              <td data-label="Description">{pkg.packageDescription}</td>
+              <td data-label="Status">
                 <span className={`status-badge status-${pkg.status}`}>
                   {pkg.status.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
                 </span>
               </td>
-              <td>{pkg.shop?.businessName || 'N/A'}</td>
-              <td>{pkg.deliveryAddress}</td>
-              <td>${parseFloat(pkg.codAmount || 0).toFixed(2)}</td>
-              <td>{(() => {
+              <td data-label="From">{pkg.shop?.businessName || 'N/A'}</td>
+              <td data-label="To">{pkg.deliveryAddress}</td>
+              <td data-label="COD Amount">${parseFloat(pkg.codAmount || 0).toFixed(2)}</td>
+              <td data-label="Driver">{(() => {
                 const driver = drivers.find(d => d.driverId === pkg.driverId || d.id === pkg.driverId);
                 return driver ? driver.name : 'Unassigned';
               })()}</td>
-              <td>
+              <td data-label="Actions">
                 <button 
                   className="action-btn view-btn"
                   onClick={() => viewDetails(pkg, 'package')}
@@ -1208,22 +1438,21 @@ const AdminDashboard = () => {
             <th>Status</th>
             <th>Package Count</th>
             <th>Actions</th>
-            <th></th>
           </tr>
         </thead>
         <tbody>
           {pickups.map(pickup => (
             <tr key={pickup.id}>
-              <td>{pickup.Shop?.businessName || 'N/A'}</td>
-              <td>{new Date(pickup.scheduledTime).toLocaleString()}</td>
-              <td>{pickup.pickupAddress}</td>
-              <td>
+              <td data-label="Shop">{pickup.Shop?.businessName || 'N/A'}</td>
+              <td data-label="Scheduled Time">{new Date(pickup.scheduledTime).toLocaleString()}</td>
+              <td data-label="Address">{pickup.pickupAddress}</td>
+              <td data-label="Status">
                 <span className={`status-badge status-${pickup.status}`}>
                   {pickup.status.charAt(0).toUpperCase() + pickup.status.slice(1).replace('_', ' ')}
                 </span>
               </td>
-              <td>{pickup.Packages?.length || 0}</td>
-              <td>
+              <td data-label="Package Count">{pickup.Packages?.length || 0}</td>
+              <td data-label="Actions">
                 {pickup.status === 'scheduled' && (
                   <button 
                     className="action-btn assign-btn"
@@ -1233,8 +1462,6 @@ const AdminDashboard = () => {
                     <FontAwesomeIcon icon={faCheck} />
                   </button>
                 )}
-              </td>
-              <td>
                 <button 
                   className="action-btn view-btn"
                   onClick={() => handlePickupClick(pickup)}
@@ -1611,6 +1838,14 @@ const AdminDashboard = () => {
               <span className="label">Dimensions:</span>
               <span>{selectedEntity.dimensions || 'N/A'}</span>
             </div>
+            <div className="detail-item">
+              <span className="label">COD Amount:</span>
+              <span>{selectedEntity.codAmount ? `${selectedEntity.codAmount} EGP` : 'N/A'}</span>
+            </div>
+            <div className="detail-item full-width">
+              <span className="label">Shop Notes:</span>
+              <span>{selectedEntity.shopNotes}</span>
+            </div>
             
             {/* Pickup address */}
             <div className="detail-item full-width">
@@ -1698,6 +1933,73 @@ const AdminDashboard = () => {
                 </div>
               </div>
             )}
+            {/* --- Notes Log Section (in a box like Delivery Details) --- */}
+            <div className="detail-item full-width" style={{background:'#fff', border:'1px solid #e0e0e0', borderRadius:'8px', padding:'1.25rem', marginTop:'1.5rem', marginBottom:'1.5rem'}}>
+              <span className="label" style={{fontWeight:'bold', fontSize:'1.08em', marginBottom:'0.5rem', display:'block'}}>Notes Log</span>
+              <div className="notes-log-list" style={{display:'flex', flexDirection:'column', gap:'0.75rem'}}>
+                {(() => {
+                  let notesArr = [];
+                  if (Array.isArray(selectedEntity?.notes)) {
+                    notesArr = selectedEntity.notes;
+                  } else if (typeof selectedEntity?.notes === 'string') {
+                    try {
+                      notesArr = JSON.parse(selectedEntity.notes);
+                    } catch {
+                      notesArr = [];
+                    }
+                  }
+                  notesArr = notesArr
+                    .filter(n => n && typeof n.text === 'string' && n.text.trim())
+                    .sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
+                  return (notesArr.length > 0) ? (
+                    notesArr.map((n, idx) => (
+                      <div key={idx} className="notes-log-entry" style={{background:'#f8f9fa', borderRadius:'6px', padding:'0.75rem 1rem', boxShadow:'0 1px 2px rgba(0,0,0,0.03)', border:'1px solid #ececec'}}>
+                        <div className="notes-log-meta" style={{marginBottom:'0.25rem'}}>
+                          <span className="notes-log-date" style={{fontSize:'0.92em', color:'#888'}}>
+                            {n.createdAt ? new Date(n.createdAt).toLocaleString() : 'Unknown date'}
+                          </span>
+                        </div>
+                        <div className="notes-log-text" style={{whiteSpace:'pre-line', fontSize:'1.05em', color:'#222'}}>{n.text}</div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="notes-log-empty" style={{color:'#888', fontStyle:'italic'}}>No notes yet.</div>
+                  );
+                })()}
+              </div>
+              <div style={{marginTop:'1.5rem'}}>
+                <textarea
+                  value={editingNotes}
+                  onChange={e => setEditingNotes(e.target.value)}
+                  placeholder="Add a note for this package..."
+                  rows={2}
+                  style={{ width: '100%', marginTop: 4, borderRadius:'6px', border:'1px solid #ccc', padding:'0.5rem', fontSize:'1em' }}
+                />
+                <button
+                  className="add-note-btn"
+                  onClick={async () => {
+                    if (!editingNotes.trim()) return;
+                    setNotesSaving(true);
+                    setNotesError(null);
+                    try {
+                      const res = await packageService.updatePackageNotes(selectedEntity.id, editingNotes);
+                      setSelectedEntity(prev => ({ ...prev, notes: res.data.notes }));
+                      setEditingNotes('');
+                    } catch (err) {
+                      console.error('Error adding note:', err);
+                      setNotesError(err.response?.data?.message || 'Failed to save note.');
+                    } finally {
+                      setNotesSaving(false);
+                    }
+                  }}
+                  disabled={notesSaving || !editingNotes.trim()}
+                  style={{ marginTop: 8, borderRadius:'6px', padding:'0.5rem 1.2rem', fontWeight:'bold', background:'#007bff', color:'#fff', border:'none', cursor:'pointer' }}
+                >
+                  {notesSaving ? 'Saving...' : 'Add Note'}
+                </button>
+                {notesError && <div className="error-message" style={{color:'#dc3545', marginTop:'0.5rem'}}>{notesError}</div>}
+              </div>
+            </div>
           </div>
         )}
         
@@ -1829,6 +2131,32 @@ const AdminDashboard = () => {
           >
             Close
           </button>
+          
+          {/* Package action buttons */}
+          {isPackage && ['assigned', 'pickedup', 'in-transit'].includes(selectedEntity.status) && (
+            <>
+              <button 
+                className="btn approve-btn"
+                onClick={() => {
+                  setPackageToAction(selectedEntity);
+                  setShowForwardPackageModal(true);
+                }}
+                style={{ marginLeft: 8 }}
+              >
+                <FontAwesomeIcon icon={faCheck} /> Forward Package
+              </button>
+              <button 
+                className="btn reject-btn"
+                onClick={() => {
+                  setPackageToAction(selectedEntity);
+                  setShowRejectPackageModal(true);
+                }}
+                style={{ marginLeft: 8 }}
+              >
+                <FontAwesomeIcon icon={faTimes} /> Reject Package
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -1857,6 +2185,74 @@ const AdminDashboard = () => {
               onClick={() => confirmAction && confirmAction()}
             >
               Confirm
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Render forward package confirmation modal
+  const renderForwardPackageModal = () => {
+    if (!showForwardPackageModal || !packageToAction) return null;
+    
+    const statusFlow = ['assigned', 'pickedup', 'in-transit', 'delivered'];
+    const currentIndex = statusFlow.indexOf(packageToAction.status);
+    const nextStatus = currentIndex < statusFlow.length - 1 ? statusFlow[currentIndex + 1] : null;
+    
+    if (!nextStatus) return null;
+    
+    return (
+      <div className="confirmation-overlay">
+        <div className="confirmation-dialog">
+          <h3>Forward Package</h3>
+          <p>Are you sure you want to forward this package from <strong>{packageToAction.status}</strong> to <strong>{nextStatus}</strong>?</p>
+          <div className="confirmation-buttons">
+            <button 
+              className="btn-secondary"
+              onClick={() => {
+                setShowForwardPackageModal(false);
+                setPackageToAction(null);
+              }}
+            >
+              Cancel
+            </button>
+            <button 
+              className="btn-primary"
+              onClick={() => forwardPackage(packageToAction)}
+            >
+              Forward
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Render reject package confirmation modal
+  const renderRejectPackageModal = () => {
+    if (!showRejectPackageModal || !packageToAction) return null;
+    
+    return (
+      <div className="confirmation-overlay">
+        <div className="confirmation-dialog warning-dialog">
+          <h3>Reject Package</h3>
+          <p>Are you sure you want to reject this package? This will mark it as <strong>rejected</strong>.</p>
+          <div className="confirmation-buttons">
+            <button 
+              className="btn-secondary"
+              onClick={() => {
+                setShowRejectPackageModal(false);
+                setPackageToAction(null);
+              }}
+            >
+              Cancel
+            </button>
+            <button 
+              className="btn-primary danger"
+              onClick={() => rejectPackage(packageToAction)}
+            >
+              Reject
             </button>
           </div>
         </div>
@@ -2510,18 +2906,18 @@ const AdminDashboard = () => {
           <tbody>
             {moneyTransactions.map(tx => (
               <tr key={tx.id}>
-                <td>{new Date(tx.createdAt).toLocaleString()}</td>
-                <td>{tx.Shop?.businessName || tx.shopId}</td>
-                <td>{tx.attribute}</td>
-                <td>
+                <td data-label="Date">{new Date(tx.createdAt).toLocaleString()}</td>
+                <td data-label="Shop">{tx.Shop?.businessName || tx.shopId}</td>
+                <td data-label="Attribute">{tx.attribute}</td>
+                <td data-label="Type">
                   <span className={`change-type ${tx.changeType}`}>
                     {tx.changeType}
                   </span>
                 </td>
-                <td className={`financial-cell ${tx.changeType}`}>
+                <td data-label="Amount ($)" className={`financial-cell ${tx.changeType}`}>
                   ${parseFloat(tx.amount).toFixed(2)}
                 </td>
-                <td>{tx.description || '-'}</td>
+                <td data-label="Description">{tx.description || '-'}</td>
               </tr>
             ))}
           </tbody>
@@ -2612,10 +3008,189 @@ const AdminDashboard = () => {
     }
   }, [activeTab, packagesTab]);
 
+  useEffect(() => {
+    if (activeTab === 'dashboard') {
+      setAnalyticsLoading(true);
+      Promise.all([
+        adminService.getPackagesPerMonth(),
+        adminService.getCodCollectedPerMonth(),
+        adminService.getPackageStatusDistribution(),
+        adminService.getTopShops()
+      ]).then(([pkgRes, codRes, statusRes, shopsRes]) => {
+        setAnalytics({
+          packagesPerMonth: pkgRes.data,
+          codPerMonth: codRes.data,
+          statusDistribution: statusRes.data,
+          topShops: shopsRes.data
+        });
+      }).finally(() => setAnalyticsLoading(false));
+    }
+  }, [activeTab]);
+
+  const chartBoxStyle = { height: 220, display: 'flex', alignItems: 'center', justifyContent: 'center' };
+
+  const renderDashboardHome = () => {
+    const kpiData = [
+      { title: 'Total Users', value: stats.users.total, icon: faUser },
+      { title: 'Shops', value: stats.users.shops, icon: faStore },
+      { title: 'Drivers', value: stats.users.drivers, icon: faTruck },
+      { title: 'Packages', value: stats.packages.total, icon: faBox },
+      { title: 'COD Collected (All Time)', value: stats.cod?.totalCollected || 0, icon: faDollarSign, prefix: '$' },
+      { title: 'To Collect COD (All Time)', value: stats.cod?.totalToCollect || 0, icon: faDollarSign, prefix: '$' },
+    ];
+
+    // --- New Analytics Graphs ---
+    const months = analytics.packagesPerMonth.map(row => row.month);
+    const createdData = analytics.packagesPerMonth.map(row => row.created);
+    const deliveredData = analytics.packagesPerMonth.map(row => row.delivered);
+    const codMonths = analytics.codPerMonth.map(row => row.month);
+    const codData = analytics.codPerMonth.map(row => row.codCollected);
+    // Group cancelled statuses and merge pickedup/in-transit into 'In-Transit'
+    const statusRaw = analytics.statusDistribution;
+    const statusMap = {};
+    statusRaw.forEach(row => {
+      const status = row.status.toLowerCase();
+      if (/cancel/i.test(status)) {
+        statusMap['Cancelled'] = (statusMap['Cancelled'] || 0) + Number(row.count);
+      } else if (status.includes('pickedup') || status.includes('in-transit')) {
+        statusMap['In-Transit'] = (statusMap['In-Transit'] || 0) + Number(row.count);
+      } else if (status === 'delivered') {
+        statusMap['Delivered'] = (statusMap['Delivered'] || 0) + Number(row.count);
+      } else {
+        statusMap[row.status] = (statusMap[row.status] || 0) + Number(row.count);
+      }
+    });
+    const statusLabels = Object.keys(statusMap);
+    const statusCounts = Object.values(statusMap);
+    // Assign colors: delivered = green, cancelled = red, in-transit = orange, others = blue
+    const statusColors = statusLabels.map(label => {
+      if (label.toLowerCase() === 'delivered') return '#28a745';
+      if (label.toLowerCase() === 'cancelled') return '#dc3545';
+      if (label.toLowerCase() === 'in-transit') return '#ff8c00';
+      // fallback palette
+      return '#007bff';
+    });
+    const topShopNames = analytics.topShops.volume.map(row => row.businessName);
+    const topShopVolumes = analytics.topShops.volume.map(row => row.packageCount);
+    const topShopCodNames = analytics.topShops.cod.map(row => row.businessName);
+    const topShopCods = analytics.topShops.cod.map(row => row.codCollected);
+
+    return (
+      <div className="dashboard-home">
+        <Flex gap="large" wrap="wrap">
+          {kpiData.map((kpi) => (
+            <Card key={kpi.title}>
+              <Statistic
+                title={kpi.title}
+                value={kpi.value}
+                prefix={kpi.prefix}
+                valueStyle={{ color: '#2c3e50', fontSize: '2rem' }}
+                formatter={value => (kpi.prefix === '$' ? parseFloat(value).toFixed(2) : value)}
+              />
+            </Card>
+          ))}
+        </Flex>
+        <Row gutter={[24, 24]} style={{ marginTop: '24px' }}>
+          <Col xs={24} lg={12}>
+            <Card title="Packages Over Time (Last 7 Days)">
+              <div className="chart-wrapper">
+                <Line data={dashboardData.packagesChart} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }} />
+              </div>
+            </Card>
+          </Col>
+          <Col xs={24} lg={12}>
+            <Card title="COD Collected (Last 4 Weeks)">
+              <div className="chart-wrapper">
+                <Bar data={dashboardData.codChart} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }} />
+              </div>
+            </Card>
+          </Col>
+        </Row>
+        <div className="dashboard-tables">
+          <div className="dashboard-table">
+            </div>
+          <div className="dashboard-table">
+            </div>
+        </div>
+        <div style={{ marginTop: 32 }}>
+          {analyticsLoading ? (
+            <Spin size="large" style={{ margin: '40px auto', display: 'block' }} />
+          ) : (
+            <>
+              <Card title="Monthly Package Trends (Last 12 Months)" style={{ marginBottom: 24 }}>
+                <div style={chartBoxStyle}>
+                  {months.length === 0 ? 'No data available' :
+                    <Bar data={{
+                      labels: months,
+                      datasets: [
+                        { label: 'Created', data: createdData, backgroundColor: 'rgba(54, 162, 235, 0.6)' },
+                        { label: 'Delivered', data: deliveredData, backgroundColor: 'rgba(75, 192, 192, 0.6)' }
+                      ]
+                    }} options={{ responsive: true, plugins: { legend: { position: 'top' } }, maintainAspectRatio: false }} />
+                  }
+                </div>
+              </Card>
+              <Card title="Monthly COD Collected (Last 12 Months)" style={{ marginBottom: 24 }}>
+                <div style={chartBoxStyle}>
+                  {codMonths.length === 0 ? 'No data available' :
+                    <Line data={{
+                      labels: codMonths,
+                      datasets: [
+                        { label: 'COD Collected', data: codData, borderColor: 'rgba(255, 206, 86, 1)', backgroundColor: 'rgba(255, 206, 86, 0.3)', fill: true, tension: 0.4 }
+                      ]
+                    }} options={{ responsive: true, plugins: { legend: { position: 'top' } }, maintainAspectRatio: false }} />
+                  }
+                </div>
+              </Card>
+              <Card title="Current Package Status Distribution" style={{ marginBottom: 24 }}>
+                <div style={chartBoxStyle}>
+                  {statusLabels.length === 0 ? 'No data available' :
+                    <Pie data={{
+                      labels: statusLabels,
+                      datasets: [
+                        { data: statusCounts, backgroundColor: statusColors }
+                      ]
+                    }} options={{ responsive: true, plugins: { legend: { position: 'right' } }, maintainAspectRatio: false }} />
+                  }
+                </div>
+              </Card>
+              <Card title="Top 5 Shops by Package Volume" style={{ marginBottom: 24 }}>
+                <div style={chartBoxStyle}>
+                  {topShopNames.length === 0 ? 'No data available' :
+                    <Bar data={{
+                      labels: topShopNames,
+                      datasets: [
+                        { label: 'Packages', data: topShopVolumes, backgroundColor: 'rgba(54, 162, 235, 0.7)' }
+                      ]
+                    }} options={{ responsive: true, plugins: { legend: { display: false } }, maintainAspectRatio: false }} />
+                  }
+                </div>
+              </Card>
+              <Card title="Top 5 Shops by COD Collected" style={{ marginBottom: 24 }}>
+                <div style={chartBoxStyle}>
+                  {topShopCodNames.length === 0 ? 'No data available' :
+                    <Bar data={{
+                      labels: topShopCodNames,
+                      datasets: [
+                        { label: 'COD Collected', data: topShopCods, backgroundColor: 'rgba(255, 206, 86, 0.7)' }
+                      ]
+                    }} options={{ responsive: true, plugins: { legend: { display: false } }, maintainAspectRatio: false }} />
+                  }
+                </div>
+              </Card>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="admin-dashboard">
       {renderStatusMessage()}
       {renderConfirmationDialog()}
+      {renderForwardPackageModal()}
+      {renderRejectPackageModal()}
       {renderWorkingAreaModal()}
       <div className="dashboard-header">
         <h1 style={{color: 'white'}}>Admin Dashboard</h1>
@@ -2633,6 +3208,12 @@ const AdminDashboard = () => {
       </div>
       
       <div className="dashboard-tabs">
+        <button 
+          className={`tab-btn ${activeTab === 'dashboard' ? 'active' : ''}`}
+          onClick={() => setActiveTab('dashboard')}
+        >
+          Dashboard
+        </button>
         <button 
           className={`tab-btn ${activeTab === 'pending' ? 'active' : ''}`}
           onClick={() => setActiveTab('pending')}
@@ -2677,57 +3258,16 @@ const AdminDashboard = () => {
         </button>
       </div>
       
-      <div className="dashboard-stats">
-        <div className="stats-grid">
-          <div className="stat-card">
-            <div className="stat-icon">
-              <FontAwesomeIcon icon={faUser} />
-            </div>
-            <div className="stat-content">
-              <div className="stat-value">{stats.users.total}</div>
-              <div className="stat-label">Total Users</div>
-            </div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-icon">
-              <FontAwesomeIcon icon={faStore} />
-            </div>
-            <div className="stat-content">
-              <div className="stat-value">{stats.users.shops}</div>
-              <div className="stat-label">Shops</div>
-            </div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-icon">
-              <FontAwesomeIcon icon={faTruck} />
-            </div>
-            <div className="stat-content">
-              <div className="stat-value">{stats.users.drivers}</div>
-              <div className="stat-label">Drivers</div>
-            </div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-icon">
-              <FontAwesomeIcon icon={faBox} />
-            </div>
-            <div className="stat-content">
-              <div className="stat-value">{stats.packages.total}</div>
-              <div className="stat-label">Packages</div>
-            </div>
-          </div>
-        </div>
-      </div>
-      
       <div className="dashboard-content">
-        {loading ? (
+        {loading && activeTab !== 'dashboard' ? (
           <div className="loading-state">
             <p>Loading data...</p>
           </div>
         ) : (
           <>
-            {renderPackagesSubTabs()}
-            {activeTab === 'pickups' ? renderPickupsTable() : 
-             activeTab === 'packages' ? renderPackagesTable() : 
+            {activeTab === 'dashboard' ? renderDashboardHome() :
+             activeTab === 'pickups' ? renderPickupsTable() : 
+             activeTab === 'packages' ? <> {renderPackagesSubTabs()} {renderPackagesTable()} </> :
              activeTab === 'money' ? renderMoneyTable() : 
              renderUsersTable()}
           </>

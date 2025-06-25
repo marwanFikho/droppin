@@ -3,7 +3,7 @@ import { Routes, Route, Link, useNavigate, Outlet, useLocation } from 'react-rou
 import { useAuth } from '../../context/AuthContext';
 import { packageService } from '../../services/api';
 import CreatePackage from './CreatePackage';
-import ShopPackages, { getStatusBadge } from './ShopPackages';
+import ShopPackages, { getStatusBadge, getCodBadge } from './ShopPackages';
 import ShopProfile from './ShopProfile';
 import NewPickup from './NewPickup';
 import Wallet from './Wallet';
@@ -66,6 +66,8 @@ const ShopDashboard = () => {
     field: 'createdAt',
     order: 'DESC'
   });
+  const [showPackageDetailsModal, setShowPackageDetailsModal] = useState(false);
+  const [selectedPackage, setSelectedPackage] = useState(null);
   
   // Function to refresh dashboard data - can be called from any child component
   const refreshDashboard = () => {
@@ -76,7 +78,7 @@ const ShopDashboard = () => {
   // Add fetchPackages function
   const fetchPackages = async () => {
     try {
-      const response = await packageService.getPackages();
+      const response = await packageService.getPackages({ limit: 10000 });
       const pkgs = response.data?.packages || response.data || [];
       setPackages(Array.isArray(pkgs) ? pkgs : []);
     } catch (error) {
@@ -99,7 +101,7 @@ const ShopDashboard = () => {
         setLoading(true);
 
         // Get packages
-        const packagesResponse = await packageService.getPackages();
+        const packagesResponse = await packageService.getPackages({ limit: 10000 });
         const packages = packagesResponse.data.packages || packagesResponse.data || [];
         setPackages(packages);
         
@@ -396,6 +398,56 @@ const ShopDashboard = () => {
     }
   };
 
+  // We'll show this in the modal for now
+  const openDetailsModal = (pkg) => {
+    // Implementation of openDetailsModal function
+    console.log('Opening details modal for package:', pkg);
+  };
+
+  // Create a new function to render the table body to avoid cluttering the main return
+  const renderTableBody = () => {
+    return (
+      <tbody>
+        {filterPackages().map(pkg => (
+          <tr key={pkg.id}>
+            <td data-label="Tracking #">{pkg.trackingNumber}</td>
+            <td data-label="Description">{pkg.packageDescription}</td>
+            <td data-label="Recipient">{pkg.deliveryContactName}</td>
+            <td data-label="Status">{getStatusBadge(pkg.status)}</td>
+            <td data-label="COD Amount">${parseFloat(pkg.codAmount || 0).toFixed(2)}</td>
+            <td data-label="Actions" className="actions-cell">
+              <button
+                className="action-button view-btn"
+                onClick={() => openDetailsModal(pkg)}
+              >
+                View
+              </button>
+              {pkg.status === 'pending' && (
+                <button
+                  className="action-button cancel-btn"
+                  onClick={() => {
+                    setPackageToCancel(pkg);
+                    setShowCancelModal(true);
+                  }}
+                >
+                  Cancel
+                </button>
+              )}
+              {pkg.status === 'cancelled-awaiting-return' && (
+                <button
+                  className="action-button return-btn"
+                  onClick={() => handleMarkAsReturned(pkg)}
+                >
+                  Mark Returned
+                </button>
+              )}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    );
+  };
+
   return (
     <ShopDashboardContext.Provider value={{ refreshDashboard }}>
       <div className="dashboard-container">
@@ -507,7 +559,6 @@ const ShopDashboard = () => {
                     <h2>Recent Packages</h2>
                     <Link to="/shop/packages" className="view-all">View All</Link>
                   </div>
-                  
                   {loading ? (
                     <div className="loading-message">Loading recent packages...</div>
                   ) : error ? (
@@ -519,50 +570,31 @@ const ShopDashboard = () => {
                     </div>
                   ) : (
                     <div className="package-list">
-                      {filterPackages().slice(0, 4).map((pkg) => (
-                        <div key={pkg.id} className="package-item">
-                          <div className="package-main-row">
-                            <div className="package-info">
-                              <div style={{display:'flex',flexDirection:'column'}}>
-                                <div className="tracking-number">{pkg.trackingNumber}</div>
-                                <div className="recipient-name">{pkg.deliveryContactName || 'No recipient'}</div>
-                              </div>
-                              <div className="package-description">{pkg.packageDescription}</div>
-                              {getStatusBadge(pkg.status)}
-                            </div>
-                            <div className="package-details-right">
-                              <div className="package-date">{new Date(pkg.createdAt).toLocaleDateString()}</div>
-                              <div className="package-cod">
-                                COD: ${parseFloat(pkg.codAmount || 0).toFixed(2)}
-                                {pkg.codAmount > 0 && (
-                                  <span className={`payment-status ${pkg.isPaid ? 'paid' : 'unpaid'}`}>{pkg.isPaid ? ' (Paid)' : ' (Unpaid)'}</span>
-                                )}
-                              </div>
-                              <td>
-                                {pkg.status !== 'delivered' && pkg.status !== 'cancelled' && pkg.status !== 'cancelled-returned' && (
-                                  <button
-                                    className="action-button cancel-btn"
-                                    onClick={() => {
-                                      setPackageToCancel(pkg);
-                                      setShowCancelModal(true);
-                                    }}
-                                  >
-                                    Cancel
-                                  </button>
-                                )}
-                                {pkg.status === 'cancelled-awaiting-return' && (
-                                  <button
-                                    className="action-button return-btn"
-                                    onClick={() => handleMarkAsReturned(pkg)}
-                                  >
-                                    Mark as Returned
-                                  </button>
-                                )}
-                              </td>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
+                      <table className="packages-table recent-packages-table">
+                        <tbody>
+                          {packages
+                            .slice()
+                            .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+                            .slice(0, 5)
+                            .map(pkg => (
+                              <tr key={pkg.id} className="package-list-item" style={{cursor:'pointer'}}
+                                onClick={e => {
+                                  // Prevent opening modal when clicking a button
+                                  if (e.target.closest('button')) return;
+                                  setSelectedPackage(pkg);
+                                  setShowPackageDetailsModal(true);
+                                }}
+                              >
+                                <td className="tracking-number">{pkg.trackingNumber}</td>
+                                <td className="package-description">{pkg.packageDescription}</td>
+                                <td className="recipient-name">{pkg.deliveryContactName}</td>
+                                <td>{getStatusBadge(pkg.status)}</td>
+                                <td className="package-cod">${parseFloat(pkg.codAmount || 0).toFixed(2)} {getCodBadge(pkg.isPaid)}</td>
+                                <td>{new Date(pkg.createdAt).toLocaleDateString()}</td>
+                              </tr>
+                            ))}
+                        </tbody>
+                      </table>
                     </div>
                   )}
                 </div>
@@ -580,6 +612,84 @@ const ShopDashboard = () => {
             <div className="confirmation-buttons">
               <button className="btn-secondary" onClick={() => { setShowCancelModal(false); setCancelError(null); }}>No</button>
               <button className="btn-danger" onClick={handleCancel}>Yes, Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Package Details Modal */}
+      {showPackageDetailsModal && selectedPackage && (
+        <div className="confirmation-overlay" onClick={() => setShowPackageDetailsModal(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Package Details</h2>
+              <button className="btn close-btn" onClick={() => setShowPackageDetailsModal(false)}>&times;</button>
+            </div>
+            <div className="modal-body">
+              <div className="details-grid">
+                <div className="detail-item">
+                  <span className="label">Tracking #</span>
+                  <span>{selectedPackage.trackingNumber}</span>
+                </div>
+                <div className="detail-item">
+                  <span className="label">Status</span>
+                  <span>{getStatusBadge(selectedPackage.status)}</span>
+                </div>
+                <div className="detail-item">
+                  <span className="label">Created</span>
+                  <span>{new Date(selectedPackage.createdAt).toLocaleString()}</span>
+                </div>
+                <div className="detail-item full-width">
+                  <span className="label">Description</span>
+                  <span>{selectedPackage.packageDescription || 'No description'}</span>
+                </div>
+                <div className="detail-item">
+                  <span className="label">Recipient</span>
+                  <span>{selectedPackage.deliveryContactName || 'N/A'}</span>
+                </div>
+                {selectedPackage.deliveryContactPhone && (
+                  <div className="detail-item">
+                    <span className="label">Recipient Phone</span>
+                    <span>{selectedPackage.deliveryContactPhone}</span>
+                  </div>
+                )}
+                {selectedPackage.deliveryAddress && (
+                  <div className="detail-item full-width">
+                    <span className="label">Delivery Address</span>
+                    <span>{selectedPackage.deliveryAddress}</span>
+                  </div>
+                )}
+                <div className="detail-item">
+                  <span className="label">COD</span>
+                  <span>${parseFloat(selectedPackage.codAmount || 0).toFixed(2)} {getCodBadge(selectedPackage.isPaid)}</span>
+                </div>
+                {selectedPackage.weight && (
+                  <div className="detail-item">
+                    <span className="label">Weight</span>
+                    <span>{selectedPackage.weight} kg</span>
+                  </div>
+                )}
+                {selectedPackage.dimensions && (
+                  <div className="detail-item">
+                    <span className="label">Dimensions</span>
+                    <span>{selectedPackage.dimensions}</span>
+                  </div>
+                )}
+                {selectedPackage.notes && (
+                  <div className="detail-item full-width">
+                    <span className="label">Notes</span>
+                    <span>{selectedPackage.notes}</span>
+                  </div>
+                )}
+                {selectedPackage.shopNotes && (
+                  <div className="detail-item full-width">
+                    <span className="label">Shop Notes</span>
+                    <span>{selectedPackage.shopNotes}</span>
+                  </div>
+                )}
+              </div>
+              <div className="modal-actions">
+                <button className="btn close-btn" onClick={() => setShowPackageDetailsModal(false)}>Close</button>
+              </div>
             </div>
           </div>
         </div>

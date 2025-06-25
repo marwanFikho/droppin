@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import logo from '../assets/images/logo.jpg';
@@ -6,10 +6,12 @@ import logo from '../assets/images/logo.jpg';
 const Navigation = () => {
   const { currentUser, logout } = useAuth();
   const navigate = useNavigate();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const handleLogout = () => {
     logout();
     navigate('/');
+    setIsMenuOpen(false); // Close menu on logout
   };
 
   // Get dashboard link based on user role
@@ -30,24 +32,36 @@ const Navigation = () => {
     }
   };
 
+  const toggleMenu = () => {
+    setIsMenuOpen(!isMenuOpen);
+  };
+
+  const closeMenu = () => {
+    setIsMenuOpen(false);
+  };
+
   return (
     <nav className="main-nav">
       <div className="nav-container">
         <div className="nav-logo">
-          <Link to="/">
+          <Link to="/" onClick={closeMenu}>
             <img src={logo} alt="Droppin Logo" className="nav-logo-image" />
             <span className="logo-text">Droppin</span>
           </Link>
         </div>
 
-        <div className="nav-links">
-          <Link to="/" className="nav-link">Home</Link>
-          <Link to="/track" className="nav-link">Track Package</Link>
+        <button className="hamburger-menu" onClick={toggleMenu}>
+          {isMenuOpen ? '✕' : '☰'}
+        </button>
+
+        <div className={`nav-links ${isMenuOpen ? 'open' : ''}`}>
+          <Link to="/" className="nav-link" onClick={closeMenu}>Home</Link>
+          <Link to="/track" className="nav-link" onClick={closeMenu}>Track Package</Link>
           
           {currentUser ? (
             <>
               {getDashboardLink() && (
-                <Link to={getDashboardLink()} className="nav-link">
+                <Link to={getDashboardLink()} className="nav-link" onClick={closeMenu}>
                   {currentUser.role.charAt(0).toUpperCase() + currentUser.role.slice(1)} Dashboard
                 </Link>
               )}
@@ -55,8 +69,8 @@ const Navigation = () => {
             </>
           ) : (
             <>
-              <Link to="/login" className="nav-link">Login</Link>
-              <Link to="/register" className="nav-link">Register</Link>
+              <Link to="/login" className="nav-link" onClick={closeMenu}>Login</Link>
+              <Link to="/register" className="nav-link" onClick={closeMenu}>Register</Link>
             </>
           )}
         </div>

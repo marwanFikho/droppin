@@ -418,3 +418,33 @@ exports.getProfile = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// Change password for authenticated user
+exports.changePassword = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ message: 'Current and new password are required.' });
+    }
+    const user = await User.findByPk(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+    // Check current password
+    const isMatch = await user.comparePassword(currentPassword);
+    if (!isMatch) {
+      return res.status(400).json({ message: 'Current password is incorrect.' });
+    }
+    // Optionally: validate new password strength here
+    if (newPassword.length < 6) {
+      return res.status(400).json({ message: 'New password must be at least 6 characters.' });
+    }
+    user.password = newPassword;
+    await user.save();
+    res.json({ message: 'Password changed successfully.' });
+  } catch (error) {
+    console.error('Change password error:', error);
+    res.status(500).json({ message: 'Failed to change password.' });
+  }
+};

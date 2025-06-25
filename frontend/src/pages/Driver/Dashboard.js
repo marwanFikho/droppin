@@ -156,12 +156,12 @@ const MyPackagesPage = ({ openPackageDetailsModal }) => {
             <tbody>
               {getFilteredPackages().map(pkg => (
                 <tr key={pkg.id}>
-                  <td>{pkg.trackingNumber}</td>
-                  <td>{pkg.packageDescription}</td>
-                  <td>{getStatusBadge(pkg.status)}</td>
-                  <td>{pkg.deliveryAddress}</td>
-                  <td>${parseFloat(pkg.codAmount || 0).toFixed(2)}</td>
-                  <td>
+                  <td data-label="Tracking #">{pkg.trackingNumber}</td>
+                  <td data-label="Description">{pkg.packageDescription}</td>
+                  <td data-label="Status">{getStatusBadge(pkg.status)}</td>
+                  <td data-label="Delivery Address">{pkg.deliveryAddress}</td>
+                  <td data-label="COD Amount">${parseFloat(pkg.codAmount || 0).toFixed(2)}</td>
+                  <td data-label="Actions">
                     <button 
                       className="action-btn view-btn"
                       onClick={() => openPackageDetailsModal(pkg)}
@@ -241,6 +241,9 @@ const DriverDashboard = () => {
   const [profileError, setProfileError] = useState(null);
   const [showAvailabilityDialog, setShowAvailabilityDialog] = useState(false);
   const [pendingAvailability, setPendingAvailability] = useState(null);
+  const [editingNotes, setEditingNotes] = useState('');
+  const [notesSaving, setNotesSaving] = useState(false);
+  const [notesError, setNotesError] = useState(null);
   const navigate = useNavigate();
 
   // Define package categories
@@ -731,6 +734,66 @@ const DriverDashboard = () => {
                 </div>
                   </div>
                 )}
+
+                {/* Notes Log Section */}
+                <div className="package-notes-log-section">
+                  <h4>Notes Log</h4>
+                  <div className="notes-log-list">
+                    {(() => {
+                      let notesArr = [];
+                      if (Array.isArray(selectedPackage?.notes)) {
+                        notesArr = selectedPackage.notes;
+                      } else if (typeof selectedPackage?.notes === 'string') {
+                        try {
+                          notesArr = JSON.parse(selectedPackage.notes);
+                        } catch {
+                          notesArr = [];
+                        }
+                      }
+                      return (notesArr.length > 0) ? (
+                        notesArr.map((n, idx) => (
+                          <div key={idx} className="notes-log-entry">
+                            <div className="notes-log-meta">
+                              <span className="notes-log-date">{new Date(n.createdAt).toLocaleString()}</span>
+                            </div>
+                            <div className="notes-log-text">{n.text}</div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="notes-log-empty">No notes yet.</div>
+                      );
+                    })()}
+                  </div>
+                  <textarea
+                    value={editingNotes}
+                    onChange={e => setEditingNotes(e.target.value)}
+                    placeholder="Add a note for this package..."
+                    rows={2}
+                    style={{ width: '100%', marginTop: 4 }}
+                  />
+                  <button
+                    className="add-note-btn"
+                    onClick={async () => {
+                      if (!editingNotes.trim()) return;
+                      setNotesSaving(true);
+                      setNotesError(null);
+                      try {
+                        const res = await packageService.updatePackageNotes(selectedPackage.id, { note: editingNotes });
+                        setSelectedPackage(prev => ({ ...prev, notes: res.data.notes }));
+                        setEditingNotes('');
+                      } catch (err) {
+                        setNotesError('Failed to save note.');
+                      } finally {
+                        setNotesSaving(false);
+                      }
+                    }}
+                    disabled={notesSaving || !editingNotes.trim()}
+                    style={{ marginTop: 8 }}
+                  >
+                    {notesSaving ? 'Saving...' : 'Add Note'}
+                  </button>
+                  {notesError && <div className="error-message">{notesError}</div>}
+                </div>
               </div>
             )}
           </div>

@@ -41,5 +41,6 @@ module.exports = {
   Driver,
   Package,
   Pickup,
-  MoneyTransaction
+  MoneyTransaction,
+  PickupPackages
 };

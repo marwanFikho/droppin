@@ -21,6 +21,12 @@ async function up() {
       allowNull: true
     });
 
+    // Add shopNotes column to Packages table
+    await queryInterface.addColumn('Packages', 'shopNotes', {
+      type: DataTypes.TEXT,
+      allowNull: true
+    });
+
     // Add signature column to Packages table
     await queryInterface.addColumn('Packages', 'signature', {
       type: DataTypes.JSON,
@@ -60,6 +66,7 @@ async function down() {
     // Remove the added columns
     await queryInterface.removeColumn('Packages', 'pickupId');
     await queryInterface.removeColumn('Packages', 'notes');
+    await queryInterface.removeColumn('Packages', 'shopNotes');
     await queryInterface.removeColumn('Packages', 'signature');
     await queryInterface.removeColumn('Packages', 'deliveryPhotos');
     await queryInterface.removeColumn('Packages', 'statusHistory');

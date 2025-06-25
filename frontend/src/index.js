@@ -7,6 +7,7 @@ import App from './App';
 import reportWebVitals from './reportWebVitals';
 import createDefaultUsers from './components/DefaultUsers';
 import createMockPackages from './components/MockData';
+import 'antd/dist/reset.css';
 
 // Initialize default test users and mock data
 createDefaultUsers();

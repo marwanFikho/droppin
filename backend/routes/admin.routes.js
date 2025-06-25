@@ -9,6 +9,9 @@ router.use(authenticate, authorize('admin'));
 // Dashboard statistics
 router.get('/stats', adminController.getDashboardStats);
 
+// Recent activities
+router.get('/activities', adminController.getRecentActivities);
+
 // User management
 router.get('/users', adminController.getUsers);
 router.get('/users/pending', adminController.getPendingApprovals);
@@ -34,5 +37,11 @@ router.post('/shops/:shopId/settle-payments', adminController.settleShopPayments
 
 // Money transactions
 router.get('/money', adminController.getMoneyTransactions);
+
+// Analytics endpoints for dashboard graphs
+router.get('/analytics/packages-per-month', adminController.getPackagesPerMonth);
+router.get('/analytics/cod-per-month', adminController.getCodCollectedPerMonth);
+router.get('/analytics/package-status-distribution', adminController.getPackageStatusDistribution);
+router.get('/analytics/top-shops', adminController.getTopShops);
 
 module.exports = router;

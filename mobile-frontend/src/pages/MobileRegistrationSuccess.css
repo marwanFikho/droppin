@@ -1,0 +1,272 @@
+/* Mobile Registration Success Page Styles */
+
+.mobile-registration-success {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f36325 0%, #004b6f 100%);
+  padding: 20px;
+  padding-top: 40px;
+}
+
+.mobile-registration-success-container {
+  max-width: 400px;
+  margin: 0 auto;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+  animation: slideUp 0.4s ease-out;
+}
+
+.mobile-registration-success-header {
+  text-align: center;
+  padding: 40px 20px;
+  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+  color: white;
+}
+
+.mobile-registration-success-icon {
+  font-size: 64px;
+  margin-bottom: 20px;
+  display: block;
+  animation: bounce 1s ease-in-out;
+}
+
+.mobile-registration-success-title {
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.mobile-registration-success-subtitle {
+  font-size: 16px;
+  opacity: 0.9;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.mobile-registration-success-content {
+  padding: 30px 20px;
+}
+
+.mobile-registration-success-card {
+  background: #f5f5f5;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 30px;
+  border: 1px solid #e9ecef;
+}
+
+.mobile-registration-success-card-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #004b6f;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.mobile-registration-success-steps {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.mobile-registration-success-step {
+  display: flex;
+  align-items: center;
+  margin-bottom: 16px;
+  padding: 12px;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+  transition: transform 0.2s ease;
+}
+
+.mobile-registration-success-step:hover {
+  transform: translateX(4px);
+}
+
+.mobile-registration-success-step:last-child {
+  margin-bottom: 0;
+}
+
+.mobile-registration-success-step-number {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: #f36325;
+  color: white;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 600;
+  margin-right: 12px;
+  flex-shrink: 0;
+}
+
+.mobile-registration-success-step-text {
+  font-size: 14px;
+  color: #004b6f;
+  font-weight: 500;
+}
+
+.mobile-registration-success-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mobile-registration-success-actions .btn {
+  width: 100%;
+  padding: 14px 24px;
+  font-size: 16px;
+  font-weight: 600;
+  min-height: 48px;
+}
+
+.mobile-registration-success-footer {
+  text-align: center;
+  padding: 20px;
+  background: #f5f5f5;
+  border-top: 1px solid #e9ecef;
+}
+
+.mobile-registration-success-footer-text {
+  font-size: 14px;
+  color: #6c757d;
+  margin-bottom: 12px;
+}
+
+.mobile-registration-success-footer-links {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+}
+
+.mobile-registration-success-footer-link {
+  color: #f36325;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.mobile-registration-success-footer-link:hover {
+  text-decoration: underline;
+}
+
+/* Animations */
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes bounce {
+  0%, 20%, 50%, 80%, 100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-10px);
+  }
+  60% {
+    transform: translateY(-5px);
+  }
+}
+
+.mobile-registration-success-step {
+  animation: fadeInLeft 0.6s ease-out;
+}
+
+.mobile-registration-success-step:nth-child(1) { animation-delay: 0.1s; }
+.mobile-registration-success-step:nth-child(2) { animation-delay: 0.2s; }
+.mobile-registration-success-step:nth-child(3) { animation-delay: 0.3s; }
+.mobile-registration-success-step:nth-child(4) { animation-delay: 0.4s; }
+
+@keyframes fadeInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 480px) {
+  .mobile-registration-success {
+    padding: 16px;
+    padding-top: 30px;
+  }
+  
+  .mobile-registration-success-container {
+    border-radius: 12px;
+  }
+  
+  .mobile-registration-success-header {
+    padding: 30px 16px;
+  }
+  
+  .mobile-registration-success-icon {
+    font-size: 56px;
+  }
+  
+  .mobile-registration-success-title {
+    font-size: 22px;
+  }
+  
+  .mobile-registration-success-subtitle {
+    font-size: 14px;
+  }
+  
+  .mobile-registration-success-content {
+    padding: 24px 16px;
+  }
+  
+  .mobile-registration-success-card {
+    padding: 20px;
+  }
+  
+  .mobile-registration-success-card-title {
+    font-size: 16px;
+  }
+  
+  .mobile-registration-success-step {
+    padding: 10px;
+  }
+  
+  .mobile-registration-success-step-text {
+    font-size: 13px;
+  }
+  
+  .mobile-registration-success-actions .btn {
+    padding: 12px 20px;
+    font-size: 16px;
+  }
+  
+  .mobile-registration-success-footer {
+    padding: 16px;
+  }
+  
+  .mobile-registration-success-footer-links {
+    flex-direction: column;
+    gap: 8px;
+  }
+}
+
+/* Focus styles for accessibility */
+.mobile-registration-success-actions .btn:focus {
+  outline: 2px solid #f36325;
+  outline-offset: 2px;
+}
+
+.mobile-registration-success-footer-link:focus {
+  outline: 2px solid #f36325;
+  outline-offset: 2px;
+} 

@@ -1,4 +1,4 @@
-const { Package, Shop, Driver, User } = require('../models');
+const { Package, Shop, Driver, User, PickupPackages } = require('../models');
 const { Op } = require('sequelize');
 const { sequelize } = require('../config/db.config');
 const { getCairoDateTime, formatDateTimeToDDMMYYYY } = require('../utils/dateUtils');
@@ -19,7 +19,8 @@ exports.createPackage = async (req, res) => {
       codAmount,
       deliveryCost,
       paymentMethod,
-      paymentNotes
+      paymentNotes,
+      shopNotes
     } = req.body;
 
     // Verify that user is a shop
@@ -69,6 +70,7 @@ exports.createPackage = async (req, res) => {
       deliveryCost: parseFloat(deliveryCost) || 0,
       paymentMethod: paymentMethod || null,
       paymentNotes: paymentNotes || null,
+      shopNotes: shopNotes || null,
       isPaid: false,
       paymentStatus: 'pending'
     });
@@ -158,7 +160,7 @@ exports.getPackages = async (req, res) => {
         'schedulePickupTime', 'estimatedDeliveryTime',
         'actualPickupTime', 'actualDeliveryTime',
         'priority', 'paymentStatus', 'createdAt', 'updatedAt',
-        'codAmount', 'isPaid', 'paymentDate'
+        'codAmount', 'isPaid', 'paymentDate', 'notes', 'shopNotes'
       ],
       where,
       limit: parseInt(limit),
@@ -202,7 +204,7 @@ exports.getPackageById = async (req, res) => {
         'schedulePickupTime', 'estimatedDeliveryTime',
         'actualPickupTime', 'actualDeliveryTime',
         'priority', 'paymentStatus', 'createdAt', 'updatedAt',
-        'codAmount', 'isPaid', 'paymentDate'
+        'codAmount', 'isPaid', 'paymentDate', 'notes', 'shopNotes'
       ],
       include: [
         {
@@ -266,7 +268,8 @@ exports.getPackageByTracking = async (req, res) => {
         'packageDescription', 'createdAt', 'deliveryAddress',
         'deliveryContactName', 'estimatedDeliveryTime',
         'actualDeliveryTime', 'weight', 'dimensions',
-        'pickupAddress', 'pickupContactName', 'priority'
+        'pickupAddress', 'pickupContactName', 'priority', 'shopNotes',
+        'notes'
       ],
       include: [
         {
@@ -328,7 +331,9 @@ exports.getPackageByTracking = async (req, res) => {
         vehicleType: package.Driver.vehicleType,
         workingArea: package.Driver.workingArea
       } : null,
-      priority: package.priority
+      priority: package.priority,
+      shopNotes: package.shopNotes,
+      notes: package.notes
     };
     
     res.json(response);
@@ -352,7 +357,7 @@ exports.updatePackageStatus = async (req, res) => {
     }
     
     // Validate status
-    const validStatuses = ['pending', 'assigned', 'pickedup', 'in-transit', 'delivered', 'cancelled', 'cancelled-awaiting-return', 'cancelled-returned'];
+    const validStatuses = ['pending', 'assigned', 'pickedup', 'in-transit', 'delivered', 'cancelled', 'cancelled-awaiting-return', 'cancelled-returned', 'rejected'];
     if (!validStatuses.includes(status)) {
       await t.rollback();
       return res.status(400).json({ message: 'Invalid status' });
@@ -392,11 +397,39 @@ exports.updatePackageStatus = async (req, res) => {
     // Save the original status and payment status values before updating
     const originalStatus = package.status;
     
+    // If marking a rejected package as pending, remove assigned driver
+    if (status === 'pending' && package.status === 'rejected') {
+      package.driverId = null;
+    }
+    // --- BEGIN: Set actualPickupTime and actualDeliveryTime based on status change ---
+    // If status is being set to 'pickedup', set actualPickupTime
+    if (status === 'pickedup' && package.actualPickupTime == null) {
+      package.actualPickupTime = getCairoDateTime();
+    }
+    // If status is being set to 'delivered', set actualDeliveryTime
+    if (status === 'delivered' && package.actualDeliveryTime == null) {
+      package.actualDeliveryTime = getCairoDateTime();
+    }
+    // If status is being changed from 'delivered' to something else, clear actualDeliveryTime
+    if (originalStatus === 'delivered' && status !== 'delivered') {
+      package.actualDeliveryTime = null;
+    }
+    // --- END: Set actualPickupTime and actualDeliveryTime based on status change ---
     // Update package status
-    if (['pickedup', 'in-transit'].includes(package.status)) {
-      package.status = 'cancelled-awaiting-return';
-    } else {
-      package.status = 'cancelled';
+    package.status = status;
+    
+    // If the package was awaiting_pickup or scheduled_for_pickup, remove it from the pickup and PickupPackages join table
+    if (
+      status === 'cancelled' &&
+      ["awaiting_pickup", "scheduled_for_pickup"].includes(package._previousDataValues.status)
+    ) {
+      package.pickupId = null;
+      await PickupPackages.destroy({
+        where: {
+          packageId: package.id
+        },
+        transaction: t
+      });
     }
     await package.save({ transaction: t });
     
@@ -427,80 +460,42 @@ exports.updatePackageStatus = async (req, res) => {
       }
     }
     
-    if (shop) {
-      // When a package is marked as delivered and has COD
-      if (status === 'delivered' && package.codAmount > 0) {
-        console.log(`Package ${id} marked as delivered. Updating shop financial data.`);
-        
-        // Move amount from ToCollect to TotalCollected
-        const codAmount = parseFloat(package.codAmount || 0);
-        const currentToCollect = parseFloat(shop.ToCollect || 0);
-        const currentTotalCollected = parseFloat(shop.TotalCollected || 0);
-        
-        // Calculate new amounts
-        const newToCollect = Math.max(0, currentToCollect - codAmount);
-        const newTotalCollected = currentTotalCollected + codAmount;
-        
-        console.log(`Shop financial update: ToCollect ${currentToCollect} -> ${newToCollect}, TotalCollected ${currentTotalCollected} -> ${newTotalCollected}`);
-        
-        // Update shop using direct SQL to avoid precision issues
+    // 1. If shop marks a rejected package as cancelled-awaiting-return, increment driver's totalCancelled
+    if (
+      status === 'cancelled-awaiting-return' &&
+      originalStatus === 'rejected' &&
+      req.user.role === 'shop' &&
+      package.driverId
+    ) {
+      const driver = await Driver.findByPk(package.driverId, { transaction: t });
+      if (driver) {
+        driver.totalCancelled += 1;
+        await driver.save({ transaction: t });
+      }
+    }
+
+    // 2. If admin marks a package as cancelled-returned, subtract COD from shop's ToCollect
+    if (
+      status === 'cancelled-returned' &&
+      req.user.role === 'admin' &&
+      package.codAmount > 0 &&
+      shop
+    ) {
+      const codAmount = parseFloat(package.codAmount || 0);
+      const currentToCollect = parseFloat(shop.ToCollect || 0);
+      // Only subtract if the package had its COD added previously
+      const wasCodAdded = ['pending','assigned','pickedup','in-transit','delivered','cancelled-awaiting-return'].includes(originalStatus.toLowerCase());
+      const newToCollect = wasCodAdded ? Math.max(0, currentToCollect - codAmount) : currentToCollect;
+      if (wasCodAdded && codAmount > 0) {
         await sequelize.query(
-          'UPDATE Shops SET ToCollect = :newToCollect, TotalCollected = :newTotalCollected WHERE id = :shopId',
+          'UPDATE Shops SET ToCollect = :newToCollect WHERE id = :shopId',
           {
-            replacements: { newToCollect, newTotalCollected, shopId: shop.id },
+            replacements: { newToCollect, shopId: shop.id },
             type: sequelize.QueryTypes.UPDATE,
             transaction: t
           }
         );
-        
-        // Log the money transactions
-        await logMoneyTransaction(shop.id, codAmount, 'TotalCollected', 'increase', `Package ${package.trackingNumber} delivered - COD collected`, t);
-        
-        // Update package payment status with properly formatted date
-        await package.update({ 
-          isPaid: true,
-          paymentDate: formatDateTimeToDDMMYYYY(getCairoDateTime()),
-          paymentStatus: 'paid',
-          paymentMethod: 'cod',
-          paymentNotes: 'COD collected on delivery'
-        }, { transaction: t });
-      }
-      // When a package is cancelled, subtract from ToCollect
-      else if (status === 'cancelled' && package.codAmount > 0) {
-        console.log(`Package ${id} cancelled. Subtracting from shop's ToCollect.`);
-        
-        const codAmount = parseFloat(package.codAmount || 0);
-        const currentToCollect = parseFloat(shop.ToCollect || 0);
-        
-        // Only subtract if the package had its COD added previously
-        const wasCodAdded = ['pending','assigned','pickedup','in-transit'].includes(originalStatus.toLowerCase());
-        const newToCollect = wasCodAdded ? Math.max(0, currentToCollect - codAmount) : currentToCollect;
-        
-        console.log('DEBUG - Calculation:', {
-          currentToCollect,
-          codAmount,
-          newToCollect,
-          calculation: `${currentToCollect} - ${codAmount} = ${newToCollect}`,
-          wasCodAdded
-        });
-        
-        // Apply balance change ONLY if COD was previously added
-        if (wasCodAdded) {
-          // Update shop using direct SQL to avoid precision issues
-          await sequelize.query(
-            'UPDATE Shops SET ToCollect = :newToCollect WHERE id = :shopId',
-            {
-              replacements: { newToCollect, shopId: shop.id },
-              type: sequelize.QueryTypes.UPDATE,
-              transaction: t
-            }
-          );
-          
-          // Log the money transaction
-          await logMoneyTransaction(shop.id, codAmount, 'ToCollect', 'decrease', `Package ${package.trackingNumber} cancelled`, t);
-          
-          console.log(`Shop (${shop.id}) ToCollect updated: ${currentToCollect} -> ${newToCollect}`);
-        }
+        await logMoneyTransaction(shop.id, codAmount, 'ToCollect', 'decrease', `Package ${package.trackingNumber} returned to shop`, t);
       }
     }
     
@@ -874,10 +869,24 @@ exports.cancelPackage = async (req, res) => {
     }
 
     // Update package status
-    if (['pickedup', 'in-transit'].includes(pkg.status)) {
+    if (['pending', 'assigned', 'pickedup', 'in-transit'].includes(pkg.status)) {
       pkg.status = 'cancelled-awaiting-return';
     } else {
       pkg.status = 'cancelled';
+    }
+    
+    // If the package was awaiting_pickup or scheduled_for_pickup, remove it from the pickup and PickupPackages join table
+    if (
+      pkg.status !== "cancelled-awaiting-return" &&
+      ["awaiting_pickup", "scheduled_for_pickup"].includes(pkg._previousDataValues.status)
+    ) {
+      pkg.pickupId = null;
+      await PickupPackages.destroy({
+        where: {
+          packageId: pkg.id
+        },
+        transaction: t
+      });
     }
     await pkg.save({ transaction: t });
 
@@ -921,6 +930,71 @@ exports.cancelPackage = async (req, res) => {
   } catch (error) {
     await t.rollback();
     console.error('Error cancelling package:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Update package notes (log system)
+exports.updatePackageNotes = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { note } = req.body; // Expecting a single note string
+
+    if (!note || typeof note !== 'string' || !note.trim()) {
+      return res.status(400).json({ message: 'Note text is required.' });
+    }
+
+    // Find package
+    const packageObj = await Package.findByPk(id);
+    if (!packageObj) {
+      return res.status(404).json({ message: 'Package not found' });
+    }
+
+    // Only allow drivers assigned to this package, or shop/admin
+    let author = 'system';
+    if (req.user.role === 'driver') {
+      const Driver = require('../models/driver.model');
+      const driver = await Driver.findOne({ where: { userId: req.user.id } });
+      if (!driver) {
+        return res.status(403).json({ message: 'Driver profile not found for this user.' });
+      }
+      if (packageObj.driverId !== driver.id) {
+        return res.status(403).json({ message: 'You are not assigned to this package.' });
+      }
+      author = `driver:${driver.id}`;
+    } else if (req.user.role === 'shop') {
+      author = `shop:${req.user.id}`;
+    } else if (req.user.role === 'admin') {
+      author = 'admin';
+    }
+
+    // Get current notes log (array)
+    let notesLog = [];
+    try {
+      if (packageObj.notes) {
+        if (typeof packageObj.notes === 'string') {
+          notesLog = JSON.parse(packageObj.notes);
+        } else if (Array.isArray(packageObj.notes)) {
+          notesLog = packageObj.notes;
+        } else if (typeof packageObj.notes === 'object') {
+          notesLog = [packageObj.notes];
+        }
+      }
+      if (!Array.isArray(notesLog)) notesLog = [];
+    } catch (e) {
+      notesLog = [];
+    }
+    // Append new note
+    notesLog.push({
+      text: note,
+      createdAt: new Date().toISOString(),
+      author
+    });
+    // Update notes (always stringify, like statusHistory)
+    await packageObj.update({ notes: JSON.stringify(notesLog) });
+    res.json({ message: 'Note added', notes: notesLog });
+  } catch (error) {
+    console.error('Error updating package notes:', error);
     res.status(500).json({ message: error.message });
   }
 };

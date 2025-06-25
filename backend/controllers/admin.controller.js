@@ -25,6 +25,13 @@ exports.getDashboardStats = async (req, res) => {
     });
     const deliveredPackages = await Package.count({ where: { status: 'delivered' } });
 
+    // Get total ToCollect and TotalCollected for all shops
+    const codSumsRaw = await sequelize.query(
+      `SELECT SUM(CAST(ToCollect AS FLOAT)) as totalToCollect, SUM(CAST(TotalCollected AS FLOAT)) as totalCollected FROM Shops`
+    );
+    const codSums = (Array.isArray(codSumsRaw) && codSumsRaw[0] && codSumsRaw[0][0]) ? codSumsRaw[0][0] : { totalToCollect: 0, totalCollected: 0 };
+    console.log('DEBUG: COD sums from DB:', codSums);
+
     res.json({
       users: {
         total: totalUsers + totalShops + totalDrivers,
@@ -38,6 +45,10 @@ exports.getDashboardStats = async (req, res) => {
         pending: pendingPackages,
         inTransit: inTransitPackages,
         delivered: deliveredPackages
+      },
+      cod: {
+        totalToCollect: parseFloat(codSums.totalToCollect) || 0,
+        totalCollected: parseFloat(codSums.totalCollected) || 0
       }
     });
   } catch (error) {
@@ -929,7 +940,7 @@ exports.assignDriverToPackage = async (req, res) => {
 exports.getPackages = async (req, res) => {
   try {
     console.log('Getting packages with query:', req.query);
-    const { status, shopId, search } = req.query;
+    const { status, shopId, search, createdAfter, createdBefore, deliveredAfter, deliveredBefore } = req.query;
     const whereClause = {};
     
     // Add status filter if provided
@@ -950,6 +961,27 @@ exports.getPackages = async (req, res) => {
         { packageDescription: { [Op.like]: `%${search}%` } }
       ];
     }
+
+    // Add createdAt date range filter if provided
+    if (createdAfter || createdBefore) {
+      whereClause.createdAt = {};
+      if (createdAfter) {
+        whereClause.createdAt[Op.gte] = new Date(createdAfter);
+      }
+      if (createdBefore) {
+        whereClause.createdAt[Op.lte] = new Date(createdBefore);
+      }
+    }
+    // Add actualDeliveryTime date range filter if provided
+    if (deliveredAfter || deliveredBefore) {
+      whereClause.actualDeliveryTime = {};
+      if (deliveredAfter) {
+        whereClause.actualDeliveryTime[Op.gte] = new Date(deliveredAfter);
+      }
+      if (deliveredBefore) {
+        whereClause.actualDeliveryTime[Op.lte] = new Date(deliveredBefore);
+      }
+    }
     
     const packages = await Package.findAll({
       attributes: [
@@ -960,7 +992,8 @@ exports.getPackages = async (req, res) => {
         'schedulePickupTime', 'estimatedDeliveryTime',
         'actualPickupTime', 'actualDeliveryTime',
         'priority', 'paymentStatus', 'createdAt', 'updatedAt',
-        'codAmount', 'isPaid', 'paymentDate'
+        'codAmount', 'isPaid', 'paymentDate', 'shopNotes',
+        'notes'
       ],
       where: whereClause,
       order: [['createdAt', 'DESC']]
@@ -1335,5 +1368,129 @@ exports.getMoneyTransactions = async (req, res) => {
   } catch (err) {
     console.error('Error fetching money transactions:', err);
     res.status(500).json({ message: err.message });
+  }
+};
+
+// Get recent activities for admin dashboard
+exports.getRecentActivities = async (req, res) => {
+  try {
+    // Recent package status changes
+    const recentPackages = await sequelize.query(
+      `SELECT id, trackingNumber as ref, status as activityType, updatedAt as timestamp, 'Package Status Change' as type, 
+        CONCAT('Package ', trackingNumber, ' status changed to ', status) as description, status as status
+       FROM Packages
+       ORDER BY updatedAt DESC
+       LIMIT 5`,
+      { type: QueryTypes.SELECT }
+    );
+
+    // Recent user/shop/driver registrations
+    const recentUsers = await sequelize.query(
+      `SELECT id, name as ref, role as activityType, createdAt as timestamp, 'New Registration' as type, 
+        CONCAT(role, ' ', name, ' registered') as description, 
+        CASE WHEN isApproved THEN 'Completed' ELSE 'Pending Review' END as status
+       FROM Users
+       WHERE role IN ('shop', 'driver')
+       ORDER BY createdAt DESC
+       LIMIT 3`,
+      { type: QueryTypes.SELECT }
+    );
+
+    // Recent settlements (money transactions with 'settle' or payout)
+    const recentSettlements = await sequelize.query(
+      `SELECT id, shopId as ref, 'settlement' as activityType, createdAt as timestamp, 'Settlement' as type, 
+        description, 'Completed' as status
+       FROM MoneyTransactions
+       WHERE description LIKE '%settle%' OR changeType = 'payout'
+       ORDER BY createdAt DESC
+       LIMIT 2`,
+      { type: QueryTypes.SELECT }
+    );
+
+    // Merge and sort all activities by timestamp desc, limit 10
+    const allActivities = [...recentPackages, ...recentUsers, ...recentSettlements]
+      .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+      .slice(0, 10);
+
+    res.json(allActivities);
+  } catch (error) {
+    console.error('Error fetching recent activities:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// 1. Monthly package trends (created/delivered per month for last 12 months)
+exports.getPackagesPerMonth = async (req, res) => {
+  try {
+    const results = await sequelize.query(`
+      SELECT
+        strftime('%Y-%m', createdAt) as month,
+        COUNT(*) as created,
+        SUM(CASE WHEN status = 'delivered' THEN 1 ELSE 0 END) as delivered
+      FROM Packages
+      WHERE date(createdAt) >= date('now', '-12 months')
+      GROUP BY month
+      ORDER BY month ASC
+    `, { type: QueryTypes.SELECT });
+    res.json(results);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// 2. Monthly COD collected (last 12 months)
+exports.getCodCollectedPerMonth = async (req, res) => {
+  try {
+    const results = await sequelize.query(`
+      SELECT
+        strftime('%Y-%m', actualDeliveryTime) as month,
+        SUM(CASE WHEN status = 'delivered' THEN codAmount ELSE 0 END) as codCollected
+      FROM Packages
+      WHERE actualDeliveryTime IS NOT NULL AND date(actualDeliveryTime) >= date('now', '-12 months')
+      GROUP BY month
+      ORDER BY month ASC
+    `, { type: QueryTypes.SELECT });
+    res.json(results);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// 3. Current package status distribution
+exports.getPackageStatusDistribution = async (req, res) => {
+  try {
+    const results = await sequelize.query(`
+      SELECT status, COUNT(*) as count
+      FROM Packages
+      GROUP BY status
+    `, { type: QueryTypes.SELECT });
+    res.json(results);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// 4. Top 5 shops by package volume and COD collected
+exports.getTopShops = async (req, res) => {
+  try {
+    const volume = await sequelize.query(`
+      SELECT s.id, s.businessName, COUNT(p.id) as packageCount
+      FROM Shops s
+      LEFT JOIN Packages p ON p.shopId = s.id
+      GROUP BY s.id, s.businessName
+      ORDER BY packageCount DESC
+      LIMIT 5
+    `, { type: QueryTypes.SELECT });
+    const cod = await sequelize.query(`
+      SELECT s.id, s.businessName, SUM(CASE WHEN p.status = 'delivered' THEN p.codAmount ELSE 0 END) as codCollected
+      FROM Shops s
+      LEFT JOIN Packages p ON p.shopId = s.id
+      GROUP BY s.id, s.businessName
+      ORDER BY codCollected DESC
+      LIMIT 5
+    `, { type: QueryTypes.SELECT });
+    res.json({ volume, cod });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
 };
