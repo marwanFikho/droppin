@@ -1,0 +1,1142 @@
+{
+  "common": {
+    "appName": "Droppin",
+    "appFullName": "Droppin Delivery",
+    "pageTitle": "Droppin - Fast & Reliable Delivery Service",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "submit": "Submit",
+    "cancel": "Cancel",
+    "save": "Save",
+    "edit": "Edit",
+    "delete": "Delete",
+    "back": "Back",
+    "next": "Next",
+    "user": "User",
+    "note": "Note",
+    "close": "Close",
+    "confirm": "Confirm",
+    "search": "Search",
+    "view": "View",
+    "approve": "Approve",
+    "reject": "Reject",
+    "assign": "Assign",
+    "noData": "No data available",
+    "notAvailable": "N/A",
+    "status": "Status",
+    "switchToArabic": "العربية",
+    "switchToEnglish": "English"
+  },
+
+  "navigation": {
+    "home": "Home",
+    "login": "Login",
+    "logout": "Logout",
+    "register": "Register",
+    "dashboard": "Dashboard",
+    "profile": "Profile",
+    "settings": "Settings",
+    "trackPackage": "Track Package",
+    "about": "About",
+    "contact": "Contact",
+    "terms": "Terms",
+    "privacy": "Privacy"
+  },
+
+  "home": {
+    "hero": {
+      "title": "Welcome to Droppin",
+      "subtitle": "Your trusted delivery management platform",
+      "description": "Connect with local shops and drivers for seamless delivery experiences",
+      "ctaDashboard": "Go to Dashboard",
+      "ctaLogin": "Login",
+      "ctaRegister": "Register"
+    },
+    "features": {
+      "title": "What We Offer",
+      "shops": {
+        "title": "For Shops",
+        "description": "Efficiently manage your delivery operations and grow your business"
+      },
+      "drivers": {
+        "title": "For Drivers",
+        "description": "Join our network and earn by delivering packages"
+      },
+      "customers": {
+        "title": "For Customers",
+        "description": "Track your packages in real-time with ease"
+      }
+    },
+    "quickActions": {
+      "title": "Quick Actions",
+      "track": "Track Package",
+      "registerShop": "Register Shop",
+      "registerDriver": "Register Driver",
+      "createPackage": "Create Package"
+    },
+    "tracking": {
+      "title": "Track Your Package",
+      "button": "Enter Tracking Number"
+    },
+    "footer": {
+      "copyright": "© {{year}} Droppin. All rights reserved.",
+      "about": "About Us",
+      "contact": "Contact",
+      "terms": "Terms of Service",
+      "privacy": "Privacy Policy",
+      "track": "Track",
+      "login": "Login",
+      "register": "Register"
+    }
+  },
+
+  "auth": {
+    "login": {
+      "title": "Login to Droppin",
+      "subtitle": "Enter your credentials to access your account",
+      "mobileTitle": "Welcome Back",
+      "mobileSubtitle": "Sign in to your account",
+      "email": "Email",
+      "emailPlaceholder": "Enter your email",
+      "password": "Password",
+      "passwordPlaceholder": "Enter your password",
+      "button": "Login",
+      "buttonLoading": "Signing In...",
+      "noAccount": "Don't have an account?",
+      "registerLink": "Sign up here",
+      "registerShop": "Register as Shop",
+      "registerDriver": "Register as Driver",
+      "validation": {
+        "emailRequired": "Email is required",
+        "emailInvalid": "Please enter a valid email",
+        "passwordRequired": "Password is required",
+        "passwordLength": "Password must be at least 6 characters"
+      },
+      "error": {
+        "required": "Please enter both email and password",
+        "credentials": "Failed to login. Please try again."
+      }
+    },
+    "register": {
+      "title": "Create an Account",
+      "subtitle": "Sign up to track your packages",
+      "fullName": "Full Name",
+      "fullNamePlaceholder": "Enter your full name",
+      "email": "Email",
+      "emailPlaceholder": "Enter your email",
+      "phone": "Phone Number",
+      "phonePlaceholder": "Enter your phone number",
+      "password": "Password",
+      "passwordPlaceholder": "Create a password",
+      "confirmPassword": "Confirm Password",
+      "confirmPasswordPlaceholder": "Confirm your password",
+      "button": "Create Account",
+      "buttonLoading": "Creating Account...",
+      "hasAccount": "Already have an account?",
+      "signIn": "Sign in here",
+      "loginLink": "Login",
+      "roleLinks": {
+        "title": "Are you a business or driver?",
+        "shop": "Register as a Shop",
+        "driver": "Register as a Driver"
+      },
+      "address": {
+        "title": "Address Information",
+        "street": "Street Address",
+        "streetPlaceholder": "Street address",
+        "city": "City",
+        "cityPlaceholder": "City",
+        "state": "State/Province",
+        "statePlaceholder": "State/Province",
+        "zipCode": "Zip/Postal Code",
+        "zipCodePlaceholder": "Zip/Postal code",
+        "country": "Country",
+        "countryPlaceholder": "Country"
+      },
+      "validation": {
+        "emailRequired": "Email is required",
+        "emailInvalid": "Please enter a valid email",
+        "passwordRequired": "Password is required",
+        "passwordLength": "Password must be at least 6 characters",
+        "confirmPasswordRequired": "Please confirm your password",
+        "passwordMismatch": "Passwords do not match",
+        "passwordMatch": "Passwords do not match",
+        "failed": "Registration failed. Please try again."
+      },
+      "error": {
+        "failed": "Failed to register. Please try again."
+      },
+      "shop": {
+        "title": "Register Your Shop",
+        "subtitle": "Join our delivery network",
+        "shopName": "Shop Name",
+        "shopNamePlaceholder": "Enter your shop name",
+        "ownerName": "Owner Name",
+        "ownerNamePlaceholder": "Enter owner's full name",
+        "phone": "Phone Number",
+        "phonePlaceholder": "Enter phone number",
+        "address": "Address",
+        "addressPlaceholder": "Enter shop address",
+        "city": "City",
+        "state": "State",
+        "zipCode": "ZIP Code",
+        "zipCodePlaceholder": "Enter ZIP code",
+        "button": "Register Shop",
+        "buttonLoading": "Creating Account...",
+        "validation": {
+          "shopNameRequired": "Shop name is required",
+          "ownerNameRequired": "Owner name is required",
+          "phoneRequired": "Phone number is required",
+          "phoneInvalid": "Please enter a valid phone number",
+          "addressRequired": "Address is required",
+          "cityRequired": "City is required",
+          "stateRequired": "State is required",
+          "zipCodeRequired": "ZIP code is required",
+          "zipCodeInvalid": "Please enter a valid ZIP code"
+        }
+      },
+      "driver": {
+        "title": "Join as Driver",
+        "subtitle": "Start earning with deliveries",
+        "firstName": "First Name",
+        "firstNamePlaceholder": "First name",
+        "lastName": "Last Name",
+        "lastNamePlaceholder": "Last name",
+        "phone": "Phone Number",
+        "phonePlaceholder": "Enter phone number",
+        "address": "Address",
+        "addressPlaceholder": "Enter your address",
+        "city": "City",
+        "state": "State",
+        "zipCode": "ZIP Code",
+        "zipCodePlaceholder": "Enter ZIP code",
+        "vehicleType": "Vehicle Type",
+        "selectVehicle": "Select vehicle type",
+        "licenseNumber": "License Number",
+        "licensePlaceholder": "Enter license number",
+        "button": "Register as Driver",
+        "buttonLoading": "Creating Account...",
+        "vehicleTypes": {
+          "car": "Car",
+          "motorcycle": "Motorcycle",
+          "van": "Van",
+          "truck": "Truck",
+          "bicycle": "Bicycle"
+        },
+        "validation": {
+          "firstNameRequired": "First name is required",
+          "lastNameRequired": "Last name is required",
+          "phoneRequired": "Phone number is required",
+          "phoneInvalid": "Please enter a valid phone number",
+          "addressRequired": "Address is required",
+          "cityRequired": "City is required",
+          "stateRequired": "State is required",
+          "zipCodeRequired": "ZIP code is required",
+          "zipCodeInvalid": "Please enter a valid ZIP code",
+          "vehicleTypeRequired": "Vehicle type is required",
+          "licenseRequired": "License number is required"
+        }
+      }
+    }
+  },
+
+  "mobile": {
+    "register": {
+      "title": "Join Droppin",
+      "subtitle": "Choose how you want to use our platform",
+      "shop": {
+        "title": "Register as Shop",
+        "description": "Manage your shop inventory and create packages for delivery",
+        "features": {
+          "create": "Create packages",
+          "track": "Track deliveries",
+          "manage": "Manage inventory",
+          "analytics": "View analytics"
+        }
+      },
+      "driver": {
+        "title": "Register as Driver",
+        "description": "Join our delivery network and earn money by delivering packages",
+        "features": {
+          "accept": "Accept deliveries",
+          "track": "Track routes",
+          "earn": "Earn money",
+          "schedule": "Flexible schedule"
+        }
+      },
+      "user": {
+        "title": "Register as User",
+        "description": "Create an account to track packages and manage your orders",
+        "features": {
+          "track": "Track packages",
+          "history": "View history",
+          "profile": "Manage profile",
+          "notifications": "Get notifications"
+        }
+      },
+      "signIn": "Sign in here"
+    }
+  },
+
+  "dashboard": {
+    "welcome": "Welcome back",
+    "stats": {
+      "title": "Statistics",
+      "totalDeliveries": "Total Deliveries",
+      "pendingDeliveries": "Pending Deliveries",
+      "completedDeliveries": "Completed Deliveries"
+    }
+  },
+
+  "tracking": {
+    "title": "Track Your Package",
+    "enterNumber": "Enter your tracking number to get real-time updates",
+    "input": {
+      "placeholder": "Enter tracking number (e.g., DP123456789)"
+    },
+    "search": "Track",
+    "packageInfo": "Package Details",
+    "trackingNumber": "Tracking Number",
+    "description": "Description",
+    "noDescription": "N/A",
+    "priority": "Priority",
+    "weight": "Weight",
+    "dimensions": "Dimensions",
+    "shopInfo": "Shop Information",
+    "businessName": "Business Name",
+    "driverInfo": "Driver Information",
+    "name": "Name",
+    "phone": "Phone",
+    "vehicleType": "Vehicle Type",
+    "workingArea": "Working Area",
+    "deliveryInfo": "Delivery Information",
+    "contactName": "Contact Name",
+    "address": "Address",
+    "estimatedDelivery": "Estimated Delivery",
+    "deliveredOn": "Delivered On",
+    "notesLog": "Notes Log",
+    "unknownDate": "Unknown date",
+    "noNotes": "No notes yet.",
+    "sender": "Sender",
+    "timeline": {
+      "title": "Tracking Timeline",
+      "created": "Package created",
+      "shop": "Shop",
+      "createdDescription": "Package has been created and is awaiting pickup"
+    },
+    "location": {
+      "delivered": "Delivered to recipient",
+      "inTransit": "In transit to destination",
+      "assigned": "Assigned to driver",
+      "scheduled": "Scheduled for pickup",
+      "awaiting": "Awaiting pickup",
+      "processing": "Processing"
+    },
+    "statusDescription": {
+      "delivered": "Package has been successfully delivered to the recipient",
+      "inTransit": "Package is currently in transit to its destination",
+      "pickedup": "Package has been picked up by the driver",
+      "assigned": "Package has been assigned to a driver for delivery",
+      "scheduled": "Package is scheduled for pickup from the sender",
+      "awaitingSchedule": "Package is awaiting pickup scheduling",
+      "awaitingPickup": "Package is ready for pickup",
+      "pending": "Package is being processed",
+      "updated": "Package status updated"
+    },
+    "placeholder": {
+      "title": "Track Your Package",
+      "description": "Enter a tracking number above to see the current status and location of your package.",
+      "example": "Example"
+    },
+    "status": {
+      "delivered": "DELIVERED",
+      "in-transit": "IN TRANSIT",
+      "pickedup": "PICKED UP",
+      "pending": "PENDING",
+      "assigned": "ASSIGNED",
+      "scheduled_for_pickup": "SCHEDULED FOR PICKUP",
+      "awaiting_schedule": "AWAITING SCHEDULE",
+      "awaiting_pickup": "AWAITING PICKUP",
+      "cancelled": "CANCELLED",
+      "cancelled-awaiting-return": "CANCELLED - AWAITING RETURN",
+      "cancelled-returned": "CANCELLED - RETURNED"
+    },
+    "error": {
+      "enterNumber": "Please enter a tracking number",
+      "notFound": "Tracking number not found. Please check and try again.",
+      "failed": "Failed to track package. Please try again."
+    }
+  },
+
+  "notFound": {
+    "title": "Page Not Found",
+    "message": "Sorry, the page you're looking for doesn't exist or has been moved.",
+    "backToHome": "Go to Home",
+    "trackPackage": "Track Package",
+    "help": {
+      "title": "Looking for something specific?",
+      "login": "Login",
+      "register": "Register",
+      "helpCenter": "Help Center"
+    }
+  },
+
+  "registrationSuccess": {
+    "title": "Registration Successful!",
+    "welcome": {
+      "default": "Welcome to Droppin!",
+      "shop": "Welcome to your shop dashboard!",
+      "driver": "Welcome to your driver dashboard!",
+      "user": "Welcome to your user dashboard!",
+      "admin": "Welcome to your admin dashboard!"
+    },
+    "nextSteps": {
+      "title": "What's Next?",
+      "shop": {
+        "create": "Create your first package",
+        "profile": "Set up your shop profile",
+        "view": "View your packages",
+        "track": "Track deliveries"
+      },
+      "driver": {
+        "profile": "Complete your profile",
+        "accept": "Accept your first delivery",
+        "routes": "View available routes",
+        "earnings": "Track your earnings"
+      },
+      "user": {
+        "track": "Track your packages",
+        "history": "View order history",
+        "profile": "Update your profile",
+        "preferences": "Set delivery preferences"
+      },
+      "admin": {
+        "users": "Manage users",
+        "analytics": "View analytics",
+        "monitor": "Monitor system",
+        "settings": "Configure settings"
+      },
+      "default": {
+        "explore": "Explore the platform",
+        "track": "Track packages",
+        "profile": "Update your profile"
+      }
+    },
+    "actions": {
+      "dashboard": "Go to Dashboard",
+      "home": "Go to Home"
+    },
+    "footer": {
+      "help": "Need help? Contact our support team",
+      "helpCenter": "Help Center",
+      "contact": "Contact Us"
+    }
+  },
+
+  "errors": {
+    "notFound": {
+      "code": "404",
+      "title": "Page Not Found",
+      "message": "The page you are looking for doesn't exist or has been moved.",
+      "backHome": "Back to Home"
+    },
+    "unauthorized": {
+      "title": "Access Denied",
+      "message": "You don't have permission to access this page.",
+      "goBack": "Go Back",
+      "goTo": "Go to {{destination}}",
+      "dashboard": "Dashboard",
+      "home": "Home"
+    }
+  },
+
+  "welcome": "Welcome to Droppin",
+  "login": "Login",
+  "logout": "Logout",
+  "dashboard": "Dashboard",
+  "profile": "Profile",
+  "settings": "Settings",
+  "language": "Language",
+  "deliveryService": "Delivery Service",
+  "trackPackage": "Track Package",
+  "becomeDriver": "Become a Driver",
+  "registerShop": "Register Your Shop",
+
+  "registration": {
+    "success": {
+      "title": "Registration Successful!",
+      "defaultMessage": "Your account has been registered successfully!",
+      "whatNext": "What happens next?",
+      "step1": "Our administrators will review your shop information",
+      "step2": "You'll receive an email notification once your account is approved",
+      "step3": "After approval, you can sign in and start managing your deliveries",
+      "goToLogin": "Go to Login",
+      "backToHome": "Back to Home"
+    }
+  },
+
+  "shop": {
+    "dashboard": {
+      "title": "Shop Portal",
+      "welcome": "Welcome, {{name}}",
+      "subtitle": "Manage your deliveries with ease",
+      "menu": {
+        "dashboard": "Dashboard",
+        "packages": "Packages",
+        "newPackage": "New Package",
+        "profile": "Profile",
+        "logout": "Logout"
+      },
+      "stats": {
+        "pending": "Pending",
+        "inTransit": "In Transit",
+        "delivered": "Delivered",
+        "total": "Total",
+        "toCollect": "To Collect (Pending COD Collection)",
+        "collectedWaitingWithdraw": "Collected (Awaiting Settlement)"
+      },
+      "recentPackages": {
+        "title": "Recent Packages",
+        "viewAll": "View All",
+        "loading": "Loading recent packages...",
+        "empty": {
+          "message": "No packages found. Create your first delivery package now!",
+          "action": "Create Package"
+        }
+      },
+      "package": {
+        "status": {
+          "pending": "Pending",
+          "assigned": "Assigned",
+          "pickedup": "Picked Up",
+          "inTransit": "In Transit",
+          "delivered": "Delivered"
+        },
+        "cod": "COD: ${{amount}}",
+        "paymentStatus": {
+          "paid": "(Paid)",
+          "unpaid": "(Unpaid)"
+        }
+      },
+      "quickActions": {
+        "title": "Quick Actions",
+        "createPackage": "Create New Package"
+      },
+      "sidebar": {
+        "brand": "Droppin",
+        "portal": "Shop Portal",
+        "dashboard": "Dashboard",
+        "packages": "Packages",
+        "newPackage": "New Package",
+        "newPickup": "New Pickup",
+        "wallet": "Wallet",
+        "profile": "Profile"
+      },
+      "header": {
+        "welcome": "Welcome, {{name}}",
+        "shopOwner": "Shop Owner",
+        "manageDeliveries": "Manage your deliveries with ease",
+        "account": "Shop Account"
+      },
+      "chart": {
+        "packageDistribution": "Package Distribution"
+      }
+    },
+    "businessName": "Business Name",
+    "businessType": "Business Type",
+    "registrationNumber": "Registration Number",
+    "taxId": "Tax ID",
+    "errors": {
+      "fetchPackages": "Failed to fetch packages. Please try again.",
+      "markReturned": "Failed to mark package as returned. Please try again."
+    },
+    "createPackage": {
+      "section": {
+        "packageInfo": "Package Information",
+        "deliveryInfo": "Delivery Information",
+        "additionalInfo": "Additional Information"
+      },
+      "label": {
+        "description": "Package Description",
+        "category": "Category",
+        "weight": "Weight (kg)",
+        "length": "Length (cm)",
+        "width": "Width (cm)",
+        "height": "Height (cm)",
+        "contactName": "Recipient Name",
+        "contactPhone": "Recipient Phone",
+        "street": "Street Address",
+        "city": "City",
+        "state": "State/Province",
+        "zipCode": "Zip/Postal Code",
+        "country": "Country",
+        "instructions": "Delivery Instructions",
+        "notes": "Notes",
+        "codAmount": "Cash on Delivery Amount",
+        "codAbbr": "COD"
+      },
+      "placeholder": {
+        "description": "Enter package description",
+        "selectCategory": "Select category",
+        "weight": "Enter weight (kg)",
+        "length": "Enter length (cm)",
+        "width": "Enter width (cm)",
+        "height": "Enter height (cm)",
+        "contactName": "Enter recipient name",
+        "contactPhone": "Enter recipient phone",
+        "street": "Enter street address",
+        "city": "Enter city",
+        "state": "Enter state/province",
+        "zipCode": "Enter zip/postal code",
+        "country": "Enter country",
+        "instructions": "Special instructions for delivery",
+        "notes": "Additional notes",
+        "codAmount": "Leave blank if COD is not required"
+      },
+      "category": {
+        "shoes": "Shoes",
+        "perfumes": "Perfumes",
+        "clothes": "Clothes",
+        "electronics": "Electronics",
+        "accessories": "Accessories",
+        "books": "Books",
+        "other": "Other"
+      },
+      "button": {
+        "create": "Create Package",
+        "loading": "Creating..."
+      },
+      "success": {
+        "title": "Package Created!",
+        "message": "Your package has been created successfully.",
+        "redirect": "You will be redirected to your packages shortly."
+      },
+      "error": {
+        "requiredFields": "Please fill in all required fields.",
+        "deliveryFields": "Please complete all delivery address fields.",
+        "loadAddress": "Failed to load shop address.",
+        "createFailed": "Failed to create package. Please try again."
+      }
+    },
+    "register": {
+      "title": "Register Your Shop",
+      "subtitle": "Create a shop account to manage your deliveries",
+      "note": "Note",
+      "approvalNotice": "Shop accounts require administrator approval before you can sign in. You will be notified once your account has been approved.",
+      "businessInfo": "Business Information",
+      "businessName": "Business Name",
+      "businessNamePlaceholder": "Enter your business name",
+      "email": "Email (Used in login)",
+      "emailPlaceholder": "Enter business email",
+      "businessPhone": "Business Phone Number",
+      "businessPhonePlaceholder": "Enter business phone number",
+      "businessType": "Business Type",
+      "businessTypePlaceholder": "E.g., Retail, Restaurant, etc.",
+      "contactPersonInfo": "Contact Person Information",
+      "contactPersonDescription": "Please provide details of the person we should contact regarding this account.",
+      "contactPersonName": "Contact Person Name",
+      "contactPersonNamePlaceholder": "Contact person name",
+      "contactPersonPhone": "Contact Person Phone",
+      "contactPersonPhonePlaceholder": "Contact person phone",
+      "contactPersonEmail": "Contact Person Email",
+      "contactPersonEmailPlaceholder": "Contact person email",
+      "businessAddress": "Business Address",
+      "registrationNumber": "Business Registration Number",
+      "registrationNumberPlaceholder": "Registration number (optional)",
+      "taxId": "Tax ID",
+      "taxIdPlaceholder": "Tax ID (optional)",
+      "button": "Register Shop",
+      "buttonLoading": "Creating Account...",
+      "registerCustomer": "Register as a Customer",
+      "registerDriver": "Register as a Driver",
+      "successMessage": "Your shop account has been registered successfully! An administrator will review your application. You will be able to sign in once your account has been approved."
+    },
+    "profile": {
+      "title": "Shop Profile",
+      "shopName": "Shop Name",
+      "contactName": "Default Contact Name",
+      "contactPhone": "Default Contact Phone",
+      "pickupLocation": "Default Pickup Location",
+      "street": "Street",
+      "city": "City",
+      "state": "State",
+      "zipCode": "Zip Code",
+      "country": "Country",
+      "changePassword": "Change Password",
+      "currentPassword": "Current Password",
+      "newPassword": "New Password",
+      "confirmPassword": "Confirm New Password",
+      "cancel": "Cancel",
+      "savePassword": "Save Password",
+      "saveChanges": "Save Changes",
+      "saving": "Saving...",
+      "loadError": "Failed to load profile.",
+      "saveSuccess": "Profile updated successfully!",
+      "saveError": "Failed to save profile.",
+      "pwRequired": "All password fields are required.",
+      "pwNoMatch": "New passwords do not match.",
+      "pwSuccess": "Password changed successfully!",
+      "pwError": "Failed to change password."
+    },
+    "wallet": {
+      "title": "Wallet",
+      "loading": "Loading wallet data...",
+      "error": "Failed to load data. Please try again later.",
+      "toCollect": "To Collect",
+      "collected": "Collected (Waiting Withdraw)",
+      "transactionHistory": "Transaction History",
+      "startDate": "Start Date",
+      "endDate": "End Date",
+      "allAttributes": "All Attributes",
+      "allTypes": "All Types",
+      "increase": "Increase",
+      "decrease": "Decrease",
+      "searchTransactions": "Search transactions...",
+      "noTransactions": "No transactions found.",
+      "date": "Date",
+      "attribute": "Attribute",
+      "type": "Type",
+      "amount": "Amount ($)",
+      "description": "Description"
+    },
+    "newPickup": {
+      "title": "Schedule New Pickup",
+      "loading": "Loading packages...",
+      "loadError": "Failed to load data. Please try again later.",
+      "selectPackages": "Select Packages",
+      "selectAll": "Select All",
+      "deselectAll": "Deselect All",
+      "noPendingPackages": "No pending packages available for pickup",
+      "cod": "COD",
+      "pickupDetails": "Pickup Details",
+      "pickupAddress": "Pickup Address:",
+      "pickupDate": "Pickup Date:",
+      "pickupTime": "Pickup Time:",
+      "cancel": "Cancel",
+      "schedulePickup": "Schedule Pickup",
+      "selectAtLeastOne": "Please select at least one package for pickup",
+      "selectDateTime": "Please select both date and time for pickup",
+      "scheduleError": "Failed to schedule pickup. Please try again."
+    },
+    "packages": {
+      "title": "Packages",
+      "trackingNumber": "Tracking #",
+      "description": "Description",
+      "recipient": "Recipient",
+      "recipientPhone": "Recipient Phone",
+      "deliveryAddress": "Delivery Address",
+      "status": "Status",
+      "cod": "COD",
+      "date": "Date",
+      "action": "Action",
+      "created": "Created",
+      "noPackagesFound": "No packages found.",
+      "viewPackages": "View Packages",
+      "cancel": "Cancel",
+      "cancelPackageTitle": "Cancel Package",
+      "cancelPackageConfirm": "Are you sure you want to cancel this package?",
+      "yesCancel": "Yes, Cancel",
+      "pickupPackagesTitle": "Pickup Packages",
+      "loading": "Loading packages...",
+      "noPackagesForPickup": "No packages found for this pickup.",
+      "close": "Close",
+      "cancelPickupTitle": "Cancel Pickup",
+      "cancelPickupConfirm": "Are you sure you want to cancel this pickup? All packages will be reset to pending.",
+      "pickupDate": "Pickup Date",
+      "address": "Address",
+      "noPickups": "No pickups found.",
+      "loadingPickups": "Loading pickups...",
+      "markAsPending": "Mark as Pending",
+      "markAsCancelledAwaitingReturn": "Mark as Cancelled Awaiting Return",
+      "notesLog": "Notes Log",
+      "unknownDate": "Unknown date",
+      "noNotesYet": "No notes yet.",
+      "packageDetailsTitle": "Package Details",
+      "statusLabels": {
+        "awaiting_schedule": "Awaiting Schedule",
+        "awaiting_pickup": "Awaiting Pickup",
+        "scheduled_for_pickup": "Scheduled for Pickup",
+        "pending": "Pending",
+        "assigned": "Assigned",
+        "pickedup": "Picked Up",
+        "in-transit": "In Transit",
+        "delivered": "Delivered",
+        "cancelled": "Cancelled",
+        "cancelled-awaiting-return": "Cancelled - Awaiting Return",
+        "cancelled-returned": "Cancelled - Returned",
+        "rejected": "Rejected"
+      },
+      "pickupStatusLabels": {
+        "pending": "Pending",
+        "scheduled": "Scheduled",
+        "cancelled": "Cancelled",
+        "completed": "Completed",
+        "pickedup": "Picked Up"
+      }
+    }
+  },
+
+  "user": {
+    "portal": "User Portal",
+    "welcome": "Welcome, {{name}}",
+    "trackAndView": "Track your packages and view delivery status",
+    "userAccount": "User Account",
+    "trackYourPackage": "Track Your Package",
+    "trackingInputPlaceholder": "Enter tracking number (e.g., DP123456789)",
+    "trackingLoading": "Tracking...",
+    "track": "Track",
+    "recentTrackingHistory": "Recent Tracking History",
+    "clearHistory": "Clear History",
+    "noTrackingHistory": "No tracking history found. Track a package to see it here.",
+    "status": {
+      "pending": "Pending",
+      "assigned": "Assigned",
+      "pickedup": "Picked Up",
+      "in-transit": "In Transit",
+      "delivered": "Delivered",
+      "cancelled": "Cancelled"
+    },
+    "trackAgain": "Track Again",
+    "deliveryInfoTitle": "Delivery Information",
+    "packageUpdates": "Package Updates",
+    "packageUpdatesDesc": "Receive real-time updates on your package status.",
+    "secureDelivery": "Secure Delivery",
+    "secureDeliveryDesc": "Your packages are handled with care and security.",
+    "onTimeDelivery": "On-Time Delivery",
+    "onTimeDeliveryDesc": "Our drivers aim to deliver packages on schedule.",
+    "customerSupport": "Customer Support",
+    "customerSupportDesc": "Need help? Contact our customer support team."
+  },
+
+  "driver": {
+    "title": "Driver Dashboard",
+    "stats": {
+      "assigned": "Assigned Packages",
+      "available": "Available Packages",
+      "delivered": "Delivered Today",
+      "earnings": "Today's Earnings"
+    },
+    "packages": {
+      "assigned": "My Assigned Packages",
+      "available": "Available for Pickup",
+      "noAssigned": "No packages assigned to you",
+      "noAvailable": "No packages available for pickup",
+      "pickup": "Pickup",
+      "delivery": "Delivery",
+      "fee": "Delivery Fee"
+    },
+    "actions": {
+      "pickup": "Mark as Picked Up",
+      "deliver": "Mark as Delivered",
+      "accept": "Accept Package"
+    },
+    "modal": {
+      "title": "Package Details",
+      "description": "Description",
+      "weight": "Weight",
+      "dimensions": "Dimensions",
+      "fee": "Delivery Fee",
+      "pickup": "Pickup Address",
+      "delivery": "Delivery Address",
+      "contact": "Contact"
+    },
+    "payment": {
+      "collectedOnDelivery": "Collected by driver on delivery"
+    },
+    "alerts": {
+      "deliverySuccess": "Package marked as delivered and payment collected successfully"
+    },
+    "errors": {
+      "loadPackages": "Failed to load packages. Please try again later.",
+      "acceptPackage": "Failed to accept package. Please try again.",
+      "updateStatus": "Failed to update package to {{status}}. Please try again.",
+      "deliveryPayment": "Failed to mark package as delivered with payment. Please try again.",
+      "fetchDetails": "Could not fetch complete package details. Some information may be missing."
+    },
+    "name": "Name",
+    "phone": "Phone",
+    "email": "Email",
+    "vehicleInfo": "Vehicle Information",
+    "licenseNumber": "License Number",
+    "unnamed": "Driver #{{id}}",
+    "notAssigned": "Not Assigned",
+    "assigned": "Driver Assigned",
+    "register": {
+      "title": "Register as a Driver",
+      "subtitle": "Join our delivery team and start earning",
+      "note": "Note",
+      "approvalNotice": "Driver accounts require administrator approval before you can sign in. You will be notified once your account has been approved.",
+      "personalInfo": "Personal Information",
+      "addressInfo": "Address Information",
+      "vehicleInfo": "Vehicle Information",
+      "vehicleType": "Vehicle Type",
+      "vehicleTypes": {
+        "car": "Car",
+        "motorcycle": "Motorcycle",
+        "bicycle": "Bicycle",
+        "van": "Van",
+        "truck": "Truck"
+      },
+      "vehicleMake": "Make",
+      "vehicleMakePlaceholder": "Vehicle make",
+      "vehicleModel": "Model",
+      "vehicleModelPlaceholder": "Vehicle model",
+      "vehicleYear": "Year",
+      "vehicleYearPlaceholder": "Vehicle year",
+      "vehicleColor": "Color",
+      "vehicleColorPlaceholder": "Vehicle color",
+      "licensePlate": "License Plate",
+      "licensePlatePlaceholder": "License plate number",
+      "identification": "Identification",
+      "driversLicense": "Driver's License Number",
+      "driversLicensePlaceholder": "Driver's license number",
+      "idNumber": "ID Number",
+      "idNumberPlaceholder": "ID card number",
+      "button": "Register as Driver",
+      "buttonLoading": "Creating Account...",
+      "registerCustomer": "Register as a Customer",
+      "registerShop": "Register as a Shop",
+      "successMessage": "Your driver account has been registered successfully! An administrator will review your application. You will be able to sign in once your account has been approved."
+    },
+    "dashboard": {
+      "myPackages": "My Packages",
+      "tabs": {
+        "current": "Current Packages",
+        "past": "Past Packages",
+        "delivered": "Delivered",
+        "cancelled": "Cancelled",
+        "all": "All Packages"
+      },
+      "searchPlaceholder": "Search by tracking number, description, address, or status...",
+      "loadingPackages": "Loading packages...",
+      "noPackagesFound": "No packages found",
+      "table": {
+        "trackingNumber": "Tracking #",
+        "description": "Description",
+        "status": "Status",
+        "deliveryAddress": "Delivery Address",
+        "codAmount": "COD Amount",
+        "actions": "Actions",
+        "statusActions": "Status Actions",
+        "viewDetails": "View Details"
+      },
+      "actions": {
+        "markAsPickedUp": "Mark as Picked Up",
+        "markInTransit": "Mark In Transit",
+        "markAsDelivered": "Mark as Delivered",
+        "noActions": "No actions available"
+      },
+      "loadingPackageDetails": "Loading package details...",
+      "details": {
+        "status": "Status",
+        "trackingNumber": "Tracking Number",
+        "createdDate": "Created Date",
+        "pickedupTime": "Pickedup Time",
+        "notPickedUpYet": "Not pickedup yet",
+        "paymentStatus": "Payment Status",
+        "paid": "Paid",
+        "unpaid": "Unpaid",
+        "description": "Description",
+        "weight": "Weight",
+        "dimensions": "Dimensions",
+        "deliveryDetails": "Delivery Details",
+        "contactName": "Contact Name",
+        "contactPhone": "Contact Phone",
+        "deliveryAddress": "Delivery Address",
+        "deliveryTime": "Delivery Time",
+        "notDeliveredYet": "Not delivered yet",
+        "financialInfo": "Financial Information",
+        "codAmount": "COD Amount",
+        "shopInfo": "Shop Information",
+        "shopName": "Shop Name",
+        "shopPhone": "Shop Phone"
+      },
+      "notesLog": "Notes Log",
+      "noNotesYet": "No notes yet.",
+      "addNote": "Add Note",
+      "addNotePlaceholder": "Add a note for this package...",
+      "saveNoteError": "Failed to save note.",
+      "profile": {
+        "title": "Driver Profile",
+        "personalInfo": "Personal Information",
+        "name": "Name",
+        "email": "Email",
+        "phone": "Phone",
+        "accountStatus": "Account Status",
+        "approved": "Approved",
+        "pendingApproval": "Pending Approval",
+        "memberSince": "Member Since",
+        "vehicleInfo": "Vehicle Information",
+        "vehicleType": "Vehicle Type",
+        "licensePlate": "License Plate",
+        "model": "Model",
+        "color": "Color",
+        "driverLicense": "Driver License",
+        "workingArea": "Working Area",
+        "assignedArea": "Assigned Area",
+        "availabilityStatus": "Availability Status",
+        "available": "Available",
+        "unavailable": "Unavailable",
+        "goUnavailable": "Go Unavailable",
+        "goAvailable": "Go Available",
+        "performanceStats": "Performance Statistics",
+        "rating": "Rating",
+        "totalDeliveries": "Total Deliveries",
+        "totalAssigned": "Total Assigned",
+        "totalCancelled": "Total Cancelled",
+        "assignedToday": "Assigned Today",
+        "activeAssign": "Active Assignments",
+        "noRatingYet": "No rating yet",
+        "notAssignedByAdmin": "Not assigned by admin",
+        "loading": "Loading profile...",
+        "noProfileData": "No profile data available",
+        "confirmUnavailability": "Confirm Unavailability",
+        "confirmUnavailabilityText": "Are you sure you want to switch to unavailable mode? You will not receive new assignments.",
+        "yesGoUnavailable": "Yes, Go Unavailable"
+      },
+      "assignedToday": "Assigned Today",
+      "totalAssigned": "Total Assigned",
+      "totalDeliveries": "Total Deliveries",
+      "activeAssignments": "Active Assignments",
+      "cancelled": "Cancelled",
+      "deliveryStatistics": "Delivery Statistics",
+      "loadPackagesError": "Failed to load packages. Please try again later.",
+      "markDeliveredError": "Failed to mark package as delivered with payment. Please try again.",
+      "markDeliveredSuccess": "Package marked as delivered and payment collected successfully",
+      "fetchDetailsError": "Could not fetch complete package details. Some information may be missing."
+    }
+  },
+
+  "admin": {
+    "title": "Admin Dashboard",
+    "roles": {
+      "admin": "Administrator",
+      "user": "User",
+      "shop": "Shop",
+      "driver": "Driver"
+    },
+    "overview": {
+      "users": {
+        "title": "Users Overview",
+        "total": "Total Users",
+        "shops": "Shops",
+        "drivers": "Drivers",
+        "customers": "Customers"
+      },
+      "packages": {
+        "title": "Packages Overview",
+        "total": "Total Packages",
+        "pending": "Pending",
+        "inTransit": "In Transit",
+        "delivered": "Delivered"
+      }
+    },
+    "tabs": {
+      "pending": "Pending Approvals",
+      "users": "Users",
+      "shops": "Shops",
+      "drivers": "Drivers",
+      "packages": "Packages",
+      "all": "All Packages",
+      "readyToAssign": "Ready to Assign",
+      "inTransit": "In Transit",
+      "delivered": "Delivered",
+      "returnToShop": "Return to Shop"
+    },
+    "search": {
+      "placeholder": "Search {{type}}..."
+    },
+    "table": {
+      "name": "Name",
+      "email": "Email",
+      "role": "Role",
+      "status": "Status",
+      "actions": "Actions",
+      "assignedPackages": "Assigned Packages",
+      "delivered": "Delivered",
+      "toCollect": "To Collect ($)",
+      "collected": "Collected ($)",
+      "trackingNumber": "Tracking Number",
+      "description": "Description",
+      "from": "From",
+      "to": "To",
+      "codAmount": "COD Amount",
+      "driver": "Driver",
+      "noData": "No data available"
+    },
+    "status": {
+      "pending": "Pending",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "assigned": "Assigned",
+      "pickedup": "Picked Up",
+      "inTransit": "In Transit",
+      "delivered": "Delivered",
+      "paid": "(Paid)",
+      "unpaid": "(Unpaid)"
+    },
+    "driver": {
+      "unnamed": "Driver #{{id}}",
+      "notAssigned": "Not Assigned",
+      "assigned": "Driver Assigned"
+    },
+    "confirmation": {
+      "title": "Confirm Action",
+      "text": "Are you sure you want to proceed with this action?",
+      "approve": {
+        "title": "Confirm Approval",
+        "text": "Are you sure you want to approve {{name}}?"
+      },
+      "reject": {
+        "title": "Confirm Rejection",
+        "text": "Are you sure you want to reject {{name}}?"
+      }
+    },
+    "assignDriver": {
+      "title": "Assign Driver",
+      "packageDetails": "Package Details",
+      "from": "From: {{city}}",
+      "to": "To: {{city}}",
+      "noDrivers": "No available drivers found",
+      "assigning": "Assigning...",
+      "searchPlaceholder": "Search drivers..."
+    },
+    "messages": {
+      "noPackages": "No packages found",
+      "approvalSuccess": "Successfully approved {{type}}",
+      "approvalError": "Failed to approve {{type}}",
+      "rejectionSuccess": "Successfully rejected {{type}}",
+      "rejectionError": "Failed to reject {{type}}",
+      "assignSuccess": "Successfully assigned driver",
+      "assignError": "Failed to assign driver",
+      "noPendingApprovals": "No pending approvals"
+    },
+    "shop": {
+      "businessName": "Business Name",
+      "businessType": "Business Type",
+      "registrationNumber": "Registration Number",
+      "taxId": "Tax ID"
+    },
+    "package": {
+      "weight": "Weight",
+      "dimensions": "Dimensions",
+      "pickup": "Pickup Information",
+      "delivery": "Delivery Information",
+      "contactName": "Contact Name",
+      "contactPhone": "Contact Phone",
+      "address": "Address",
+      "driver": "Driver Information"
+    },
+    "driver": {
+      "name": "Name",
+      "phone": "Phone",
+      "email": "Email",
+      "vehicleInfo": "Vehicle Information",
+      "licenseNumber": "License Number",
+      "unnamed": "Driver #{{id}}",
+      "notAssigned": "Not Assigned",
+      "assigned": "Driver Assigned"
+    }
+  }
+} 

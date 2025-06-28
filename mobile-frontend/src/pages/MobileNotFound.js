@@ -1,40 +1,42 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import './MobileNotFound.css';
+import { useTranslation } from 'react-i18next';
 
 const MobileNotFound = () => {
+  const { t } = useTranslation();
   return (
     <div className="mobile-not-found">
       <div className="mobile-not-found-container">
         <div className="mobile-not-found-content">
           <div className="mobile-not-found-icon">🔍</div>
-          <h1 className="mobile-not-found-title">Page Not Found</h1>
+          <h1 className="mobile-not-found-title">{t('notFound.title')}</h1>
           <p className="mobile-not-found-subtitle">
-            Sorry, the page you're looking for doesn't exist or has been moved.
+            {t('notFound.message')}
           </p>
           
           <div className="mobile-not-found-actions">
             <Link to="/" className="btn btn-primary">
-              Go to Home
+              {t('notFound.backToHome')}
             </Link>
             <Link to="/track" className="btn btn-outline">
-              Track Package
+              {t('notFound.trackPackage')}
             </Link>
           </div>
           
           <div className="mobile-not-found-help">
             <p className="mobile-not-found-help-text">
-              Looking for something specific?
+              {t('notFound.help.title')}
             </p>
             <div className="mobile-not-found-links">
               <Link to="/login" className="mobile-not-found-link">
-                Login
+                {t('notFound.help.login')}
               </Link>
               <Link to="/register" className="mobile-not-found-link">
-                Register
+                {t('notFound.help.register')}
               </Link>
               <Link to="/help" className="mobile-not-found-link">
-                Help Center
+                {t('notFound.help.helpCenter')}
               </Link>
             </div>
           </div>

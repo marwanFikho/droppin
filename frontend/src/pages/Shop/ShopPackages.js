@@ -2,24 +2,25 @@ import React, { useState, useEffect } from 'react';
 import { packageService } from '../../services/api';
 import { useLocation } from 'react-router-dom';
 import './ShopDashboard.css';
+import { useTranslation } from 'react-i18next';
 
 const TABS = [
-  { label: 'All', value: 'all' },
-  { label: 'Awaiting Schedule', value: 'awaiting_schedule' },
-  { label: 'Scheduled for Pickup', value: 'scheduled_for_pickup' },
-  { label: 'Pending', value: 'pending' },
-  { label: 'In Transit', value: 'in-transit' },
-  { label: 'Delivered', value: 'delivered' },
-  { label: 'Return to Shop', value: 'return-to-shop' },
-  { label: 'Cancelled', value: 'cancelled' },
-  { label: 'Rejected', value: 'rejected' },
-  { label: 'Pickups', value: 'pickups' },
+  { label: 'shop.packages.tabs.all', value: 'all' },
+  { label: 'shop.packages.tabs.awaitingSchedule', value: 'awaiting_schedule' },
+  { label: 'shop.packages.tabs.scheduledForPickup', value: 'scheduled_for_pickup' },
+  { label: 'shop.packages.tabs.pending', value: 'pending' },
+  { label: 'shop.packages.tabs.inTransit', value: 'in-transit' },
+  { label: 'shop.packages.tabs.delivered', value: 'delivered' },
+  { label: 'shop.packages.tabs.returnToShop', value: 'return-to-shop' },
+  { label: 'shop.packages.tabs.cancelled', value: 'cancelled' },
+  { label: 'shop.packages.tabs.rejected', value: 'rejected' },
+  { label: 'shop.packages.tabs.pickups', value: 'pickups' },
 ];
 
 const inTransitStatuses = ['assigned', 'pickedup', 'in-transit'];
 const returnToShopStatuses = ['cancelled-awaiting-return', 'cancelled-returned'];
 
-export function getStatusBadge(status) {
+export function getStatusBadge(status, t) {
   let className = 'status-badge';
   if (status === 'awaiting_schedule') className += ' status-awaiting-schedule';
   else if (status === 'awaiting_pickup') className += ' status-awaiting-pickup';
@@ -33,7 +34,7 @@ export function getStatusBadge(status) {
   else if (status === 'cancelled-awaiting-return') className += ' status-cancelled-awaiting-return';
   else if (status === 'cancelled-returned') className += ' status-cancelled-returned';
   else className += ' status-other';
-  return <span className={className}>{status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, ' ').replace('-', ' ')}</span>;
+  return <span className={className}>{t(`shop.packages.statusLabels.${status}`, status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, ' ').replace('-', ' '))}</span>;
 }
 
 export function getCodBadge(isPaid) {
@@ -42,13 +43,13 @@ export function getCodBadge(isPaid) {
     : <span className="cod-badge cod-unpaid">Unpaid</span>;
 }
 
-function getPickupStatusBadge(status) {
+function getPickupStatusBadge(status, t) {
   let colorClass = 'status-badge';
   if (status === 'pending' || status === 'scheduled') colorClass += ' status-pending';
   else if (status === 'cancelled') colorClass += ' status-other';
   else if (status === 'completed' || status === 'pickedup') colorClass += ' status-delivered';
   else colorClass += ' status-other';
-  return <span className={colorClass}>{status.charAt(0).toUpperCase() + status.slice(1).replace('-', ' ')}</span>;
+  return <span className={colorClass}>{t(`shop.packages.pickupStatusLabels.${status}`, status.charAt(0).toUpperCase() + status.slice(1).replace('-', ' '))}</span>;
 }
 
 const ShopPackages = () => {
@@ -75,6 +76,7 @@ const ShopPackages = () => {
   const [notesSaving, setNotesSaving] = useState(false);
   const [notesError, setNotesError] = useState(null);
   const location = useLocation();
+  const { t } = useTranslation();
 
   useEffect(() => {
     const fetchPackages = async () => {
@@ -83,13 +85,13 @@ const ShopPackages = () => {
         const res = await packageService.getPackages({ limit: 10000 });
         setPackages(res.data.packages || res.data || []);
       } catch (err) {
-        setError('Failed to load packages.');
+        setError(t('shop.packages.loadError'));
       } finally {
         setLoading(false);
       }
     };
     fetchPackages();
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     // Set tab from query param if present
@@ -107,10 +109,10 @@ const ShopPackages = () => {
         .then(res => {
           setPickups(res.data);
         })
-        .catch(() => setError('Failed to load pickups.'))
+        .catch(() => setError(t('shop.packages.loadPickupsError')))
         .finally(() => setPickupLoading(false));
     }
-  }, [activeTab]);
+  }, [activeTab, t]);
 
   const handleCancel = async () => {
     if (!packageToCancel) return;
@@ -121,7 +123,7 @@ const ShopPackages = () => {
       setPackageToCancel(null);
       setCancelError(null);
     } catch (err) {
-      setCancelError(err.response?.data?.message || 'Failed to cancel package.'); 
+      setCancelError(err.response?.data?.message || t('shop.packages.cancelError'));
     }
   };
 
@@ -153,7 +155,7 @@ const ShopPackages = () => {
       setPickupToCancel(null);
       setPickupCancelError(null);
     } catch (err) {
-      setPickupCancelError(err.response?.data?.message || 'Failed to cancel pickup.');
+      setPickupCancelError(err.response?.data?.message || t('shop.packages.cancelPickupError'));
     }
   };
 
@@ -203,13 +205,13 @@ const ShopPackages = () => {
       setPackageToCancel(null);
       setCancelError(null);
     } catch (err) {
-      setCancelError(err.response?.data?.message || 'Failed to mark as returned.');
+      setCancelError(err.response?.data?.message || t('shop.packages.markReturnedError'));
     }
   };
 
   return (
     <div className="shop-packages-page">
-      <h2>Packages</h2>
+      <h2>{t('shop.packages.title')}</h2>
       <div className="packages-tabs">
         {TABS.map(tab => (
           <button
@@ -217,31 +219,31 @@ const ShopPackages = () => {
             className={`tab-btn${activeTab === tab.value ? ' active' : ''}`}
             onClick={() => setActiveTab(tab.value)}
           >
-            {tab.label}
+            {t(tab.label)}
           </button>
         ))}
         <input
           className="package-search"
           type="text"
-          placeholder="Search packages..."
+          placeholder={t('shop.packages.searchPlaceholder')}
           value={search}
           onChange={e => setSearch(e.target.value)}
         />
       </div>
       {activeTab === 'pickups' ? (
         pickupLoading ? (
-          <div>Loading pickups...</div>
+          <div>{t('shop.packages.loadingPickups')}</div>
         ) : pickups.length === 0 ? (
-          <div>No pickups found.</div>
+          <div>{t('shop.packages.noPickups')}</div>
         ) : (
           <div className="pickups-table-wrapper">
             <table className="packages-table">
               <thead>
                 <tr>
-                  <th>Pickup Date</th>
-                  <th>Address</th>
-                  <th>Status</th>
-                  <th>Action</th>
+                  <th>{t('shop.packages.pickupDate')}</th>
+                  <th>{t('shop.packages.address')}</th>
+                  <th>{t('shop.packages.status')}</th>
+                  <th>{t('shop.packages.action')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -249,14 +251,14 @@ const ShopPackages = () => {
                   <tr key={pickup.id}>
                     <td>{new Date(pickup.scheduledTime).toLocaleString()}</td>
                     <td>{pickup.pickupAddress}</td>
-                    <td>{getPickupStatusBadge(pickup.status)}</td>
+                    <td>{getPickupStatusBadge(pickup.status, t)}</td>
                     <td style={{display:'flex',gap:'0.5rem'}}>
                       <button className="btn btn-primary" onClick={() => handlePickupClick(pickup)}>
-                        View Packages
+                        {t('shop.packages.viewPackages')}
                       </button>
                       {pickup.status === 'scheduled' && (
                         <button className="btn btn-danger" onClick={() => { setPickupToCancel(pickup); setShowPickupCancelModal(true); }}>
-                          Cancel
+                          {t('shop.packages.cancel')}
                         </button>
                       )}
                     </td>
@@ -267,7 +269,7 @@ const ShopPackages = () => {
           </div>
         )
       ) : loading ? (
-        <div>Loading packages...</div>
+        <div>{t('shop.packages.loading')}</div>
       ) : error ? (
         <div className="error-message">{error}</div>
       ) : (
@@ -275,12 +277,12 @@ const ShopPackages = () => {
           {showCancelModal && (
             <div className="confirmation-overlay" onClick={() => { setShowCancelModal(false); setCancelError(null); }}>
               <div className="confirmation-dialog warning-dialog" onClick={e => e.stopPropagation()}>
-                <h3>Cancel Package</h3>
-                <p>Are you sure you want to cancel this package?</p>
+                <h3>{t('shop.packages.cancelPackageTitle')}</h3>
+                <p>{t('shop.packages.cancelPackageConfirm')}</p>
                 {cancelError && <div style={{color:'#dc3545',marginBottom:'0.5rem'}}>{cancelError}</div>}
                 <div className="confirmation-buttons">
-                  <button className="btn-secondary" onClick={() => { setShowCancelModal(false); setCancelError(null); }}>No</button>
-                  <button className="btn-primary danger" onClick={handleCancel}>Yes, Cancel</button>
+                  <button className="btn-secondary" onClick={() => { setShowCancelModal(false); setCancelError(null); }}>{t('common.no')}</button>
+                  <button className="btn-primary danger" onClick={handleCancel}>{t('shop.packages.yesCancel')}</button>
                 </div>
               </div>
             </div>
@@ -289,32 +291,31 @@ const ShopPackages = () => {
             <table className="packages-table">
               <thead>
                 <tr>
-                  <th>Tracking #</th>
-                  <th>Description</th>
-                  <th>Recipient</th>
-                  <th>Status</th>
-                  <th>COD</th>
-                  <th>Date</th>
-                  {activeTab !== 'cancelled' && activeTab !== 'return-to-shop' && <th>Action</th>}
+                  <th>{t('shop.packages.trackingNumber')}</th>
+                  <th>{t('shop.packages.description')}</th>
+                  <th>{t('shop.packages.recipient')}</th>
+                  <th>{t('shop.packages.status')}</th>
+                  <th>{t('shop.packages.cod')}</th>
+                  <th>{t('shop.packages.date')}</th>
+                  {activeTab !== 'cancelled' && activeTab !== 'return-to-shop' && <th>{t('shop.packages.action')}</th>}
                 </tr>
               </thead>
               <tbody>
                 {filterPackages().length === 0 ? (
-                  <tr><td colSpan={7} style={{textAlign:'center'}}>No packages found.</td></tr>
+                  <tr><td colSpan={7} style={{textAlign:'center'}}>{t('shop.packages.noPackagesFound')}</td></tr>
                 ) : filterPackages().map(pkg => (
                   <tr key={pkg.id} style={{cursor:'pointer'}} onClick={e => {
-                    // Prevent opening modal when clicking the cancel button
                     if (e.target.closest('button')) return;
                     openDetailsModal(pkg);
                   }}>
-                    <td data-label="Tracking #">{pkg.trackingNumber}</td>
-                    <td data-label="Description">{pkg.packageDescription}</td>
-                    <td data-label="Recipient">{pkg.deliveryContactName}</td>
-                    <td data-label="Status">{getStatusBadge(pkg.status)}</td>
-                    <td data-label="COD">${parseFloat(pkg.codAmount || 0).toFixed(2)} {getCodBadge(pkg.isPaid)}</td>
-                    <td data-label="Date">{new Date(pkg.createdAt).toLocaleDateString()}</td>
+                    <td data-label={t('shop.packages.trackingNumber')}>{pkg.trackingNumber}</td>
+                    <td data-label={t('shop.packages.description')}>{pkg.packageDescription}</td>
+                    <td data-label={t('shop.packages.recipient')}>{pkg.deliveryContactName}</td>
+                    <td data-label={t('shop.packages.status')}>{getStatusBadge(pkg.status, t)}</td>
+                    <td data-label={t('shop.packages.cod')}>${parseFloat(pkg.codAmount || 0).toFixed(2)} {getCodBadge(pkg.isPaid)}</td>
+                    <td data-label={t('shop.packages.date')}>{new Date(pkg.createdAt).toLocaleDateString()}</td>
                     {activeTab !== 'cancelled' && (
-                      <td data-label="Actions" className="actions-cell">
+                      <td data-label={t('shop.packages.action')} className="actions-cell">
                         {pkg.status !== 'cancelled' && pkg.status !== 'delivered' && pkg.status !== 'cancelled-returned' && pkg.status !== 'cancelled-awaiting-return' && pkg.status !== 'rejected' &&(
                           <button
                             className="action-button cancel-btn"
@@ -324,7 +325,7 @@ const ShopPackages = () => {
                               setShowCancelModal(true);
                             }}
                           >
-                            Cancel
+                            {t('shop.packages.cancel')}
                           </button>
                         )}
                       </td>
@@ -336,15 +337,15 @@ const ShopPackages = () => {
           </div>
         </>
       )}
-      {/* Pickup Modal - always render so it works in any tab */}
+      {/* Pickup Modal */}
       {showPickupModal && (
         <div className="confirmation-overlay" onClick={() => setShowPickupModal(false)}>
           <div className="confirmation-dialog" onClick={e => e.stopPropagation()} style={{minWidth:'350px'}}>
-            <h3>Pickup Packages</h3>
+            <h3>{t('shop.packages.pickupPackagesTitle')}</h3>
             {pickupPackagesLoading ? (
-              <div>Loading packages...</div>
+              <div>{t('shop.packages.loading')}</div>
             ) : pickupPackages.length === 0 ? (
-              <div>No packages found for this pickup.</div>
+              <div>{t('shop.packages.noPackagesForPickup')}</div>
             ) : (
               <ul style={{paddingLeft:0}}>
                 {pickupPackages.map(pkg => (
@@ -354,7 +355,7 @@ const ShopPackages = () => {
                 ))}
               </ul>
             )}
-            <button className="btn btn-secondary" onClick={() => setShowPickupModal(false)} style={{marginTop:'1rem'}}>Close</button>
+            <button className="btn btn-secondary" onClick={() => setShowPickupModal(false)} style={{marginTop:'1rem'}}>{t('common.close')}</button>
           </div>
         </div>
       )}
@@ -362,12 +363,12 @@ const ShopPackages = () => {
       {showPickupCancelModal && (
         <div className="confirmation-overlay" onClick={() => { setShowPickupCancelModal(false); setPickupCancelError(null); }}>
           <div className="confirmation-dialog warning-dialog" onClick={e => e.stopPropagation()}>
-            <h3>Cancel Pickup</h3>
-            <p>Are you sure you want to cancel this pickup? All packages will be reset to pending.</p>
+            <h3>{t('shop.packages.cancelPickupTitle')}</h3>
+            <p>{t('shop.packages.cancelPickupConfirm')}</p>
             {pickupCancelError && <div style={{color:'#dc3545',marginBottom:'0.5rem'}}>{pickupCancelError}</div>}
             <div className="confirmation-buttons">
-              <button className="btn-secondary" onClick={() => { setShowPickupCancelModal(false); setPickupCancelError(null); }}>No</button>
-              <button className="btn-danger" onClick={handleCancelPickup}>Yes, Cancel</button>
+              <button className="btn-secondary" onClick={() => { setShowPickupCancelModal(false); setPickupCancelError(null); }}>{t('common.no')}</button>
+              <button className="btn-danger" onClick={handleCancelPickup}>{t('shop.packages.yesCancel')}</button>
             </div>
           </div>
         </div>
@@ -377,62 +378,62 @@ const ShopPackages = () => {
         <div className="confirmation-overlay" onClick={() => setShowPackageDetailsModal(false)}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>Package Details</h2>
+              <h2>{t('shop.packages.packageDetailsTitle')}</h2>
               <button className="btn close-btn" onClick={() => setShowPackageDetailsModal(false)}>&times;</button>
             </div>
             <div className="modal-body">
               <div className="details-grid">
                 <div className="detail-item">
-                  <span className="label">Tracking #</span>
+                  <span className="label">{t('shop.packages.trackingNumber')}</span>
                   <span>{selectedPackage.trackingNumber}</span>
                 </div>
                 <div className="detail-item">
-                  <span className="label">Status</span>
-                  <span>{getStatusBadge(selectedPackage.status)}</span>
+                  <span className="label">{t('shop.packages.status')}</span>
+                  <span>{getStatusBadge(selectedPackage.status, t)}</span>
                 </div>
                 <div className="detail-item">
-                  <span className="label">Created</span>
+                  <span className="label">{t('shop.packages.created')}</span>
                   <span>{new Date(selectedPackage.createdAt).toLocaleString()}</span>
                 </div>
                 <div className="detail-item full-width">
-                  <span className="label">Description</span>
-                  <span>{selectedPackage.packageDescription || 'No description'}</span>
+                  <span className="label">{t('shop.packages.description')}</span>
+                  <span>{selectedPackage.packageDescription || t('shop.packages.noDescription')}</span>
                 </div>
                 <div className="detail-item">
-                  <span className="label">Recipient</span>
-                  <span>{selectedPackage.deliveryContactName || 'N/A'}</span>
+                  <span className="label">{t('shop.packages.recipient')}</span>
+                  <span>{selectedPackage.deliveryContactName || t('common.notAvailable')}</span>
                 </div>
                 {selectedPackage.deliveryContactPhone && (
                   <div className="detail-item">
-                    <span className="label">Recipient Phone</span>
+                    <span className="label">{t('shop.packages.recipientPhone')}</span>
                     <span>{selectedPackage.deliveryContactPhone}</span>
                   </div>
                 )}
                 {selectedPackage.deliveryAddress && (
                   <div className="detail-item full-width">
-                    <span className="label">Delivery Address</span>
+                    <span className="label">{t('shop.packages.deliveryAddress')}</span>
                     <span>{selectedPackage.deliveryAddress}</span>
                   </div>
                 )}
                 <div className="detail-item">
-                  <span className="label">COD</span>
+                  <span className="label">{t('shop.packages.cod')}</span>
                   <span>${parseFloat(selectedPackage.codAmount || 0).toFixed(2)} {getCodBadge(selectedPackage.isPaid)}</span>
                 </div>
                 {selectedPackage.weight && (
                   <div className="detail-item">
-                    <span className="label">Weight</span>
+                    <span className="label">{t('shop.packages.weight')}</span>
                     <span>{selectedPackage.weight} kg</span>
                   </div>
                 )}
                 {selectedPackage.dimensions && (
                   <div className="detail-item">
-                    <span className="label">Dimensions</span>
+                    <span className="label">{t('shop.packages.dimensions')}</span>
                     <span>{selectedPackage.dimensions}</span>
                   </div>
                 )}
                 {selectedPackage.shopNotes && (
                   <div className="detail-item full-width">
-                    <span className="label">Shop Notes</span>
+                    <span className="label">{t('shop.packages.shopNotes')}</span>
                     <span>{selectedPackage.shopNotes}</span>
                   </div>
                 )}
@@ -444,17 +445,17 @@ const ShopPackages = () => {
                     await packageService.updatePackageStatus(selectedPackage.id, { status: 'pending' });
                     setShowPackageDetailsModal(false);
                     setPackages(prev => prev.map(p => p.id === selectedPackage.id ? { ...p, status: 'pending' } : p));
-                  }}>Mark as Pending</button>
+                  }}>{t('shop.packages.markAsPending')}</button>
                   <button className="btn btn-danger" onClick={async () => {
                     await packageService.updatePackageStatus(selectedPackage.id, { status: 'cancelled-awaiting-return' });
                     setShowPackageDetailsModal(false);
                     setPackages(prev => prev.map(p => p.id === selectedPackage.id ? { ...p, status: 'cancelled-awaiting-return' } : p));
-                  }}>Mark as Cancelled Awaiting Return</button>
+                  }}>{t('shop.packages.markAsCancelledAwaitingReturn')}</button>
                 </div>
               )}
-              {/* Notes Log Section - moved above Close button and improved UI */}
+              {/* Notes Log Section */}
               <div className="package-notes-log-section" style={{marginTop:'2rem', marginBottom:'1.5rem'}}>
-                <h4 style={{marginBottom:'0.75rem'}}>Notes Log</h4>
+                <h4 style={{marginBottom:'0.75rem'}}>{t('shop.packages.notesLog')}</h4>
                 <div className="notes-log-list" style={{display:'flex', flexDirection:'column', gap:'0.75rem'}}>
                   {(() => {
                     let notesArr = [];
@@ -475,20 +476,20 @@ const ShopPackages = () => {
                         <div key={idx} className="notes-log-entry" style={{background:'#f8f9fa', borderRadius:'6px', padding:'0.75rem 1rem', boxShadow:'0 1px 2px rgba(0,0,0,0.03)', border:'1px solid #ececec'}}>
                           <div className="notes-log-meta" style={{marginBottom:'0.25rem'}}>
                             <span className="notes-log-date" style={{fontSize:'0.92em', color:'#888'}}>
-                              {n.createdAt ? new Date(n.createdAt).toLocaleString() : 'Unknown date'}
+                              {n.createdAt ? new Date(n.createdAt).toLocaleString() : t('shop.packages.unknownDate')}
                             </span>
                           </div>
                           <div className="notes-log-text" style={{whiteSpace:'pre-line', fontSize:'1.05em', color:'#222'}}>{n.text}</div>
                         </div>
                       ))
                     ) : (
-                      <div className="notes-log-empty" style={{color:'#888', fontStyle:'italic'}}>No notes yet.</div>
+                      <div className="notes-log-empty" style={{color:'#888', fontStyle:'italic'}}>{t('shop.packages.noNotesYet')}</div>
                     );
                   })()}
                 </div>
               </div>
               <div className="modal-actions">
-                <button className="btn close-btn" onClick={() => setShowPackageDetailsModal(false)}>Close</button>
+                <button className="btn close-btn" onClick={() => setShowPackageDetailsModal(false)}>{t('common.close')}</button>
               </div>
             </div>
           </div>

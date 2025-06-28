@@ -10,6 +10,7 @@ import Wallet from './Wallet';
 import { Pie } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import './ShopDashboard.css';
+import { useTranslation } from 'react-i18next';
 
 // Register ChartJS components
 ChartJS.register(ArcElement, Tooltip, Legend);
@@ -68,6 +69,7 @@ const ShopDashboard = () => {
   });
   const [showPackageDetailsModal, setShowPackageDetailsModal] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState(null);
+  const { t } = useTranslation();
   
   // Function to refresh dashboard data - can be called from any child component
   const refreshDashboard = () => {
@@ -453,34 +455,34 @@ const ShopDashboard = () => {
       <div className="dashboard-container">
         <div className="dashboard-sidebar">
           <div className="sidebar-header">
-            <h2>Droppin</h2>
-            <p>Shop Portal</p>
+            <h2>{t('shop.dashboard.sidebar.brand')}</h2>
+            <p>{t('shop.dashboard.sidebar.portal')}</p>
           </div>
         
           <div className="sidebar-menu">
             <Link to="/shop" className={`menu-item${location.pathname === '/shop' ? ' active' : ''}`}> 
               <i className="menu-icon">📊</i>
-              Dashboard
+              {t('shop.dashboard.sidebar.dashboard')}
             </Link>
             <Link to="/shop/packages" className={`menu-item${location.pathname.startsWith('/shop/packages') ? ' active' : ''}`}> 
               <i className="menu-icon">📦</i>
-              Packages
+              {t('shop.dashboard.sidebar.packages')}
             </Link>
             <Link to="/shop/create-package" className={`menu-item${location.pathname === '/shop/create-package' ? ' active' : ''}`}> 
               <i className="menu-icon">➕</i>
-              New Package
+              {t('shop.dashboard.sidebar.newPackage')}
             </Link>
             <Link to="/shop/new-pickup" className={`menu-item${location.pathname === '/shop/new-pickup' ? ' active' : ''}`}> 
               <i className="menu-icon">🚚</i>
-              New Pickup
+              {t('shop.dashboard.sidebar.newPickup')}
             </Link>
             <Link to="/shop/wallet" className={`menu-item${location.pathname === '/shop/wallet' ? ' active' : ''}`}> 
               <i className="menu-icon">💰</i>
-              Wallet
+              {t('shop.dashboard.sidebar.wallet')}
             </Link>
             <Link to="/shop/profile" className={`menu-item${location.pathname === '/shop/profile' ? ' active' : ''}`}> 
               <i className="menu-icon">👤</i>
-              Profile
+              {t('shop.dashboard.sidebar.profile')}
             </Link>
           </div>
         </div>
@@ -495,12 +497,12 @@ const ShopDashboard = () => {
             <div className="dashboard-content">
               <div className="dashboard-header">
                 <div className="welcome-message">
-                  <h1 style={{color:'white'}}>Welcome, {currentUser?.name || 'Shop Owner'}</h1>
-                  <p style={{color:'white'}}>Manage your deliveries with ease</p>
+                  <h1 style={{color:'white'}}>{t('shop.dashboard.header.welcome', { name: currentUser?.name || t('shop.dashboard.header.shopOwner') })}</h1>
+                  <p style={{color:'white'}}>{t('shop.dashboard.header.manageDeliveries')}</p>
                 </div>
                 <div className="user-info">
                   <span className="business-name">{currentUser?.businessName}</span>
-                  <span>Shop Account</span>
+                  <span>{t('shop.dashboard.header.account')}</span>
                 </div>
               </div>
               
@@ -511,25 +513,25 @@ const ShopDashboard = () => {
                   <div className="dashboard-stats package-stats">
                     <div className="stat-card" style={{cursor:'pointer'}} onClick={() => handleStatClick('pending')}>
                       <div className="stat-value">{packages.filter(p => p.status === 'pending').length}</div>
-                      <div className="stat-label">Pending</div>
+                      <div className="stat-label">{t('shop.dashboard.stats.pending')}</div>
                     </div>
                     <div className="stat-card" style={{cursor:'pointer'}} onClick={() => handleStatClick('in-transit')}>
                       <div className="stat-value">{packages.filter(p => ['assigned', 'pickedup', 'in-transit'].includes(p.status)).length}</div>
-                      <div className="stat-label">In Transit</div>
+                      <div className="stat-label">{t('shop.dashboard.stats.inTransit')}</div>
                     </div>
                     <div className="stat-card" style={{cursor:'pointer'}} onClick={() => handleStatClick('delivered')}>
                       <div className="stat-value">{packages.filter(p => p.status === 'delivered').length}</div>
-                      <div className="stat-label">Delivered</div>
+                      <div className="stat-label">{t('shop.dashboard.stats.delivered')}</div>
                     </div>
                     <div className="stat-card" style={{cursor:'pointer'}} onClick={() => handleStatClick('all')}>
                       <div className="stat-value">{packages.length}</div>
-                      <div className="stat-label">Total</div>
+                      <div className="stat-label">{t('shop.dashboard.stats.total')}</div>
                     </div>
                   </div>
 
                   {/* Package Distribution Chart */}
                   <div className="chart-container">
-                    <h3>Package Distribution</h3>
+                    <h3>{t('shop.dashboard.chart.packageDistribution')}</h3>
                     <div>
                       <Pie data={getChartData()} options={chartOptions} />
                     </div>
@@ -542,13 +544,13 @@ const ShopDashboard = () => {
                     <div className="stat-value">
                       ${(parseFloat(financialStats.rawToCollect || 0)).toFixed(2)}
                     </div>
-                    <div className="stat-label">To Collect</div>
+                    <div className="stat-label">{t('shop.dashboard.stats.toCollect')}</div>
                   </div>
                   <div className="stat-card">
                     <div className="stat-value">
                       ${(parseFloat(financialStats.rawTotalCollected || 0)).toFixed(2)}
                     </div>
-                    <div className="stat-label">Collected (Waiting Withdraw)</div>
+                    <div className="stat-label">{t('shop.dashboard.stats.collectedWaitingWithdraw')}</div>
                   </div>
                 </div>
               </div>
@@ -556,17 +558,17 @@ const ShopDashboard = () => {
               <div className="dashboard-main">
                 <div className="recent-packages">
                   <div className="section-header">
-                    <h2>Recent Packages</h2>
-                    <Link to="/shop/packages" className="view-all">View All</Link>
+                    <h2>{t('shop.dashboard.recentPackages.title')}</h2>
+                    <Link to="/shop/packages" className="view-all">{t('shop.dashboard.recentPackages.viewAll')}</Link>
                   </div>
                   {loading ? (
-                    <div className="loading-message">Loading recent packages...</div>
+                    <div className="loading-message">{t('shop.dashboard.recentPackages.loading')}</div>
                   ) : error ? (
                     <div className="error-message">{error}</div>
                   ) : packages.length === 0 ? (
                     <div className="empty-state">
-                      <p>No packages found. Create your first delivery package now!</p>
-                      <Link to="/shop/create-package" className="action-button">Create Package</Link>
+                      <p>{t('shop.dashboard.recentPackages.empty.message')}</p>
+                      <Link to="/shop/create-package" className="action-button">{t('shop.dashboard.recentPackages.empty.action')}</Link>
                     </div>
                   ) : (
                     <div className="package-list">

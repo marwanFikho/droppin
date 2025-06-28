@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useTranslation } from 'react-i18next';
 
 const DriverRegister = () => {
   const [formData, setFormData] = useState({
@@ -32,6 +33,7 @@ const DriverRegister = () => {
   
   const { register } = useAuth();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -58,12 +60,12 @@ const DriverRegister = () => {
     
     // Validation
     if (formData.password !== formData.confirmPassword) {
-      setFormError('Passwords do not match');
+      setFormError(t('auth.register.validation.passwordMatch'));
       return;
     }
     
     if (formData.password.length < 6) {
-      setFormError('Password must be at least 6 characters');
+      setFormError(t('auth.register.validation.passwordLength'));
       return;
     }
     
@@ -74,11 +76,11 @@ const DriverRegister = () => {
       navigate('/registration-success', { 
         state: { 
           userType: 'driver', 
-          message: 'Your driver account has been registered successfully! An administrator will review your application. You will be able to sign in once your account has been approved.' 
+          message: t('driver.register.successMessage')
         } 
       });
     } catch (error) {
-      setFormError(error.response?.data?.message || 'Registration failed. Please try again.');
+      setFormError(error.response?.data?.message || t('auth.register.validation.failed'));
     } finally {
       setIsSubmitting(false);
     }
@@ -88,53 +90,53 @@ const DriverRegister = () => {
     <div className="auth-container">
       <div className="auth-form-container">
         <div className="auth-header">
-          <h2>Register as a Driver</h2>
-          <p>Join our delivery team and start earning</p>
+          <h2>{t('driver.register.title')}</h2>
+          <p>{t('driver.register.subtitle')}</p>
           <div className="approval-notice">
-            <p><strong>Note:</strong> Driver accounts require administrator approval before you can sign in. You will be notified once your account has been approved.</p>
+            <p><strong>{t('driver.register.note')}:</strong> {t('driver.register.approvalNotice')}</p>
           </div>
         </div>
         
         {formError && <div className="auth-error">{formError}</div>}
         
         <form onSubmit={handleSubmit} className="auth-form">
-          <h3>Personal Information</h3>
+          <h3>{t('driver.register.personalInfo')}</h3>
           <div className="form-group">
-            <label htmlFor="name">Full Name</label>
+            <label htmlFor="name">{t('auth.register.fullName')}</label>
             <input
               type="text"
               id="name"
               name="name"
               value={formData.name}
               onChange={handleChange}
-              placeholder="Enter your full name"
+              placeholder={t('auth.register.fullNamePlaceholder')}
               required
             />
           </div>
           
           <div className="form-row">
             <div className="form-group">
-              <label htmlFor="email">Email</label>
+              <label htmlFor="email">{t('auth.register.email')}</label>
               <input
                 type="email"
                 id="email"
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
-                placeholder="Enter your email"
+                placeholder={t('auth.register.emailPlaceholder')}
                 required
               />
             </div>
             
             <div className="form-group">
-              <label htmlFor="phone">Phone Number</label>
+              <label htmlFor="phone">{t('auth.register.phone')}</label>
               <input
                 type="tel"
                 id="phone"
                 name="phone"
                 value={formData.phone}
                 onChange={handleChange}
-                placeholder="Enter your phone number"
+                placeholder={t('auth.register.phonePlaceholder')}
                 required
               />
             </div>
@@ -142,69 +144,69 @@ const DriverRegister = () => {
           
           <div className="form-row">
             <div className="form-group">
-              <label htmlFor="password">Password</label>
+              <label htmlFor="password">{t('auth.register.password')}</label>
               <input
                 type="password"
                 id="password"
                 name="password"
                 value={formData.password}
                 onChange={handleChange}
-                placeholder="Create a password"
+                placeholder={t('auth.register.passwordPlaceholder')}
                 required
               />
             </div>
             
             <div className="form-group">
-              <label htmlFor="confirmPassword">Confirm Password</label>
+              <label htmlFor="confirmPassword">{t('auth.register.confirmPassword')}</label>
               <input
                 type="password"
                 id="confirmPassword"
                 name="confirmPassword"
                 value={formData.confirmPassword}
                 onChange={handleChange}
-                placeholder="Confirm your password"
+                placeholder={t('auth.register.confirmPasswordPlaceholder')}
                 required
               />
             </div>
           </div>
           
-          <h3>Address Information</h3>
+          <h3>{t('driver.register.addressInfo')}</h3>
           <div className="form-group">
-            <label htmlFor="address.street">Street Address</label>
+            <label htmlFor="address.street">{t('auth.register.address.street')}</label>
             <input
               type="text"
               id="address.street"
               name="address.street"
               value={formData.address.street}
               onChange={handleChange}
-              placeholder="Street address"
+              placeholder={t('auth.register.address.streetPlaceholder')}
               required
             />
           </div>
           
           <div className="form-row">
             <div className="form-group">
-              <label htmlFor="address.city">City</label>
+              <label htmlFor="address.city">{t('auth.register.address.city')}</label>
               <input
                 type="text"
                 id="address.city"
                 name="address.city"
                 value={formData.address.city}
                 onChange={handleChange}
-                placeholder="City"
+                placeholder={t('auth.register.address.cityPlaceholder')}
                 required
               />
             </div>
             
             <div className="form-group">
-              <label htmlFor="address.state">State/Province</label>
+              <label htmlFor="address.state">{t('auth.register.address.state')}</label>
               <input
                 type="text"
                 id="address.state"
                 name="address.state"
                 value={formData.address.state}
                 onChange={handleChange}
-                placeholder="State/Province"
+                placeholder={t('auth.register.address.statePlaceholder')}
                 required
               />
             </div>
@@ -212,35 +214,35 @@ const DriverRegister = () => {
           
           <div className="form-row">
             <div className="form-group">
-              <label htmlFor="address.zipCode">Zip/Postal Code</label>
+              <label htmlFor="address.zipCode">{t('auth.register.address.zipCode')}</label>
               <input
                 type="text"
                 id="address.zipCode"
                 name="address.zipCode"
                 value={formData.address.zipCode}
                 onChange={handleChange}
-                placeholder="Zip/Postal code"
+                placeholder={t('auth.register.address.zipCodePlaceholder')}
                 required
               />
             </div>
             
             <div className="form-group">
-              <label htmlFor="address.country">Country</label>
+              <label htmlFor="address.country">{t('auth.register.address.country')}</label>
               <input
                 type="text"
                 id="address.country"
                 name="address.country"
                 value={formData.address.country}
                 onChange={handleChange}
-                placeholder="Country"
+                placeholder={t('auth.register.address.countryPlaceholder')}
                 required
               />
             </div>
           </div>
           
-          <h3>Vehicle Information</h3>
+          <h3>{t('driver.register.vehicleInfo')}</h3>
           <div className="form-group">
-            <label htmlFor="vehicleType">Vehicle Type</label>
+            <label htmlFor="vehicleType">{t('driver.register.vehicleType')}</label>
             <select
               id="vehicleType"
               name="vehicleType"
@@ -248,37 +250,37 @@ const DriverRegister = () => {
               onChange={handleChange}
               required
             >
-              <option value="car">Car</option>
-              <option value="motorcycle">Motorcycle</option>
-              <option value="bicycle">Bicycle</option>
-              <option value="van">Van</option>
-              <option value="truck">Truck</option>
+              <option value="car">{t('driver.register.vehicleTypes.car')}</option>
+              <option value="motorcycle">{t('driver.register.vehicleTypes.motorcycle')}</option>
+              <option value="bicycle">{t('driver.register.vehicleTypes.bicycle')}</option>
+              <option value="van">{t('driver.register.vehicleTypes.van')}</option>
+              <option value="truck">{t('driver.register.vehicleTypes.truck')}</option>
             </select>
           </div>
           
           <div className="form-row">
             <div className="form-group">
-              <label htmlFor="vehicleDetails.make">Make</label>
+              <label htmlFor="vehicleDetails.make">{t('driver.register.vehicleMake')}</label>
               <input
                 type="text"
                 id="vehicleDetails.make"
                 name="vehicleDetails.make"
                 value={formData.vehicleDetails.make}
                 onChange={handleChange}
-                placeholder="Vehicle make"
+                placeholder={t('driver.register.vehicleMakePlaceholder')}
                 required
               />
             </div>
             
             <div className="form-group">
-              <label htmlFor="vehicleDetails.model">Model</label>
+              <label htmlFor="vehicleDetails.model">{t('driver.register.vehicleModel')}</label>
               <input
                 type="text"
                 id="vehicleDetails.model"
                 name="vehicleDetails.model"
                 value={formData.vehicleDetails.model}
                 onChange={handleChange}
-                placeholder="Vehicle model"
+                placeholder={t('driver.register.vehicleModelPlaceholder')}
                 required
               />
             </div>
@@ -286,69 +288,69 @@ const DriverRegister = () => {
           
           <div className="form-row">
             <div className="form-group">
-              <label htmlFor="vehicleDetails.year">Year</label>
+              <label htmlFor="vehicleDetails.year">{t('driver.register.vehicleYear')}</label>
               <input
                 type="number"
                 id="vehicleDetails.year"
                 name="vehicleDetails.year"
                 value={formData.vehicleDetails.year}
                 onChange={handleChange}
-                placeholder="Vehicle year"
+                placeholder={t('driver.register.vehicleYearPlaceholder')}
                 required
               />
             </div>
             
             <div className="form-group">
-              <label htmlFor="vehicleDetails.color">Color</label>
+              <label htmlFor="vehicleDetails.color">{t('driver.register.vehicleColor')}</label>
               <input
                 type="text"
                 id="vehicleDetails.color"
                 name="vehicleDetails.color"
                 value={formData.vehicleDetails.color}
                 onChange={handleChange}
-                placeholder="Vehicle color"
+                placeholder={t('driver.register.vehicleColorPlaceholder')}
                 required
               />
             </div>
           </div>
           
           <div className="form-group">
-            <label htmlFor="vehicleDetails.licensePlate">License Plate</label>
+            <label htmlFor="vehicleDetails.licensePlate">{t('driver.register.licensePlate')}</label>
             <input
               type="text"
               id="vehicleDetails.licensePlate"
               name="vehicleDetails.licensePlate"
               value={formData.vehicleDetails.licensePlate}
               onChange={handleChange}
-              placeholder="License plate number"
+              placeholder={t('driver.register.licensePlatePlaceholder')}
               required
             />
           </div>
           
-          <h3>Identification</h3>
+          <h3>{t('driver.register.identification')}</h3>
           <div className="form-row">
             <div className="form-group">
-              <label htmlFor="licenseNumber">Driver's License Number</label>
+              <label htmlFor="licenseNumber">{t('driver.register.driversLicense')}</label>
               <input
                 type="text"
                 id="licenseNumber"
                 name="licenseNumber"
                 value={formData.licenseNumber}
                 onChange={handleChange}
-                placeholder="Driver's license number"
+                placeholder={t('driver.register.driversLicensePlaceholder')}
                 required
               />
             </div>
             
             <div className="form-group">
-              <label htmlFor="idNumber">ID Number</label>
+              <label htmlFor="idNumber">{t('driver.register.idNumber')}</label>
               <input
                 type="text"
                 id="idNumber"
                 name="idNumber"
                 value={formData.idNumber}
                 onChange={handleChange}
-                placeholder="ID card number"
+                placeholder={t('driver.register.idNumberPlaceholder')}
                 required
               />
             </div>
@@ -359,18 +361,18 @@ const DriverRegister = () => {
             className="auth-button" 
             disabled={isSubmitting}
           >
-            {isSubmitting ? 'Creating Account...' : 'Register as Driver'}
+            {isSubmitting ? t('driver.register.buttonLoading') : t('driver.register.button')}
           </button>
         </form>
         
         <div className="auth-links">
           <p>
-            Already have an account?{' '}
-            <Link to="/login">Login</Link>
+            {t('auth.register.hasAccount')}{' '}
+            <Link to="/login">{t('auth.register.loginLink')}</Link>
           </p>
           <div className="role-specific-links">
-            <Link to="/register">Register as a Customer</Link>
-            <Link to="/register/shop">Register as a Shop</Link>
+            <Link to="/register">{t('driver.register.registerCustomer')}</Link>
+            <Link to="/register/shop">{t('driver.register.registerShop')}</Link>
           </div>
         </div>
       </div>

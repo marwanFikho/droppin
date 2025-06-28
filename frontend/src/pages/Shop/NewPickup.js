@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { packageService } from '../../services/api';
 import './ShopDashboard.css';
+import { useTranslation } from 'react-i18next';
 
 const NewPickup = () => {
   const navigate = useNavigate();
@@ -12,6 +13,7 @@ const NewPickup = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [shopAddress, setShopAddress] = useState('');
+  const { t } = useTranslation();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -29,7 +31,7 @@ const NewPickup = () => {
           setShopAddress(shopResponse.data.address);
         }
       } catch (err) {
-        setError('Failed to load data. Please try again later.');
+        setError(t('shop.newPickup.loadError'));
         console.error('Error fetching data:', err);
       } finally {
         setLoading(false);
@@ -60,12 +62,12 @@ const NewPickup = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
       if (selectedPackages.length === 0) {
-      setError('Please select at least one package for pickup');
+      setError(t('shop.newPickup.selectAtLeastOne'));
       return;
     }
 
     if (!pickupDate || !pickupTime) {
-      setError('Please select both date and time for pickup');
+      setError(t('shop.newPickup.selectDateTime'));
       return;
     }
 
@@ -80,18 +82,18 @@ const NewPickup = () => {
       await packageService.createPickup(pickupData);
       navigate('/shop/packages');
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to schedule pickup. Please try again.');
+      setError(err.response?.data?.message || t('shop.newPickup.scheduleError'));
     }
   };
 
   if (loading) {
-    return <div className="loading-message">Loading packages...</div>;
+    return <div className="loading-message">{t('shop.newPickup.loading')}</div>;
   }
 
   return (
     <div className="shop-packages-page" style={{ minHeight: '100vh', background: '#f7f9fb', padding: '32px 0', marginLeft:'auto', marginRight:'auto'}}>
       <div className="page-header" style={{ textAlign: 'center', marginBottom: '2rem' }}>
-        <h1>Schedule New Pickup</h1>
+        <h1>{t('shop.newPickup.title')}</h1>
       </div>
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', gap: '2.5rem', width: '100%' }}>
         {/* Select Packages Card (Left) */}
@@ -105,10 +107,10 @@ const NewPickup = () => {
           flexDirection: 'column',
           alignItems: 'flex-start'
         }}>
-          <h3 style={{ marginTop: 0, marginBottom: '1rem' }}>Select Packages</h3>
+          <h3 style={{ marginTop: 0, marginBottom: '1rem' }}>{t('shop.newPickup.selectPackages')}</h3>
           {error && <div className="error-message">{error}</div>}
           <button type="button" className="btn btn-select-all" onClick={handleSelectAll} style={{ marginBottom: '1rem', width: 'fit-content' }}>
-            {selectedPackages.length === packages.length ? 'Deselect All' : 'Select All'}
+            {selectedPackages.length === packages.length ? t('shop.newPickup.deselectAll') : t('shop.newPickup.selectAll')}
           </button>
           <div style={{
             width: '100%',
@@ -119,7 +121,7 @@ const NewPickup = () => {
             overflow: 'visible',
           }}>
             {packages.length === 0 ? (
-              <p>No pending packages available for pickup</p>
+              <p>{t('shop.newPickup.noPendingPackages')}</p>
             ) : (
               packages.map(pkg => (
                 <label key={pkg.id} className={`package-list-item${selectedPackages.includes(pkg.id) ? ' selected' : ''}`}
@@ -147,7 +149,7 @@ const NewPickup = () => {
                     <span style={{ fontWeight: 'bold', color: '#ff8c00' }}>{pkg.trackingNumber}</span>
                     <span>{pkg.packageDescription}</span>
                     <span className="package-cod">{pkg.deliveryAddress}</span>
-                    <span className="package-cod" style={{ color: '#666' }}>COD: ${pkg.codAmount}</span>
+                    <span className="package-cod" style={{ color: '#666' }}>{t('shop.newPickup.cod')}: ${pkg.codAmount}</span>
                   </div>
                 </label>
               ))
@@ -166,9 +168,9 @@ const NewPickup = () => {
           alignItems: 'flex-start',
         }}>
           <form onSubmit={handleSubmit} className="pickup-form" style={{ width: '100%' }}>
-            <h3 style={{ marginTop: 0, marginBottom: '1rem' }}>Pickup Details</h3>
+            <h3 style={{ marginTop: 0, marginBottom: '1rem' }}>{t('shop.newPickup.pickupDetails')}</h3>
             <div className="form-group">
-              <label>Pickup Address:</label>
+              <label>{t('shop.newPickup.pickupAddress')}</label>
               <input
                 type="text"
                 value={shopAddress}
@@ -177,7 +179,7 @@ const NewPickup = () => {
               />
             </div>
             <div className="form-group">
-              <label>Pickup Date:</label>
+              <label>{t('shop.newPickup.pickupDate')}</label>
               <input
                 type="date"
                 value={pickupDate}
@@ -188,7 +190,7 @@ const NewPickup = () => {
               />
             </div>
             <div className="form-group">
-              <label>Pickup Time:</label>
+              <label>{t('shop.newPickup.pickupTime')}</label>
               <input
                 type="time"
                 value={pickupTime}
@@ -199,10 +201,10 @@ const NewPickup = () => {
             </div>
             <div className="form-actions" style={{ display: 'flex', gap: '1rem' }}>
               <button type="button" onClick={() => navigate('/shop/packages')} className="btn btn-secondary">
-                Cancel
+                {t('shop.newPickup.cancel')}
               </button>
               <button type="submit" className="btn btn-primary">
-                Schedule Pickup
+                {t('shop.newPickup.schedulePickup')}
               </button>
             </div>
           </form>

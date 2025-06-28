@@ -207,3 +207,78 @@
   outline: 2px solid #f36325;
   outline-offset: 2px;
 } 
+
+.mobile-top-nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.mobile-lang-toggle-btn {
+  background: var(--light-color, #f8f9fa);
+  color: var(--primary-color, #007bff);
+  border: 1px solid var(--primary-color, #007bff);
+  border-radius: 15px;
+  padding: 0.3rem 0.8rem;
+  font-weight: 600;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.mobile-lang-toggle-btn:hover {
+  background: var(--primary-color, #007bff);
+  color: #fff;
+}
+
+.mobile-lang-toggle-btn:active {
+  transform: scale(0.95);
+}
+
+.mobile-lang-toggle-btn .mobile-lang-icon {
+  font-size: 0.9rem;
+  color: #f36325 !important;
+}
+
+.mobile-lang-toggle-btn:hover .mobile-lang-icon {
+  color: #fff !important;
+}
+
+.mobile-lang-toggle-btn .globe-icon {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  background: transparent;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+  position: relative;
+  margin-left: 3px;
+}
+
+.mobile-lang-toggle-btn .globe-icon::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 10px;
+  height: 1px;
+  background: currentColor;
+  border-radius: 0.5px;
+}
+
+.mobile-lang-toggle-btn .globe-icon::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 1px;
+  height: 10px;
+  background: currentColor;
+  border-radius: 0.5px;
+} 

@@ -1,29 +1,47 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import './MobileRegister.css';
+import { useTranslation } from 'react-i18next';
 
 const MobileRegister = () => {
+  const { t } = useTranslation();
+
   const registrationOptions = [
     {
-      title: 'Register as Shop',
-      description: 'Manage your shop inventory and create packages for delivery',
+      title: t('mobile.register.shop.title'),
+      description: t('mobile.register.shop.description'),
       icon: '🏪',
       link: '/register/shop',
-      features: ['Create packages', 'Track deliveries', 'Manage inventory', 'View analytics']
+      features: [
+        t('mobile.register.shop.features.create'),
+        t('mobile.register.shop.features.track'),
+        t('mobile.register.shop.features.manage'),
+        t('mobile.register.shop.features.analytics')
+      ]
     },
     {
-      title: 'Register as Driver',
-      description: 'Join our delivery network and earn money by delivering packages',
+      title: t('mobile.register.driver.title'),
+      description: t('mobile.register.driver.description'),
       icon: '🚚',
       link: '/register/driver',
-      features: ['Accept deliveries', 'Track routes', 'Earn money', 'Flexible schedule']
+      features: [
+        t('mobile.register.driver.features.accept'),
+        t('mobile.register.driver.features.track'),
+        t('mobile.register.driver.features.earn'),
+        t('mobile.register.driver.features.schedule')
+      ]
     },
     {
-      title: 'Register as User',
-      description: 'Create an account to track packages and manage your orders',
+      title: t('mobile.register.user.title'),
+      description: t('mobile.register.user.description'),
       icon: '👤',
       link: '/register',
-      features: ['Track packages', 'View history', 'Manage profile', 'Get notifications']
+      features: [
+        t('mobile.register.user.features.track'),
+        t('mobile.register.user.features.history'),
+        t('mobile.register.user.features.profile'),
+        t('mobile.register.user.features.notifications')
+      ]
     }
   ];
 
@@ -32,8 +50,8 @@ const MobileRegister = () => {
       <div className="mobile-register-container">
         <div className="mobile-register-header">
           <div className="mobile-register-icon">📝</div>
-          <h1 className="mobile-register-title">Join Droppin</h1>
-          <p className="mobile-register-subtitle">Choose how you want to use our platform</p>
+          <h1 className="mobile-register-title">{t('mobile.register.title')}</h1>
+          <p className="mobile-register-subtitle">{t('mobile.register.subtitle')}</p>
         </div>
 
         <div className="mobile-register-options">
@@ -62,9 +80,9 @@ const MobileRegister = () => {
 
         <div className="mobile-register-footer">
           <p className="mobile-register-footer-text">
-            Already have an account?{' '}
+            {t('auth.register.hasAccount')}{' '}
             <Link to="/login" className="mobile-register-link">
-              Sign in here
+              {t('mobile.register.signIn')}
             </Link>
           </p>
         </div>

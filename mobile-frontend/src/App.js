@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-
 import { AuthProvider, useAuth } from './context/AuthContext';
 import MobileNavigation from './components/MobileNavigation';
 import './App.css';
+import { useTranslation } from 'react-i18next';
 
 // Pages
 import MobileHome from './pages/MobileHome';
@@ -68,6 +69,18 @@ const DashboardLayout = () => {
 };
 
 function App() {
+  const { t, i18n } = useTranslation();
+  
+  // Set document title
+  React.useEffect(() => {
+    document.title = t('common.pageTitle');
+  }, [t]);
+
+  // Set global directionality
+  React.useEffect(() => {
+    document.body.dir = i18n.language === 'ar' ? 'rtl' : 'ltr';
+  }, [i18n.language]);
+
   return (
     <AuthProvider>
       <Router>

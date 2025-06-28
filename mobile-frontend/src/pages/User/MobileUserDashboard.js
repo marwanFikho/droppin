@@ -2,9 +2,11 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import './MobileUserDashboard.css';
+import { useTranslation } from 'react-i18next';
 
 const MobileUserDashboard = () => {
   const { currentUser } = useAuth();
+  const { t } = useTranslation();
 
   // Mock data - replace with actual API calls
   const dashboardStats = {
@@ -43,29 +45,29 @@ const MobileUserDashboard = () => {
 
   const quickActions = [
     {
-      title: 'Track Orders',
-      description: 'Track your current orders',
+      title: t('user.dashboard.quickActions.trackOrders'),
+      description: t('user.dashboard.quickActions.trackOrdersDesc'),
       icon: '📦',
       link: '/user/orders',
       color: '#007bff'
     },
     {
-      title: 'Order History',
-      description: 'View all your past orders',
+      title: t('user.dashboard.quickActions.orderHistory'),
+      description: t('user.dashboard.quickActions.orderHistoryDesc'),
       icon: '📋',
       link: '/user/history',
       color: '#28a745'
     },
     {
-      title: 'Track Package',
-      description: 'Track any package by number',
+      title: t('user.dashboard.quickActions.trackPackage'),
+      description: t('user.dashboard.quickActions.trackPackageDesc'),
       icon: '🔍',
       link: '/track',
       color: '#ffc107'
     },
     {
-      title: 'Profile',
-      description: 'Manage your account settings',
+      title: t('user.dashboard.quickActions.profile'),
+      description: t('user.dashboard.quickActions.profileDesc'),
       icon: '👤',
       link: '/user/profile',
       color: '#6c757d'
@@ -74,11 +76,11 @@ const MobileUserDashboard = () => {
 
   const getStatusColor = (status) => {
     switch (status.toLowerCase()) {
-      case 'delivered':
+      case t('user.dashboard.status.delivered').toLowerCase():
         return '#28a745';
-      case 'in transit':
+      case t('user.dashboard.status.inTransit').toLowerCase():
         return '#007bff';
-      case 'pending pickup':
+      case t('user.dashboard.status.pendingPickup').toLowerCase():
         return '#ffc107';
       default:
         return '#6c757d';
@@ -91,9 +93,9 @@ const MobileUserDashboard = () => {
         {/* Dashboard Header */}
         <div className="mobile-user-dashboard-header">
           <div className="mobile-user-dashboard-welcome">
-            <h1 className="mobile-user-dashboard-title">My Dashboard</h1>
+            <h1 className="mobile-user-dashboard-title">{t('user.dashboard.title')}</h1>
             <p className="mobile-user-dashboard-subtitle">
-              Welcome back, {currentUser?.name || 'User'}!
+              {t('user.dashboard.welcome', { name: currentUser?.name || t('user.dashboard.defaultUser') })}
             </p>
           </div>
           <div className="mobile-user-dashboard-icon">👤</div>
@@ -107,7 +109,7 @@ const MobileUserDashboard = () => {
             </div>
             <div className="mobile-user-dashboard-stat-content">
               <div className="mobile-user-dashboard-stat-number">{dashboardStats.totalOrders}</div>
-              <div className="mobile-user-dashboard-stat-label">Total Orders</div>
+              <div className="mobile-user-dashboard-stat-label">{t('user.dashboard.stats.totalOrders')}</div>
             </div>
           </div>
           
@@ -117,7 +119,7 @@ const MobileUserDashboard = () => {
             </div>
             <div className="mobile-user-dashboard-stat-content">
               <div className="mobile-user-dashboard-stat-number">{dashboardStats.activeOrders}</div>
-              <div className="mobile-user-dashboard-stat-label">Active Orders</div>
+              <div className="mobile-user-dashboard-stat-label">{t('user.dashboard.stats.activeOrders')}</div>
             </div>
           </div>
           
@@ -127,14 +129,14 @@ const MobileUserDashboard = () => {
             </div>
             <div className="mobile-user-dashboard-stat-content">
               <div className="mobile-user-dashboard-stat-number">${dashboardStats.totalSpent}</div>
-              <div className="mobile-user-dashboard-stat-label">Total Spent</div>
+              <div className="mobile-user-dashboard-stat-label">{t('user.dashboard.stats.totalSpent')}</div>
             </div>
           </div>
         </div>
 
         {/* Quick Actions */}
         <div className="mobile-user-dashboard-section">
-          <h2 className="mobile-user-dashboard-section-title">Quick Actions</h2>
+          <h2 className="mobile-user-dashboard-section-title">{t('user.dashboard.quickActions.title')}</h2>
           <div className="mobile-user-dashboard-actions">
             {quickActions.map((action, index) => (
               <Link
@@ -161,9 +163,9 @@ const MobileUserDashboard = () => {
         {/* Recent Orders */}
         <div className="mobile-user-dashboard-section">
           <div className="mobile-user-dashboard-section-header">
-            <h2 className="mobile-user-dashboard-section-title">Recent Orders</h2>
+            <h2 className="mobile-user-dashboard-section-title">{t('user.dashboard.recentOrders')}</h2>
             <Link to="/user/orders" className="mobile-user-dashboard-section-link">
-              View All
+              {t('user.dashboard.viewAll')}
             </Link>
           </div>
           
@@ -176,22 +178,22 @@ const MobileUserDashboard = () => {
                     className="mobile-user-dashboard-order-status"
                     style={{ color: getStatusColor(order.status) }}
                   >
-                    {order.status}
+                    {t(`user.dashboard.status.${order.status.replace(/\s+/g, '').toLowerCase()}`, order.status)}
                   </div>
                 </div>
                 
                 <div className="mobile-user-dashboard-order-details">
                   <div className="mobile-user-dashboard-order-shop">
-                    <strong>Shop:</strong> {order.shop}
+                    <strong>{t('user.dashboard.shop')}:</strong> {order.shop}
                   </div>
                   <div className="mobile-user-dashboard-order-tracking">
-                    <strong>Tracking:</strong> {order.trackingNumber}
+                    <strong>{t('user.dashboard.tracking')}:</strong> {order.trackingNumber}
                   </div>
                   <div className="mobile-user-dashboard-order-date">
-                    <strong>Date:</strong> {order.date}
+                    <strong>{t('user.dashboard.date')}:</strong> {order.date}
                   </div>
                   <div className="mobile-user-dashboard-order-amount">
-                    <strong>Amount:</strong> ${order.amount}
+                    <strong>{t('user.dashboard.amount')}:</strong> ${order.amount}
                   </div>
                 </div>
                 
@@ -200,13 +202,13 @@ const MobileUserDashboard = () => {
                     to={`/track/${order.trackingNumber}`}
                     className="mobile-user-dashboard-order-track-btn"
                   >
-                    Track Order
+                    {t('user.dashboard.trackOrder')}
                   </Link>
                   <Link 
                     to={`/user/orders/${order.id}`}
                     className="mobile-user-dashboard-order-details-btn"
                   >
-                    View Details
+                    {t('user.dashboard.viewDetails')}
                   </Link>
                 </div>
               </div>

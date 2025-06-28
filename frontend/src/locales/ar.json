@@ -1,0 +1,890 @@
+{
+  "common": {
+    "appName": "دروبين",
+    "appFullName": "توصيل دروبين",
+    "pageTitle": "دروبين - خدمة توصيل سريعة وموثوقة",
+    "loading": "جاري التحميل...",
+    "error": "خطأ",
+    "success": "نجاح",
+    "submit": "إرسال",
+    "cancel": "إلغاء",
+    "save": "حفظ",
+    "edit": "تعديل",
+    "delete": "حذف",
+    "back": "رجوع",
+    "next": "التالي",
+    "user": "مستخدم",
+    "note": "ملاحظة",
+    "close": "إغلاق",
+    "confirm": "تأكيد",
+    "search": "بحث",
+    "view": "عرض",
+    "approve": "موافقة",
+    "reject": "رفض",
+    "assign": "تعيين",
+    "noData": "لا توجد بيانات متاحة",
+    "notAvailable": "غير متوفر",
+    "status": "الحالة",
+    "switchToArabic": "العربية",
+    "switchToEnglish": "English"
+  },
+
+  "navigation": {
+    "home": "الرئيسية",
+    "login": "تسجيل الدخول",
+    "logout": "تسجيل الخروج",
+    "register": "تسجيل",
+    "dashboard": "لوحة التحكم",
+    "profile": "الملف الشخصي",
+    "settings": "الإعدادات",
+    "trackPackage": "تتبع الطرد",
+    "about": "عن دروبين",
+    "contact": "اتصل بنا",
+    "terms": "الشروط",
+    "privacy": "الخصوصية"
+  },
+
+  "home": {
+    "hero": {
+      "title": "توصيل دروبين",
+      "subtitle": "خدمة توصيل سريعة وموثوقة",
+      "description": "تواصل مع المتاجر والسائقين المحليين للحصول على تجربة توصيل سلسة",
+      "ctaLogin": "تسجيل الدخول",
+      "ctaRegister": "سجل الآن",
+      "ctaDashboard": "الذهاب إلى لوحة التحكم"
+    },
+    "features": {
+      "title": "لماذا تختار دروبين؟",
+      "shops": {
+        "title": "للمتاجر",
+        "description": "إدارة عمليات التوصيل بكفاءة وتنمية أعمالك"
+      },
+      "drivers": {
+        "title": "للسائقين",
+        "description": "انضم إلى شبكتنا واكسب من خلال توصيل الطرود"
+      },
+      "customers": {
+        "title": "للعملاء",
+        "description": "تتبع طرودك في الوقت الفعلي بسهولة"
+      }
+    },
+    "tracking": {
+      "title": "تتبع طردك",
+      "button": "أدخل رقم التتبع"
+    },
+    "footer": {
+      "copyright": "© {{year}} توصيل دروبين. جميع الحقوق محفوظة",
+      "about": "عن دروبين",
+      "contact": "اتصل بنا",
+      "terms": "شروط الخدمة",
+      "privacy": "سياسة الخصوصية"
+    }
+  },
+
+  "auth": {
+    "login": {
+      "title": "تسجيل الدخول إلى دروبين",
+      "subtitle": "أدخل بياناتك للوصول إلى حسابك",
+      "email": "البريد الإلكتروني",
+      "emailPlaceholder": "أدخل بريدك الإلكتروني",
+      "password": "كلمة المرور",
+      "passwordPlaceholder": "أدخل كلمة المرور",
+      "button": "تسجيل الدخول",
+      "buttonLoading": "جاري تسجيل الدخول...",
+      "noAccount": "ليس لديك حساب؟",
+      "registerLink": "تسجيل",
+      "registerShop": "تسجيل كمتجر",
+      "registerDriver": "تسجيل كسائق",
+      "error": {
+        "required": "يرجى إدخال البريد الإلكتروني وكلمة المرور",
+        "credentials": "فشل تسجيل الدخول. يرجى التحقق من بياناتك."
+      }
+    },
+    "register": {
+      "title": "إنشاء حساب",
+      "subtitle": "سجل لتتبع طرودك",
+      "fullName": "الاسم الكامل",
+      "fullNamePlaceholder": "أدخل اسمك الكامل",
+      "email": "البريد الإلكتروني",
+      "emailPlaceholder": "أدخل بريدك الإلكتروني",
+      "phone": "رقم الهاتف",
+      "phonePlaceholder": "أدخل رقم هاتفك",
+      "password": "كلمة المرور",
+      "passwordPlaceholder": "أنشئ كلمة مرور",
+      "confirmPassword": "تأكيد كلمة المرور",
+      "confirmPasswordPlaceholder": "أكد كلمة المرور",
+      "button": "إنشاء حساب",
+      "buttonLoading": "جاري إنشاء الحساب...",
+      "hasAccount": "لديك حساب بالفعل؟",
+      "loginLink": "تسجيل الدخول",
+      "roleLinks": {
+        "title": "هل أنت عمل تجاري أم سائق؟",
+        "shop": "تسجيل كمتجر",
+        "driver": "تسجيل كسائق"
+      },
+      "address": {
+        "title": "معلومات العنوان",
+        "street": "عنوان الشارع",
+        "streetPlaceholder": "عنوان الشارع",
+        "city": "المدينة",
+        "cityPlaceholder": "المدينة",
+        "state": "الولاية/المحافظة",
+        "statePlaceholder": "الولاية/المحافظة",
+        "zipCode": "الرمز البريدي",
+        "zipCodePlaceholder": "الرمز البريدي",
+        "country": "البلد",
+        "countryPlaceholder": "البلد"
+      },
+      "validation": {
+        "passwordMatch": "كلمات المرور غير متطابقة",
+        "passwordLength": "كلمة المرور يجب أن تكون 6 أحرف على الأقل",
+        "failed": "فشل التسجيل. يرجى المحاولة مرة أخرى."
+      }
+    }
+  },
+
+  "dashboard": {
+    "welcome": "مرحباً بعودتك",
+    "stats": {
+      "title": "الإحصائيات",
+      "totalDeliveries": "إجمالي التوصيلات",
+      "pendingDeliveries": "التوصيلات المعلقة",
+      "completedDeliveries": "التوصيلات المكتملة"
+    }
+  },
+
+  "tracking": {
+    "title": "تتبع طردك",
+    "enterNumber": "أدخل رقم التتبع للحصول على تحديثات فورية",
+    "input": {
+      "placeholder": "أدخل رقم التتبع (مثل DP123456789)"
+    },
+    "search": "تتبع",
+    "packageInfo": "معلومات الطرد",
+    "trackingNumber": "رقم التتبع",
+    "description": "الوصف",
+    "noDescription": "غير متوفر",
+    "priority": "الأولوية",
+    "weight": "الوزن",
+    "dimensions": "الأبعاد",
+    "shopInfo": "معلومات المتجر",
+    "businessName": "اسم العمل التجاري",
+    "driverInfo": "معلومات السائق",
+    "name": "الاسم",
+    "phone": "الهاتف",
+    "vehicleType": "نوع المركبة",
+    "workingArea": "منطقة العمل",
+    "deliveryInfo": "معلومات التوصيل",
+    "contactName": "اسم جهة الاتصال",
+    "address": "العنوان",
+    "estimatedDelivery": "موعد التوصيل المتوقع",
+    "deliveredOn": "تم التوصيل في",
+    "notesLog": "سجل الملاحظات",
+    "unknownDate": "تاريخ غير معروف",
+    "noNotes": "لا توجد ملاحظات بعد.",
+    "error": {
+      "notFound": "لم يتم العثور على الطرد. يرجى التحقق من رقم التتبع والمحاولة مرة أخرى."
+    },
+    "status": {
+      "delivered": "تم التوصيل",
+      "in-transit": "قيد النقل",
+      "pickedup": "تم الاستلام",
+      "pending": "في الانتظار",
+      "assigned": "تم التعيين",
+      "cancelled": "ملغي",
+      "cancelled-awaiting-return": "ملغي - في انتظار الإرجاع",
+      "cancelled-returned": "ملغي - تم الإرجاع"
+    }
+  },
+
+  "errors": {
+    "notFound": {
+      "code": "404",
+      "title": "الصفحة غير موجودة",
+      "message": "الصفحة التي تبحث عنها غير موجودة أو تم نقلها.",
+      "backHome": "العودة للرئيسية"
+    },
+    "unauthorized": {
+      "title": "تم رفض الوصول",
+      "message": "ليس لديك صلاحية للوصول إلى هذه الصفحة.",
+      "goBack": "العودة",
+      "goTo": "اذهب إلى {{destination}}",
+      "dashboard": "لوحة التحكم",
+      "home": "الرئيسية"
+    }
+  },
+
+  "welcome": "مرحباً بكم في دروبين",
+  "login": "تسجيل الدخول",
+  "logout": "تسجيل الخروج",
+  "dashboard": "لوحة التحكم",
+  "profile": "الملف الشخصي",
+  "settings": "الإعدادات",
+  "language": "اللغة",
+  "deliveryService": "خدمة التوصيل",
+  "trackPackage": "تتبع الطرد",
+  "becomeDriver": "كن سائقاً",
+  "registerShop": "سجل متجرك",
+  "registration": {
+    "success": {
+      "title": "تم التسجيل بنجاح!",
+      "defaultMessage": "تم تسجيل حسابك بنجاح!",
+      "whatNext": "ماذا يحدث بعد ذلك؟",
+      "step1": "سيقوم مدراؤنا بمراجعة معلومات متجرك",
+      "step2": "ستتلقى إشعاراً بالبريد الإلكتروني بمجرد الموافقة على حسابك",
+      "step3": "بعد الموافقة، يمكنك تسجيل الدخول والبدء في إدارة توصيلاتك",
+      "goToLogin": "اذهب لتسجيل الدخول",
+      "backToHome": "العودة للرئيسية"
+    }
+  },
+
+  "shop": {
+    "dashboard": {
+      "sidebar": {
+        "brand": "دروبين",
+        "portal": "بوابة المتجر",
+        "dashboard": "لوحة التحكم",
+        "packages": "الطرود",
+        "newPackage": "طرد جديد",
+        "newPickup": "استلام جديد",
+        "wallet": "المحفظة",
+        "profile": "الملف الشخصي"
+      },
+      "header": {
+        "welcome": "مرحبًا، {{name}}",
+        "shopOwner": "صاحب المتجر",
+        "manageDeliveries": "أدر عمليات التوصيل بسهولة",
+        "account": "حساب المتجر"
+      },
+      "stats": {
+        "pending": "قيد الانتظار",
+        "inTransit": "قيد التوصيل",
+        "delivered": "تم التسليم",
+        "total": "الإجمالي",
+        "toCollect": "قيد التحصيل (الدفع عند الاستلام)",
+        "collectedWaitingWithdraw": "تم التحصيل (بانتظار التسوية)"
+      },
+      "chart": {
+        "packageDistribution": "توزيع الطرود"
+      },
+      "title": "بوابة المتجر",
+      "welcome": "مرحباً، {{name}}",
+      "subtitle": "إدارة عمليات التوصيل بسهولة",
+      "menu": {
+        "dashboard": "لوحة التحكم",
+        "packages": "الطرود",
+        "newPackage": "طرد جديد",
+        "profile": "الملف الشخصي",
+        "logout": "تسجيل الخروج"
+      },
+      "recentPackages": {
+        "title": "الطرود الأخيرة",
+        "viewAll": "عرض الكل",
+        "loading": "جاري تحميل الطرود الأخيرة...",
+        "empty": {
+          "message": "لا توجد طرود. أنشئ أول طرد الآن!",
+          "action": "إنشاء طرد"
+        }
+      },
+      "package": {
+        "status": {
+          "pending": "قيد الانتظار",
+          "assigned": "تم التعيين",
+          "pickedup": "تم الاستلام",
+          "inTransit": "قيد التوصيل",
+          "delivered": "تم التوصيل"
+        },
+        "cod": "الدفع عند الاستلام: ${{amount}}",
+        "paymentStatus": {
+          "paid": "(تم الدفع)",
+          "unpaid": "(لم يتم الدفع)"
+        }
+      },
+      "quickActions": {
+        "title": "إجراءات سريعة",
+        "createPackage": "إنشاء طرد جديد"
+      }
+    },
+    "errors": {
+      "fetchPackages": "فشل في جلب الطرود. يرجى المحاولة مرة أخرى.",
+      "markReturned": "فشل في وضع الطرد كمرتجع. يرجى المحاولة مرة أخرى."
+    },
+    "createPackage": {
+      "section": {
+        "packageInfo": "معلومات الطرد",
+        "deliveryInfo": "معلومات التوصيل",
+        "additionalInfo": "معلومات إضافية"
+      },
+      "label": {
+        "description": "وصف الطرد",
+        "category": "الفئة",
+        "weight": "الوزن (كجم)",
+        "length": "الطول (سم)",
+        "width": "العرض (سم)",
+        "height": "الارتفاع (سم)",
+        "contactName": "اسم المستلم",
+        "contactPhone": "هاتف المستلم",
+        "street": "عنوان الشارع",
+        "city": "المدينة",
+        "state": "المنطقة/المحافظة",
+        "zipCode": "الرمز البريدي",
+        "country": "الدولة",
+        "instructions": "تعليمات التوصيل",
+        "notes": "ملاحظات",
+        "codAmount": "مبلغ الدفع عند الاستلام",
+        "codAbbr": "الدفع عند الاستلام"
+      },
+      "placeholder": {
+        "description": "أدخل وصف الطرد",
+        "selectCategory": "اختر الفئة",
+        "weight": "أدخل الوزن (كجم)",
+        "length": "أدخل الطول (سم)",
+        "width": "أدخل العرض (سم)",
+        "height": "أدخل الارتفاع (سم)",
+        "contactName": "أدخل اسم المستلم",
+        "contactPhone": "أدخل هاتف المستلم",
+        "street": "أدخل عنوان الشارع",
+        "city": "أدخل المدينة",
+        "state": "أدخل المنطقة/المحافظة",
+        "zipCode": "أدخل الرمز البريدي",
+        "country": "أدخل الدولة",
+        "instructions": "تعليمات خاصة للتوصيل",
+        "notes": "ملاحظات إضافية",
+        "codAmount": "اتركه فارغًا إذا لم يكن هناك دفع عند الاستلام"
+      },
+      "category": {
+        "shoes": "أحذية",
+        "perfumes": "عطور",
+        "clothes": "ملابس",
+        "electronics": "إلكترونيات",
+        "accessories": "إكسسوارات",
+        "books": "كتب",
+        "other": "أخرى"
+      },
+      "button": {
+        "create": "إنشاء طرد",
+        "loading": "جاري الإنشاء..."
+      },
+      "success": {
+        "title": "تم إنشاء الطرد!",
+        "message": "تم إنشاء الطرد بنجاح.",
+        "redirect": "سيتم تحويلك إلى صفحة الطرود قريبًا."
+      },
+      "error": {
+        "requiredFields": "يرجى تعبئة جميع الحقول المطلوبة.",
+        "deliveryFields": "يرجى إكمال جميع حقول عنوان التوصيل.",
+        "loadAddress": "فشل في تحميل عنوان المتجر.",
+        "createFailed": "فشل في إنشاء الطرد. يرجى المحاولة مرة أخرى."
+      }
+    },
+    "register": {
+      "title": "تسجيل متجرك",
+      "subtitle": "أنشئ حساب متجر لإدارة توصيلاتك",
+      "note": "ملاحظة",
+      "approvalNotice": "حسابات المتاجر تتطلب موافقة المدير قبل تسجيل الدخول. سيتم إشعارك بمجرد الموافقة على حسابك.",
+      "businessInfo": "معلومات العمل التجاري",
+      "businessName": "اسم العمل التجاري",
+      "businessNamePlaceholder": "أدخل اسم عملك التجاري",
+      "email": "البريد الإلكتروني (يستخدم في تسجيل الدخول)",
+      "emailPlaceholder": "أدخل البريد الإلكتروني للعمل",
+      "businessPhone": "رقم هاتف العمل",
+      "businessPhonePlaceholder": "أدخل رقم هاتف العمل",
+      "businessType": "نوع العمل التجاري",
+      "businessTypePlaceholder": "مثل: تجارة التجزئة، مطعم، إلخ",
+      "contactPersonInfo": "معلومات جهة الاتصال",
+      "contactPersonDescription": "يرجى تقديم تفاصيل الشخص الذي يجب الاتصال به بخصوص هذا الحساب.",
+      "contactPersonName": "اسم جهة الاتصال",
+      "contactPersonNamePlaceholder": "اسم جهة الاتصال",
+      "contactPersonPhone": "هاتف جهة الاتصال",
+      "contactPersonPhonePlaceholder": "هاتف جهة الاتصال",
+      "contactPersonEmail": "بريد جهة الاتصال الإلكتروني",
+      "contactPersonEmailPlaceholder": "بريد جهة الاتصال الإلكتروني",
+      "businessAddress": "عنوان العمل التجاري",
+      "registrationNumber": "رقم تسجيل العمل التجاري",
+      "registrationNumberPlaceholder": "رقم التسجيل (اختياري)",
+      "taxId": "الرقم الضريبي",
+      "taxIdPlaceholder": "الرقم الضريبي (اختياري)",
+      "button": "تسجيل المتجر",
+      "buttonLoading": "جاري إنشاء الحساب...",
+      "registerCustomer": "تسجيل كعميل",
+      "registerDriver": "تسجيل كسائق",
+      "successMessage": "تم تسجيل حساب متجرك بنجاح! سيقوم المدير بمراجعة طلبك. ستتمكن من تسجيل الدخول بمجرد الموافقة على حسابك."
+    },
+    "profile": {
+      "title": "ملف المتجر",
+      "shopName": "اسم المتجر",
+      "contactName": "اسم جهة الاتصال الافتراضي",
+      "contactPhone": "هاتف جهة الاتصال الافتراضي",
+      "pickupLocation": "موقع الاستلام الافتراضي",
+      "street": "الشارع",
+      "city": "المدينة",
+      "state": "المنطقة/المحافظة",
+      "zipCode": "الرمز البريدي",
+      "country": "الدولة",
+      "changePassword": "تغيير كلمة المرور",
+      "currentPassword": "كلمة المرور الحالية",
+      "newPassword": "كلمة المرور الجديدة",
+      "confirmPassword": "تأكيد كلمة المرور الجديدة",
+      "cancel": "إلغاء",
+      "savePassword": "حفظ كلمة المرور",
+      "saveChanges": "حفظ التغييرات",
+      "saving": "جارٍ الحفظ...",
+      "loadError": "فشل في تحميل الملف الشخصي.",
+      "saveSuccess": "تم تحديث الملف الشخصي بنجاح!",
+      "saveError": "فشل في حفظ الملف الشخصي.",
+      "pwRequired": "جميع حقول كلمة المرور مطلوبة.",
+      "pwNoMatch": "كلمات المرور الجديدة غير متطابقة.",
+      "pwSuccess": "تم تغيير كلمة المرور بنجاح!",
+      "pwError": "فشل في تغيير كلمة المرور."
+    },
+    "wallet": {
+      "title": "المحفظة",
+      "loading": "جاري تحميل بيانات المحفظة...",
+      "error": "فشل في تحميل البيانات. يرجى المحاولة لاحقاً.",
+      "toCollect": "قيد التحصيل",
+      "collected": "تم التحصيل (بانتظار السحب)",
+      "transactionHistory": "سجل المعاملات",
+      "startDate": "تاريخ البدء",
+      "endDate": "تاريخ الانتهاء",
+      "allAttributes": "كل السمات",
+      "allTypes": "كل الأنواع",
+      "increase": "زيادة",
+      "decrease": "نقصان",
+      "searchTransactions": "ابحث في المعاملات...",
+      "noTransactions": "لا توجد معاملات.",
+      "date": "التاريخ",
+      "attribute": "السمة",
+      "type": "النوع",
+      "amount": "المبلغ ($)",
+      "description": "الوصف"
+    },
+    "newPickup": {
+      "title": "جدولة استلام جديد",
+      "loading": "جاري تحميل الطرود...",
+      "loadError": "فشل في تحميل البيانات. يرجى المحاولة لاحقاً.",
+      "selectPackages": "اختر الطرود",
+      "selectAll": "تحديد الكل",
+      "deselectAll": "إلغاء تحديد الكل",
+      "noPendingPackages": "لا توجد طرود معلقة متاحة للاستلام",
+      "cod": "الدفع عند الاستلام",
+      "pickupDetails": "تفاصيل الاستلام",
+      "pickupAddress": "عنوان الاستلام:",
+      "pickupDate": "تاريخ الاستلام:",
+      "pickupTime": "وقت الاستلام:",
+      "cancel": "إلغاء",
+      "schedulePickup": "جدولة الاستلام",
+      "selectAtLeastOne": "يرجى اختيار طرد واحد على الأقل للاستلام",
+      "selectDateTime": "يرجى اختيار كل من التاريخ والوقت للاستلام",
+      "scheduleError": "فشل في جدولة الاستلام. يرجى المحاولة مرة أخرى."
+    },
+    "packages": {
+      "title": "الطرود",
+      "trackingNumber": "رقم التتبع",
+      "description": "الوصف",
+      "recipient": "المستلم",
+      "recipientPhone": "هاتف المستلم",
+      "deliveryAddress": "عنوان التسليم",
+      "status": "الحالة",
+      "cod": "الدفع عند الاستلام",
+      "date": "التاريخ",
+      "action": "إجراء",
+      "created": "تاريخ الإنشاء",
+      "noPackagesFound": "لا توجد طرود.",
+      "viewPackages": "عرض الطرود",
+      "cancel": "إلغاء",
+      "cancelPackageTitle": "إلغاء الطرد",
+      "cancelPackageConfirm": "هل أنت متأكد أنك تريد إلغاء هذا الطرد؟",
+      "yesCancel": "نعم، إلغاء",
+      "pickupPackagesTitle": "طرود الاستلام",
+      "loading": "جاري تحميل الطرود...",
+      "noPackagesForPickup": "لا توجد طرود لهذا الاستلام.",
+      "close": "إغلاق",
+      "cancelPickupTitle": "إلغاء الاستلام",
+      "cancelPickupConfirm": "هل أنت متأكد أنك تريد إلغاء هذا الاستلام؟ سيتم إعادة جميع الطرود إلى قيد الانتظار.",
+      "pickupDate": "تاريخ الاستلام",
+      "address": "العنوان",
+      "noPickups": "لا توجد عمليات استلام.",
+      "loadingPickups": "جاري تحميل عمليات الاستلام...",
+      "markAsPending": "تعيين كقيد الانتظار",
+      "markAsCancelledAwaitingReturn": "تعيين كملغي بانتظار الإرجاع",
+      "notesLog": "سجل الملاحظات",
+      "unknownDate": "تاريخ غير معروف",
+      "noNotesYet": "لا توجد ملاحظات بعد.",
+      "packageDetailsTitle": "تفاصيل الطرد",
+      "statusLabels": {
+        "awaiting_schedule": "بانتظار الجدولة",
+        "awaiting_pickup": "بانتظار الاستلام",
+        "scheduled_for_pickup": "مجدول للاستلام",
+        "pending": "قيد الانتظار",
+        "assigned": "تم التعيين",
+        "pickedup": "تم الاستلام",
+        "in-transit": "قيد التوصيل",
+        "delivered": "تم التسليم",
+        "cancelled": "ملغي",
+        "cancelled-awaiting-return": "ملغي - بانتظار الإرجاع",
+        "cancelled-returned": "ملغي - تم الإرجاع",
+        "rejected": "مرفوض"
+      },
+      "pickupStatusLabels": {
+        "pending": "قيد الانتظار",
+        "scheduled": "مجدول",
+        "cancelled": "ملغي",
+        "completed": "مكتمل",
+        "pickedup": "تم الاستلام"
+      }
+    }
+  },
+
+  "user": {
+    "portal": "بوابة المستخدم",
+    "welcome": "مرحبًا، {{name}}",
+    "trackingDescription": "تتبع طرودك وعرض حالة التوصيل",
+    "accountType": "حساب مستخدم",
+    "deliveryInfo": {
+      "title": "معلومات التوصيل",
+      "updates": {
+        "title": "تحديثات الطرود",
+        "description": "احصل على تحديثات فورية عن حالة طردك"
+      },
+      "security": {
+        "title": "توصيل آمن",
+        "description": "يتم التعامل مع طرودك بعناية وأمان"
+      },
+      "onTime": {
+        "title": "توصيل في الموعد",
+        "description": "يسعى سائقونا لتوصيل الطرود في الموعد المحدد"
+      },
+      "support": {
+        "title": "دعم العملاء",
+        "description": "هل تحتاج للمساعدة؟ تواصل مع فريق دعم العملاء"
+      }
+    },
+    "dashboard": {
+      "sidebar": {
+        "brand": "دروبين",
+        "portal": "بوابة المستخدم",
+        "dashboard": "لوحة التحكم",
+        "trackPackage": "تتبع الطرد",
+        "profile": "الملف الشخصي",
+        "logout": "تسجيل الخروج"
+      },
+      "welcome": "مرحبًا، {{name}}",
+      "user": "مستخدم",
+      "trackAndView": "تتبع طرودك واطلع على حالة التوصيل",
+      "userAccount": "حساب المستخدم",
+      "trackYourPackage": "تتبع طردك",
+      "trackingInputPlaceholder": "أدخل رقم التتبع (مثال: DP123456789)",
+      "trackingLoading": "جاري التتبع...",
+      "track": "تتبع",
+      "recentTrackingHistory": "سجل التتبع الأخير",
+      "clearHistory": "مسح السجل",
+      "noTrackingHistory": "لا يوجد سجل تتبع. تتبع طردًا ليظهر هنا.",
+      "status": {
+        "pending": "قيد الانتظار",
+        "assigned": "تم التعيين",
+        "pickedup": "تم الاستلام",
+        "in-transit": "قيد التوصيل",
+        "delivered": "تم التسليم",
+        "cancelled": "ملغي"
+      },
+      "trackAgain": "تتبع مرة أخرى",
+      "deliveryInfoTitle": "معلومات التوصيل",
+      "packageUpdates": "تحديثات الطرود",
+      "packageUpdatesDesc": "استلم تحديثات فورية حول حالة طردك.",
+      "secureDelivery": "توصيل آمن",
+      "secureDeliveryDesc": "يتم التعامل مع طرودك بعناية وأمان.",
+      "onTimeDelivery": "توصيل في الوقت المحدد",
+      "onTimeDeliveryDesc": "يهدف سائقونا إلى توصيل الطرود في الوقت المحدد.",
+      "customerSupport": "دعم العملاء",
+      "customerSupportDesc": "تحتاج مساعدة؟ تواصل مع فريق الدعم لدينا."
+    }
+  },
+
+  "driver": {
+    "title": "لوحة تحكم السائق",
+    "stats": {
+      "assigned": "الطرود المعينة",
+      "available": "الطرود المتاحة",
+      "delivered": "تم التوصيل اليوم",
+      "earnings": "أرباح اليوم"
+    },
+    "packages": {
+      "assigned": "طرودي المعينة",
+      "available": "متاح للاستلام",
+      "noAssigned": "لا توجد طرود معينة لك",
+      "noAvailable": "لا توجد طرود متاحة للاستلام",
+      "pickup": "الاستلام",
+      "delivery": "التوصيل",
+      "fee": "رسوم التوصيل"
+    },
+    "actions": {
+      "pickup": "تأكيد الاستلام",
+      "deliver": "تأكيد التوصيل",
+      "accept": "قبول الطرد"
+    },
+    "modal": {
+      "title": "تفاصيل الطرد",
+      "description": "الوصف",
+      "weight": "الوزن",
+      "dimensions": "الأبعاد",
+      "fee": "رسوم التوصيل",
+      "pickup": "عنوان الاستلام",
+      "delivery": "عنوان التوصيل",
+      "contact": "رقم الاتصال"
+    },
+    "payment": {
+      "collectedOnDelivery": "تم التحصيل بواسطة السائق عند التوصيل"
+    },
+    "alerts": {
+      "deliverySuccess": "تم تأكيد توصيل الطرد وتحصيل المبلغ بنجاح"
+    },
+    "errors": {
+      "loadPackages": "فشل تحميل الطرود. يرجى المحاولة مرة أخرى.",
+      "acceptPackage": "فشل قبول الطرد. يرجى المحاولة مرة أخرى.",
+      "updateStatus": "فشل تحديث حالة الطرد إلى {{status}}. يرجى المحاولة مرة أخرى.",
+      "deliveryPayment": "فشل تأكيد توصيل الطرد وتحصيل المبلغ. يرجى المحاولة مرة أخرى.",
+      "fetchDetails": "تعذر جلب تفاصيل الطرد الكاملة. قد تكون بعض المعلومات غير متوفرة."
+    },
+    "unnamed": "سائق #{{id}}",
+    "notAssigned": "غير معين",
+    "assigned": "تم تعيين السائق",
+    "register": {
+      "title": "تسجيل كسائق",
+      "subtitle": "انضم إلى فريق التوصيل وابدأ في الكسب",
+      "note": "ملاحظة",
+      "approvalNotice": "حسابات السائقين تتطلب موافقة المدير قبل تسجيل الدخول. سيتم إشعارك بمجرد الموافقة على حسابك.",
+      "personalInfo": "المعلومات الشخصية",
+      "addressInfo": "معلومات العنوان",
+      "vehicleInfo": "معلومات المركبة",
+      "vehicleType": "نوع المركبة",
+      "vehicleTypes": {
+        "car": "سيارة",
+        "motorcycle": "دراجة نارية",
+        "bicycle": "دراجة",
+        "van": "شاحنة صغيرة",
+        "truck": "شاحنة"
+      },
+      "vehicleMake": "الماركة",
+      "vehicleMakePlaceholder": "ماركة المركبة",
+      "vehicleModel": "الموديل",
+      "vehicleModelPlaceholder": "موديل المركبة",
+      "vehicleYear": "السنة",
+      "vehicleYearPlaceholder": "سنة المركبة",
+      "vehicleColor": "اللون",
+      "vehicleColorPlaceholder": "لون المركبة",
+      "licensePlate": "رقم اللوحة",
+      "licensePlatePlaceholder": "رقم اللوحة",
+      "identification": "الهوية",
+      "driversLicense": "رقم رخصة القيادة",
+      "driversLicensePlaceholder": "رقم رخصة القيادة",
+      "idNumber": "رقم الهوية",
+      "idNumberPlaceholder": "رقم بطاقة الهوية",
+      "button": "تسجيل كسائق",
+      "buttonLoading": "جاري إنشاء الحساب...",
+      "registerCustomer": "تسجيل كعميل",
+      "registerShop": "تسجيل كمتجر",
+      "successMessage": "تم تسجيل حساب سائقك بنجاح! سيقوم المدير بمراجعة طلبك. ستتمكن من تسجيل الدخول بمجرد الموافقة على حسابك."
+    },
+    "dashboard": {
+      "myPackages": "طرودي",
+      "tabs": {
+        "current": "الطرود الحالية",
+        "past": "الطرود السابقة",
+        "delivered": "تم التسليم",
+        "cancelled": "ملغاة",
+        "all": "كل الطرود"
+      },
+      "searchPlaceholder": "ابحث برقم التتبع أو الوصف أو العنوان أو الحالة...",
+      "loadingPackages": "جاري تحميل الطرود...",
+      "noPackagesFound": "لا توجد طرود",
+      "table": {
+        "trackingNumber": "رقم التتبع",
+        "description": "الوصف",
+        "status": "الحالة",
+        "deliveryAddress": "عنوان التسليم",
+        "codAmount": "مبلغ الدفع عند الاستلام",
+        "actions": "إجراءات",
+        "statusActions": "إجراءات الحالة",
+        "viewDetails": "عرض التفاصيل"
+      },
+      "actions": {
+        "markAsPickedUp": "تعيين كتم الاستلام",
+        "markInTransit": "تعيين كقيد التوصيل",
+        "markAsDelivered": "تعيين كتم التسليم",
+        "noActions": "لا توجد إجراءات متاحة"
+      },
+      "loadingPackageDetails": "جاري تحميل تفاصيل الطرد...",
+      "details": {
+        "status": "الحالة",
+        "trackingNumber": "رقم التتبع",
+        "createdDate": "تاريخ الإنشاء",
+        "pickedupTime": "وقت الاستلام",
+        "notPickedUpYet": "لم يتم الاستلام بعد",
+        "paymentStatus": "حالة الدفع",
+        "paid": "مدفوع",
+        "unpaid": "غير مدفوع",
+        "description": "الوصف",
+        "weight": "الوزن",
+        "dimensions": "الأبعاد",
+        "deliveryDetails": "تفاصيل التسليم",
+        "contactName": "اسم المستلم",
+        "contactPhone": "هاتف المستلم",
+        "deliveryAddress": "عنوان التسليم",
+        "deliveryTime": "وقت التسليم",
+        "notDeliveredYet": "لم يتم التسليم بعد",
+        "financialInfo": "معلومات مالية",
+        "codAmount": "مبلغ الدفع عند الاستلام",
+        "shopInfo": "معلومات المتجر",
+        "shopName": "اسم المتجر",
+        "shopPhone": "هاتف المتجر"
+      },
+      "notesLog": "سجل الملاحظات",
+      "noNotesYet": "لا توجد ملاحظات بعد.",
+      "addNote": "إضافة ملاحظة",
+      "addNotePlaceholder": "أضف ملاحظة لهذا الطرد...",
+      "saveNoteError": "فشل في حفظ الملاحظة.",
+      "profile": {
+        "title": "ملف السائق",
+        "personalInfo": "المعلومات الشخصية",
+        "name": "الاسم",
+        "email": "البريد الإلكتروني",
+        "phone": "الهاتف",
+        "accountStatus": "حالة الحساب",
+        "approved": "مقبول",
+        "pendingApproval": "بانتظار الموافقة",
+        "memberSince": "عضو منذ",
+        "vehicleInfo": "معلومات المركبة",
+        "vehicleType": "نوع المركبة",
+        "licensePlate": "رقم اللوحة",
+        "model": "الموديل",
+        "color": "اللون",
+        "driverLicense": "رخصة السائق",
+        "workingArea": "منطقة العمل",
+        "assignedArea": "المنطقة المعينة",
+        "availabilityStatus": "حالة التوفر",
+        "available": "متاح",
+        "unavailable": "غير متاح",
+        "goUnavailable": "التحول إلى غير متاح",
+        "goAvailable": "التحول إلى متاح",
+        "performanceStats": "إحصائيات الأداء",
+        "rating": "التقييم",
+        "totalDeliveries": "إجمالي التسليمات",
+        "totalAssigned": "إجمالي المعينات",
+        "totalCancelled": "إجمالي الملغاة",
+        "assignedToday": "المعين اليوم",
+        "activeAssign": "المهام النشطة",
+        "noRatingYet": "لا يوجد تقييم بعد",
+        "notAssignedByAdmin": "لم يتم التعيين من قبل الإدارة",
+        "loading": "جاري تحميل الملف...",
+        "noProfileData": "لا توجد بيانات ملف متاحة",
+        "confirmUnavailability": "تأكيد عدم التوفر",
+        "confirmUnavailabilityText": "هل أنت متأكد أنك تريد التحول إلى غير متاح؟ لن تتلقى مهام جديدة.",
+        "yesGoUnavailable": "نعم، التحول إلى غير متاح"
+      },
+      "assignedToday": "المعين اليوم",
+      "totalAssigned": "إجمالي المعينات",
+      "totalDeliveries": "إجمالي التسليمات",
+      "activeAssignments": "المهام النشطة",
+      "cancelled": "ملغاة",
+      "deliveryStatistics": "إحصائيات التسليم",
+      "loadPackagesError": "فشل في تحميل الطرود. يرجى المحاولة لاحقًا.",
+      "markDeliveredError": "فشل في تعيين الطرد كتم التسليم مع الدفع. يرجى المحاولة مرة أخرى.",
+      "markDeliveredSuccess": "تم تعيين الطرد كتم التسليم وتم تحصيل الدفع بنجاح",
+      "fetchDetailsError": "تعذر جلب تفاصيل الطرد الكاملة. قد تكون بعض المعلومات مفقودة."
+    }
+  },
+
+  "admin": {
+    "title": "لوحة تحكم المسؤول",
+    "roles": {
+      "admin": "مدير النظام",
+      "user": "مستخدم",
+      "shop": "متجر",
+      "driver": "سائق"
+    },
+    "overview": {
+      "users": {
+        "title": "نظرة عامة على المستخدمين",
+        "total": "إجمالي المستخدمين",
+        "shops": "المتاجر",
+        "drivers": "السائقين",
+        "customers": "العملاء"
+      },
+      "packages": {
+        "title": "نظرة عامة على الطرود",
+        "total": "إجمالي الطرود",
+        "pending": "قيد الانتظار",
+        "inTransit": "قيد التوصيل",
+        "delivered": "تم التوصيل"
+      }
+    },
+    "tabs": {
+      "pending": "الموافقات المعلقة",
+      "users": "المستخدمين",
+      "shops": "المتاجر",
+      "drivers": "السائقين",
+      "packages": "الطرود"
+    },
+    "search": {
+      "placeholder": "بحث في {{type}}..."
+    },
+    "table": {
+      "name": "الاسم",
+      "email": "البريد الإلكتروني",
+      "role": "الدور",
+      "status": "الحالة",
+      "actions": "الإجراءات",
+      "assignedPackages": "الطرود المعينة",
+      "delivered": "تم التوصيل",
+      "toCollect": "للتحصيل ($)",
+      "collected": "تم التحصيل ($)",
+      "trackingNumber": "رقم التتبع",
+      "description": "الوصف",
+      "from": "من",
+      "to": "إلى",
+      "codAmount": "مبلغ الدفع عند الاستلام",
+      "driver": "السائق",
+      "noData": "لا توجد بيانات متاحة"
+    },
+    "status": {
+      "pending": "قيد الانتظار",
+      "approved": "موافق",
+      "rejected": "مرفوض",
+      "inTransit": "قيد التوصيل",
+      "delivered": "تم التوصيل",
+      "paid": "(مدفوع)",
+      "unpaid": "(غير مدفوع)"
+    },
+    "confirmation": {
+      "title": "تأكيد الإجراء",
+      "text": "هل أنت متأكد أنك تريد المتابعة في هذا الإجراء؟",
+      "approve": {
+        "title": "تأكيد الموافقة",
+        "text": "هل أنت متأكد أنك تريد الموافقة على {{name}}؟"
+      },
+      "reject": {
+        "title": "تأكيد الرفض",
+        "text": "هل أنت متأكد أنك تريد رفض {{name}}؟"
+      }
+    },
+    "assignDriver": {
+      "title": "تعيين سائق",
+      "packageDetails": "تفاصيل الطرد",
+      "from": "من: {{city}}",
+      "to": "إلى: {{city}}",
+      "noDrivers": "لا يوجد سائقين متاحين",
+      "assigning": "جاري التعيين...",
+      "searchPlaceholder": "البحث عن سائقين..."
+    },
+    "messages": {
+      "noPackages": "لا توجد طرود",
+      "approvalSuccess": "تمت الموافقة على {{type}} بنجاح",
+      "approvalError": "فشل الموافقة على {{type}}",
+      "rejectionSuccess": "تم رفض {{type}} بنجاح",
+      "rejectionError": "فشل رفض {{type}}",
+      "assignSuccess": "تم تعيين السائق بنجاح",
+      "assignError": "فشل تعيين السائق",
+      "noPendingApprovals": "لا توجد موافقات معلقة"
+    }
+  }
+} 

@@ -3,6 +3,7 @@ import { Link, Route, Routes, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { adminService, packageService } from '../../services/api';
 import './MobileAdminDashboard.css';
+import { useTranslation } from 'react-i18next';
 
 const MobileAdminDashboard = () => {
   const { currentUser } = useAuth();
@@ -52,6 +53,7 @@ const MobileAdminDashboard = () => {
   const [loadingDriverPackages, setLoadingDriverPackages] = useState(false);
 
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const fetchPickups = useCallback(async () => {
     if (activeTab !== 'pickups') return;
@@ -478,7 +480,7 @@ const MobileAdminDashboard = () => {
             </div>
             <div className="mobile-admin-dashboard-stat-content">
                   <div className="mobile-admin-dashboard-stat-number">{dashboardStats.users.total}</div>
-              <div className="mobile-admin-dashboard-stat-label">Total Users</div>
+              <div className="mobile-admin-dashboard-stat-label">{t('admin.dashboard.stats.totalUsers')}</div>
             </div>
           </div>
           
@@ -488,7 +490,7 @@ const MobileAdminDashboard = () => {
             </div>
             <div className="mobile-admin-dashboard-stat-content">
                   <div className="mobile-admin-dashboard-stat-number">{dashboardStats.users.shops}</div>
-              <div className="mobile-admin-dashboard-stat-label">Active Shops</div>
+              <div className="mobile-admin-dashboard-stat-label">{t('admin.dashboard.stats.activeShops')}</div>
             </div>
           </div>
           
@@ -498,7 +500,7 @@ const MobileAdminDashboard = () => {
             </div>
             <div className="mobile-admin-dashboard-stat-content">
                   <div className="mobile-admin-dashboard-stat-number">{dashboardStats.users.drivers}</div>
-              <div className="mobile-admin-dashboard-stat-label">Active Drivers</div>
+              <div className="mobile-admin-dashboard-stat-label">{t('admin.dashboard.stats.activeDrivers')}</div>
             </div>
           </div>
           
@@ -508,14 +510,14 @@ const MobileAdminDashboard = () => {
             </div>
             <div className="mobile-admin-dashboard-stat-content">
                   <div className="mobile-admin-dashboard-stat-number">${dashboardStats.revenue}</div>
-              <div className="mobile-admin-dashboard-stat-label">System Revenue</div>
+              <div className="mobile-admin-dashboard-stat-label">{t('admin.dashboard.stats.systemRevenue')}</div>
             </div>
           </div>
         </div>
 
         {/* Quick Actions */}
         <div className="mobile-admin-dashboard-section">
-          <h2 className="mobile-admin-dashboard-section-title">Quick Actions</h2>
+          <h2 className="mobile-admin-dashboard-section-title">{t('admin.dashboard.quickActions.title')}</h2>
           <div className="mobile-admin-dashboard-actions">
             {quickActions.map((action, index) => (
               <div
@@ -532,8 +534,8 @@ const MobileAdminDashboard = () => {
                   {action.icon}
                 </div>
                 <div className="mobile-admin-dashboard-action-content">
-                  <h3 className="mobile-admin-dashboard-action-title">{action.title}</h3>
-                  <p className="mobile-admin-dashboard-action-description">{action.description}</p>
+                  <h3 className="mobile-admin-dashboard-action-title">{t(`admin.dashboard.quickActions.${index}.title`)}</h3>
+                  <p className="mobile-admin-dashboard-action-description">{t(`admin.dashboard.quickActions.${index}.description`)}</p>
                 </div>
                 <div className="mobile-admin-dashboard-action-arrow">→</div>
               </div>
@@ -544,14 +546,14 @@ const MobileAdminDashboard = () => {
         {/* Recent Activities */}
         <div className="mobile-admin-dashboard-section">
           <div className="mobile-admin-dashboard-section-header">
-            <h2 className="mobile-admin-dashboard-section-title">Recent Activities</h2>
+            <h2 className="mobile-admin-dashboard-section-title">{t('admin.dashboard.recentActivities.title')}</h2>
             <Link to="/admin/activities" className="mobile-admin-dashboard-section-link">
-              View All
+              {t('admin.dashboard.recentActivities.viewAll')}
             </Link>
           </div>
           <div className="mobile-admin-dashboard-activities">
             {recentActivities.length === 0 ? (
-              <div className="mobile-admin-dashboard-activity">No recent activities.</div>
+              <div className="mobile-admin-dashboard-activity">{t('admin.dashboard.recentActivities.empty')}</div>
             ) : (
               recentActivities.map((activity, index) => (
                 <div key={index} className="mobile-admin-dashboard-activity">
@@ -561,18 +563,18 @@ const MobileAdminDashboard = () => {
                       className="mobile-admin-dashboard-activity-status"
                       style={{ color: getStatusColor(activity.status) }}
                     >
-                      {activity.status}
+                      {t(`admin.dashboard.status.${activity.status}`, activity.status)}
                     </div>
                   </div>
                   <div className="mobile-admin-dashboard-activity-details">
                     <div className="mobile-admin-dashboard-activity-type">
-                      <strong>Type:</strong> {activity.type}
+                      <strong>{t('admin.dashboard.recentActivities.type')}:</strong> {t(`admin.dashboard.activityType.${activity.type}`, activity.type)}
                     </div>
                     <div className="mobile-admin-dashboard-activity-description">
                       {activity.description}
                     </div>
                     <div className="mobile-admin-dashboard-activity-timestamp">
-                      <strong>Time:</strong> {activity.timestamp ? new Date(activity.timestamp).toLocaleString() : ''}
+                      <strong>{t('admin.dashboard.recentActivities.time')}:</strong> {activity.timestamp ? new Date(activity.timestamp).toLocaleString() : ''}
                     </div>
                   </div>
                 </div>
@@ -590,46 +592,46 @@ const MobileAdminDashboard = () => {
                 className={`mobile-admin-dashboard-sub-tab ${userSubTab === 'all' ? 'active' : ''}`}
                 onClick={() => setUserSubTab('all')}
               >
-                All
+                {t('admin.dashboard.users.tabs.all')}
               </button>
               <button
                 className={`mobile-admin-dashboard-sub-tab ${userSubTab === 'pending' ? 'active' : ''}`}
                 onClick={() => setUserSubTab('pending')}
               >
-                Pending
+                {t('admin.dashboard.users.tabs.pending')}
               </button>
               <button
                 className={`mobile-admin-dashboard-sub-tab ${userSubTab === 'shops' ? 'active' : ''}`}
                 onClick={() => setUserSubTab('shops')}
               >
-                Shops
+                {t('admin.dashboard.users.tabs.shops')}
               </button>
               <button
                 className={`mobile-admin-dashboard-sub-tab ${userSubTab === 'drivers' ? 'active' : ''}`}
                 onClick={() => setUserSubTab('drivers')}
               >
-                Drivers
+                {t('admin.dashboard.users.tabs.drivers')}
               </button>
             </div>
             <div className="mobile-admin-dashboard-user-list">
               {users.map((user) => (
                 <div key={user.id} className="mobile-admin-dashboard-user-card" onClick={() => setSelectedUser(user)} style={{ cursor: 'pointer' }}>
                   <div className="mobile-admin-dashboard-user-info">
-                    <p><strong>Name:</strong> {user?.name || 'N/A'}</p>
-                    <p><strong>Email:</strong> {user.email}</p>
-                    <p><strong>Role:</strong> {user.role}</p>
-                    {user.status && <p><strong>Status:</strong> {user.status}</p>}
+                    <p><strong>{t('admin.dashboard.users.name')}:</strong> {user?.name || t('common.notAvailable')}</p>
+                    <p><strong>{t('admin.dashboard.users.email')}:</strong> {user.email}</p>
+                    <p><strong>{t('admin.dashboard.users.role')}:</strong> {t(`admin.dashboard.users.roleLabels.${user.role}`, user.role)}</p>
+                    {user.status && <p><strong>{t('admin.dashboard.users.status')}:</strong> {t(`admin.dashboard.users.statusLabels.${user.status}`, user.status)}</p>}
                     {userSubTab === 'shops' && user.role === 'shop' && (
                       <div className="mobile-admin-dashboard-shop-financials">
-                        <p><strong>To Collect:</strong> ${parseFloat(user.ToCollect || 0).toFixed(2)}</p>
-                        <p><strong>Total Collected:</strong> ${parseFloat(user.TotalCollected || 0).toFixed(2)}</p>
-                        <p><strong>Package Count:</strong> {user.financialData?.packageCount || 0}</p>
+                        <p><strong>{t('admin.dashboard.users.toCollect')}:</strong> ${parseFloat(user.ToCollect || 0).toFixed(2)}</p>
+                        <p><strong>{t('admin.dashboard.users.totalCollected')}:</strong> ${parseFloat(user.TotalCollected || 0).toFixed(2)}</p>
+                        <p><strong>{t('admin.dashboard.users.packageCount')}:</strong> {user.financialData?.packageCount || 0}</p>
                         {parseFloat(user.TotalCollected || 0) > 0 && (
                           <button
                             className="mobile-admin-dashboard-settle-btn"
                             onClick={() => setSettleShop({ shop: user, amount: '', loading: false, error: null })}
                           >
-                            Settle Payments
+                            {t('admin.dashboard.users.settlePayments')}
                           </button>
                         )}
                       </div>
@@ -637,8 +639,8 @@ const MobileAdminDashboard = () => {
                   </div>
                   {user.status === 'pending' && (
                     <div className="mobile-admin-dashboard-user-actions">
-                      <button onClick={() => handleApproval(user.id, user.role, true)}>Approve</button>
-                      <button onClick={() => handleApproval(user.id, user.role, false)}>Reject</button>
+                      <button onClick={() => handleApproval(user.id, user.role, true)}>{t('admin.dashboard.users.approve')}</button>
+                      <button onClick={() => handleApproval(user.id, user.role, false)}>{t('admin.dashboard.users.reject')}</button>
                     </div>
                   )}
                 </div>
@@ -695,7 +697,7 @@ const MobileAdminDashboard = () => {
                   onChange={(e) => handleSelectAll(e.target.checked)}
                   checked={selectedPackages.length === packages.length && packages.length > 0}
                 />
-                <label>Select All</label>
+                <label>{t('admin.dashboard.packages.selectAll')}</label>
               </div>
             )}
 
@@ -711,14 +713,14 @@ const MobileAdminDashboard = () => {
                       />
                     )}
                     <span className="mobile-admin-dashboard-package-tracking">{pkg.trackingNumber}</span>
-                    <span className={`mobile-admin-dashboard-package-status-badge status-${pkg.status?.toLowerCase()}`}>{pkg.status}</span>
+                    <span className={`mobile-admin-dashboard-package-status-badge status-${pkg.status?.toLowerCase()}`}>{t(`admin.dashboard.packages.statusLabels.${pkg.status}`, pkg.status)}</span>
                   </div>
                   <div className="mobile-admin-dashboard-package-info">
-                    <p><strong>Sender:</strong> {pkg.shop?.businessName || 'N/A'}</p>
-                    <p><strong>Recipient:</strong> {pkg.deliveryContactName || 'N/A'}</p>
-                    <p><strong>Date:</strong> {pkg.createdAt ? new Date(pkg.createdAt).toLocaleDateString() : '-'}</p>
-                    <p><strong>Address:</strong> {(pkg.deliveryAddress?.address || pkg.deliveryAddress) || 'N/A'}</p>
-                    <p><strong>Driver:</strong> {getDriverName(pkg.driverId)}</p>
+                    <p><strong>{t('admin.dashboard.packages.sender')}:</strong> {pkg.shop?.businessName || t('common.notAvailable')}</p>
+                    <p><strong>{t('admin.dashboard.packages.recipient')}:</strong> {pkg.deliveryContactName || t('common.notAvailable')}</p>
+                    <p><strong>{t('admin.dashboard.packages.date')}:</strong> {pkg.createdAt ? new Date(pkg.createdAt).toLocaleDateString() : '-'}</p>
+                    <p><strong>{t('admin.dashboard.packages.address')}:</strong> {(pkg.deliveryAddress?.address || pkg.deliveryAddress) || t('common.notAvailable')}</p>
+                    <p><strong>{t('admin.dashboard.packages.driver')}:</strong> {getDriverName(pkg.driverId)}</p>
                   </div>
                   <div className="mobile-admin-dashboard-package-actions">
                     {(() => {
@@ -728,10 +730,10 @@ const MobileAdminDashboard = () => {
                       if (!canForward) return null;
                       const nextStatus = statusFlow[currentIndex + 1];
                       const nextLabel = {
-                        'pickedup': 'Mark as Picked Up',
-                        'in-transit': 'Mark In Transit',
-                        'delivered': 'Mark as Delivered'
-                      }[nextStatus] || 'Forward Status';
+                        'pickedup': t('admin.dashboard.packages.actions.markAsPickedUp'),
+                        'in-transit': t('admin.dashboard.packages.actions.markInTransit'),
+                        'delivered': t('admin.dashboard.packages.actions.markAsDelivered')
+                      }[nextStatus] || t('admin.dashboard.packages.actions.forwardStatus');
                       return (
                         <button
                           className="mobile-admin-dashboard-forward-btn"

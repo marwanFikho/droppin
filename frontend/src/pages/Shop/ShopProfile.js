@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { packageService } from '../../services/api';
 import api from '../../services/api';
 import './ShopDashboard.css';
+import { useTranslation } from 'react-i18next';
 
 const initialAddress = {
   street: '',
@@ -36,6 +37,7 @@ const ShopProfile = () => {
   const [pwError, setPwError] = useState(null);
   const [pwSuccess, setPwSuccess] = useState(null);
   const [showChangePassword, setShowChangePassword] = useState(false);
+  const { t } = useTranslation();
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -48,7 +50,7 @@ const ShopProfile = () => {
         setContactPhone(shop.contactPersonPhone || shop.contactPerson?.phone || '');
         setPickupAddress(parseAddress(shop.address));
       } catch (err) {
-        setError('Failed to load profile.');
+        setError(t('shop.profile.loadError'));
       } finally {
         setLoading(false);
       }
@@ -72,9 +74,9 @@ const ShopProfile = () => {
         contactPerson: { name: contactName, phone: contactPhone },
         address: joinAddress(pickupAddress)
       });
-      setSuccess('Profile updated successfully!');
+      setSuccess(t('shop.profile.saveSuccess'));
     } catch (err) {
-      setError('Failed to save profile.');
+      setError(t('shop.profile.saveError'));
     } finally {
       setSaving(false);
     }
@@ -84,68 +86,68 @@ const ShopProfile = () => {
     setPwError(null);
     setPwSuccess(null);
     if (!currentPassword || !newPassword || !confirmPassword) {
-      setPwError('All password fields are required.');
+      setPwError(t('shop.profile.pwRequired'));
       return;
     }
     if (newPassword !== confirmPassword) {
-      setPwError('New passwords do not match.');
+      setPwError(t('shop.profile.pwNoMatch'));
       return;
     }
     try {
       const res = await api.post('/auth/change-password', { currentPassword, newPassword });
-      setPwSuccess(res.data.message || 'Password changed successfully!');
+      setPwSuccess(res.data.message || t('shop.profile.pwSuccess'));
       setCurrentPassword(''); setNewPassword(''); setConfirmPassword('');
     } catch (err) {
-      setPwError(err.response?.data?.message || 'Failed to change password.');
+      setPwError(err.response?.data?.message || t('shop.profile.pwError'));
     }
   };
 
   return (
     <div className="shop-profile-page" style={{ width: '500px', marginLeft: '900px', padding: '2rem' }}>
-      <h2>Shop Profile</h2>
+      <h2>{t('shop.profile.title')}</h2>
         <form className="shop-profile-form" onSubmit={handleSave}>
           <div className="form-group">
-            <label>Shop Name</label>
+            <label>{t('shop.profile.shopName')}</label>
             <input type="text" value={shopName} disabled />
           </div>
           <div className="form-group">
-            <label>Default Contact Name</label>
+            <label>{t('shop.profile.contactName')}</label>
             <input type="text" value={contactName} onChange={e => setContactName(e.target.value)} required />
           </div>
           <div className="form-group">
-            <label>Default Contact Phone</label>
+            <label>{t('shop.profile.contactPhone')}</label>
             <input type="tel" value={contactPhone} onChange={e => setContactPhone(e.target.value)} required />
           </div>
           <div className="form-group">
-            <label>Default Pickup Location</label>
-            <input type="text" name="street" placeholder="Street" value={pickupAddress.street} onChange={handleAddressChange} required />
-            <input type="text" name="city" placeholder="City" value={pickupAddress.city} onChange={handleAddressChange} required />
-            <input type="text" name="state" placeholder="State" value={pickupAddress.state} onChange={handleAddressChange} required />
-            <input type="text" name="zipCode" placeholder="Zip Code" value={pickupAddress.zipCode} onChange={handleAddressChange} required />
-            <input type="text" name="country" placeholder="Country" value={pickupAddress.country} onChange={handleAddressChange} required />
+            <label>{t('shop.profile.pickupLocation')}</label>
+            <input type="text" name="street" placeholder={t('shop.profile.street')} value={pickupAddress.street} onChange={handleAddressChange} required />
+            <input type="text" name="city" placeholder={t('shop.profile.city')} value={pickupAddress.city} onChange={handleAddressChange} required />
+            <input type="text" name="state" placeholder={t('shop.profile.state')} value={pickupAddress.state} onChange={handleAddressChange} required />
+            <input type="text" name="zipCode" placeholder={t('shop.profile.zipCode')} value={pickupAddress.zipCode} onChange={handleAddressChange} required />
+            <input type="text" name="country" placeholder={t('shop.profile.country')} value={pickupAddress.country} onChange={handleAddressChange} required />
           </div>
           {!showChangePassword && (
             <button type="button" className="profile-save-btn" style={{marginBottom: '1rem', background: '#007bff'}} onClick={() => setShowChangePassword(true)}>
-              Change Password
+              {t('shop.profile.changePassword')}
             </button>
           )}
           {showChangePassword && (
             <div className="change-password-fields">
-              <h3>Change Password</h3>
-              <input style={{ marginBottom: '10px', width: '100%' }} type="password" placeholder="Current Password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} />
-              <input style={{ marginBottom: '10px', width: '100%' }} type="password" placeholder="New Password" value={newPassword} onChange={e => setNewPassword(e.target.value)} />
-              <input style={{ marginBottom: '10px', width: '100%' }} type="password" placeholder="Confirm New Password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} />
+              <h3>{t('shop.profile.changePassword')}</h3>
+              <input style={{ marginBottom: '10px', width: '100%' }} type="password" placeholder={t('shop.profile.currentPassword')} value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} />
+              <input style={{ marginBottom: '10px', width: '100%' }} type="password" placeholder={t('shop.profile.newPassword')} value={newPassword} onChange={e => setNewPassword(e.target.value)} />
+              <input style={{ marginBottom: '10px', width: '100%' }} type="password" placeholder={t('shop.profile.confirmPassword')} value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} />
               {pwError && <div className="error-message">{pwError}</div>}
               {pwSuccess && <div className="success-message">{pwSuccess}</div>}
               <div style={{display:'flex',gap:'0.5rem'}}>
-                <button type="button" className="profile-save-btn" style={{background:'#888'}} onClick={() => { setShowChangePassword(false); setCurrentPassword(''); setNewPassword(''); setConfirmPassword(''); setPwError(null); setPwSuccess(null); }}>Cancel</button>
-                <button type="button" className="profile-save-btn" style={{background:'#007bff'}} onClick={handleChangePassword}>Change Password</button>
+                <button type="button" className="profile-save-btn" style={{background:'#888'}} onClick={() => { setShowChangePassword(false); setCurrentPassword(''); setNewPassword(''); setConfirmPassword(''); setPwError(null); setPwSuccess(null); }}>{t('shop.profile.cancel')}</button>
+                <button type="button" className="profile-save-btn" style={{background:'#007bff'}} onClick={handleChangePassword}>{t('shop.profile.savePassword')}</button>
               </div>
             </div>
           )}
           {error && <div className="error-message">{error}</div>}
           {success && <div className="success-message">{success}</div>}
-          <button type="submit" className="profile-save-btn" disabled={saving}>{saving ? 'Saving...' : 'Save Changes'}</button>
+          <button type="submit" className="profile-save-btn" disabled={saving}>{saving ? t('shop.profile.saving') : t('shop.profile.saveChanges')}</button>
         </form>
     </div>
   );

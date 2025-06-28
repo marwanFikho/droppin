@@ -3,6 +3,7 @@ import { Link, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { packageService } from '../../services/api';
 import './MobileShopDashboard.css';
+import { useTranslation } from 'react-i18next';
 
 const MobileShopDashboard = () => {
   const { currentUser } = useAuth();
@@ -19,6 +20,7 @@ const MobileShopDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -47,7 +49,7 @@ const MobileShopDashboard = () => {
         const sortedPkgs = [...pkgs].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
         setRecentPackages(sortedPkgs.slice(0, 5));
       } catch (err) {
-        setError('Failed to load dashboard data.');
+        setError(t('shop.dashboard.error.loadData'));
       } finally {
         setLoading(false);
       }
@@ -57,22 +59,22 @@ const MobileShopDashboard = () => {
 
   const quickActions = [
     {
-      title: 'Create Package',
-      description: 'Create a new package for delivery',
+      title: t('shop.dashboard.quickActions.createPackage'),
+      description: t('shop.dashboard.quickActions.createPackageDesc'),
       icon: '📦',
       link: '/shop/create-package',
       color: '#007bff'
     },
     {
-      title: 'View Packages',
-      description: 'See all your packages and their status',
+      title: t('shop.dashboard.quickActions.viewPackages'),
+      description: t('shop.dashboard.quickActions.viewPackagesDesc'),
       icon: '📋',
       link: '/shop/packages',
       color: '#28a745'
     },
     {
-      title: 'New Pickup',
-      description: 'Schedule a pickup for packages',
+      title: t('shop.dashboard.quickActions.newPickup'),
+      description: t('shop.dashboard.quickActions.newPickupDesc'),
       icon: '🚚',
       link: '/shop/new-pickup',
       color: '#ffc107'
@@ -102,9 +104,9 @@ const MobileShopDashboard = () => {
         {/* Dashboard Header */}
         <div className="mobile-shop-dashboard-header">
           <div className="mobile-shop-dashboard-welcome">
-            <h1 className="mobile-shop-dashboard-title">Shop Dashboard</h1>
+            <h1 className="mobile-shop-dashboard-title">{t('shop.dashboard.title')}</h1>
             <p className="mobile-shop-dashboard-subtitle">
-              Welcome back, {currentUser?.shopInfo?.shopName || 'Shop Owner'}!
+              {t('shop.dashboard.welcome', { name: currentUser?.shopInfo?.shopName || t('shop.dashboard.defaultShopOwner') })}
             </p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -116,13 +118,13 @@ const MobileShopDashboard = () => {
               aria-label="Profile"
             >
               <span>👤</span>
-              <span style={{ fontSize: 12, color: '#007bff', marginTop: 2, fontWeight: 500 }}>Show Profile</span>
+              <span style={{ fontSize: 12, color: '#007bff', marginTop: 2, fontWeight: 500 }}>{t('shop.dashboard.showProfile')}</span>
             </button>
           </div>
         </div>
 
         {loading ? (
-          <div className="mobile-shop-dashboard-loading">Loading...</div>
+          <div className="mobile-shop-dashboard-loading">{t('shop.dashboard.loading')}</div>
         ) : error ? (
           <div className="mobile-shop-dashboard-error">{error}</div>
         ) : (
@@ -135,7 +137,7 @@ const MobileShopDashboard = () => {
                 </div>
                 <div className="mobile-shop-dashboard-stat-content">
                   <div className="mobile-shop-dashboard-stat-number">{dashboardStats.totalPackages}</div>
-                  <div className="mobile-shop-dashboard-stat-label">Total Packages</div>
+                  <div className="mobile-shop-dashboard-stat-label">{t('shop.dashboard.stats.totalPackages')}</div>
                 </div>
               </div>
               <div className="mobile-shop-dashboard-stat">
@@ -144,7 +146,7 @@ const MobileShopDashboard = () => {
                 </div>
                 <div className="mobile-shop-dashboard-stat-content">
                   <div className="mobile-shop-dashboard-stat-number">{dashboardStats.pendingPickup}</div>
-                  <div className="mobile-shop-dashboard-stat-label">Pending Pickup</div>
+                  <div className="mobile-shop-dashboard-stat-label">{t('shop.dashboard.stats.pendingPickup')}</div>
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 12, width: '100%' }}>
@@ -154,7 +156,7 @@ const MobileShopDashboard = () => {
                   </div>
                   <div className="mobile-shop-dashboard-stat-content">
                     <div className="mobile-shop-dashboard-stat-number">${toCollect}</div>
-                    <div className="mobile-shop-dashboard-stat-label">To Collect</div>
+                    <div className="mobile-shop-dashboard-stat-label">{t('shop.dashboard.stats.toCollect')}</div>
                   </div>
                 </div>
                 <div className="mobile-shop-dashboard-stat" style={{ flex: 1 }}>
@@ -163,7 +165,7 @@ const MobileShopDashboard = () => {
                   </div>
                   <div className="mobile-shop-dashboard-stat-content">
                     <div className="mobile-shop-dashboard-stat-number">${collectedCOD}</div>
-                    <div className="mobile-shop-dashboard-stat-label">Collected COD</div>
+                    <div className="mobile-shop-dashboard-stat-label">{t('shop.dashboard.stats.collectedCOD')}</div>
                   </div>
                 </div>
               </div>
@@ -171,7 +173,7 @@ const MobileShopDashboard = () => {
 
             {/* Quick Actions */}
             <div className="mobile-shop-dashboard-section">
-              <h2 className="mobile-shop-dashboard-section-title">Quick Actions</h2>
+              <h2 className="mobile-shop-dashboard-section-title">{t('shop.dashboard.quickActions.title')}</h2>
               <div className="mobile-shop-dashboard-actions">
                 {quickActions.map((action, index) => (
                   <Link
@@ -198,14 +200,14 @@ const MobileShopDashboard = () => {
             {/* Recent Packages */}
             <div className="mobile-shop-dashboard-section">
               <div className="mobile-shop-dashboard-section-header">
-                <h2 className="mobile-shop-dashboard-section-title">Recent Packages</h2>
+                <h2 className="mobile-shop-dashboard-section-title">{t('shop.dashboard.recentPackages')}</h2>
                 <Link to="/shop/packages" className="mobile-shop-dashboard-section-link">
-                  View All
+                  {t('shop.dashboard.viewAll')}
                 </Link>
               </div>
               <div className="mobile-shop-dashboard-packages">
                 {recentPackages.length === 0 ? (
-                  <div className="mobile-shop-dashboard-no-packages">No recent packages found.</div>
+                  <div className="mobile-shop-dashboard-no-packages">{t('shop.dashboard.noRecentPackages')}</div>
                 ) : (
                   recentPackages.map((pkg, index) => (
                     <div key={index} className="mobile-shop-dashboard-package">
@@ -215,25 +217,25 @@ const MobileShopDashboard = () => {
                           className="mobile-shop-dashboard-package-status"
                           style={{ color: getStatusColor(pkg.status) }}
                         >
-                          {pkg.status}
+                          {t(`shop.dashboard.status.${pkg.status}`, pkg.status)}
                         </div>
                       </div>
                       <div className="mobile-shop-dashboard-package-details">
                         <div className="mobile-shop-dashboard-package-tracking">
-                          <strong>Descreption:</strong> {pkg.packageDescription}
+                          <strong>{t('shop.dashboard.description')}:</strong> {pkg.packageDescription}
                         </div>
                         <div className="mobile-shop-dashboard-package-tracking">
-                          <strong>Recipient:</strong> {pkg.deliveryContactName || pkg.deliveryAddress?.contactName || '-'}
+                          <strong>{t('shop.dashboard.recipient')}:</strong> {pkg.deliveryContactName || pkg.deliveryAddress?.contactName || '-'}
                         </div>
                         <div className="mobile-shop-dashboard-package-date">
-                          <strong>Date:</strong> {pkg.createdAt ? new Date(pkg.createdAt).toLocaleDateString() : '-'}
+                          <strong>{t('shop.dashboard.date')}:</strong> {pkg.createdAt ? new Date(pkg.createdAt).toLocaleDateString() : '-'}
                         </div>
                       </div>
                       <button
                         onClick={() => navigate(`/track/${pkg.trackingNumber}`)}
                         className="mobile-shop-dashboard-package-track-btn"
                       >
-                        Track Package
+                        {t('shop.dashboard.trackPackage')}
                       </button>
                     </div>
                   ))

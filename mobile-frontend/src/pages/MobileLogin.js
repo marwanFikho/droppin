@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import './MobileLogin.css';
+import { useTranslation } from 'react-i18next';
 
 const MobileLogin = () => {
   const [formData, setFormData] = useState({
@@ -14,6 +15,7 @@ const MobileLogin = () => {
   
   const { login } = useAuth();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -35,15 +37,15 @@ const MobileLogin = () => {
     const newErrors = {};
     
     if (!formData.email.trim()) {
-      newErrors.email = 'Email is required';
+      newErrors.email = t('auth.login.validation.emailRequired');
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = 'Please enter a valid email';
+      newErrors.email = t('auth.login.validation.emailInvalid');
     }
     
     if (!formData.password) {
-      newErrors.password = 'Password is required';
+      newErrors.password = t('auth.login.validation.passwordRequired');
     } else if (formData.password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters';
+      newErrors.password = t('auth.login.validation.passwordLength');
     }
     
     setErrors(newErrors);
@@ -79,7 +81,7 @@ const MobileLogin = () => {
       }
     } catch (error) {
       console.error('Login error:', error);
-      setLoginError(error.message || 'Failed to login. Please try again.');
+      setLoginError(error.message || t('auth.login.error.credentials'));
     } finally {
       setLoading(false);
     }
@@ -90,8 +92,8 @@ const MobileLogin = () => {
       <div className="mobile-login-container">
         <div className="mobile-login-header">
           <div className="mobile-login-icon">🔐</div>
-          <h1 className="mobile-login-title">Welcome Back</h1>
-          <p className="mobile-login-subtitle">Sign in to your account</p>
+          <h1 className="mobile-login-title">{t('auth.login.mobileTitle')}</h1>
+          <p className="mobile-login-subtitle">{t('auth.login.mobileSubtitle')}</p>
         </div>
 
         <form onSubmit={handleSubmit} className="mobile-login-form">
@@ -102,7 +104,7 @@ const MobileLogin = () => {
           )}
 
           <div className="form-group">
-            <label htmlFor="email" className="form-label">Email</label>
+            <label htmlFor="email" className="form-label">{t('auth.login.email')}</label>
             <input
               type="email"
               id="email"
@@ -110,14 +112,14 @@ const MobileLogin = () => {
               value={formData.email}
               onChange={handleChange}
               className={`form-control ${errors.email ? 'error' : ''}`}
-              placeholder="Enter your email"
+              placeholder={t('auth.login.emailPlaceholder')}
               autoComplete="email"
             />
             {errors.email && <div className="error-message">{errors.email}</div>}
           </div>
 
           <div className="form-group">
-            <label htmlFor="password" className="form-label">Password</label>
+            <label htmlFor="password" className="form-label">{t('auth.login.password')}</label>
             <input
               type="password"
               id="password"
@@ -125,7 +127,7 @@ const MobileLogin = () => {
               value={formData.password}
               onChange={handleChange}
               className={`form-control ${errors.password ? 'error' : ''}`}
-              placeholder="Enter your password"
+              placeholder={t('auth.login.passwordPlaceholder')}
               autoComplete="current-password"
             />
             {errors.password && <div className="error-message">{errors.password}</div>}
@@ -136,24 +138,24 @@ const MobileLogin = () => {
             className="btn btn-primary w-100"
             disabled={loading}
           >
-            {loading ? 'Signing In...' : 'Sign In'}
+            {loading ? t('auth.login.buttonLoading') : t('auth.login.button')}
           </button>
         </form>
 
         <div className="mobile-login-footer">
           <p className="mobile-login-footer-text">
-            Don't have an account?{' '}
+            {t('auth.login.noAccount')}{' '}
             <Link to="/register" className="mobile-login-link">
-              Sign up here
+              {t('auth.login.registerLink')}
             </Link>
           </p>
           
           <div className="mobile-login-actions">
             <Link to="/register/shop" className="mobile-login-action-btn">
-              Register as Shop
+              {t('auth.login.registerShop')}
             </Link>
             <Link to="/register/driver" className="mobile-login-action-btn">
-              Register as Driver
+              {t('auth.login.registerDriver')}
             </Link>
           </div>
         </div>

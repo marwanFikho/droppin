@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { packageService } from '../../services/api';
 import './MobileShopDashboard.css';
+import { useTranslation } from 'react-i18next';
 
 const CATEGORY_OPTIONS = [
   'Shoes', 'Perfumes', 'Clothes', 'Electronics', 'Accessories', 'Books', 'Other'
@@ -25,6 +26,7 @@ const MobileShopCreatePackage = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -50,13 +52,13 @@ const MobileShopCreatePackage = () => {
     setError('');
     try {
       if (!formData.packageDescription || !formData.weight || !formData.category) {
-        throw new Error('Please fill in all required fields');
+        throw new Error(t('shop.createPackage.error.requiredFields'));
       }
       if (!formData.deliveryAddress.contactName || !formData.deliveryAddress.contactPhone ||
           !formData.deliveryAddress.street || !formData.deliveryAddress.city ||
           !formData.deliveryAddress.state || !formData.deliveryAddress.zipCode ||
           !formData.deliveryAddress.country) {
-        throw new Error('Please complete all delivery address fields');
+        throw new Error(t('shop.createPackage.error.deliveryAddressFields'));
       }
       const packageData = {
         ...formData,
@@ -73,7 +75,7 @@ const MobileShopCreatePackage = () => {
       setSuccess(true);
       setTimeout(() => navigate('/shop/packages', { replace: true }), 2000);
     } catch (err) {
-      setError(err.message || 'Failed to create package. Please try again.');
+      setError(err.message || t('shop.createPackage.error.createFailed'));
     } finally {
       setIsSubmitting(false);
     }
@@ -81,40 +83,40 @@ const MobileShopCreatePackage = () => {
 
   return (
     <div className="mobile-shop-create-package" style={{marginLeft: '1rem', marginRight: '1rem', marginTop: '6rem'}}>
-      <h2 className="mobile-shop-create-title">Create Package</h2>
+      <h2 className="mobile-shop-create-title">{t('shop.createPackage.title')}</h2>
       <form className="mobile-shop-create-form" onSubmit={handleSubmit}>
-        <label>Description*</label>
+        <label>{t('shop.createPackage.description')}*</label>
         <input name="packageDescription" value={formData.packageDescription} onChange={handleChange} required />
-        <label>Category*</label>
+        <label>{t('shop.createPackage.category')}*</label>
         <select name="category" value={formData.category} onChange={handleChange} required>
-          <option value="">Select category</option>
-          {CATEGORY_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+          <option value="">{t('shop.createPackage.selectCategory')}</option>
+          {CATEGORY_OPTIONS.map(opt => <option key={opt} value={opt}>{t(`shop.createPackage.categoryOptions.${opt.toLowerCase()}`, opt)}</option>)}
         </select>
-        <label>Weight (kg)*</label>
+        <label>{t('shop.createPackage.weight')} (kg)*</label>
         <input name="weight" type="number" min="0" step="0.01" value={formData.weight} onChange={handleChange} required />
-        <label>Dimensions (cm)</label>
+        <label>{t('shop.createPackage.dimensions')}</label>
         <div className="mobile-shop-create-dimensions">
-          <input name="dimensions.length" type="number" min="0" step="0.1" placeholder="Length" value={formData.dimensions.length} onChange={handleChange} />
-          <input name="dimensions.width" type="number" min="0" step="0.1" placeholder="Width" value={formData.dimensions.width} onChange={handleChange} />
-          <input name="dimensions.height" type="number" min="0" step="0.1" placeholder="Height" value={formData.dimensions.height} onChange={handleChange} />
+          <input name="dimensions.length" type="number" min="0" step="0.1" placeholder={t('shop.createPackage.length')} value={formData.dimensions.length} onChange={handleChange} />
+          <input name="dimensions.width" type="number" min="0" step="0.1" placeholder={t('shop.createPackage.width')} value={formData.dimensions.width} onChange={handleChange} />
+          <input name="dimensions.height" type="number" min="0" step="0.1" placeholder={t('shop.createPackage.height')} value={formData.dimensions.height} onChange={handleChange} />
         </div>
-        <label>Recipient Name*</label>
+        <label>{t('shop.createPackage.recipientName')}*</label>
         <input name="deliveryAddress.contactName" value={formData.deliveryAddress.contactName} onChange={handleChange} required />
-        <label>Recipient Phone*</label>
+        <label>{t('shop.createPackage.recipientPhone')}*</label>
         <input name="deliveryAddress.contactPhone" value={formData.deliveryAddress.contactPhone} onChange={handleChange} required />
-        <label>Delivery Address*</label>
-        <input name="deliveryAddress.street" placeholder="Street" value={formData.deliveryAddress.street} onChange={handleChange} required />
-        <input name="deliveryAddress.city" placeholder="City" value={formData.deliveryAddress.city} onChange={handleChange} required />
-        <input name="deliveryAddress.state" placeholder="State" value={formData.deliveryAddress.state} onChange={handleChange} required />
-        <input name="deliveryAddress.zipCode" placeholder="Zip Code" value={formData.deliveryAddress.zipCode} onChange={handleChange} />
-        <input name="deliveryAddress.country" placeholder="Country" value={formData.deliveryAddress.country} onChange={handleChange} />
-        <label>COD Amount</label>
+        <label>{t('shop.createPackage.deliveryAddress')}*</label>
+        <input name="deliveryAddress.street" placeholder={t('shop.createPackage.street')} value={formData.deliveryAddress.street} onChange={handleChange} required />
+        <input name="deliveryAddress.city" placeholder={t('shop.createPackage.city')} value={formData.deliveryAddress.city} onChange={handleChange} required />
+        <input name="deliveryAddress.state" placeholder={t('shop.createPackage.state')} value={formData.deliveryAddress.state} onChange={handleChange} required />
+        <input name="deliveryAddress.zipCode" placeholder={t('shop.createPackage.zipCode')} value={formData.deliveryAddress.zipCode} onChange={handleChange} />
+        <input name="deliveryAddress.country" placeholder={t('shop.createPackage.country')} value={formData.deliveryAddress.country} onChange={handleChange} />
+        <label>{t('shop.createPackage.codAmount')}</label>
         <input name="codAmount" type="number" min="0" step="0.01" value={formData.codAmount} onChange={handleChange} />
-        <label>Shop Notes</label>
+        <label>{t('shop.createPackage.shopNotes')}</label>
         <textarea name="notes" value={formData.shopNotes} onChange={handleChange} />
         {error && <div className="mobile-shop-create-error">{error}</div>}
-        {success && <div className="mobile-shop-create-success">Package created successfully!</div>}
-        <button type="submit" className="mobile-shop-create-btn" disabled={isSubmitting}>{isSubmitting ? 'Creating...' : 'Create Package'}</button>
+        {success && <div className="mobile-shop-create-success">{t('shop.createPackage.success')}</div>}
+        <button type="submit" className="mobile-shop-create-btn" disabled={isSubmitting}>{isSubmitting ? t('shop.createPackage.creating') : t('shop.createPackage.createBtn')}</button>
       </form>
     </div>
   );

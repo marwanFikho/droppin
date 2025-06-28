@@ -2,9 +2,11 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import '../App.css';
+import { useTranslation } from 'react-i18next';
 
 const Home = () => {
   const { currentUser } = useAuth();
+  const { t } = useTranslation();
 
   // Redirect to the appropriate dashboard if logged in
   const getDashboardLink = () => {
@@ -26,23 +28,21 @@ const Home = () => {
     <div className="home-container">
       <div className="hero-section">
         <div className="hero-content">
-          <h1>Droppin Delivery</h1>
-          <h2>Fast & Reliable B2B Delivery Service</h2>
-          <p>
-            Connecting shops, drivers, and customers with a seamless delivery experience.
-          </p>
+          <h1>{t('home.hero.title')}</h1>
+          <h2>{t('home.hero.subtitle')}</h2>
+          <p>{t('home.hero.description')}</p>
           
           {currentUser ? (
             <Link to={getDashboardLink()} className="cta-button">
-              Go to Dashboard
+              {t('home.hero.ctaDashboard')}
             </Link>
           ) : (
             <div className="cta-buttons">
               <Link to="/login" className="cta-button primary">
-                Login
+                {t('home.hero.ctaLogin')}
               </Link>
               <Link to="/register" className="cta-button secondary">
-                Register
+                {t('home.hero.ctaRegister')}
               </Link>
             </div>
           )}
@@ -50,49 +50,49 @@ const Home = () => {
       </div>
 
       <div className="features-section">
-        <h2>Why Choose Droppin?</h2>
+        <h2>{t('home.features.title')}</h2>
         
         <div className="features-grid">
           <div className="feature-card">
             <div className="feature-icon">📦</div>
-            <h3>For Shops</h3>
-            <p>Manage your deliveries, track packages, and ensure customer satisfaction.</p>
+            <h3>{t('home.features.shops.title')}</h3>
+            <p>{t('home.features.shops.description')}</p>
           </div>
           
           <div className="feature-card">
             <div className="feature-icon">🚚</div>
-            <h3>For Drivers</h3>
-            <p>Pick up and deliver packages efficiently with our easy-to-use platform.</p>
+            <h3>{t('home.features.drivers.title')}</h3>
+            <p>{t('home.features.drivers.description')}</p>
           </div>
           
           <div className="feature-card">
             <div className="feature-icon">👤</div>
-            <h3>For Customers</h3>
-            <p>Track your packages in real-time and receive timely updates.</p>
+            <h3>{t('home.features.customers.title')}</h3>
+            <p>{t('home.features.customers.description')}</p>
           </div>
         </div>
       </div>
 
       <div className="tracking-section">
-        <h2>Track Your Package</h2>
+        <h2>{t('home.tracking.title')}</h2>
         <div className="tracking-box">
           <Link to="/track" className="track-link">
-            Enter Tracking Number
+            {t('home.tracking.button')}
           </Link>
         </div>
       </div>
 
       <footer className="home-footer">
         <div className="footer-content">
-          <div className="footer-logo">Droppin Delivery</div>
+          <div className="footer-logo">{t('home.hero.title')}</div>
           <div className="footer-links">
-            <Link to="/about">About Us</Link>
-            <Link to="/contact">Contact</Link>
-            <Link to="/terms">Terms of Service</Link>
-            <Link to="/privacy">Privacy Policy</Link>
+            <Link to="/about">{t('home.footer.about')}</Link>
+            <Link to="/contact">{t('home.footer.contact')}</Link>
+            <Link to="/terms">{t('home.footer.terms')}</Link>
+            <Link to="/privacy">{t('home.footer.privacy')}</Link>
           </div>
           <div className="footer-copyright">
-            &copy; {new Date().getFullYear()} Droppin Delivery. All rights reserved.
+            {t('home.footer.copyright', { year: new Date().getFullYear() })}
           </div>
         </div>
       </footer>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { packageService } from '../../services/api';
 import './MobileShopDashboard.css';
+import { useTranslation } from 'react-i18next';
 
 const MobileShopNewPickup = () => {
   const navigate = useNavigate();
@@ -12,6 +13,7 @@ const MobileShopNewPickup = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [shopAddress, setShopAddress] = useState('');
+  const { t } = useTranslation();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -28,13 +30,13 @@ const MobileShopNewPickup = () => {
           setShopAddress(shopResponse.data.address);
         }
       } catch (err) {
-        setError('Failed to load data. Please try again later.');
+        setError(t('shop.newPickup.error.loadData'));
       } finally {
         setLoading(false);
       }
     };
     fetchData();
-  }, []);
+  }, [t]);
 
   const handlePackageSelect = (packageId) => {
     setSelectedPackages(prev =>
@@ -55,11 +57,11 @@ const MobileShopNewPickup = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (selectedPackages.length === 0) {
-      setError('Please select at least one package for pickup');
+      setError(t('shop.newPickup.error.selectPackage'));
       return;
     }
     if (!pickupDate || !pickupTime) {
-      setError('Please select both date and time for pickup');
+      setError(t('shop.newPickup.error.selectDateTime'));
       return;
     }
     try {
@@ -72,22 +74,22 @@ const MobileShopNewPickup = () => {
       await packageService.createPickup(pickupData);
       navigate('/shop/packages');
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to schedule pickup. Please try again.');
+      setError(err.response?.data?.message || t('shop.newPickup.error.scheduleFailed'));
     }
   };
 
   return (
     <div className="mobile-shop-dashboard-section" style={{ marginTop: '5rem' }}>
-      <h2 className="mobile-shop-dashboard-section-title">Schedule New Pickup</h2>
+      <h2 className="mobile-shop-dashboard-section-title">{t('shop.newPickup.title')}</h2>
       {loading ? (
-        <div className="mobile-shop-dashboard-loading">Loading packages...</div>
+        <div className="mobile-shop-dashboard-loading">{t('shop.newPickup.loading')}</div>
       ) : error ? (
         <div className="mobile-shop-dashboard-error">{error}</div>
       ) : (
         <>
           <form onSubmit={handleSubmit} className="mobile-shop-create-form">
             <div className="form-group">
-              <label>Pickup Address:</label>
+              <label>{t('shop.newPickup.pickupAddress')}</label>
               <input
                 type="text"
                 value={shopAddress}
@@ -97,7 +99,7 @@ const MobileShopNewPickup = () => {
               />
             </div>
             <div className="form-group">
-              <label>Pickup Date:</label>
+              <label>{t('shop.newPickup.pickupDate')}</label>
               <input
                 type="date"
                 value={pickupDate}
@@ -109,7 +111,7 @@ const MobileShopNewPickup = () => {
               />
             </div>
             <div className="form-group">
-              <label>Pickup Time:</label>
+              <label>{t('shop.newPickup.pickupTime')}</label>
               <input
                 type="time"
                 value={pickupTime}
@@ -121,19 +123,19 @@ const MobileShopNewPickup = () => {
             </div>
             <div className="form-group">
               <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span>Select Packages:</span>
+                <span>{t('shop.newPickup.selectPackages')}</span>
                 <button
                   type="button"
                   className="mobile-shop-create-btn"
                   onClick={handleSelectAll}
                   style={{ marginBottom: 0, marginLeft: 8, padding: '4px 12px', fontSize: 14, height: 32, lineHeight: '24px', minWidth: 0 }}
                 >
-                  {selectedPackages.length === packages.length ? 'Deselect All' : 'Select All'}
+                  {selectedPackages.length === packages.length ? t('shop.newPickup.deselectAll') : t('shop.newPickup.selectAll')}
                 </button>
               </label>
               <div style={{ maxHeight: 220, overflowY: 'auto', marginBottom: 12 }}>
                 {packages.length === 0 ? (
-                  <div className="mobile-shop-dashboard-no-packages">No pending packages available for pickup</div>
+                  <div className="mobile-shop-dashboard-no-packages">{t('shop.newPickup.noPendingPackages')}</div>
                 ) : (
                   packages.map(pkg => (
                     <label key={pkg.id} className="package-list-item" style={{ display: 'flex', alignItems: 'center', padding: '4px 0', borderBottom: '1px solid #eee', background: selectedPackages.includes(pkg.id) ? '#fff8e1' : 'white', fontWeight: selectedPackages.includes(pkg.id) ? 'bold' : 'normal' }}>
@@ -146,9 +148,9 @@ const MobileShopNewPickup = () => {
                       <div style={{ flex: 1 }}>
                         <span style={{ color: '#ff8c00' }}>{pkg.trackingNumber}</span> - {pkg.packageDescription}
                         <div style={{ fontSize: 12, color: '#666' }}>{pkg.deliveryAddress}</div>
-                        <div style={{ fontSize: 12, color: '#666' }}>COD: ${pkg.codAmount}</div>
+                        <div style={{ fontSize: 12, color: '#666' }}>{t('shop.newPickup.cod')}: ${pkg.codAmount}</div>
                         {pkg.shopNotes && (
-                          <div style={{ fontSize: 12, color: '#666' }}><span className="label">Shop Notes: </span><span>{pkg.shopNotes}</span></div>
+                          <div style={{ fontSize: 12, color: '#666' }}><span className="label">{t('shop.newPickup.shopNotes')}: </span><span>{pkg.shopNotes}</span></div>
                         )}
                       </div>
                     </label>
@@ -157,8 +159,8 @@ const MobileShopNewPickup = () => {
               </div>
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
-              <button type="button" className="mobile-shop-create-btn" style={{ background: '#6c757d' }} onClick={() => navigate('/shop/packages')}>Cancel</button>
-              <button type="submit" className="mobile-shop-create-btn" style={{ background: '#ffc107', color: '#333' }}>Schedule Pickup</button>
+              <button type="button" className="mobile-shop-create-btn" style={{ background: '#6c757d' }} onClick={() => navigate('/shop/packages')}>{t('shop.newPickup.cancel')}</button>
+              <button type="submit" className="mobile-shop-create-btn" style={{ background: '#ffc107', color: '#333' }}>{t('shop.newPickup.schedulePickup')}</button>
             </div>
           </form>
         </>

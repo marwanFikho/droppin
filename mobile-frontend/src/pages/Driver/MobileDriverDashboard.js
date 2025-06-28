@@ -5,6 +5,7 @@ import { driverService, packageService } from '../../services/api';
 import { Doughnut } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import './MobileDriverDashboard.css';
+import { useTranslation } from 'react-i18next';
 ChartJS.register(ArcElement, Tooltip, Legend);
 
 const packageCategories = {
@@ -15,8 +16,8 @@ const packageCategories = {
   all: ['assigned', 'pickedup', 'in-transit', 'delivered', 'cancelled', 'returned']
 };
 
-const getStatusBadge = (status) => (
-  <span className={`mobile-status-badge status-${status}`}>{status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ')}</span>
+const getStatusBadge = (status, t) => (
+  <span className={`mobile-status-badge status-${status}`}>{t(`driver.dashboard.status.${status}`, status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' '))}</span>
 );
 
 const getStatusColorHex = (status) => {
@@ -30,17 +31,18 @@ const getStatusColorHex = (status) => {
   }
 };
 
-const getNextStatus = (status) => {
+const getNextStatus = (status, t) => {
   switch (status) {
-    case 'assigned': return { next: 'pickedup', label: 'Mark as Picked Up' };
-    case 'pickedup': return { next: 'in-transit', label: 'Mark In Transit' };
-    case 'in-transit': return { next: 'delivered', label: 'Mark as Delivered' };
+    case 'assigned': return { next: 'pickedup', label: t('driver.dashboard.actions.markAsPickedUp') };
+    case 'pickedup': return { next: 'in-transit', label: t('driver.dashboard.actions.markInTransit') };
+    case 'in-transit': return { next: 'delivered', label: t('driver.dashboard.actions.markAsDelivered') };
     default: return null;
   }
 };
 
 const MobileDriverDashboard = () => {
   const { currentUser } = useAuth();
+  const { t } = useTranslation();
   const [driverProfile, setDriverProfile] = useState(null);
   const [driverStats, setDriverStats] = useState(null);
   const [packages, setPackages] = useState([]);
@@ -224,8 +226,8 @@ const MobileDriverDashboard = () => {
     }
   }, [isModalOpen, selectedPackage]);
 
-  if (loading) return <div className="mobile-driver-dashboard-loading">Loading driver dashboard...</div>;
-  if (error) return <div className="mobile-driver-dashboard-error">{error}</div>;
+  if (loading) return <div className="mobile-driver-dashboard-loading">{t('common.loadingDriverDashboard')}</div>;
+  if (error) return <div className="mobile-driver-dashboard-error">{t(error)}</div>;
 
   return (
     <div className="mobile-driver-dashboard" style={{marginTop: '1rem'}}>
@@ -233,9 +235,9 @@ const MobileDriverDashboard = () => {
         {/* Dashboard Header */}
         <div className="mobile-driver-dashboard-header">
           <div className="mobile-driver-dashboard-welcome">
-            <h1 className="mobile-driver-dashboard-title">Driver Dashboard</h1>
+            <h1 className="mobile-driver-dashboard-title">{t('driver.dashboard.title')}</h1>
             <p className="mobile-driver-dashboard-subtitle">
-              Welcome back, {driverProfile?.User?.name || 'Driver'}!
+              {t('driver.dashboard.welcome', { name: driverProfile?.User?.name || t('driver.dashboard.driver') })}
             </p>
           </div>
           <div className="mobile-driver-dashboard-icon">🚚</div>
@@ -244,11 +246,11 @@ const MobileDriverDashboard = () => {
         {/* Stats Overview */}
         <div className="mobile-driver-dashboard-stats-row">
           {[
-            { label: 'Assigned Today', value: driverStats?.assignedToday|| 0, color: '#007bff', icon: '📦' },
-            { label: 'Total Assigned', value: driverStats?.totalAssigned || 0, color: '#28a745', icon: '📋' },
-            { label: 'Total Deliveries', value: driverStats?.totalDeliveries || 0, color: '#4caf50', icon: '✅' },
-            { label: 'Active Assignments', value: driverStats?.activeAssign || 0, color: '#ffc107', icon: '⏳' },
-            { label: 'Cancelled', value: driverStats?.totalCancelled || 0, color: '#dc3545', icon: '❌' },
+            { label: t('driver.dashboard.stats.assignedToday'), value: driverStats?.assignedToday|| 0, color: '#007bff', icon: '📦' },
+            { label: t('driver.dashboard.stats.totalAssigned'), value: driverStats?.totalAssigned || 0, color: '#28a745', icon: '📋' },
+            { label: t('driver.dashboard.stats.totalDeliveries'), value: driverStats?.totalDeliveries || 0, color: '#4caf50', icon: '✅' },
+            { label: t('driver.dashboard.stats.activeAssignments'), value: driverStats?.activeAssign || 0, color: '#ffc107', icon: '⏳' },
+            { label: t('driver.dashboard.stats.cancelled'), value: driverStats?.totalCancelled || 0, color: '#dc3545', icon: '❌' },
           ].map((stat, idx) => (
             <div key={idx} className="mobile-driver-dashboard-stat-card" style={{ background: stat.color }}>
               <span className="mobile-driver-dashboard-stat-icon">{stat.icon}</span>
@@ -260,7 +262,7 @@ const MobileDriverDashboard = () => {
 
         {/* Stats & Chart */}
         <div className="mobile-driver-dashboard-section" style={{ marginBottom: 16 }}>
-          <h2 className="mobile-driver-dashboard-section-title">Delivery Statistics</h2>
+          <h2 className="mobile-driver-dashboard-section-title">{t('driver.dashboard.deliveryStatistics')}</h2>
           <div style={{ width: '100%', maxWidth: 260, margin: '0 auto', height: 180 }}>
             <Doughnut data={chartData} options={chartOptions} />
           </div>
@@ -275,7 +277,7 @@ const MobileDriverDashboard = () => {
                 className={`mobile-driver-dashboard-tab-modern${activeTab === tab ? ' active' : ''}`}
                 onClick={() => setActiveTab(tab)}
               >
-                {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                {t(`driver.dashboard.tabs.${tab}`, tab.charAt(0).toUpperCase() + tab.slice(1))}
                 <span className="mobile-driver-dashboard-tab-count">
                   {packages.filter(pkg => tab === 'all' ? true : packageCategories[tab].includes(pkg.status)).length}
                 </span>
@@ -285,7 +287,7 @@ const MobileDriverDashboard = () => {
           <div className="mobile-driver-dashboard-search-bar">
             <input
               type="text"
-              placeholder="Search by tracking number, description, address, or status..."
+              placeholder={t('driver.dashboard.searchPlaceholder')}
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
             />
@@ -294,13 +296,13 @@ const MobileDriverDashboard = () => {
 
         {/* Packages List */}
         <div className="mobile-driver-dashboard-section">
-          <h2 className="mobile-driver-dashboard-section-title">My Packages</h2>
+          <h2 className="mobile-driver-dashboard-section-title">{t('driver.dashboard.myPackages')}</h2>
           <div className="mobile-driver-dashboard-deliveries">
             {getFilteredPackages().length === 0 ? (
-              <div style={{ color: '#888', textAlign: 'center', padding: '1rem' }}>No packages found.</div>
+              <div style={{ color: '#888', textAlign: 'center', padding: '1rem' }}>{t('driver.dashboard.noPackages')}</div>
             ) : (
               getFilteredPackages().map(pkg => {
-                const nextStatus = getNextStatus(pkg.status);
+                const nextStatus = getNextStatus(pkg.status, t);
                 const currentColor = getStatusColorHex(pkg.status);
                 const nextColor = nextStatus ? getStatusColorHex(nextStatus.next) : '#bdbdbd';
                 const gradient = `linear-gradient(90deg, ${currentColor} 0%, ${nextColor} 100%)`;
@@ -309,18 +311,18 @@ const MobileDriverDashboard = () => {
                     <div className="mobile-driver-dashboard-delivery-header">
                       <div className="mobile-driver-dashboard-delivery-id">{pkg.trackingNumber}</div>
                       <div className="mobile-driver-dashboard-delivery-status" style={{ background: currentColor, color: '#fff' }}>
-                        {pkg.status.charAt(0).toUpperCase() + pkg.status.slice(1).replace('_', ' ')}
+                        {getStatusBadge(pkg.status, t)}
                       </div>
                     </div>
                     <div className="mobile-driver-dashboard-delivery-details">
                       <div className="mobile-driver-dashboard-delivery-tracking">
-                        <strong>Description:</strong> {pkg.packageDescription || '-'}
+                        <strong>{t('driver.dashboard.description')}:</strong> {pkg.packageDescription || '-'}
                       </div>
                       <div className="mobile-driver-dashboard-delivery-address">
-                        <strong>Address:</strong> {pkg.deliveryAddress || '-'}
+                        <strong>{t('driver.dashboard.address')}:</strong> {pkg.deliveryAddress || '-'}
                       </div>
                       <div className="mobile-driver-dashboard-delivery-time">
-                        <strong>COD:</strong> ${parseFloat(pkg.codAmount || 0).toFixed(2)}
+                        <strong>{t('driver.dashboard.cod')}:</strong> ${parseFloat(pkg.codAmount || 0).toFixed(2)}
                       </div>
                     </div>
                     <div className="mobile-driver-dashboard-delivery-actions">
@@ -331,16 +333,16 @@ const MobileDriverDashboard = () => {
                           onClick={() => handleStatusAction(pkg, nextStatus.next)}
                           disabled={statusUpdating[pkg.id]}
                         >
-                          {statusUpdating[pkg.id] ? 'Updating...' : nextStatus.label}
+                          {statusUpdating[pkg.id] ? t('driver.dashboard.actions.updating') : nextStatus.label}
                         </button>
                       ) : (
-                        <span style={{ color: '#aaa', fontSize: 12 }}>No actions</span>
+                        <span style={{ color: '#aaa', fontSize: 12 }}>{t('driver.dashboard.noActions')}</span>
                       )}
                       <button
                         className="mobile-driver-dashboard-delivery-track-btn"
                         onClick={() => openPackageDetailsModal(pkg)}
                       >
-                        View Details
+                        {t('driver.dashboard.actions.viewDetails')}
                       </button>
                       {/* Reject button: only show if not delivered, cancelled, or rejected */}
                       {![ 'delivered', 'cancelled', 'cancelled-awaiting-return', 'cancelled-returned', 'rejected' ].includes(pkg.status) && (
@@ -350,7 +352,7 @@ const MobileDriverDashboard = () => {
                           onClick={() => handleRejectPackage(pkg)}
                           disabled={statusUpdating[pkg.id]}
                         >
-                          {statusUpdating[pkg.id] ? 'Cancelling...' : 'Cancel'}
+                          {statusUpdating[pkg.id] ? t('driver.dashboard.actions.cancelling') : t('driver.dashboard.actions.cancel')}
                         </button>
                       )}
                     </div>
@@ -365,26 +367,26 @@ const MobileDriverDashboard = () => {
         <div className="mobile-modal-overlay" onClick={closePackageDetailsModal}>
           <div className="mobile-modal-content" onClick={e => e.stopPropagation()}>
             <div className="mobile-modal-header">
-              <h3>Package Details</h3>
+              <h3>{t('driver.dashboard.packageDetails.title')}</h3>
               <button className="mobile-modal-close" onClick={closePackageDetailsModal}>&times;</button>
             </div>
             <div className="mobile-modal-body">
               {modalLoading ? (
                 <div className="loading-spinner-container"><div className="loading-spinner"></div></div>
               ) : modalError ? (
-                <div className="mobile-error-message">{modalError}</div>
+                <div className="mobile-error-message">{t('driver.dashboard.packageDetails.error')}</div>
               ) : selectedPackage ? (
                 <div className="mobile-modal-details-grid">
-                  <div className="mobile-modal-detail-item"><span className="label">Tracking #</span><span>{selectedPackage.trackingNumber}</span></div>
-                  <div className="mobile-modal-detail-item"><span className="label">Status</span><span className={`mobile-status-badge status-${selectedPackage.status}`}>{selectedPackage.status}</span></div>
-                  <div className="mobile-modal-detail-item"><span className="label">Description</span><span>{selectedPackage.packageDescription}</span></div>
-                  <div className="mobile-modal-detail-item"><span className="label">Pickup Address</span><span>{selectedPackage.pickupAddress}</span></div>
-                  <div className="mobile-modal-detail-item"><span className="label">Delivery Address</span><span>{selectedPackage.deliveryAddress}</span></div>
-                  <div className="mobile-modal-detail-item"><span className="label">COD Amount</span><span>${parseFloat(selectedPackage.codAmount || 0).toFixed(2)}</span></div>
-                  <div className="mobile-modal-detail-item"><span className="label">Recipient Name</span><span>{selectedPackage.deliveryContactName}</span></div>
-                  <div className="mobile-modal-detail-item"><span className="label">Recipient Phone</span><span>{selectedPackage.deliveryContactPhone}</span></div>
+                  <div className="mobile-modal-detail-item"><span className="label">{t('driver.dashboard.packageDetails.tracking')}</span><span>{selectedPackage.trackingNumber}</span></div>
+                  <div className="mobile-modal-detail-item"><span className="label">{t('driver.dashboard.packageDetails.status')}</span><span className={`mobile-status-badge status-${selectedPackage.status}`}>{t(`driver.dashboard.status.${selectedPackage.status}`, selectedPackage.status)}</span></div>
+                  <div className="mobile-modal-detail-item"><span className="label">{t('driver.dashboard.packageDetails.description')}</span><span>{selectedPackage.packageDescription}</span></div>
+                  <div className="mobile-modal-detail-item"><span className="label">{t('driver.dashboard.packageDetails.pickupAddress')}</span><span>{selectedPackage.pickupAddress}</span></div>
+                  <div className="mobile-modal-detail-item"><span className="label">{t('driver.dashboard.packageDetails.deliveryAddress')}</span><span>{selectedPackage.deliveryAddress}</span></div>
+                  <div className="mobile-modal-detail-item"><span className="label">{t('driver.dashboard.packageDetails.codAmount')}</span><span>${parseFloat(selectedPackage.codAmount || 0).toFixed(2)}</span></div>
+                  <div className="mobile-modal-detail-item"><span className="label">{t('driver.dashboard.packageDetails.recipientName')}</span><span>{selectedPackage.deliveryContactName}</span></div>
+                  <div className="mobile-modal-detail-item"><span className="label">{t('driver.dashboard.packageDetails.recipientPhone')}</span><span>{selectedPackage.deliveryContactPhone}</span></div>
                   <div className="mobile-modal-detail-item full-width">
-                    <span className="label">Notes Log</span>
+                    <span className="label">{t('driver.dashboard.packageDetails.notesLog')}</span>
                     <div className="notes-log-list">
                       {(() => {
                         let notesArr = [];
@@ -407,14 +409,14 @@ const MobileDriverDashboard = () => {
                             </div>
                           ))
                         ) : (
-                          <div className="notes-log-empty">No notes yet.</div>
+                          <div className="notes-log-empty">{t('driver.dashboard.packageDetails.noNotes')}</div>
                         );
                       })()}
                     </div>
                     <textarea
                       value={editingNotes}
                       onChange={e => setEditingNotes(e.target.value)}
-                      placeholder="Add a note for this package..."
+                      placeholder={t('driver.dashboard.packageDetails.addNotePlaceholder')}
                       rows={2}
                       style={{ width: '100%', marginTop: 4 }}
                     />
@@ -429,7 +431,7 @@ const MobileDriverDashboard = () => {
                           setSelectedPackage(prev => ({ ...prev, notes: res.data.notes }));
                           setEditingNotes('');
                         } catch (err) {
-                          setNotesError('Failed to save note.');
+                          setNotesError(t('driver.dashboard.packageDetails.saveNoteError'));
                         } finally {
                           setNotesSaving(false);
                         }
@@ -437,12 +439,12 @@ const MobileDriverDashboard = () => {
                       disabled={notesSaving || !editingNotes.trim()}
                       style={{ marginTop: 8 }}
                     >
-                      {notesSaving ? 'Saving...' : 'Add Note'}
+                      {notesSaving ? t('driver.dashboard.packageDetails.saving') : t('driver.dashboard.packageDetails.addNote')}
                     </button>
                     {notesError && <div className="mobile-error-message">{notesError}</div>}
                   </div>
                   {selectedPackage.shopNotes && (
-                    <div className="mobile-modal-detail-item full-width"><span className="label">Shop Notes</span><span>{selectedPackage.shopNotes}</span></div>
+                    <div className="mobile-modal-detail-item full-width"><span className="label">{t('driver.dashboard.packageDetails.shopNotes')}</span><span>{selectedPackage.shopNotes}</span></div>
                   )}
                 </div>
               ) : null}
@@ -454,22 +456,22 @@ const MobileDriverDashboard = () => {
         <div className="mobile-modal-overlay" onClick={() => setConfirmAction(null)}>
           <div className="mobile-modal-content" onClick={e => e.stopPropagation()} style={{maxWidth: 340, textAlign: 'center'}}>
             <div className="mobile-modal-header">
-              <h3>Confirm Action</h3>
+              <h3>{t('driver.dashboard.confirmAction.title')}</h3>
               <button className="mobile-modal-close" onClick={() => setConfirmAction(null)}>&times;</button>
             </div>
             <div className="mobile-modal-body">
               {confirmAction.type === 'status' ? (
                 <>
-                  <p>Are you sure you want to mark this package as <b>{confirmAction.nextStatus.replace('-', ' ')}</b>?</p>
-                  <button className="btn btn-primary" style={{marginRight: 10}} onClick={() => doStatusAction(confirmAction.pkg, confirmAction.nextStatus)}>Yes, Confirm</button>
+                  <p>{t('driver.dashboard.confirmAction.status', { status: confirmAction.nextStatus.replace('-', ' ') })}</p>
+                  <button className="btn btn-primary" style={{marginRight: 10}} onClick={() => doStatusAction(confirmAction.pkg, confirmAction.nextStatus)}>{t('driver.dashboard.confirmAction.yesConfirm')}</button>
                 </>
               ) : (
                 <>
-                  <p>Are you sure you want to <b>cancel</b> this package?</p>
-                  <button className="btn btn-danger" style={{marginRight: 10}} onClick={() => doRejectPackage(confirmAction.pkg)}>Yes, Cancel</button>
+                  <p>{t('driver.dashboard.confirmAction.cancel')}</p>
+                  <button className="btn btn-danger" style={{marginRight: 10}} onClick={() => doRejectPackage(confirmAction.pkg)}>{t('driver.dashboard.confirmAction.yesCancel')}</button>
                 </>
               )}
-              <button className="btn btn-secondary" onClick={() => setConfirmAction(null)}>Cancel</button>
+              <button className="btn btn-secondary" onClick={() => setConfirmAction(null)}>{t('driver.dashboard.confirmAction.cancelBtn')}</button>
             </div>
           </div>
         </div>

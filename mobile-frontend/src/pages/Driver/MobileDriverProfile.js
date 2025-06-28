@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { driverService } from '../../services/api';
 import './MobileDriverDashboard.css';
 import { Colors } from 'chart.js';
+import { useTranslation } from 'react-i18next';
 
 const MobileDriverProfile = () => {
   const [profile, setProfile] = useState(null);
@@ -11,6 +12,7 @@ const MobileDriverProfile = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({});
   const [availabilityLoading, setAvailabilityLoading] = useState(false);
+  const { t } = useTranslation();
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -21,13 +23,13 @@ const MobileDriverProfile = () => {
         setProfile(res.data);
         setFormData(res.data);
       } catch (err) {
-        setError('Failed to load profile.');
+        setError(t('driver.profile.error.loadProfile'));
       } finally {
         setLoading(false);
       }
     };
     fetchProfile();
-  }, []);
+  }, [t]);
 
   const handleToggleAvailability = async () => {
     setAvailabilityLoading(true);
@@ -35,7 +37,7 @@ const MobileDriverProfile = () => {
       await driverService.updateAvailability(!profile.isAvailable);
       setProfile(prev => ({ ...prev, isAvailable: !prev.isAvailable }));
     } catch (err) {
-      setError('Failed to update availability.');
+      setError(t('driver.profile.error.updateAvailability'));
     } finally {
       setAvailabilityLoading(false);
     }
@@ -81,22 +83,22 @@ const MobileDriverProfile = () => {
     <div className="mobile-driver-dashboard" style={{ marginTop: '2rem' }}>
       <div className="mobile-driver-dashboard-container" style={{ paddingTop: 20 }}>
         <div className="mobile-shop-dashboard-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h1 className="mobile-shop-dashboard-title" style={{ margin: 0 }}>My Profile</h1>
+          <h1 className="mobile-shop-dashboard-title" style={{ margin: 0 }}>{t('driver.profile.title')}</h1>
         </div>
 
         {profile && (
           <>
             <div className="mobile-driver-profile-card">
               <div className="mobile-driver-profile-header">
-                <h3>Personal Information</h3>
+                <h3>{t('driver.profile.personalInfo')}</h3>
                 <button onClick={isEditing ? handleCancel : () => setIsEditing(true)} className="mobile-profile-edit-btn">
-                  {isEditing ? 'Cancel' : 'Edit'}
+                  {isEditing ? t('driver.profile.cancel') : t('driver.profile.edit')}
                 </button>
               </div>
               {isEditing ? (
                 <form onSubmit={handleSave} className="mobile-profile-form">
                   <div className="mobile-form-group">
-                    <label>Name</label>
+                    <label>{t('driver.profile.name')}</label>
                     <input
                       type="text"
                       name="name"
@@ -105,7 +107,7 @@ const MobileDriverProfile = () => {
                     />
                   </div>
                   <div className="mobile-form-group">
-                    <label>Email</label>
+                    <label>{t('driver.profile.email')}</label>
                     <input
                       type="email"
                       name="email"
@@ -115,7 +117,7 @@ const MobileDriverProfile = () => {
                     />
                   </div>
                   <div className="mobile-form-group">
-                    <label>Phone</label>
+                    <label>{t('driver.profile.phone')}</label>
                     <input
                       type="text"
                       name="phone"
@@ -123,37 +125,37 @@ const MobileDriverProfile = () => {
                       onChange={handleInputChange}
                     />
                   </div>
-                  <button type="submit" className="mobile-profile-save-btn">Save Changes</button>
+                  <button type="submit" className="mobile-profile-save-btn">{t('driver.profile.saveChanges')}</button>
                 </form>
               ) : (
                 <div className="mobile-profile-details">
-                  <div><strong>Name:</strong> {profile.User?.name}</div>
-                  <div><strong>Email:</strong> {profile.User?.email}</div>
-                  <div><strong>Phone:</strong> {profile.User?.phone}</div>
-                  <div><strong>Working Area:</strong> {profile.workingArea}</div>
+                  <div><strong>{t('driver.profile.name')}:</strong> {profile.User?.name}</div>
+                  <div><strong>{t('driver.profile.email')}:</strong> {profile.User?.email}</div>
+                  <div><strong>{t('driver.profile.phone')}:</strong> {profile.User?.phone}</div>
+                  <div><strong>{t('driver.profile.workingArea')}:</strong> {profile.workingArea}</div>
                 </div>
               )}
             </div>
 
             <div className="mobile-driver-profile-card">
-              <h3>Vehicle Information</h3>
+              <h3>{t('driver.profile.vehicleInfo')}</h3>
               <div className="mobile-profile-details">
-                <div><strong>Type:</strong> {profile.vehicleType}</div>
-                <div><strong>Model:</strong> {profile.model}</div>
-                <div><strong>License Plate:</strong> {profile.licensePlate}</div>
+                <div><strong>{t('driver.profile.type')}:</strong> {profile.vehicleType}</div>
+                <div><strong>{t('driver.profile.model')}:</strong> {profile.model}</div>
+                <div><strong>{t('driver.profile.licensePlate')}:</strong> {profile.licensePlate}</div>
               </div>
             </div>
 
             <div className="mobile-driver-profile-card">
-              <h3>Availability</h3>
+              <h3>{t('driver.profile.availability')}</h3>
               <div className="mobile-profile-availability">
-                <span>{profile.isAvailable ? 'Available for deliveries' : 'Not available for deliveries'}</span>
+                <span>{profile.isAvailable ? t('driver.profile.available') : t('driver.profile.notAvailable')}</span>
                 <button
                   onClick={handleToggleAvailability}
                   className={`mobile-availability-toggle ${profile.isAvailable ? 'on' : 'off'}`}
                   disabled={availabilityLoading}
                 >
-                  {availabilityLoading ? '...' : (profile.isAvailable ? 'Go Offline' : 'Go Online')}
+                  {availabilityLoading ? '...' : (profile.isAvailable ? t('driver.profile.goOffline') : t('driver.profile.goOnline'))}
                 </button>
               </div>
             </div>

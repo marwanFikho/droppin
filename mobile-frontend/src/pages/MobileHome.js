@@ -2,30 +2,32 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import './MobileHome.css';
+import { useTranslation } from 'react-i18next';
 
 const MobileHome = () => {
   const { currentUser } = useAuth();
+  const { t } = useTranslation();
 
   const features = [
     {
       icon: '📦',
-      title: 'Package Tracking',
-      description: 'Track your packages in real-time with our advanced tracking system'
+      title: t('home.features.tracking.title'),
+      description: t('home.features.tracking.description')
     },
     {
       icon: '🚚',
-      title: 'Fast Delivery',
-      description: 'Get your packages delivered quickly and safely'
+      title: t('home.features.delivery.title'),
+      description: t('home.features.delivery.description')
     },
     {
       icon: '🏪',
-      title: 'Shop Management',
-      description: 'Manage your shop inventory and orders efficiently'
+      title: t('home.features.shop.title'),
+      description: t('home.features.shop.description')
     },
     {
       icon: '👤',
-      title: 'User Dashboard',
-      description: 'View your order history and manage your account'
+      title: t('home.features.dashboard.title'),
+      description: t('home.features.dashboard.description')
     }
   ];
 
@@ -47,23 +49,23 @@ const MobileHome = () => {
       <section className="mobile-hero">
         <div className="mobile-hero-content">
           <div className="mobile-hero-icon">📦</div>
-          <h1 className="mobile-hero-title">Welcome to Droppin</h1>
+          <h1 className="mobile-hero-title">{t('home.hero.title')}</h1>
           <p className="mobile-hero-subtitle">
-            Your trusted delivery management platform
+            {t('home.hero.subtitle')}
           </p>
           
           <div className="mobile-hero-actions">
             {currentUser ? (
               <Link to={getDashboardLink()} className="btn btn-primary">
-                Go to Dashboard
+                {t('home.hero.ctaDashboard')}
               </Link>
             ) : (
               <>
                 <Link to="/login" className="btn btn-primary">
-                  Login
+                  {t('home.hero.ctaLogin')}
                 </Link>
                 <Link to="/register" className="btn btn-outline">
-                  Register
+                  {t('home.hero.ctaRegister')}
                 </Link>
               </>
             )}
@@ -74,7 +76,7 @@ const MobileHome = () => {
       {/* Features Section */}
       <section className="mobile-features">
         <div className="mobile-features-content">
-          <h2 className="mobile-features-title">What We Offer</h2>
+          <h2 className="mobile-features-title">{t('home.features.title')}</h2>
           
           <div className="mobile-features-grid">
             {features.map((feature, index) => (
@@ -91,24 +93,24 @@ const MobileHome = () => {
       {/* Quick Actions Section */}
       <section className="mobile-quick-actions">
         <div className="mobile-quick-actions-content">
-          <h2 className="mobile-quick-actions-title">Quick Actions</h2>
+          <h2 className="mobile-quick-actions-title">{t('home.quickActions.title')}</h2>
           
           <div className="mobile-quick-actions-grid">
             <Link to="/track" className="mobile-quick-action-card">
               <div className="mobile-quick-action-icon">🔍</div>
-              <span className="mobile-quick-action-label">Track Package</span>
+              <span className="mobile-quick-action-label">{t('home.quickActions.track')}</span>
             </Link>
             
             {!currentUser && (
               <>
                 <Link to="/register/shop" className="mobile-quick-action-card">
                   <div className="mobile-quick-action-icon">🏪</div>
-                  <span className="mobile-quick-action-label">Register Shop</span>
+                  <span className="mobile-quick-action-label">{t('home.quickActions.registerShop')}</span>
                 </Link>
                 
                 <Link to="/register/driver" className="mobile-quick-action-card">
                   <div className="mobile-quick-action-icon">🚚</div>
-                  <span className="mobile-quick-action-label">Register Driver</span>
+                  <span className="mobile-quick-action-label">{t('home.quickActions.registerDriver')}</span>
                 </Link>
               </>
             )}
@@ -116,7 +118,7 @@ const MobileHome = () => {
             {currentUser && currentUser.role === 'shop' && (
               <Link to="/shop/create-package" className="mobile-quick-action-card">
                 <div className="mobile-quick-action-icon">➕</div>
-                <span className="mobile-quick-action-label">Create Package</span>
+                <span className="mobile-quick-action-label">{t('home.quickActions.createPackage')}</span>
               </Link>
             )}
           </div>
@@ -127,12 +129,12 @@ const MobileHome = () => {
       <section className="mobile-footer">
         <div className="mobile-footer-content">
           <p className="mobile-footer-text">
-            © 2024 Droppin. All rights reserved.
+            {t('home.footer.copyright', { year: new Date().getFullYear() })}
           </p>
           <div className="mobile-footer-links">
-            <Link to="/track">Track</Link>
-            <Link to="/login">Login</Link>
-            <Link to="/register">Register</Link>
+            <Link to="/track">{t('home.footer.track')}</Link>
+            <Link to="/login">{t('home.footer.login')}</Link>
+            <Link to="/register">{t('home.footer.register')}</Link>
           </div>
         </div>
       </section>

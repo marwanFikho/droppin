@@ -1,10 +1,12 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useTranslation } from 'react-i18next';
 import './MobileRegistrationSuccess.css';
 
 const MobileRegistrationSuccess = () => {
   const { currentUser } = useAuth();
+  const { t } = useTranslation();
 
   const getDashboardLink = () => {
     if (!currentUser) return '/login';
@@ -19,14 +21,14 @@ const MobileRegistrationSuccess = () => {
   };
 
   const getWelcomeMessage = () => {
-    if (!currentUser) return 'Welcome to Droppin!';
+    if (!currentUser) return t('registrationSuccess.welcome.default');
     
     switch (currentUser.role) {
-      case 'shop': return 'Welcome to your shop dashboard!';
-      case 'driver': return 'Welcome to your driver dashboard!';
-      case 'user': return 'Welcome to your user dashboard!';
-      case 'admin': return 'Welcome to your admin dashboard!';
-      default: return 'Welcome to Droppin!';
+      case 'shop': return t('registrationSuccess.welcome.shop');
+      case 'driver': return t('registrationSuccess.welcome.driver');
+      case 'user': return t('registrationSuccess.welcome.user');
+      case 'admin': return t('registrationSuccess.welcome.admin');
+      default: return t('registrationSuccess.welcome.default');
     }
   };
 
@@ -36,37 +38,37 @@ const MobileRegistrationSuccess = () => {
     switch (currentUser.role) {
       case 'shop':
         return [
-          'Create your first package',
-          'Set up your shop profile',
-          'View your packages',
-          'Track deliveries'
+          t('registrationSuccess.nextSteps.shop.create'),
+          t('registrationSuccess.nextSteps.shop.profile'),
+          t('registrationSuccess.nextSteps.shop.view'),
+          t('registrationSuccess.nextSteps.shop.track')
         ];
       case 'driver':
         return [
-          'Complete your profile',
-          'Accept your first delivery',
-          'View available routes',
-          'Track your earnings'
+          t('registrationSuccess.nextSteps.driver.profile'),
+          t('registrationSuccess.nextSteps.driver.accept'),
+          t('registrationSuccess.nextSteps.driver.routes'),
+          t('registrationSuccess.nextSteps.driver.earnings')
         ];
       case 'user':
         return [
-          'Track your packages',
-          'View order history',
-          'Update your profile',
-          'Set delivery preferences'
+          t('registrationSuccess.nextSteps.user.track'),
+          t('registrationSuccess.nextSteps.user.history'),
+          t('registrationSuccess.nextSteps.user.profile'),
+          t('registrationSuccess.nextSteps.user.preferences')
         ];
       case 'admin':
         return [
-          'Manage users',
-          'View analytics',
-          'Monitor system',
-          'Configure settings'
+          t('registrationSuccess.nextSteps.admin.users'),
+          t('registrationSuccess.nextSteps.admin.analytics'),
+          t('registrationSuccess.nextSteps.admin.monitor'),
+          t('registrationSuccess.nextSteps.admin.settings')
         ];
       default:
         return [
-          'Explore the platform',
-          'Track packages',
-          'Update your profile'
+          t('registrationSuccess.nextSteps.default.explore'),
+          t('registrationSuccess.nextSteps.default.track'),
+          t('registrationSuccess.nextSteps.default.profile')
         ];
     }
   };
@@ -76,13 +78,13 @@ const MobileRegistrationSuccess = () => {
       <div className="mobile-registration-success-container">
         <div className="mobile-registration-success-header">
           <div className="mobile-registration-success-icon">✅</div>
-          <h1 className="mobile-registration-success-title">Registration Successful!</h1>
+          <h1 className="mobile-registration-success-title">{t('registrationSuccess.title')}</h1>
           <p className="mobile-registration-success-subtitle">{getWelcomeMessage()}</p>
         </div>
 
         <div className="mobile-registration-success-content">
           <div className="mobile-registration-success-card">
-            <h2 className="mobile-registration-success-card-title">What's Next?</h2>
+            <h2 className="mobile-registration-success-card-title">{t('registrationSuccess.nextSteps.title')}</h2>
             <ul className="mobile-registration-success-steps">
               {getNextSteps().map((step, index) => (
                 <li key={index} className="mobile-registration-success-step">
@@ -95,24 +97,24 @@ const MobileRegistrationSuccess = () => {
 
           <div className="mobile-registration-success-actions">
             <Link to={getDashboardLink()} className="btn btn-primary">
-              Go to Dashboard
+              {t('registrationSuccess.actions.dashboard')}
             </Link>
             <Link to="/" className="btn btn-outline">
-              Go to Home
+              {t('registrationSuccess.actions.home')}
             </Link>
           </div>
         </div>
 
         <div className="mobile-registration-success-footer">
           <p className="mobile-registration-success-footer-text">
-            Need help? Contact our support team
+            {t('registrationSuccess.footer.help')}
           </p>
           <div className="mobile-registration-success-footer-links">
             <Link to="/help" className="mobile-registration-success-footer-link">
-              Help Center
+              {t('registrationSuccess.footer.helpCenter')}
             </Link>
             <Link to="/contact" className="mobile-registration-success-footer-link">
-              Contact Us
+              {t('registrationSuccess.footer.contact')}
             </Link>
           </div>
         </div>

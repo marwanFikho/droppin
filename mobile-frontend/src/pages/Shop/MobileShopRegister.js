@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import './MobileShopRegister.css';
+import { useTranslation } from 'react-i18next';
 
 const MobileShopRegister = () => {
   const [formData, setFormData] = useState({
@@ -23,6 +24,7 @@ const MobileShopRegister = () => {
   
   const { register } = useAuth();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -44,53 +46,53 @@ const MobileShopRegister = () => {
     const newErrors = {};
     
     if (!formData.shopName.trim()) {
-      newErrors.shopName = 'Shop name is required';
+      newErrors.shopName = t('auth.register.shop.validation.shopNameRequired');
     }
     
     if (!formData.ownerName.trim()) {
-      newErrors.ownerName = 'Owner name is required';
+      newErrors.ownerName = t('auth.register.shop.validation.ownerNameRequired');
     }
     
     if (!formData.email.trim()) {
-      newErrors.email = 'Email is required';
+      newErrors.email = t('auth.register.validation.emailRequired');
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = 'Please enter a valid email';
+      newErrors.email = t('auth.register.validation.emailInvalid');
     }
     
     if (!formData.phone.trim()) {
-      newErrors.phone = 'Phone number is required';
+      newErrors.phone = t('auth.register.shop.validation.phoneRequired');
     } else if (!/^[\+]?[1-9][\d]{0,15}$/.test(formData.phone.replace(/\s/g, ''))) {
-      newErrors.phone = 'Please enter a valid phone number';
+      newErrors.phone = t('auth.register.shop.validation.phoneInvalid');
     }
     
     if (!formData.address.trim()) {
-      newErrors.address = 'Address is required';
+      newErrors.address = t('auth.register.shop.validation.addressRequired');
     }
     
     if (!formData.city.trim()) {
-      newErrors.city = 'City is required';
+      newErrors.city = t('auth.register.shop.validation.cityRequired');
     }
     
     if (!formData.state.trim()) {
-      newErrors.state = 'State is required';
+      newErrors.state = t('auth.register.shop.validation.stateRequired');
     }
     
     if (!formData.zipCode.trim()) {
-      newErrors.zipCode = 'ZIP code is required';
+      newErrors.zipCode = t('auth.register.shop.validation.zipCodeRequired');
     } else if (!/^\d{5}(-\d{4})?$/.test(formData.zipCode)) {
-      newErrors.zipCode = 'Please enter a valid ZIP code';
+      newErrors.zipCode = t('auth.register.shop.validation.zipCodeInvalid');
     }
     
     if (!formData.password) {
-      newErrors.password = 'Password is required';
+      newErrors.password = t('auth.register.validation.passwordRequired');
     } else if (formData.password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters';
+      newErrors.password = t('auth.register.validation.passwordLength');
     }
     
     if (!formData.confirmPassword) {
-      newErrors.confirmPassword = 'Please confirm your password';
+      newErrors.confirmPassword = t('auth.register.validation.confirmPasswordRequired');
     } else if (formData.password !== formData.confirmPassword) {
-      newErrors.confirmPassword = 'Passwords do not match';
+      newErrors.confirmPassword = t('auth.register.validation.passwordMismatch');
     }
     
     setErrors(newErrors);
@@ -126,7 +128,7 @@ const MobileShopRegister = () => {
       navigate('/registration-success');
     } catch (error) {
       console.error('Registration error:', error);
-      setRegisterError(error.message || 'Failed to register. Please try again.');
+      setRegisterError(error.message || t('auth.register.error.failed'));
     } finally {
       setLoading(false);
     }
@@ -137,8 +139,8 @@ const MobileShopRegister = () => {
       <div className="mobile-shop-register-container">
         <div className="mobile-shop-register-header">
           <div className="mobile-shop-register-icon">🏪</div>
-          <h1 className="mobile-shop-register-title">Register Your Shop</h1>
-          <p className="mobile-shop-register-subtitle">Join our delivery network</p>
+          <h1 className="mobile-shop-register-title">{t('auth.register.shop.title')}</h1>
+          <p className="mobile-shop-register-subtitle">{t('auth.register.shop.subtitle')}</p>
         </div>
 
         <form onSubmit={handleSubmit} className="mobile-shop-register-form">
@@ -149,7 +151,7 @@ const MobileShopRegister = () => {
           )}
 
           <div className="form-group">
-            <label htmlFor="shopName" className="form-label">Shop Name *</label>
+            <label htmlFor="shopName" className="form-label">{t('auth.register.shop.shopName')} *</label>
             <input
               type="text"
               id="shopName"
@@ -157,13 +159,13 @@ const MobileShopRegister = () => {
               value={formData.shopName}
               onChange={handleChange}
               className={`form-control ${errors.shopName ? 'error' : ''}`}
-              placeholder="Enter your shop name"
+              placeholder={t('auth.register.shop.shopNamePlaceholder')}
             />
             {errors.shopName && <div className="error-message">{errors.shopName}</div>}
           </div>
 
           <div className="form-group">
-            <label htmlFor="ownerName" className="form-label">Owner Name *</label>
+            <label htmlFor="ownerName" className="form-label">{t('auth.register.shop.ownerName')} *</label>
             <input
               type="text"
               id="ownerName"
@@ -171,13 +173,13 @@ const MobileShopRegister = () => {
               value={formData.ownerName}
               onChange={handleChange}
               className={`form-control ${errors.ownerName ? 'error' : ''}`}
-              placeholder="Enter owner's full name"
+              placeholder={t('auth.register.shop.ownerNamePlaceholder')}
             />
             {errors.ownerName && <div className="error-message">{errors.ownerName}</div>}
           </div>
 
           <div className="form-group">
-            <label htmlFor="email" className="form-label">Email *</label>
+            <label htmlFor="email" className="form-label">{t('auth.register.email')} *</label>
             <input
               type="email"
               id="email"
@@ -185,14 +187,14 @@ const MobileShopRegister = () => {
               value={formData.email}
               onChange={handleChange}
               className={`form-control ${errors.email ? 'error' : ''}`}
-              placeholder="Enter your email"
+              placeholder={t('auth.register.emailPlaceholder')}
               autoComplete="email"
             />
             {errors.email && <div className="error-message">{errors.email}</div>}
           </div>
 
           <div className="form-group">
-            <label htmlFor="phone" className="form-label">Phone Number *</label>
+            <label htmlFor="phone" className="form-label">{t('auth.register.shop.phone')} *</label>
             <input
               type="tel"
               id="phone"
@@ -200,14 +202,14 @@ const MobileShopRegister = () => {
               value={formData.phone}
               onChange={handleChange}
               className={`form-control ${errors.phone ? 'error' : ''}`}
-              placeholder="Enter phone number"
+              placeholder={t('auth.register.shop.phonePlaceholder')}
               autoComplete="tel"
             />
             {errors.phone && <div className="error-message">{errors.phone}</div>}
           </div>
 
           <div className="form-group">
-            <label htmlFor="address" className="form-label">Address *</label>
+            <label htmlFor="address" className="form-label">{t('auth.register.shop.address')} *</label>
             <input
               type="text"
               id="address"
@@ -215,14 +217,14 @@ const MobileShopRegister = () => {
               value={formData.address}
               onChange={handleChange}
               className={`form-control ${errors.address ? 'error' : ''}`}
-              placeholder="Enter shop address"
+              placeholder={t('auth.register.shop.addressPlaceholder')}
             />
             {errors.address && <div className="error-message">{errors.address}</div>}
           </div>
 
           <div className="form-row">
             <div className="form-group">
-              <label htmlFor="city" className="form-label">City *</label>
+              <label htmlFor="city" className="form-label">{t('auth.register.shop.city')} *</label>
               <input
                 type="text"
                 id="city"
@@ -230,13 +232,13 @@ const MobileShopRegister = () => {
                 value={formData.city}
                 onChange={handleChange}
                 className={`form-control ${errors.city ? 'error' : ''}`}
-                placeholder="City"
+                placeholder={t('auth.register.shop.city')}
               />
               {errors.city && <div className="error-message">{errors.city}</div>}
             </div>
 
             <div className="form-group">
-              <label htmlFor="state" className="form-label">State *</label>
+              <label htmlFor="state" className="form-label">{t('auth.register.shop.state')} *</label>
               <input
                 type="text"
                 id="state"
@@ -244,14 +246,14 @@ const MobileShopRegister = () => {
                 value={formData.state}
                 onChange={handleChange}
                 className={`form-control ${errors.state ? 'error' : ''}`}
-                placeholder="State"
+                placeholder={t('auth.register.shop.state')}
               />
               {errors.state && <div className="error-message">{errors.state}</div>}
             </div>
           </div>
 
           <div className="form-group">
-            <label htmlFor="zipCode" className="form-label">ZIP Code *</label>
+            <label htmlFor="zipCode" className="form-label">{t('auth.register.shop.zipCode')} *</label>
             <input
               type="text"
               id="zipCode"
@@ -259,13 +261,13 @@ const MobileShopRegister = () => {
               value={formData.zipCode}
               onChange={handleChange}
               className={`form-control ${errors.zipCode ? 'error' : ''}`}
-              placeholder="Enter ZIP code"
+              placeholder={t('auth.register.shop.zipCodePlaceholder')}
             />
             {errors.zipCode && <div className="error-message">{errors.zipCode}</div>}
           </div>
 
           <div className="form-group">
-            <label htmlFor="password" className="form-label">Password *</label>
+            <label htmlFor="password" className="form-label">{t('auth.register.password')} *</label>
             <input
               type="password"
               id="password"
@@ -273,14 +275,14 @@ const MobileShopRegister = () => {
               value={formData.password}
               onChange={handleChange}
               className={`form-control ${errors.password ? 'error' : ''}`}
-              placeholder="Create a password"
+              placeholder={t('auth.register.passwordPlaceholder')}
               autoComplete="new-password"
             />
             {errors.password && <div className="error-message">{errors.password}</div>}
           </div>
 
           <div className="form-group">
-            <label htmlFor="confirmPassword" className="form-label">Confirm Password *</label>
+            <label htmlFor="confirmPassword" className="form-label">{t('auth.register.confirmPassword')} *</label>
             <input
               type="password"
               id="confirmPassword"
@@ -288,7 +290,7 @@ const MobileShopRegister = () => {
               value={formData.confirmPassword}
               onChange={handleChange}
               className={`form-control ${errors.confirmPassword ? 'error' : ''}`}
-              placeholder="Confirm your password"
+              placeholder={t('auth.register.confirmPasswordPlaceholder')}
               autoComplete="new-password"
             />
             {errors.confirmPassword && <div className="error-message">{errors.confirmPassword}</div>}
@@ -299,15 +301,15 @@ const MobileShopRegister = () => {
             className="btn btn-primary w-100"
             disabled={loading}
           >
-            {loading ? 'Creating Account...' : 'Register Shop'}
+            {loading ? t('auth.register.shop.buttonLoading') : t('auth.register.shop.button')}
           </button>
         </form>
 
         <div className="mobile-shop-register-footer">
           <p className="mobile-shop-register-footer-text">
-            Already have an account?{' '}
+            {t('auth.register.hasAccount')}{' '}
             <Link to="/login" className="mobile-shop-register-link">
-              Sign in here
+              {t('auth.register.signIn')}
             </Link>
           </p>
         </div>

@@ -21,7 +21,9 @@
     "react-dom": "^19.1.0",
     "react-router-dom": "^6.30.1",
     "react-scripts": "5.0.1",
-    "web-vitals": "^2.1.4"
+    "web-vitals": "^2.1.4",
+    "i18next": "^23.10.0",
+    "react-i18next": "^13.2.2"
   },
   "scripts": {
     "start": "react-scripts start",

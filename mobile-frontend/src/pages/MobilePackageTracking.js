@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { packageService } from '../services/api';
 import './MobilePackageTracking.css';
+import { useTranslation } from 'react-i18next';
 
 const MobilePackageTracking = () => {
   const { trackingNumber } = useParams();
@@ -10,6 +11,7 @@ const MobilePackageTracking = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   // Auto-track if tracking number is provided in URL
   useEffect(() => {
@@ -21,7 +23,7 @@ const MobilePackageTracking = () => {
 
   const trackPackage = async (tracking) => {
     if (!tracking.trim()) {
-      setError('Please enter a tracking number');
+      setError(t('tracking.error.enterNumber'));
       return;
     }
 
@@ -61,9 +63,9 @@ const MobilePackageTracking = () => {
     } catch (err) {
       console.error('Tracking error:', err);
       if (err.response?.status === 404) {
-        setError('Tracking number not found. Please check and try again.');
+        setError(t('tracking.error.notFound'));
       } else {
-        setError('Failed to track package. Please try again.');
+        setError(t('tracking.error.failed'));
       }
     } finally {
       setLoading(false);
@@ -73,21 +75,21 @@ const MobilePackageTracking = () => {
   const getCurrentLocation = (status) => {
     switch (status) {
       case 'delivered':
-        return 'Delivered to recipient';
+        return t('tracking.location.delivered');
       case 'in-transit':
       case 'pickedup':
-        return 'In transit to destination';
+        return t('tracking.location.inTransit');
       case 'assigned':
-        return 'Assigned to driver';
+        return t('tracking.location.assigned');
       case 'scheduled_for_pickup':
-        return 'Scheduled for pickup';
+        return t('tracking.location.scheduled');
       case 'awaiting_schedule':
       case 'awaiting_pickup':
-        return 'Awaiting pickup';
+        return t('tracking.location.awaiting');
       case 'pending':
-        return 'Processing';
+        return t('tracking.location.processing');
       default:
-        return 'Processing';
+        return t('tracking.location.processing');
     }
   };
 
@@ -98,9 +100,9 @@ const MobilePackageTracking = () => {
     if (packageData.createdAt) {
       timeline.push({
         date: new Date(packageData.createdAt).toLocaleString(),
-        status: 'Package created',
-        location: packageData.shop?.name || 'Shop',
-        description: 'Package has been created and is awaiting pickup'
+        status: t('tracking.timeline.created'),
+        location: packageData.shop?.name || t('tracking.timeline.shop'),
+        description: t('tracking.timeline.createdDescription')
       });
     }
 
@@ -133,23 +135,23 @@ const MobilePackageTracking = () => {
   const getStatusDescription = (status) => {
     switch (status) {
       case 'delivered':
-        return 'Package has been successfully delivered to the recipient';
+        return t('tracking.statusDescription.delivered');
       case 'in-transit':
-        return 'Package is currently in transit to its destination';
+        return t('tracking.statusDescription.inTransit');
       case 'pickedup':
-        return 'Package has been picked up by the driver';
+        return t('tracking.statusDescription.pickedup');
       case 'assigned':
-        return 'Package has been assigned to a driver for delivery';
+        return t('tracking.statusDescription.assigned');
       case 'scheduled_for_pickup':
-        return 'Package is scheduled for pickup from the sender';
+        return t('tracking.statusDescription.scheduled');
       case 'awaiting_schedule':
-        return 'Package is awaiting pickup scheduling';
+        return t('tracking.statusDescription.awaitingSchedule');
       case 'awaiting_pickup':
-        return 'Package is ready for pickup';
+        return t('tracking.statusDescription.awaitingPickup');
       case 'pending':
-        return 'Package is being processed';
+        return t('tracking.statusDescription.pending');
       default:
-        return 'Package status updated';
+        return t('tracking.statusDescription.updated');
     }
   };
 
@@ -238,15 +240,15 @@ const MobilePackageTracking = () => {
       <div className="mobile-package-tracking-container">
         <div className="mobile-package-tracking-header">
           <div className="mobile-package-tracking-icon">📦</div>
-          <h1 className="mobile-package-tracking-title">Track Your Package</h1>
+          <h1 className="mobile-package-tracking-title">{t('tracking.title')}</h1>
           <p className="mobile-package-tracking-subtitle">
-            Enter your tracking number to get real-time updates
+            {t('tracking.enterNumber')}
           </p>
         </div>
 
         <form onSubmit={handleSearch} className="mobile-package-tracking-form">
           <div className="form-group">
-            <label htmlFor="trackingNumber" className="form-label">Tracking Number</label>
+            <label htmlFor="trackingNumber" className="form-label">{t('tracking.trackingNumber')}</label>
             <div className="mobile-tracking-input-group">
               <input
                 type="text"
@@ -254,7 +256,7 @@ const MobilePackageTracking = () => {
                 value={searchTracking}
                 onChange={(e) => setSearchTracking(e.target.value)}
                 className="form-control"
-                placeholder="Enter tracking number (e.g., DP123456789)"
+                placeholder={t('tracking.input.placeholder')}
                 autoComplete="off"
               />
               <button
@@ -262,7 +264,7 @@ const MobilePackageTracking = () => {
                 className="btn btn-primary"
                 disabled={loading}
               >
-                {loading ? '🔍' : 'Track'}
+                {loading ? '🔍' : t('tracking.search')}
               </button>
             </div>
           </div>
@@ -285,33 +287,33 @@ const MobilePackageTracking = () => {
                   {getStatusIcon(trackingResult.status)}
                 </div>
                 <div className="mobile-tracking-status-info">
-                  <h3 className="mobile-tracking-status-text">{trackingResult.status.replace(/_/g, ' ').toUpperCase()}</h3>
+                  <h3 className="mobile-tracking-status-text">{t(`tracking.status.${trackingResult.status}`)}</h3>
                   <p className="mobile-tracking-location">{trackingResult.currentLocation}</p>
                 </div>
               </div>
               
               <div className="mobile-tracking-details">
                 <div className="mobile-tracking-detail">
-                  <span className="mobile-tracking-detail-label">Tracking Number:</span>
+                  <span className="mobile-tracking-detail-label">{t('tracking.trackingNumber')}:</span>
                   <span className="mobile-tracking-detail-value">{trackingResult.trackingNumber}</span>
                 </div>
                 {trackingResult.estimatedDelivery && (
                   <div className="mobile-tracking-detail">
-                    <span className="mobile-tracking-detail-label">Estimated Delivery:</span>
+                    <span className="mobile-tracking-detail-label">{t('tracking.estimatedDelivery')}:</span>
                     <span className="mobile-tracking-detail-value">{trackingResult.estimatedDelivery}</span>
                   </div>
                 )}
                 <div className="mobile-tracking-detail">
-                  <span className="mobile-tracking-detail-label">Recipient:</span>
+                  <span className="mobile-tracking-detail-label">{t('tracking.contactName')}:</span>
                   <span className="mobile-tracking-detail-value">{trackingResult.recipient}</span>
                 </div>
                 <div className="mobile-tracking-detail">
-                  <span className="mobile-tracking-detail-label">Sender:</span>
+                  <span className="mobile-tracking-detail-label">{t('tracking.sender')}:</span>
                   <span className="mobile-tracking-detail-value">{trackingResult.sender}</span>
                 </div>
                 {trackingResult.priority && (
                   <div className="mobile-tracking-detail">
-                    <span className="mobile-tracking-detail-label">Priority:</span>
+                    <span className="mobile-tracking-detail-label">{t('tracking.priority')}:</span>
                     <span className="mobile-tracking-detail-value">{trackingResult.priority}</span>
                   </div>
                 )}
@@ -319,14 +321,14 @@ const MobilePackageTracking = () => {
             </div>
 
             <div className="mobile-tracking-timeline">
-              <h3 className="mobile-tracking-timeline-title">Tracking Timeline</h3>
+              <h3 className="mobile-tracking-timeline-title">{t('tracking.timeline.title')}</h3>
               <div className="mobile-tracking-timeline-list">
                 {trackingResult.timeline.map((event, index) => (
                   <div key={index} className="mobile-tracking-timeline-item">
                     <div className="mobile-tracking-timeline-dot"></div>
                     <div className="mobile-tracking-timeline-content">
                       <div className="mobile-tracking-timeline-header">
-                        <h4 className="mobile-tracking-timeline-status">{event.status.replace(/_/g, ' ').toUpperCase()}</h4>
+                        <h4 className="mobile-tracking-timeline-status">{t(`tracking.status.${event.status}`)}</h4>
                         <span className="mobile-tracking-timeline-date">{event.date}</span>
                       </div>
                       <p className="mobile-tracking-timeline-location">{event.location}</p>
@@ -339,7 +341,7 @@ const MobilePackageTracking = () => {
 
             {/* Notes Log Section */}
             <div className="mobile-tracking-notes-log" style={{background:'#fff', border:'1px solid #e0e0e0', borderRadius:'8px', padding:'1.25rem', marginTop:'1.5rem', marginBottom:'1.5rem'}}>
-              <span style={{fontWeight:'bold', fontSize:'1.08em', marginBottom:'0.5rem', display:'block'}}>Notes Log</span>
+              <span style={{fontWeight:'bold', fontSize:'1.08em', marginBottom:'0.5rem', display:'block'}}>{t('tracking.notesLog')}</span>
               <div style={{display:'flex', flexDirection:'column', gap:'0.75rem'}}>
                 {(() => {
                   let notesArr = [];
@@ -360,43 +362,43 @@ const MobilePackageTracking = () => {
                       <div key={idx} style={{background:'#f8f9fa', borderRadius:'6px', padding:'0.75rem 1rem', boxShadow:'0 1px 2px rgba(0,0,0,0.03)', border:'1px solid #ececec'}}>
                         <div style={{marginBottom:'0.25rem'}}>
                           <span style={{fontSize:'0.92em', color:'#888'}}>
-                            {n.createdAt ? new Date(n.createdAt).toLocaleString() : 'Unknown date'}
+                            {n.createdAt ? new Date(n.createdAt).toLocaleString() : t('tracking.unknownDate')}
                           </span>
                         </div>
                         <div style={{whiteSpace:'pre-line', fontSize:'1.05em', color:'#222'}}>{n.text}</div>
                       </div>
                     ))
                   ) : (
-                    <div style={{color:'#888', fontStyle:'italic'}}>No notes yet.</div>
+                    <div style={{color:'#888', fontStyle:'italic'}}>{t('tracking.noNotes')}</div>
                   );
                 })()}
               </div>
             </div>
 
             <div className="mobile-tracking-package-info">
-              <h3 className="mobile-tracking-package-title">Package Details</h3>
+              <h3 className="mobile-tracking-package-title">{t('tracking.packageInfo')}</h3>
               <div className="mobile-tracking-package-details">
                 <div className="mobile-tracking-package-detail">
-                  <span className="mobile-tracking-package-label">Description:</span>
+                  <span className="mobile-tracking-package-label">{t('tracking.description')}:</span>
                   <span className="mobile-tracking-package-value">{trackingResult.packageDetails.type}</span>
                 </div>
                 <div className="mobile-tracking-package-detail">
-                  <span className="mobile-tracking-package-label">Weight:</span>
+                  <span className="mobile-tracking-package-label">{t('tracking.weight')}:</span>
                   <span className="mobile-tracking-package-value">{trackingResult.packageDetails.weight}</span>
                 </div>
                 <div className="mobile-tracking-package-detail">
-                  <span className="mobile-tracking-package-label">Dimensions:</span>
+                  <span className="mobile-tracking-package-label">{t('tracking.dimensions')}:</span>
                   <span className="mobile-tracking-package-value">{trackingResult.packageDetails.dimensions}</span>
                 </div>
                 {trackingResult.deliveryAddress && (
                   <div className="mobile-tracking-package-detail">
-                    <span className="mobile-tracking-package-label">Delivery Address:</span>
+                    <span className="mobile-tracking-package-label">{t('tracking.address')}:</span>
                     <span className="mobile-tracking-package-value">{trackingResult.deliveryAddress}</span>
                   </div>
                 )}
                 {trackingResult.driver && (
                   <div className="mobile-tracking-package-detail">
-                    <span className="mobile-tracking-package-label">Driver:</span>
+                    <span className="mobile-tracking-package-label">{t('tracking.name')}:</span>
                     <span className="mobile-tracking-package-value">{trackingResult.driver.name}</span>
                   </div>
                 )}
@@ -408,12 +410,12 @@ const MobilePackageTracking = () => {
         {!trackingResult && !loading && !error && (
           <div className="mobile-tracking-placeholder">
             <div className="mobile-tracking-placeholder-icon">🔍</div>
-            <h3 className="mobile-tracking-placeholder-title">Track Your Package</h3>
+            <h3 className="mobile-tracking-placeholder-title">{t('tracking.placeholder.title')}</h3>
             <p className="mobile-tracking-placeholder-text">
-              Enter a tracking number above to see the current status and location of your package.
+              {t('tracking.placeholder.description')}
             </p>
             <div className="mobile-tracking-placeholder-example">
-              <strong>Example:</strong> DP123456789
+              <strong>{t('tracking.placeholder.example')}:</strong> DP123456789
             </div>
           </div>
         )}

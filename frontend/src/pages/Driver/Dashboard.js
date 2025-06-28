@@ -35,6 +35,7 @@ import {
 import './DriverDashboard.css';
 import { Pie, Doughnut } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
+import { useTranslation } from 'react-i18next';
 ChartJS.register(ArcElement, Tooltip, Legend);
 
 // Create a memoized search input component
@@ -73,6 +74,7 @@ const MyPackagesPage = ({ openPackageDetailsModal }) => {
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('current');
   const { packages, loading, error, getStatusBadge } = useDriverPackages();
+  const { t } = useTranslation();
 
   // Handle search with debounce
   const handleSearchChange = useCallback((e) => {
@@ -113,21 +115,21 @@ const MyPackagesPage = ({ openPackageDetailsModal }) => {
 
   return (
     <div className="packages-section">
-      <h2>My Packages</h2>
+      <h2>{t('driver.dashboard.myPackages')}</h2>
       {/* Package Categories Tabs */}
       <div className="package-tabs">
-        <button className={`tab-btn ${activeTab === 'current' ? 'active' : ''}`} onClick={() => setActiveTab('current')}>Current Packages</button>
-        <button className={`tab-btn ${activeTab === 'past' ? 'active' : ''}`} onClick={() => setActiveTab('past')}>Past Packages</button>
-        <button className={`tab-btn ${activeTab === 'delivered' ? 'active' : ''}`} onClick={() => setActiveTab('delivered')}>Delivered</button>
-        <button className={`tab-btn ${activeTab === 'cancelled' ? 'active' : ''}`} onClick={() => setActiveTab('cancelled')}>Cancelled</button>
-        <button className={`tab-btn ${activeTab === 'all' ? 'active' : ''}`} onClick={() => setActiveTab('all')}>All Packages</button>
+        <button className={`tab-btn ${activeTab === 'current' ? 'active' : ''}`} onClick={() => setActiveTab('current')}>{t('driver.dashboard.tabs.current')}</button>
+        <button className={`tab-btn ${activeTab === 'past' ? 'active' : ''}`} onClick={() => setActiveTab('past')}>{t('driver.dashboard.tabs.past')}</button>
+        <button className={`tab-btn ${activeTab === 'delivered' ? 'active' : ''}`} onClick={() => setActiveTab('delivered')}>{t('driver.dashboard.tabs.delivered')}</button>
+        <button className={`tab-btn ${activeTab === 'cancelled' ? 'active' : ''}`} onClick={() => setActiveTab('cancelled')}>{t('driver.dashboard.tabs.cancelled')}</button>
+        <button className={`tab-btn ${activeTab === 'all' ? 'active' : ''}`} onClick={() => setActiveTab('all')}>{t('driver.dashboard.tabs.all')}</button>
       </div>
       
       {/* Search Bar */}
       <div className="search-bar">
         <input
           type="text"
-          placeholder="Search by tracking number, description, address, or status..."
+          placeholder={t('driver.dashboard.searchPlaceholder')}
           value={searchQuery}
           onChange={handleSearchChange}
         />
@@ -136,36 +138,36 @@ const MyPackagesPage = ({ openPackageDetailsModal }) => {
       {/* Packages List */}
       <div className="packages-list">
         {loading ? (
-          <div className="loading">Loading packages...</div>
+          <div className="loading">{t('driver.dashboard.loadingPackages')}</div>
         ) : error ? (
           <div className="error">{error}</div>
         ) : getFilteredPackages().length === 0 ? (
-          <div className="no-packages">No packages found</div>
+          <div className="no-packages">{t('driver.dashboard.noPackagesFound')}</div>
         ) : (
           <table className="packages-table">
             <thead>
               <tr>
-                <th>Tracking #</th>
-                <th>Description</th>
-                <th>Status</th>
-                <th>Delivery Address</th>
-                <th>COD Amount</th>
-                <th>Actions</th>
+                <th>{t('driver.dashboard.table.trackingNumber')}</th>
+                <th>{t('driver.dashboard.table.description')}</th>
+                <th>{t('driver.dashboard.table.status')}</th>
+                <th>{t('driver.dashboard.table.deliveryAddress')}</th>
+                <th>{t('driver.dashboard.table.codAmount')}</th>
+                <th>{t('driver.dashboard.table.actions')}</th>
               </tr>
             </thead>
             <tbody>
               {getFilteredPackages().map(pkg => (
                 <tr key={pkg.id}>
-                  <td data-label="Tracking #">{pkg.trackingNumber}</td>
-                  <td data-label="Description">{pkg.packageDescription}</td>
-                  <td data-label="Status">{getStatusBadge(pkg.status)}</td>
-                  <td data-label="Delivery Address">{pkg.deliveryAddress}</td>
-                  <td data-label="COD Amount">${parseFloat(pkg.codAmount || 0).toFixed(2)}</td>
-                  <td data-label="Actions">
+                  <td data-label={t('driver.dashboard.table.trackingNumber')}>{pkg.trackingNumber}</td>
+                  <td data-label={t('driver.dashboard.table.description')}>{pkg.packageDescription}</td>
+                  <td data-label={t('driver.dashboard.table.status')}>{getStatusBadge(pkg.status)}</td>
+                  <td data-label={t('driver.dashboard.table.deliveryAddress')}>{pkg.deliveryAddress}</td>
+                  <td data-label={t('driver.dashboard.table.codAmount')}>${parseFloat(pkg.codAmount || 0).toFixed(2)}</td>
+                  <td data-label={t('driver.dashboard.table.actions')}>
                     <button 
                       className="action-btn view-btn"
                       onClick={() => openPackageDetailsModal(pkg)}
-                      title="View Details"
+                      title={t('driver.dashboard.table.viewDetails')}
                     >
                       <FontAwesomeIcon icon={faEye} />
                     </button>
@@ -245,6 +247,7 @@ const DriverDashboard = () => {
   const [notesSaving, setNotesSaving] = useState(false);
   const [notesError, setNotesError] = useState(null);
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   // Define package categories
   const packageCategories = {
@@ -533,21 +536,21 @@ const DriverDashboard = () => {
   // 1. Create a new MyPackages component for the full package list
   const MyPackages = React.memo(({ packages, loading, error, getStatusBadge, searchQuery, handleSearchChange, activeTab, setActiveTab, getFilteredPackages, updatePackageStatus }) => (
     <div className="bg-white rounded-lg shadow p-6">
-      <h2>My Packages</h2>
+      <h2>{t('driver.dashboard.myPackages')}</h2>
       {/* Package Categories Tabs */}
       <div className="package-tabs">
-        <button className={`tab-btn ${activeTab === 'current' ? 'active' : ''}`} onClick={() => setActiveTab('current')}>Current Packages</button>
-        <button className={`tab-btn ${activeTab === 'past' ? 'active' : ''}`} onClick={() => setActiveTab('past')}>Past Packages</button>
-        <button className={`tab-btn ${activeTab === 'delivered' ? 'active' : ''}`} onClick={() => setActiveTab('delivered')}>Delivered</button>
-        <button className={`tab-btn ${activeTab === 'cancelled' ? 'active' : ''}`} onClick={() => setActiveTab('cancelled')}>Cancelled</button>
-        <button className={`tab-btn ${activeTab === 'all' ? 'active' : ''}`} onClick={() => setActiveTab('all')}>All Packages</button>
+        <button className={`tab-btn ${activeTab === 'current' ? 'active' : ''}`} onClick={() => setActiveTab('current')}>{t('driver.dashboard.tabs.current')}</button>
+        <button className={`tab-btn ${activeTab === 'past' ? 'active' : ''}`} onClick={() => setActiveTab('past')}>{t('driver.dashboard.tabs.past')}</button>
+        <button className={`tab-btn ${activeTab === 'delivered' ? 'active' : ''}`} onClick={() => setActiveTab('delivered')}>{t('driver.dashboard.tabs.delivered')}</button>
+        <button className={`tab-btn ${activeTab === 'cancelled' ? 'active' : ''}`} onClick={() => setActiveTab('cancelled')}>{t('driver.dashboard.tabs.cancelled')}</button>
+        <button className={`tab-btn ${activeTab === 'all' ? 'active' : ''}`} onClick={() => setActiveTab('all')}>{t('driver.dashboard.tabs.all')}</button>
       </div>
       
       {/* Search Bar */}
       <SearchInput
         value={searchQuery}
         onChange={handleSearchChange}
-        placeholder="Search by tracking number, description, address, or status..."
+        placeholder={t('driver.dashboard.searchPlaceholder')}
       />
 
       {/* Packages List */}
@@ -555,13 +558,13 @@ const DriverDashboard = () => {
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tracking #</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Delivery Address</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">COD Amount</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status Actions</th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('driver.dashboard.table.trackingNumber')}</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('driver.dashboard.table.description')}</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('driver.dashboard.table.status')}</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('driver.dashboard.table.deliveryAddress')}</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('driver.dashboard.table.codAmount')}</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('driver.dashboard.table.statusActions')}</th>
+              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">{t('driver.dashboard.table.actions')}</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
@@ -588,7 +591,7 @@ const DriverDashboard = () => {
                         {nextStatus.label}
                       </button>
                     ) : (
-                      <span className="text-gray-400">No actions available</span>
+                      <span className="text-gray-400">{t('driver.dashboard.actions.noActions')}</span>
                     )}
                   </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -597,7 +600,7 @@ const DriverDashboard = () => {
                       onClick={() => {
                         openPackageDetailsModal(pkg);
                       }}
-                      title="View Details"
+                      title={t('driver.dashboard.table.viewDetails')}
                     >
                       <FontAwesomeIcon icon={faEye} />
                     </button>
@@ -633,7 +636,7 @@ const DriverDashboard = () => {
             {modalLoading ? (
               <div className="loading-state">
                 <div className="loading-spinner"></div>
-                <p>Loading package details...</p>
+                <p>{t('driver.dashboard.loadingPackageDetails')}</p>
               </div>
             ) : modalError ? (
               <div className="error-message">{modalError}</div>
@@ -641,25 +644,25 @@ const DriverDashboard = () => {
               <div className="package-details-section">
                 {/* Status Badge */}
                 <div className={`package-status-banner status-${selectedPackage.status}`}>
-                  <h3>Status: {selectedPackage.status?.charAt(0).toUpperCase() + selectedPackage.status?.slice(1)}</h3>
+                  <h3>{t('driver.dashboard.details.status')}: {selectedPackage.status?.charAt(0).toUpperCase() + selectedPackage.status?.slice(1)}</h3>
                 </div>
 
                 {/* Basic Package Information */}
                 <div className="details-grid">
                   <div className="detail-item">
-                    <span className="label">Tracking Number</span>
+                    <span className="label">{t('driver.dashboard.details.trackingNumber')}</span>
                     <span>{selectedPackage.trackingNumber}</span>
                   </div>
                   <div className="detail-item">
-                    <span className="label">Created Date</span>
+                    <span className="label">{t('driver.dashboard.details.createdDate')}</span>
                     <span>{selectedPackage.createdAt}</span>
                   </div>
                   <div className="detail-item">
-                    <span className="label">Pickedup Time</span>
-                    <span>{selectedPackage.actualPickupTime ? selectedPackage.actualPickupTime : 'Not pickedup yet'}</span>
+                    <span className="label">{t('driver.dashboard.details.pickedupTime')}</span>
+                    <span>{selectedPackage.actualPickupTime ? selectedPackage.actualPickupTime : t('driver.dashboard.details.notPickedUpYet')}</span>
                   </div>
                   <div className="detail-item">
-                    <span className="label">Payment Status</span>
+                    <span className="label">{t('driver.dashboard.details.paymentStatus')}</span>
                     <span className={`payment-status ${selectedPackage.isPaid ? 'paid' : 'unpaid'}`}>
                       {selectedPackage.isPaid ? 'Paid' : 'Unpaid'}
                     </span>
@@ -668,51 +671,51 @@ const DriverDashboard = () => {
 
                 {/* Package Description */}
                 <div className="detail-item full-width">
-                  <span className="label">Description</span>
+                  <span className="label">{t('driver.dashboard.details.description')}</span>
                   <span>{selectedPackage.packageDescription || 'No description'}</span>
                 </div>
 
                 {/* Package Dimensions and Weight */}
                 <div className="details-grid">
                   <div className="detail-item">
-                    <span className="label">Weight</span>
+                    <span className="label">{t('driver.dashboard.details.weight')}</span>
                     <span>{selectedPackage.weight ? `${selectedPackage.weight} kg` : 'N/A'}</span>
                   </div>
                   <div className="detail-item">
-                    <span className="label">Dimensions</span>
+                    <span className="label">{t('driver.dashboard.details.dimensions')}</span>
                     <span>{selectedPackage.dimensions || 'N/A'}</span>
                   </div>
                 </div>
 
                 {/* Delivery Details */}
                 <div className="detail-item full-width">
-                  <span className="label">Delivery Details</span>
+                  <span className="label">{t('driver.dashboard.details.deliveryDetails')}</span>
                   <div className="details-grid">
                     <div className="detail-item">
-                      <span className="label">Contact Name</span>
+                      <span className="label">{t('driver.dashboard.details.contactName')}</span>
                       <span>{selectedPackage.deliveryContactName || 'N/A'}</span>
                     </div>
                     <div className="detail-item">
-                      <span className="label">Contact Phone</span>
+                      <span className="label">{t('driver.dashboard.details.contactPhone')}</span>
                       <span>{selectedPackage.deliveryContactPhone || 'N/A'}</span>
                     </div>
                     <div className="detail-item full-width">
-                      <span className="label">Delivery Address</span>
+                      <span className="label">{t('driver.dashboard.details.deliveryAddress')}</span>
                       <span>{selectedPackage.deliveryAddress || 'N/A'}</span>
                     </div>
                     <div className="detail-item">
-                      <span className="label">Delivery Time</span>
-                      <span>{selectedPackage.actualDeliveryTime ? selectedPackage.actualDeliveryTime : 'Not delivered yet'}</span>
+                      <span className="label">{t('driver.dashboard.details.deliveryTime')}</span>
+                      <span>{selectedPackage.actualDeliveryTime ? selectedPackage.actualDeliveryTime : t('driver.dashboard.details.notDeliveredYet')}</span>
                     </div>
                   </div>
                 </div>
 
                 {/* Financial Information */}
                 <div className="detail-item full-width">
-                  <span className="label">Financial Information</span>
+                  <span className="label">{t('driver.dashboard.details.financialInfo')}</span>
                   <div className="details-grid">
                     <div className="detail-item">
-                      <span className="label">COD Amount</span>
+                      <span className="label">{t('driver.dashboard.details.codAmount')}</span>
                       <span>${parseFloat(selectedPackage.codAmount || 0).toFixed(2)}</span>
                     </div>
                   </div>
@@ -721,14 +724,14 @@ const DriverDashboard = () => {
                 {/* Shop Information */}
                 {selectedPackage.shop && (
                   <div className="detail-item full-width">
-                    <span className="label">Shop Information</span>
+                    <span className="label">{t('driver.dashboard.details.shopInfo')}</span>
                     <div className="details-grid">
                       <div className="detail-item">
-                        <span className="label">Shop Name</span>
+                        <span className="label">{t('driver.dashboard.details.shopName')}</span>
                         <span>{selectedPackage.shop.name || 'N/A'}</span>
                       </div>
                       <div className="detail-item">
-                        <span className="label">Shop Phone</span>
+                        <span className="label">{t('driver.dashboard.details.shopPhone')}</span>
                         <span>{selectedPackage.shop.phone || 'N/A'}</span>
                       </div>
                 </div>
@@ -737,7 +740,7 @@ const DriverDashboard = () => {
 
                 {/* Notes Log Section */}
                 <div className="package-notes-log-section">
-                  <h4>Notes Log</h4>
+                  <h4>{t('driver.dashboard.notesLog')}</h4>
                   <div className="notes-log-list">
                     {(() => {
                       let notesArr = [];
@@ -760,14 +763,14 @@ const DriverDashboard = () => {
                           </div>
                         ))
                       ) : (
-                        <div className="notes-log-empty">No notes yet.</div>
+                        <div className="notes-log-empty">{t('driver.dashboard.noNotesYet')}</div>
                       );
                     })()}
                   </div>
                   <textarea
                     value={editingNotes}
                     onChange={e => setEditingNotes(e.target.value)}
-                    placeholder="Add a note for this package..."
+                    placeholder={t('driver.dashboard.addNotePlaceholder')}
                     rows={2}
                     style={{ width: '100%', marginTop: 4 }}
                   />
@@ -790,7 +793,7 @@ const DriverDashboard = () => {
                     disabled={notesSaving || !editingNotes.trim()}
                     style={{ marginTop: 8 }}
                   >
-                    {notesSaving ? 'Saving...' : 'Add Note'}
+                    {notesSaving ? t('common.saving') : t('driver.dashboard.addNote')}
                   </button>
                   {notesError && <div className="error-message">{notesError}</div>}
                 </div>
@@ -838,7 +841,7 @@ const DriverDashboard = () => {
     if (loading) {
   return (
         <div className="profile-section">
-          <div className="loading">Loading profile...</div>
+          <div className="loading">{t('driver.dashboard.profile.loading')}</div>
           </div>
       );
     }
@@ -854,7 +857,7 @@ const DriverDashboard = () => {
     if (!driverData) {
       return (
         <div className="profile-section">
-          <div className="error">No profile data available</div>
+          <div className="error">{t('driver.dashboard.profile.noProfileData')}</div>
         </div>
       );
     }
@@ -862,36 +865,36 @@ const DriverDashboard = () => {
     return (
       <div className="profile-section">
         <h2>
-          <FontAwesomeIcon icon={faUser} /> Driver Profile
+          <FontAwesomeIcon icon={faUser} /> {t('driver.dashboard.profile.title')}
         </h2>
         
         <div className="profile-grid">
           {/* Personal Information */}
           <div className="profile-card">
             <h3>
-              <FontAwesomeIcon icon={faIdCard} /> Personal Information
+              <FontAwesomeIcon icon={faIdCard} /> {t('driver.dashboard.profile.personalInfo')}
             </h3>
             <div className="profile-details">
               <div className="detail-row">
-                <span className="label">Name:</span>
+                <span className="label">{t('driver.dashboard.profile.name')}:</span>
                 <span className="value">{driverData.User?.name || 'Not available'}</span>
               </div>
               <div className="detail-row">
-                <span className="label">Email:</span>
+                <span className="label">{t('driver.dashboard.profile.email')}:</span>
                 <span className="value">{driverData.User?.email || 'Not available'}</span>
               </div>
               <div className="detail-row">
-                <span className="label">Phone:</span>
+                <span className="label">{t('driver.dashboard.profile.phone')}:</span>
                 <span className="value">{driverData.User?.phone || 'Not available'}</span>
               </div>
               <div className="detail-row">
-                <span className="label">Account Status:</span>
+                <span className="label">{t('driver.dashboard.profile.accountStatus')}:</span>
                 <span className={`value status ${driverData.User?.isApproved ? 'approved' : 'pending'}`}>
-                  {driverData.User?.isApproved ? 'Approved' : 'Pending Approval'}
+                  {driverData.User?.isApproved ? t('driver.dashboard.profile.approved') : t('driver.dashboard.profile.pendingApproval')}
                 </span>
               </div>
               <div className="detail-row">
-                <span className="label">Member Since:</span>
+                <span className="label">{t('driver.dashboard.profile.memberSince')}:</span>
                 <span className="value">
                   {driverData.User?.createdAt ? new Date(driverData.User.createdAt).toLocaleDateString() : 'Not available'}
                 </span>
@@ -902,27 +905,27 @@ const DriverDashboard = () => {
           {/* Vehicle Information */}
           <div className="profile-card">
             <h3>
-              <FontAwesomeIcon icon={getVehicleIcon(driverData.vehicleType)} /> Vehicle Information
+              <FontAwesomeIcon icon={getVehicleIcon(driverData.vehicleType)} /> {t('driver.dashboard.profile.vehicleInfo')}
             </h3>
             <div className="profile-details">
               <div className="detail-row">
-                <span className="label">Vehicle Type:</span>
+                <span className="label">{t('driver.dashboard.profile.vehicleType')}:</span>
                 <span className="value">{getVehicleTypeLabel(driverData.vehicleType)}</span>
               </div>
               <div className="detail-row">
-                <span className="label">License Plate:</span>
+                <span className="label">{t('driver.dashboard.profile.licensePlate')}:</span>
                 <span className="value">{driverData.licensePlate || 'Not available'}</span>
               </div>
               <div className="detail-row">
-                <span className="label">Model:</span>
+                <span className="label">{t('driver.dashboard.profile.model')}:</span>
                 <span className="value">{driverData.model || 'Not available'}</span>
               </div>
               <div className="detail-row">
-                <span className="label">Color:</span>
+                <span className="label">{t('driver.dashboard.profile.color')}:</span>
                 <span className="value">{driverData.color || 'Not available'}</span>
               </div>
               <div className="detail-row">
-                <span className="label">Driver License:</span>
+                <span className="label">{t('driver.dashboard.profile.driverLicense')}:</span>
                 <span className="value">{driverData.driverLicense || 'Not available'}</span>
               </div>
             </div>
@@ -931,19 +934,19 @@ const DriverDashboard = () => {
           {/* Working Area */}
           <div className="profile-card">
             <h3>
-              <FontAwesomeIcon icon={faMapPin} /> Working Area
+              <FontAwesomeIcon icon={faMapPin} /> {t('driver.dashboard.profile.workingArea')}
             </h3>
             <div className="profile-details">
               <div className="detail-row">
-                <span className="label">Assigned Area:</span>
+                <span className="label">{t('driver.dashboard.profile.assignedArea')}:</span>
                 <span className="value">
-                  {driverData.workingArea || 'Not assigned by admin'}
+                  {driverData.workingArea || t('driver.dashboard.profile.notAssignedByAdmin')}
                 </span>
               </div>
               <div className="detail-row">
-                <span className="label">Availability Status:</span>
+                <span className="label">{t('driver.dashboard.profile.availabilityStatus')}:</span>
                 <span className={`value status ${driverData.isAvailable ? 'available' : 'unavailable'}`}>
-                  {driverData.isAvailable ? 'Available' : 'Unavailable'}
+                  {driverData.isAvailable ? t('driver.dashboard.profile.available') : t('driver.dashboard.profile.unavailable')}
                 </span>
               </div>
               <button
@@ -952,10 +955,10 @@ const DriverDashboard = () => {
                 disabled={isToggling}
               >
                 {isToggling
-                  ? 'Saving...'
+                  ? t('common.saving')
                   : driverData.isAvailable
-                  ? 'Go Unavailable'
-                  : 'Go Available'}
+                  ? t('driver.dashboard.profile.goUnavailable')
+                  : t('driver.dashboard.profile.goAvailable')}
               </button>
             </div>
           </div>
@@ -963,33 +966,33 @@ const DriverDashboard = () => {
           {/* Performance Statistics */}
           <div className="profile-card">
             <h3>
-              <FontAwesomeIcon icon={faStar} /> Performance Statistics
+              <FontAwesomeIcon icon={faStar} /> {t('driver.dashboard.profile.performanceStats')}
             </h3>
             <div className="profile-details">
               <div className="detail-row">
-                <span className="label">Rating:</span>
+                <span className="label">{t('driver.dashboard.profile.rating')}:</span>
                 <span className="value">
-                  {driverData.rating ? `${driverData.rating.toFixed(1)}/5.0` : 'No rating yet'}
+                  {driverData.rating ? `${driverData.rating.toFixed(1)}/5.0` : t('driver.dashboard.profile.noRatingYet')}
                 </span>
               </div>
               <div className="detail-row">
-                <span className="label">Total Deliveries:</span>
+                <span className="label">{t('driver.dashboard.profile.totalDeliveries')}:</span>
                 <span className="value">{driverData.totalDeliveries || 0}</span>
               </div>
               <div className="detail-row">
-                <span className="label">Total Assigned:</span>
+                <span className="label">{t('driver.dashboard.profile.totalAssigned')}:</span>
                 <span className="value">{driverData.totalAssigned || 0}</span>
               </div>
               <div className="detail-row">
-                <span className="label">Total Cancelled:</span>
+                <span className="label">{t('driver.dashboard.profile.totalCancelled')}:</span>
                 <span className="value">{driverData.totalCancelled || 0}</span>
               </div>
               <div className="detail-row">
-                <span className="label">Assigned Today:</span>
+                <span className="label">{t('driver.dashboard.profile.assignedToday')}:</span>
                 <span className="value">{driverData.assignedToday || 0}</span>
               </div>
               <div className="detail-row">
-                <span className="label">Active Assignments:</span>
+                <span className="label">{t('driver.dashboard.profile.activeAssign')}:</span>
                 <span className="value">{driverData.activeAssign || 0}</span>
               </div>
             </div>
@@ -1090,7 +1093,7 @@ const DriverDashboard = () => {
                     </div>
               <div className="stat-info">
                 <h3>{driverStats?.assignedToday || 0}</h3>
-                <p>Assigned Today</p>
+                <p>{t('driver.dashboard.assignedToday')}</p>
                     </div>
                   </div>
             <div className="stat-card">
@@ -1099,7 +1102,7 @@ const DriverDashboard = () => {
                 </div>
               <div className="stat-info">
                 <h3>{driverStats?.totalAssigned || 0}</h3>
-                <p>Total Assigned</p>
+                <p>{t('driver.dashboard.totalAssigned')}</p>
               </div>
             </div>
             <div className="stat-card">
@@ -1108,7 +1111,7 @@ const DriverDashboard = () => {
               </div>
               <div className="stat-info">
                 <h3>{driverStats?.totalDeliveries || 0}</h3>
-                <p>Total Deliveries</p>
+                <p>{t('driver.dashboard.totalDeliveries')}</p>
               </div>
             </div>
             <div className="stat-card">
@@ -1117,7 +1120,7 @@ const DriverDashboard = () => {
               </div>
               <div className="stat-info">
                 <h3>{driverStats?.activeAssign || 0}</h3>
-                <p>Active Assignments</p>
+                <p>{t('driver.dashboard.activeAssignments')}</p>
               </div>
             </div>
             <div className="stat-card">
@@ -1126,7 +1129,7 @@ const DriverDashboard = () => {
               </div>
               <div className="stat-info">
                 <h3>{driverStats?.totalCancelled || 0}</h3>
-                <p>Cancelled</p>
+                <p>{t('driver.dashboard.cancelled')}</p>
               </div>
             </div>
           </div>
@@ -1135,7 +1138,7 @@ const DriverDashboard = () => {
                 <div className="dashboard-main">
             <div className="charts-section">
               <div className="chart-card">
-                <h3>Delivery Statistics</h3>
+                <h3>{t('driver.dashboard.deliveryStatistics')}</h3>
                 <div className="chart-container">
                   <Doughnut data={chartData} options={chartOptions} />
                 </div>
@@ -1178,14 +1181,14 @@ const DriverDashboard = () => {
         <div className="modal-overlay show" style={{zIndex: 2000}}>
           <div className="modal-content" style={{maxWidth: 400, textAlign: 'center'}}>
             <div className="modal-header">
-              <h3>Confirm Unavailability</h3>
+              <h3>{t('driver.dashboard.profile.confirmUnavailability')}</h3>
                     </div>
             <div className="modal-body">
-              <p>Are you sure you want to switch to unavailable mode? You will not receive new assignments.</p>
+              <p>{t('driver.dashboard.profile.confirmUnavailabilityText')}</p>
                   </div>
             <div className="modal-actions" style={{display: 'flex', justifyContent: 'center', gap: 16}}>
-              <button className="gradient-confirm-btn" style={{width: '100%'}} onClick={() => handleConfirmToggleAvailability(true)}>Yes, Go Unavailable</button>
-              <button className="btn-secondary" onClick={() => { setShowAvailabilityDialog(false); setPendingAvailability(null); }}>Cancel</button>
+              <button className="gradient-confirm-btn" style={{width: '100%'}} onClick={() => handleConfirmToggleAvailability(true)}>{t('driver.dashboard.profile.yesGoUnavailable')}</button>
+              <button className="btn-secondary" onClick={() => { setShowAvailabilityDialog(false); setPendingAvailability(null); }}>{t('common.cancel')}</button>
                 </div>
         </div>
       </div>

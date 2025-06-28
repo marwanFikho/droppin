@@ -18,6 +18,7 @@ import {
   Legend
 } from 'chart.js';
 import { Card, Statistic, Flex, Row, Col, Spin } from 'antd';
+import { useTranslation } from 'react-i18next';
 
 ChartJS.register(
   CategoryScale,
@@ -115,14 +116,15 @@ const AdminDashboard = () => {
   const [showForwardPackageModal, setShowForwardPackageModal] = useState(false);
   const [showRejectPackageModal, setShowRejectPackageModal] = useState(false);
   const [packageToAction, setPackageToAction] = useState(null);
+  const { t } = useTranslation();
 
   // Add new tab for Return to Shop
   const PACKAGE_TABS = [
-    { label: 'All Packages', value: 'all' },
-    { label: 'Ready to Assign', value: 'ready-to-assign' },
-    { label: 'In Transit', value: 'in-transit' },
-    { label: 'Delivered', value: 'delivered' },
-    { label: 'Return to Shop', value: 'return-to-shop' }
+    { label: t('admin.dashboard.tabs.all'), value: 'all' },
+    { label: t('admin.dashboard.tabs.readyToAssign'), value: 'ready-to-assign' },
+    { label: t('admin.dashboard.tabs.inTransit'), value: 'in-transit' },
+    { label: t('admin.dashboard.tabs.delivered'), value: 'delivered' },
+    { label: t('admin.dashboard.tabs.returnToShop'), value: 'return-to-shop' }
   ];
 
   // Function to fetch packages for a driver

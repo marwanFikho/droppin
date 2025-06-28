@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { packageService } from '../../services/api';
 import './ShopDashboard.css';
+import { useTranslation } from 'react-i18next';
 
 const Wallet = () => {
   const [loading, setLoading] = useState(true);
@@ -19,6 +20,7 @@ const Wallet = () => {
     sortBy: 'createdAt',
     sortOrder: 'DESC'
   });
+  const { t } = useTranslation();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -90,17 +92,17 @@ const Wallet = () => {
   };
 
   if (loading) {
-    return <div className="loading-message">Loading wallet data...</div>;
+    return <div className="loading-message">{t('shop.wallet.loading')}</div>;
   }
 
   if (error) {
-    return <div className="error-message">{error}</div>;
+    return <div className="error-message">{t('shop.wallet.error')}</div>;
   }
 
   return (
     <div className="wallet-page">
       <div className="page-header">
-        <h1>Wallet</h1>
+        <h1>{t('shop.wallet.title')}</h1>
       </div>
 
       {/* Financial Stats */}
@@ -109,19 +111,19 @@ const Wallet = () => {
           <div className="stat-value">
             ${(parseFloat(financialStats.rawToCollect || 0)).toFixed(2)}
           </div>
-          <div className="stat-label">To Collect</div>
+          <div className="stat-label">{t('shop.wallet.toCollect')}</div>
         </div>
         <div className="stat-card">
           <div className="stat-value">
             ${(parseFloat(financialStats.rawTotalCollected || 0)).toFixed(2)}
           </div>
-          <div className="stat-label">Collected (Waiting Withdraw)</div>
+          <div className="stat-label">{t('shop.wallet.collected')}</div>
         </div>
       </div>
 
       {/* Money Transactions */}
       <div className="money-transactions-container">
-        <h3>Transaction History</h3>
+        <h3>{t('shop.wallet.transactionHistory')}</h3>
         <div className="money-transactions-section">
           <div className="filters-section">
             <div className="filter-group">
@@ -130,14 +132,14 @@ const Wallet = () => {
                 className="filter-input"
                 value={moneyFilters.startDate}
                 onChange={e => handleMoneyFilterChange('startDate', e.target.value)}
-                placeholder="Start Date"
+                placeholder={t('shop.wallet.startDate')}
               />
               <input
                 type="date"
                 className="filter-input"
                 value={moneyFilters.endDate}
                 onChange={e => handleMoneyFilterChange('endDate', e.target.value)}
-                placeholder="End Date"
+                placeholder={t('shop.wallet.endDate')}
               />
             </div>
             <div className="filter-group">
@@ -146,18 +148,18 @@ const Wallet = () => {
                 value={moneyFilters.attribute}
                 onChange={e => handleMoneyFilterChange('attribute', e.target.value)}
               >
-                <option value="">All Attributes</option>
-                <option value="ToCollect">To Collect</option>
-                <option value="TotalCollected">Total Collected</option>
+                <option value="">{t('shop.wallet.allAttributes')}</option>
+                <option value="ToCollect">{t('shop.wallet.toCollect')}</option>
+                <option value="TotalCollected">{t('shop.wallet.collected')}</option>
               </select>
               <select
                 className="filter-select"
                 value={moneyFilters.changeType}
                 onChange={e => handleMoneyFilterChange('changeType', e.target.value)}
               >
-                <option value="">All Types</option>
-                <option value="increase">Increase</option>
-                <option value="decrease">Decrease</option>
+                <option value="">{t('shop.wallet.allTypes')}</option>
+                <option value="increase">{t('shop.wallet.increase')}</option>
+                <option value="decrease">{t('shop.wallet.decrease')}</option>
               </select>
             </div>
             <div className="filter-group">
@@ -166,13 +168,13 @@ const Wallet = () => {
                 className="filter-input"
                 value={moneyFilters.search}
                 onChange={e => handleMoneyFilterChange('search', e.target.value)}
-                placeholder="Search transactions..."
+                placeholder={t('shop.wallet.searchTransactions')}
               />
             </div>
           </div>
 
           {moneyTransactions.length === 0 ? (
-            <p style={{textAlign:'center'}}>No transactions found.</p>
+            <p style={{textAlign:'center'}}>{t('shop.wallet.noTransactions')}</p>
           ) : (
             <table className="admin-table money-table">
               <thead>
@@ -181,27 +183,27 @@ const Wallet = () => {
                     onClick={() => handleMoneyFilterChange('sortBy', 'createdAt')} 
                     className="sortable-header"
                   >
-                    Date {renderSortIcon('createdAt')}
+                    {t('shop.wallet.date')} {renderSortIcon('createdAt')}
                   </th>
                   <th 
                     onClick={() => handleMoneyFilterChange('sortBy', 'attribute')} 
                     className="sortable-header"
                   >
-                    Attribute {renderSortIcon('attribute')}
+                    {t('shop.wallet.attribute')} {renderSortIcon('attribute')}
                   </th>
                   <th 
                     onClick={() => handleMoneyFilterChange('sortBy', 'changeType')} 
                     className="sortable-header"
                   >
-                    Type {renderSortIcon('changeType')}
+                    {t('shop.wallet.type')} {renderSortIcon('changeType')}
                   </th>
                   <th 
                     onClick={() => handleMoneyFilterChange('sortBy', 'amount')} 
                     className="sortable-header"
                   >
-                    Amount ($) {renderSortIcon('amount')}
+                    {t('shop.wallet.amount')} {renderSortIcon('amount')}
                   </th>
-                  <th>Description</th>
+                  <th>{t('shop.wallet.description')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -211,7 +213,7 @@ const Wallet = () => {
                     <td>{tx.attribute}</td>
                     <td>
                       <span className={`change-type ${tx.changeType}`}>
-                        {tx.changeType}
+                        {t(`shop.wallet.${tx.changeType}`)}
                       </span>
                     </td>
                     <td className={`financial-cell ${tx.changeType}`}>

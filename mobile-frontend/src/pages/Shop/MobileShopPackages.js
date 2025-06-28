@@ -2,17 +2,18 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { packageService } from '../../services/api';
 import './MobileShopDashboard.css';
+import { useTranslation } from 'react-i18next';
 
 const TABS = [
-  { label: 'All', value: 'all' },
-  { label: 'Awaiting Schedule', value: 'awaiting_schedule' },
-  { label: 'Scheduled for Pickup', value: 'scheduled_for_pickup' },
-  { label: 'Pending', value: 'pending' },
-  { label: 'In Transit', value: 'in-transit' },
-  { label: 'Delivered', value: 'delivered' },
-  { label: 'Return to Shop', value: 'return-to-shop' },
-  { label: 'Cancelled', value: 'cancelled' },
-  { label: 'Rejected', value: 'rejected' },
+  { label: t('shop.packages.tabs.all'), value: 'all' },
+  { label: t('shop.packages.tabs.awaitingSchedule'), value: 'awaiting_schedule' },
+  { label: t('shop.packages.tabs.scheduledForPickup'), value: 'scheduled_for_pickup' },
+  { label: t('shop.packages.tabs.pending'), value: 'pending' },
+  { label: t('shop.packages.tabs.inTransit'), value: 'in-transit' },
+  { label: t('shop.packages.tabs.delivered'), value: 'delivered' },
+  { label: t('shop.packages.tabs.returnToShop'), value: 'return-to-shop' },
+  { label: t('shop.packages.tabs.cancelled'), value: 'cancelled' },
+  { label: t('shop.packages.tabs.rejected'), value: 'rejected' },
 ];
 const inTransitStatuses = ['assigned', 'pickedup', 'in-transit'];
 const returnToShopStatuses = ['cancelled-awaiting-return'];
@@ -34,6 +35,7 @@ const MobileShopPackages = () => {
   const [showMarkPendingModal, setShowMarkPendingModal] = useState(false);
   const [showMarkCancelledAwaitingReturnModal, setShowMarkCancelledAwaitingReturnModal] = useState(false);
   const [packageToMark, setPackageToMark] = useState(null);
+  const { t } = useTranslation();
 
   useEffect(() => {
     const fetchPackages = async () => {
@@ -43,13 +45,13 @@ const MobileShopPackages = () => {
         const res = await packageService.getPackages({ limit: 10000 });
         setPackages(res.data.packages || res.data || []);
       } catch (err) {
-        setError('Failed to load packages.');
+        setError(t('shop.packages.error.loadPackages'));
       } finally {
         setLoading(false);
       }
     };
     fetchPackages();
-  }, []);
+  }, [t]);
 
   const filterPackages = () => {
     let filtered = [...packages];
@@ -123,7 +125,7 @@ const MobileShopPackages = () => {
 
   return (
     <div className="mobile-shop-packages" style={{marginLeft: '1rem', marginRight: '1rem', marginTop: '6rem'}}>
-      <h2 className="mobile-shop-packages-title">All Packages</h2>
+      <h2 className="mobile-shop-packages-title">{t('shop.packages.title')}</h2>
       <div className="mobile-packages-tabs-modern">
         {TABS.map(tab => (
           <button
@@ -150,17 +152,17 @@ const MobileShopPackages = () => {
       <div className="mobile-shop-dashboard-search">
         <input
           type="text"
-          placeholder="Search packages..."
+          placeholder={t('shop.packages.searchPlaceholder')}
           value={search}
           onChange={e => setSearch(e.target.value)}
         />
       </div>
       {loading ? (
-        <div className="mobile-shop-dashboard-loading">Loading...</div>
+        <div className="mobile-shop-dashboard-loading">{t('shop.packages.loading')}</div>
       ) : error ? (
         <div className="mobile-shop-dashboard-error">{error}</div>
       ) : filterPackages().length === 0 ? (
-        <div className="mobile-shop-dashboard-no-packages">No packages found.</div>
+        <div className="mobile-shop-dashboard-no-packages">{t('shop.packages.noPackages')}</div>
       ) : (
         <div className="mobile-shop-packages-list">
           {filterPackages().map(pkg => (
@@ -170,27 +172,27 @@ const MobileShopPackages = () => {
                 <span className={`mobile-shop-package-status-badge status-${pkg.status?.toLowerCase()}`}>{pkg.status}</span>
               </div>
               <div className="mobile-shop-package-info">
-                <div><span className="mobile-shop-package-label">Descreption:</span> {pkg.packageDescription || '-'}</div>
-                <div><span className="mobile-shop-package-label">Date:</span> {pkg.createdAt ? new Date(pkg.createdAt).toLocaleDateString() : '-'}</div>
+                <div><span className="mobile-shop-package-label">{t('shop.packages.description')}:</span> {pkg.packageDescription || '-'}</div>
+                <div><span className="mobile-shop-package-label">{t('shop.packages.date')}:</span> {pkg.createdAt ? new Date(pkg.createdAt).toLocaleDateString() : '-'}</div>
                 <div>
-                  <span className="mobile-shop-package-label">COD:</span> ${parseFloat(pkg.codAmount || 0).toFixed(2)}
+                  <span className="mobile-shop-package-label">{t('shop.packages.cod')}:</span> ${parseFloat(pkg.codAmount || 0).toFixed(2)}
                   {pkg.isPaid ? (
-                    <span className="mobile-cod-badge paid">Paid</span>
+                    <span className="mobile-cod-badge paid">{t('shop.packages.paid')}</span>
                   ) : (
-                    <span className="mobile-cod-badge unpaid">Unpaid</span>
+                    <span className="mobile-cod-badge unpaid">{t('shop.packages.unpaid')}</span>
                   )}
                 </div>
               </div>
               <div className="mobile-shop-package-actions">
-                <button onClick={() => openDetailsModal(pkg)} className="mobile-shop-package-details-btn">View Details</button>
+                <button onClick={() => openDetailsModal(pkg)} className="mobile-shop-package-details-btn">{t('shop.packages.viewDetails')}</button>
                 {pkg.status === 'rejected' ? (
                   <>
-                    <button className="btn btn-primary" style={{marginBottom:8}} onClick={() => { setPackageToMark(pkg); setShowMarkPendingModal(true); }}>Mark as Pending</button>
-                    <button className="btn btn-danger" onClick={() => { setPackageToMark(pkg); setShowMarkCancelledAwaitingReturnModal(true); }}>Mark as Cancelled Awaiting Return</button>
+                    <button className="btn btn-primary" style={{marginBottom:8}} onClick={() => { setPackageToMark(pkg); setShowMarkPendingModal(true); }}>{t('shop.packages.markAsPending')}</button>
+                    <button className="btn btn-danger" onClick={() => { setPackageToMark(pkg); setShowMarkCancelledAwaitingReturnModal(true); }}>{t('shop.packages.markAsCancelledAwaitingReturn')}</button>
                   </>
                 ) : (
                   pkg.status !== 'delivered' && pkg.status !== 'cancelled' && pkg.status !== 'cancelled-awaiting-return' && pkg.status !== 'cancelled-returned' && (
-                    <button onClick={() => { setPackageToCancel(pkg); setShowCancelModal(true); }} className="mobile-shop-package-cancel-btn">Cancel</button>
+                    <button onClick={() => { setPackageToCancel(pkg); setShowCancelModal(true); }} className="mobile-shop-package-cancel-btn">{t('shop.packages.cancel')}</button>
                   )
                 )}
               </div>
@@ -204,31 +206,31 @@ const MobileShopPackages = () => {
         <div className="mobile-modal-overlay" onClick={closeDetailsModal}>
           <div className="mobile-modal-content" onClick={e => e.stopPropagation()}>
             <div className="mobile-modal-header">
-              <h3>Package Details</h3>
+              <h3>{t('shop.packages.details.title')}</h3>
               <button className="mobile-modal-close" onClick={closeDetailsModal}>&times;</button>
             </div>
             <div className="mobile-modal-body">
               <div className="mobile-modal-details-grid">
-                <div className="mobile-modal-detail-item"><span className="label">Tracking #</span><span>{selectedPackage.trackingNumber}</span></div>
-                <div className="mobile-modal-detail-item"><span className="label">Status</span><span>{selectedPackage.status}</span></div>
-                <div className="mobile-modal-detail-item"><span className="label">Created</span><span>{new Date(selectedPackage.createdAt).toLocaleString()}</span></div>
-                <div className="mobile-modal-detail-item full-width"><span className="label">Description</span><span>{selectedPackage.packageDescription || 'No description'}</span></div>
-                <div className="mobile-modal-detail-item"><span className="label">Recipient</span><span>{selectedPackage.deliveryContactName || '-'}</span></div>
+                <div className="mobile-modal-detail-item"><span className="label">{t('shop.packages.details.tracking')}</span><span>{selectedPackage.trackingNumber}</span></div>
+                <div className="mobile-modal-detail-item"><span className="label">{t('shop.packages.details.status')}</span><span>{selectedPackage.status}</span></div>
+                <div className="mobile-modal-detail-item"><span className="label">{t('shop.packages.details.created')}</span><span>{new Date(selectedPackage.createdAt).toLocaleString()}</span></div>
+                <div className="mobile-modal-detail-item full-width"><span className="label">{t('shop.packages.details.description')}</span><span>{selectedPackage.packageDescription || t('shop.packages.details.noDescription')}</span></div>
+                <div className="mobile-modal-detail-item"><span className="label">{t('shop.packages.details.recipient')}</span><span>{selectedPackage.deliveryContactName || '-'}</span></div>
                 {selectedPackage.deliveryContactPhone && (
-                  <div className="mobile-modal-detail-item"><span className="label">Recipient Phone</span><span>{selectedPackage.deliveryContactPhone}</span></div>
+                  <div className="mobile-modal-detail-item"><span className="label">{t('shop.packages.details.recipientPhone')}</span><span>{selectedPackage.deliveryContactPhone}</span></div>
                 )}
                 {selectedPackage.deliveryAddress && (
-                  <div className="mobile-modal-detail-item full-width"><span className="label">Delivery Address</span><span>{selectedPackage.deliveryAddress?.address || selectedPackage.deliveryAddress}</span></div>
+                  <div className="mobile-modal-detail-item full-width"><span className="label">{t('shop.packages.details.deliveryAddress')}</span><span>{selectedPackage.deliveryAddress?.address || selectedPackage.deliveryAddress}</span></div>
                 )}
-                <div className="mobile-modal-detail-item"><span className="label">COD</span><span>${parseFloat(selectedPackage.codAmount || 0).toFixed(2)} {selectedPackage.isPaid ? 'Paid' : 'Unpaid'}</span></div>
+                <div className="mobile-modal-detail-item"><span className="label">{t('shop.packages.details.cod')}</span><span>${parseFloat(selectedPackage.codAmount || 0).toFixed(2)} {selectedPackage.isPaid ? t('shop.packages.paid') : t('shop.packages.unpaid')}</span></div>
                 {selectedPackage.weight && (
-                  <div className="mobile-modal-detail-item"><span className="label">Weight</span><span>{selectedPackage.weight} kg</span></div>
+                  <div className="mobile-modal-detail-item"><span className="label">{t('shop.packages.details.weight')}</span><span>{selectedPackage.weight} kg</span></div>
                 )}
                 {selectedPackage.dimensions && (
-                  <div className="mobile-modal-detail-item"><span className="label">Dimensions</span><span>{selectedPackage.dimensions}</span></div>
+                  <div className="mobile-modal-detail-item"><span className="label">{t('shop.packages.details.dimensions')}</span><span>{selectedPackage.dimensions}</span></div>
                 )}
                 <div className="mobile-modal-detail-item full-width">
-                  <span className="label">Notes Log</span>
+                  <span className="label">{t('shop.packages.details.notesLog')}</span>
                   <div className="notes-log-list">
                     {(() => {
                       let notesArr = [];
@@ -267,16 +269,16 @@ const MobileShopPackages = () => {
                     await packageService.updatePackageStatus(selectedPackage.id, { status: 'pending' });
                     setShowDetailsModal(false);
                     setPackages(prev => prev.map(p => p.id === selectedPackage.id ? { ...p, status: 'pending' } : p));
-                  }}>Mark as Pending</button>
+                  }}>{t('shop.packages.details.markAsPending')}</button>
                   <button className="btn btn-danger" onClick={async () => {
                     await packageService.updatePackageStatus(selectedPackage.id, { status: 'cancelled-awaiting-return' });
                     setShowDetailsModal(false);
                     setPackages(prev => prev.map(p => p.id === selectedPackage.id ? { ...p, status: 'cancelled-awaiting-return' } : p));
-                  }}>Mark as Cancelled Awaiting Return</button>
+                  }}>{t('shop.packages.details.markAsCancelledAwaitingReturn')}</button>
                 </div>
               )}
               <div className="mobile-modal-actions">
-                <button className="mobile-modal-close-btn" onClick={closeDetailsModal}>Close</button>
+                <button className="mobile-modal-close-btn" onClick={closeDetailsModal}>{t('shop.packages.details.close')}</button>
               </div>
             </div>
           </div>
@@ -288,15 +290,15 @@ const MobileShopPackages = () => {
         <div className="mobile-modal-overlay" onClick={() => { setShowCancelModal(false); setCancelError(null); }}>
           <div className="mobile-modal-content" onClick={e => e.stopPropagation()}>
             <div className="mobile-modal-header">
-              <h3>Cancel Package</h3>
+              <h3>{t('shop.packages.cancel.title')}</h3>
               <button className="mobile-modal-close" onClick={() => { setShowCancelModal(false); setCancelError(null); }}>&times;</button>
             </div>
             <div className="mobile-modal-body">
-              <p>Are you sure you want to cancel this package?</p>
+              <p>{t('shop.packages.cancel.confirm')}</p>
               {cancelError && <div className="mobile-shop-create-error">{cancelError}</div>}
               <div className="mobile-modal-actions">
-                <button className="mobile-modal-close-btn" onClick={() => { setShowCancelModal(false); setCancelError(null); }}>No</button>
-                <button className="mobile-shop-package-cancel-btn confirm" onClick={handleCancel}>Yes, Cancel</button>
+                <button className="mobile-modal-close-btn" onClick={() => { setShowCancelModal(false); setCancelError(null); }}>{t('shop.packages.cancel.no')}</button>
+                <button className="mobile-shop-package-cancel-btn confirm" onClick={handleCancel}>{t('shop.packages.cancel.yes')}</button>
               </div>
             </div>
           </div>
@@ -308,19 +310,19 @@ const MobileShopPackages = () => {
         <div className="mobile-modal-overlay" onClick={() => { setShowMarkPendingModal(false); setPackageToMark(null); }}>
           <div className="mobile-modal-content" onClick={e => e.stopPropagation()}>
             <div className="mobile-modal-header">
-              <h3>Mark as Pending</h3>
+              <h3>{t('shop.packages.markAsPending.title')}</h3>
               <button className="mobile-modal-close" onClick={() => { setShowMarkPendingModal(false); setPackageToMark(null); }}>&times;</button>
             </div>
             <div className="mobile-modal-body">
-              <p>Are you sure you want to mark this package as Pending?</p>
+              <p>{t('shop.packages.markAsPending.confirm')}</p>
               <div className="mobile-modal-actions">
-                <button className="mobile-modal-close-btn" onClick={() => { setShowMarkPendingModal(false); setPackageToMark(null); }}>No</button>
+                <button className="mobile-modal-close-btn" onClick={() => { setShowMarkPendingModal(false); setPackageToMark(null); }}>{t('shop.packages.markAsPending.no')}</button>
                 <button className="btn btn-primary" onClick={async () => {
                   await packageService.updatePackageStatus(packageToMark.id, { status: 'pending' });
                   setShowMarkPendingModal(false);
                   setPackages(prev => prev.map(p => p.id === packageToMark.id ? { ...p, status: 'pending' } : p));
                   setPackageToMark(null);
-                }}>Yes, Mark as Pending</button>
+                }}>{t('shop.packages.markAsPending.yes')}</button>
               </div>
             </div>
           </div>
@@ -332,19 +334,19 @@ const MobileShopPackages = () => {
         <div className="mobile-modal-overlay" onClick={() => { setShowMarkCancelledAwaitingReturnModal(false); setPackageToMark(null); }}>
           <div className="mobile-modal-content" onClick={e => e.stopPropagation()}>
             <div className="mobile-modal-header">
-              <h3>Mark as Cancelled Awaiting Return</h3>
+              <h3>{t('shop.packages.markAsCancelledAwaitingReturn.title')}</h3>
               <button className="mobile-modal-close" onClick={() => { setShowMarkCancelledAwaitingReturnModal(false); setPackageToMark(null); }}>&times;</button>
             </div>
             <div className="mobile-modal-body">
-              <p>Are you sure you want to mark this package as Cancelled Awaiting Return?</p>
+              <p>{t('shop.packages.markAsCancelledAwaitingReturn.confirm')}</p>
               <div className="mobile-modal-actions">
-                <button className="mobile-modal-close-btn" onClick={() => { setShowMarkCancelledAwaitingReturnModal(false); setPackageToMark(null); }}>No</button>
+                <button className="mobile-modal-close-btn" onClick={() => { setShowMarkCancelledAwaitingReturnModal(false); setPackageToMark(null); }}>{t('shop.packages.markAsCancelledAwaitingReturn.no')}</button>
                 <button className="btn btn-danger" onClick={async () => {
                   await packageService.updatePackageStatus(packageToMark.id, { status: 'cancelled-awaiting-return' });
                   setShowMarkCancelledAwaitingReturnModal(false);
                   setPackages(prev => prev.map(p => p.id === packageToMark.id ? { ...p, status: 'cancelled-awaiting-return' } : p));
                   setPackageToMark(null);
-                }}>Yes, Mark as Cancelled Awaiting Return</button>
+                }}>{t('shop.packages.markAsCancelledAwaitingReturn.yes')}</button>
               </div>
             </div>
           </div>
