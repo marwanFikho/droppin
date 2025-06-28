@@ -6,14 +6,21 @@
 
 /* Sidebar Styles */
 .dashboard-sidebar {
-  width: 250px;
-  background-color: var(--dark-color);
-  color: white;
-  padding: 1.5rem 0;
-  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
   position: fixed;
+  top: 0;
+  left: 0;
+  width: 250px;
   height: 100vh;
-  overflow-y: auto;
+  z-index: 100;
+  background: #23272b;
+  color: #fff;
+  direction: ltr !important;
+}
+
+body[dir="rtl"] .dashboard-sidebar {
+  left: 0 !important;
+  right: auto !important;
+  direction: ltr !important;
 }
 
 .sidebar-header {
@@ -80,11 +87,16 @@
 }
 
 /* Dashboard Content */
-.dashboard-content {
-  flex: 1;
-  padding: 2rem;
-  margin-left: 250px;
-  background-color: var(--body-color);
+.dashboard-content, .shop-packages-container {
+  margin-left: 250px !important;
+  margin-right: 0 !important;
+  max-width: calc(100vw - 250px) !important;
+  box-sizing: border-box;
+}
+body[dir="rtl"] .dashboard-content, body[dir="rtl"] .shop-packages-container {
+  margin-left: 250px !important;
+  margin-right: 0 !important;
+  max-width: calc(100vw - 250px) !important;
 }
 
 .dashboard-header {

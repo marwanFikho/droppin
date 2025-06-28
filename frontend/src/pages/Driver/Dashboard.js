@@ -36,6 +36,7 @@ import './DriverDashboard.css';
 import { Pie, Doughnut } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import { useTranslation } from 'react-i18next';
+import { getStatusBadge } from '../Shop/ShopPackages';
 ChartJS.register(ArcElement, Tooltip, Legend);
 
 // Create a memoized search input component
@@ -160,7 +161,7 @@ const MyPackagesPage = ({ openPackageDetailsModal }) => {
                 <tr key={pkg.id}>
                   <td data-label={t('driver.dashboard.table.trackingNumber')}>{pkg.trackingNumber}</td>
                   <td data-label={t('driver.dashboard.table.description')}>{pkg.packageDescription}</td>
-                  <td data-label={t('driver.dashboard.table.status')}>{getStatusBadge(pkg.status)}</td>
+                  <td data-label={t('driver.dashboard.table.status')}>{getStatusBadge(pkg.status, t)}</td>
                   <td data-label={t('driver.dashboard.table.deliveryAddress')}>{pkg.deliveryAddress}</td>
                   <td data-label={t('driver.dashboard.table.codAmount')}>${parseFloat(pkg.codAmount || 0).toFixed(2)}</td>
                   <td data-label={t('driver.dashboard.table.actions')}>
@@ -512,13 +513,6 @@ const DriverDashboard = () => {
     }
   };
 
-  // Add this helper function inside the DriverDashboard component, before the return statement
-  const getStatusBadge = (status) => (
-    <span className={`status-badge status-${status}`}>
-        {status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ')}
-      </span>
-    );
-
   // Helper to get next status for a package
   const getNextStatus = (status) => {
     switch (status) {
@@ -577,7 +571,7 @@ const DriverDashboard = () => {
               <tr key={pkg.id}>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{pkg.trackingNumber}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{pkg.packageDescription}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{getStatusBadge(pkg.status)}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{getStatusBadge(pkg.status, t)}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{pkg.deliveryAddress}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">${parseFloat(pkg.codAmount || 0).toFixed(2)}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
@@ -664,7 +658,7 @@ const DriverDashboard = () => {
                   <div className="detail-item">
                     <span className="label">{t('driver.dashboard.details.paymentStatus')}</span>
                     <span className={`payment-status ${selectedPackage.isPaid ? 'paid' : 'unpaid'}`}>
-                      {selectedPackage.isPaid ? 'Paid' : 'Unpaid'}
+                      {selectedPackage.isPaid ? t('shop.packages.paid') : t('shop.packages.unpaid')}
                     </span>
                   </div>
                 </div>
@@ -1084,7 +1078,7 @@ const DriverDashboard = () => {
 
       {/* Main Content */}
       {activeView === 'dashboard' ? (
-        <div className="dashboard-content">
+        <div className="dashboard-content" style={{ marginLeft: 250, marginRight: 0 }}>
           {/* Stats Cards */}
           <div className="stats-grid">
             <div className="stat-card">

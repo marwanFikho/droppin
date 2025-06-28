@@ -251,58 +251,88 @@
         "profile": "الملف الشخصي"
       },
       "header": {
-        "welcome": "مرحبًا، {{name}}",
+        "welcome": "مرحباً بعودتك، {{name}}!",
         "shopOwner": "صاحب المتجر",
-        "manageDeliveries": "أدر عمليات التوصيل بسهولة",
-        "account": "حساب المتجر"
+        "manageDeliveries": "إدارة التوصيلات وتتبع أعمالك",
+        "account": "الحساب"
       },
       "stats": {
-        "pending": "قيد الانتظار",
-        "inTransit": "قيد التوصيل",
-        "delivered": "تم التسليم",
+        "pending": "في الانتظار",
+        "inTransit": "قيد النقل",
+        "delivered": "تم التوصيل",
         "total": "الإجمالي",
-        "toCollect": "قيد التحصيل (الدفع عند الاستلام)",
-        "collectedWaitingWithdraw": "تم التحصيل (بانتظار التسوية)"
+        "toCollect": "للتحصيل",
+        "collectedWaitingWithdraw": "المحصل (في انتظار السحب)"
       },
       "chart": {
-        "packageDistribution": "توزيع الطرود"
-      },
-      "title": "بوابة المتجر",
-      "welcome": "مرحباً، {{name}}",
-      "subtitle": "إدارة عمليات التوصيل بسهولة",
-      "menu": {
-        "dashboard": "لوحة التحكم",
-        "packages": "الطرود",
-        "newPackage": "طرد جديد",
-        "profile": "الملف الشخصي",
-        "logout": "تسجيل الخروج"
+        "packageDistribution": "توزيع الطرود",
+        "pending": "في الانتظار",
+        "inTransit": "قيد النقل",
+        "delivered": "تم التوصيل"
       },
       "recentPackages": {
-        "title": "الطرود الأخيرة",
+        "title": "الطرود الحديثة",
         "viewAll": "عرض الكل",
-        "loading": "جاري تحميل الطرود الأخيرة...",
+        "loading": "جاري تحميل الطرود...",
         "empty": {
-          "message": "لا توجد طرود. أنشئ أول طرد الآن!",
+          "message": "لا توجد طرود بعد. أنشئ طردك الأول للبدء!",
           "action": "إنشاء طرد"
         }
       },
-      "package": {
-        "status": {
-          "pending": "قيد الانتظار",
-          "assigned": "تم التعيين",
-          "pickedup": "تم الاستلام",
-          "inTransit": "قيد التوصيل",
-          "delivered": "تم التوصيل"
+      "table": {
+        "trackingNumber": "رقم التتبع",
+        "description": "الوصف",
+        "recipient": "المستلم",
+        "status": "الحالة",
+        "codAmount": "مبلغ الدفع عند الاستلام",
+        "actions": "الإجراءات",
+        "markReturned": "تحديد كمرجع"
+      },
+      "modals": {
+        "cancelPackage": {
+          "title": "إلغاء الطرد",
+          "message": "هل أنت متأكد من أنك تريد إلغاء هذا الطرد؟",
+          "confirm": "نعم، إلغاء"
         },
-        "cod": "الدفع عند الاستلام: ${{amount}}",
-        "paymentStatus": {
-          "paid": "(تم الدفع)",
-          "unpaid": "(لم يتم الدفع)"
+        "packageDetails": {
+          "title": "تفاصيل الطرد",
+          "trackingNumber": "رقم التتبع",
+          "status": "الحالة",
+          "created": "تاريخ الإنشاء",
+          "description": "الوصف",
+          "noDescription": "لا يوجد وصف",
+          "recipient": "المستلم",
+          "recipientPhone": "هاتف المستلم",
+          "deliveryAddress": "عنوان التوصيل",
+          "cod": "الدفع عند الاستلام",
+          "weight": "الوزن",
+          "dimensions": "الأبعاد",
+          "notes": "الملاحظات",
+          "shopNotes": "ملاحظات المتجر"
         }
       },
-      "quickActions": {
-        "title": "إجراءات سريعة",
-        "createPackage": "إنشاء طرد جديد"
+      "moneyTransactions": {
+        "noTransactions": "لا توجد معاملات.",
+        "startDate": "تاريخ البداية",
+        "endDate": "تاريخ النهاية",
+        "allAttributes": "جميع الخصائص",
+        "toCollect": "للتحصيل",
+        "totalCollected": "إجمالي المحصل",
+        "allTypes": "جميع الأنواع",
+        "increase": "زيادة",
+        "decrease": "نقصان",
+        "searchPlaceholder": "البحث في المعاملات...",
+        "date": "التاريخ",
+        "attribute": "الخاصية",
+        "type": "النوع",
+        "amount": "المبلغ ($)",
+        "description": "الوصف"
+      },
+      "errors": {
+        "fetchPackagesFailed": "فشل في جلب الطرود. يرجى المحاولة مرة أخرى.",
+        "loadDataFailed": "فشل في تحميل البيانات. يرجى المحاولة مرة أخرى لاحقاً.",
+        "cancelPackageFailed": "فشل في إلغاء الطرد.",
+        "markReturnedFailed": "فشل في تحديد الطرد كمرجع. يرجى المحاولة مرة أخرى."
       }
     },
     "errors": {
@@ -512,16 +542,16 @@
       "noNotesYet": "لا توجد ملاحظات بعد.",
       "packageDetailsTitle": "تفاصيل الطرد",
       "statusLabels": {
-        "awaiting_schedule": "بانتظار الجدولة",
-        "awaiting_pickup": "بانتظار الاستلام",
+        "awaiting_schedule": "في انتظار الجدولة",
+        "awaiting_pickup": "في انتظار الاستلام",
         "scheduled_for_pickup": "مجدول للاستلام",
-        "pending": "قيد الانتظار",
+        "pending": "في الانتظار",
         "assigned": "تم التعيين",
         "pickedup": "تم الاستلام",
-        "in-transit": "قيد التوصيل",
-        "delivered": "تم التسليم",
+        "in-transit": "قيد النقل",
+        "delivered": "تم التوصيل",
         "cancelled": "ملغي",
-        "cancelled-awaiting-return": "ملغي - بانتظار الإرجاع",
+        "cancelled-awaiting-return": "ملغي - في انتظار الإرجاع",
         "cancelled-returned": "ملغي - تم الإرجاع",
         "rejected": "مرفوض"
       },
@@ -531,7 +561,22 @@
         "cancelled": "ملغي",
         "completed": "مكتمل",
         "pickedup": "تم الاستلام"
-      }
+      },
+      "paid": "مدفوع",
+      "unpaid": "غير مدفوع",
+      "tabs": {
+        "all": "كل الطرود",
+        "awaitingSchedule": "في انتظار الجدولة",
+        "scheduledForPickup": "مجدول للاستلام",
+        "pending": "قيد الانتظار",
+        "inTransit": "قيد النقل",
+        "delivered": "تم التوصيل",
+        "returnToShop": "إرجاع إلى المتجر",
+        "cancelled": "ملغي",
+        "rejected": "مرفوض",
+        "pickups": "عمليات الاستلام"
+      },
+      "searchPlaceholder": "ابحث برقم التتبع أو الوصف أو العنوان أو الحالة..."
     }
   },
 
@@ -887,4 +932,4 @@
       "noPendingApprovals": "لا توجد موافقات معلقة"
     }
   }
-} 
+}

@@ -1,0 +1,13 @@
+  "notFound": {
+    "title": "Page Not Found",
+    "message": "Sorry, the page you're looking for doesn't exist or has been moved.",
+    "backToHome": "Go to Home",
+    "trackPackage": "Track Package",
+    "help": {
+      "title": "Looking for something specific?",
+      "login": "Login",
+      "register": "Register",
+      "helpCenter": "Help Center"
+    }
+  },
+

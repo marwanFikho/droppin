@@ -37,10 +37,10 @@ export function getStatusBadge(status, t) {
   return <span className={className}>{t(`shop.packages.statusLabels.${status}`, status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, ' ').replace('-', ' '))}</span>;
 }
 
-export function getCodBadge(isPaid) {
+export function getCodBadge(isPaid, t) {
   return isPaid
-    ? <span className="cod-badge cod-paid">Paid</span>
-    : <span className="cod-badge cod-unpaid">Unpaid</span>;
+    ? <span className="cod-badge cod-paid">{t('shop.packages.paid')}</span>
+    : <span className="cod-badge cod-unpaid">{t('shop.packages.unpaid')}</span>;
 }
 
 function getPickupStatusBadge(status, t) {
@@ -210,24 +210,26 @@ const ShopPackages = () => {
   };
 
   return (
-    <div className="shop-packages-page">
-      <h2>{t('shop.packages.title')}</h2>
-      <div className="packages-tabs">
+    <div className="shop-packages-container">
+      <div className="tabs-scroll-container" style={{ overflowX: 'auto', whiteSpace: 'nowrap', maxWidth: '100%' }}>
         {TABS.map(tab => (
           <button
             key={tab.value}
             className={`tab-btn${activeTab === tab.value ? ' active' : ''}`}
             onClick={() => setActiveTab(tab.value)}
+            style={{ display: 'inline-block', minWidth: 120 }}
           >
             {t(tab.label)}
           </button>
         ))}
+      </div>
+      <div className="search-bar-container">
         <input
-          className="package-search"
           type="text"
-          placeholder={t('shop.packages.searchPlaceholder')}
           value={search}
           onChange={e => setSearch(e.target.value)}
+          placeholder={t('shop.packages.searchPlaceholder', 'Search by tracking number, description, address, or status...')}
+          className="search-bar"
         />
       </div>
       {activeTab === 'pickups' ? (
@@ -312,7 +314,7 @@ const ShopPackages = () => {
                     <td data-label={t('shop.packages.description')}>{pkg.packageDescription}</td>
                     <td data-label={t('shop.packages.recipient')}>{pkg.deliveryContactName}</td>
                     <td data-label={t('shop.packages.status')}>{getStatusBadge(pkg.status, t)}</td>
-                    <td data-label={t('shop.packages.cod')}>${parseFloat(pkg.codAmount || 0).toFixed(2)} {getCodBadge(pkg.isPaid)}</td>
+                    <td data-label={t('shop.packages.cod')} className="package-cod">${parseFloat(pkg.codAmount || 0).toFixed(2)} {getCodBadge(pkg.isPaid, t)}</td>
                     <td data-label={t('shop.packages.date')}>{new Date(pkg.createdAt).toLocaleDateString()}</td>
                     {activeTab !== 'cancelled' && (
                       <td data-label={t('shop.packages.action')} className="actions-cell">
@@ -417,7 +419,7 @@ const ShopPackages = () => {
                 )}
                 <div className="detail-item">
                   <span className="label">{t('shop.packages.cod')}</span>
-                  <span>${parseFloat(selectedPackage.codAmount || 0).toFixed(2)} {getCodBadge(selectedPackage.isPaid)}</span>
+                  <span className="package-cod">${parseFloat(selectedPackage.codAmount || 0).toFixed(2)} {getCodBadge(selectedPackage.isPaid, t)}</span>
                 </div>
                 {selectedPackage.weight && (
                   <div className="detail-item">

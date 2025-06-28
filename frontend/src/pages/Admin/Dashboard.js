@@ -3260,7 +3260,7 @@ const AdminDashboard = () => {
         </button>
       </div>
       
-      <div className="dashboard-content">
+      <div className="dashboard-content" style={{ marginLeft: 250, marginRight: 0 }}>
         {loading && activeTab !== 'dashboard' ? (
           <div className="loading-state">
             <p>Loading data...</p>

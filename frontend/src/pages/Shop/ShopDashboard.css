@@ -164,6 +164,11 @@
   background: #f7f9fb;
 }
 
+.shop-packages-container {
+  padding: 0 1.5rem;
+  box-sizing: border-box;
+}
+
 .packages-tabs {
   display: flex;
   align-items: center;
@@ -171,30 +176,59 @@
   margin-bottom: 1.5rem;
 }
 
-.tab-btn {
-  background: none;
-  border: none;
-  color: #888;
-  font-size: 1rem;
-  padding: 0.5rem 1.2rem 0.5rem 1.2rem;
-  cursor: pointer;
-  border-bottom: 2px solid transparent;
-  transition: color 0.2s, border-bottom 0.2s;
-}
-.tab-btn.active {
-  color: #ff8c00;
-  border-bottom: 2px solid #ff8c00;
-  font-weight: bold;
+.tabs-scroll-container {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: nowrap;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #eee;
+  box-sizing: border-box;
 }
 
-.package-search {
-  margin-left: auto;
-  padding: 0.5rem 1rem;
+.tab-btn {
+  display: inline-block;
+  min-width: 120px;
+  margin-right: 8px;
+  padding: 8px 16px;
+  background: #f7f7f7;
   border: 1px solid #ddd;
-  border-radius: 6px;
-  font-size: 1rem;
+  border-radius: 4px 4px 0 0;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background 0.2s, color 0.2s;
+}
+
+.tab-btn.active {
   background: #fff;
-  width: 220px;
+  border-bottom: 2px solid #007bff;
+  color: #007bff;
+}
+
+.tabs-scroll-container::-webkit-scrollbar {
+  height: 6px;
+}
+.tabs-scroll-container::-webkit-scrollbar-thumb {
+  background: #ddd;
+  border-radius: 3px;
+}
+
+.search-bar-container {
+  margin-bottom: 1rem;
+  display: flex;
+  justify-content: flex-end;
+  width: 100%;
+}
+
+.search-bar {
+  width: 100%;
+  max-width: 350px;
+  padding: 8px 12px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 1rem;
 }
 
 .packages-table-wrapper {
@@ -1276,4 +1310,55 @@
 
 .btn.close-btn:hover {
   background-color: #ececec;
+}
+
+.tabs-scroll-container {
+  overflow-x: auto;
+  white-space: nowrap;
+  max-width: 100%;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #eee;
+}
+
+.tab-btn {
+  display: inline-block;
+  min-width: 120px;
+  margin-right: 8px;
+  padding: 8px 16px;
+  background: #f7f7f7;
+  border: 1px solid #ddd;
+  border-radius: 4px 4px 0 0;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background 0.2s, color 0.2s;
+}
+
+.tab-btn.active {
+  background: #fff;
+  border-bottom: 2px solid #007bff;
+  color: #007bff;
+}
+
+.tabs-scroll-container::-webkit-scrollbar {
+  height: 6px;
+}
+.tabs-scroll-container::-webkit-scrollbar-thumb {
+  background: #ddd;
+  border-radius: 3px;
+}
+
+.search-bar-container {
+  margin-bottom: 1rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.search-bar {
+  width: 100%;
+  max-width: 350px;
+  padding: 8px 12px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 1rem;
 }

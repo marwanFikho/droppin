@@ -69,7 +69,7 @@ const ShopDashboard = () => {
   });
   const [showPackageDetailsModal, setShowPackageDetailsModal] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState(null);
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   
   // Function to refresh dashboard data - can be called from any child component
   const refreshDashboard = () => {
@@ -85,7 +85,7 @@ const ShopDashboard = () => {
       setPackages(Array.isArray(pkgs) ? pkgs : []);
     } catch (error) {
       console.error('Error fetching packages:', error);
-      alert('Failed to fetch packages. Please try again.');
+      alert(t('shop.dashboard.errors.fetchPackagesFailed'));
       setPackages([]);
     }
   };
@@ -157,7 +157,7 @@ const ShopDashboard = () => {
         const moneyResponse = await packageService.getMoneyTransactions(moneyFilters);
         setMoneyTransactions(moneyResponse.data.transactions || []);
       } catch (err) {
-        setError('Failed to load data. Please try again later.');
+        setError(t('shop.dashboard.errors.loadDataFailed'));
         console.error('Error fetching data:', err);
       } finally {
         setLoading(false);
@@ -174,7 +174,7 @@ const ShopDashboard = () => {
     const delivered = packages.filter(p => p.status === 'delivered').length;
 
     return {
-      labels: ['Pending', 'In Transit', 'Delivered'],
+      labels: [t('shop.dashboard.chart.pending'), t('shop.dashboard.chart.inTransit'), t('shop.dashboard.chart.delivered')],
       datasets: [
         {
           data: [pending, inTransit, delivered],
@@ -231,7 +231,7 @@ const ShopDashboard = () => {
   // Add function to render money transactions table
   const renderMoneyTable = () => {
     if (moneyTransactions.length === 0) {
-      return <p style={{textAlign:'center'}}>No transactions found.</p>;
+      return <p style={{textAlign:'center'}}>{t('shop.dashboard.moneyTransactions.noTransactions')}</p>;
     }
 
     const renderSortIcon = (field) => {
@@ -250,14 +250,14 @@ const ShopDashboard = () => {
               className="filter-input"
               value={moneyFilters.startDate}
               onChange={e => handleMoneyFilterChange('startDate', e.target.value)}
-              placeholder="Start Date"
+              placeholder={t('shop.dashboard.moneyTransactions.startDate')}
             />
             <input
               type="date"
               className="filter-input"
               value={moneyFilters.endDate}
               onChange={e => handleMoneyFilterChange('endDate', e.target.value)}
-              placeholder="End Date"
+              placeholder={t('shop.dashboard.moneyTransactions.endDate')}
             />
           </div>
           <div className="filter-group">
@@ -266,18 +266,18 @@ const ShopDashboard = () => {
               value={moneyFilters.attribute}
               onChange={e => handleMoneyFilterChange('attribute', e.target.value)}
             >
-              <option value="">All Attributes</option>
-              <option value="ToCollect">To Collect</option>
-              <option value="TotalCollected">Total Collected</option>
+              <option value="">{t('shop.dashboard.moneyTransactions.allAttributes')}</option>
+              <option value="ToCollect">{t('shop.dashboard.moneyTransactions.toCollect')}</option>
+              <option value="TotalCollected">{t('shop.dashboard.moneyTransactions.totalCollected')}</option>
             </select>
             <select
               className="filter-select"
               value={moneyFilters.changeType}
               onChange={e => handleMoneyFilterChange('changeType', e.target.value)}
             >
-              <option value="">All Types</option>
-              <option value="increase">Increase</option>
-              <option value="decrease">Decrease</option>
+              <option value="">{t('shop.dashboard.moneyTransactions.allTypes')}</option>
+              <option value="increase">{t('shop.dashboard.moneyTransactions.increase')}</option>
+              <option value="decrease">{t('shop.dashboard.moneyTransactions.decrease')}</option>
             </select>
           </div>
           <div className="filter-group">
@@ -286,7 +286,7 @@ const ShopDashboard = () => {
               className="filter-input"
               value={moneyFilters.search}
               onChange={e => handleMoneyFilterChange('search', e.target.value)}
-              placeholder="Search transactions..."
+              placeholder={t('shop.dashboard.moneyTransactions.searchPlaceholder')}
             />
           </div>
         </div>
@@ -298,27 +298,27 @@ const ShopDashboard = () => {
                 onClick={() => handleMoneyFilterChange('sortBy', 'createdAt')} 
                 className="sortable-header"
               >
-                Date {renderSortIcon('createdAt')}
+                {t('shop.dashboard.moneyTransactions.date')} {renderSortIcon('createdAt')}
               </th>
               <th 
                 onClick={() => handleMoneyFilterChange('sortBy', 'attribute')} 
                 className="sortable-header"
               >
-                Attribute {renderSortIcon('attribute')}
+                {t('shop.dashboard.moneyTransactions.attribute')} {renderSortIcon('attribute')}
               </th>
               <th 
                 onClick={() => handleMoneyFilterChange('sortBy', 'changeType')} 
                 className="sortable-header"
               >
-                Type {renderSortIcon('changeType')}
+                {t('shop.dashboard.moneyTransactions.type')} {renderSortIcon('changeType')}
               </th>
               <th 
                 onClick={() => handleMoneyFilterChange('sortBy', 'amount')} 
                 className="sortable-header"
               >
-                Amount ($) {renderSortIcon('amount')}
+                {t('shop.dashboard.moneyTransactions.amount')} {renderSortIcon('amount')}
               </th>
-              <th>Description</th>
+              <th>{t('shop.dashboard.moneyTransactions.description')}</th>
             </tr>
           </thead>
           <tbody>
@@ -352,7 +352,7 @@ const ShopDashboard = () => {
       setPackageToCancel(null);
       setCancelError(null);
     } catch (err) {
-      setCancelError(err.response?.data?.message || 'Failed to cancel package.');
+      setCancelError(err.response?.data?.message || t('shop.dashboard.errors.cancelPackageFailed'));
     }
   };
 
@@ -396,7 +396,7 @@ const ShopDashboard = () => {
       fetchPackages();
     } catch (error) {
       console.error('Error marking package as returned:', error);
-      alert('Failed to mark package as returned. Please try again.');
+      alert(t('shop.dashboard.errors.markReturnedFailed'));
     }
   };
 
@@ -412,17 +412,17 @@ const ShopDashboard = () => {
       <tbody>
         {filterPackages().map(pkg => (
           <tr key={pkg.id}>
-            <td data-label="Tracking #">{pkg.trackingNumber}</td>
-            <td data-label="Description">{pkg.packageDescription}</td>
-            <td data-label="Recipient">{pkg.deliveryContactName}</td>
-            <td data-label="Status">{getStatusBadge(pkg.status)}</td>
-            <td data-label="COD Amount">${parseFloat(pkg.codAmount || 0).toFixed(2)}</td>
-            <td data-label="Actions" className="actions-cell">
+            <td data-label={t('shop.dashboard.table.trackingNumber')}>{pkg.trackingNumber}</td>
+            <td data-label={t('shop.dashboard.table.description')}>{pkg.packageDescription}</td>
+            <td data-label={t('shop.dashboard.table.recipient')}>{pkg.deliveryContactName}</td>
+            <td data-label={t('shop.dashboard.table.status')}>{getStatusBadge(pkg.status, t)}</td>
+            <td data-label={t('shop.dashboard.table.codAmount')}>${parseFloat(pkg.codAmount || 0).toFixed(2)} {getCodBadge(pkg.isPaid, t)}</td>
+            <td data-label={t('shop.dashboard.table.actions')} className="actions-cell">
               <button
                 className="action-button view-btn"
                 onClick={() => openDetailsModal(pkg)}
               >
-                View
+                {t('common.view')}
               </button>
               {pkg.status === 'pending' && (
                 <button
@@ -432,7 +432,7 @@ const ShopDashboard = () => {
                     setShowCancelModal(true);
                   }}
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
               )}
               {pkg.status === 'cancelled-awaiting-return' && (
@@ -440,7 +440,7 @@ const ShopDashboard = () => {
                   className="action-button return-btn"
                   onClick={() => handleMarkAsReturned(pkg)}
                 >
-                  Mark Returned
+                  {t('shop.dashboard.table.markReturned')}
                 </button>
               )}
             </td>
@@ -453,13 +453,13 @@ const ShopDashboard = () => {
   return (
     <ShopDashboardContext.Provider value={{ refreshDashboard }}>
       <div className="dashboard-container">
-        <div className="dashboard-sidebar">
+        <div className="dashboard-sidebar" style={{ left: 0, right: 'auto' }}>
           <div className="sidebar-header">
             <h2>{t('shop.dashboard.sidebar.brand')}</h2>
             <p>{t('shop.dashboard.sidebar.portal')}</p>
           </div>
         
-          <div className="sidebar-menu">
+          <div className="sidebar-menu" style={{ direction: i18n.language === 'ar' ? 'rtl' : 'ltr' }}>
             <Link to="/shop" className={`menu-item${location.pathname === '/shop' ? ' active' : ''}`}> 
               <i className="menu-icon">📊</i>
               {t('shop.dashboard.sidebar.dashboard')}
@@ -494,7 +494,7 @@ const ShopDashboard = () => {
           <Route path="new-pickup" element={<NewPickup />} />
           <Route path="wallet" element={<Wallet />} />
           <Route path="*" element={
-            <div className="dashboard-content">
+            <div className="dashboard-content" style={{ marginLeft: 250, marginRight: 0 }}>
               <div className="dashboard-header">
                 <div className="welcome-message">
                   <h1 style={{color:'white'}}>{t('shop.dashboard.header.welcome', { name: currentUser?.name || t('shop.dashboard.header.shopOwner') })}</h1>
@@ -590,8 +590,8 @@ const ShopDashboard = () => {
                                 <td className="tracking-number">{pkg.trackingNumber}</td>
                                 <td className="package-description">{pkg.packageDescription}</td>
                                 <td className="recipient-name">{pkg.deliveryContactName}</td>
-                                <td>{getStatusBadge(pkg.status)}</td>
-                                <td className="package-cod">${parseFloat(pkg.codAmount || 0).toFixed(2)} {getCodBadge(pkg.isPaid)}</td>
+                                <td>{getStatusBadge(pkg.status, t)}</td>
+                                <td className="package-cod">${parseFloat(pkg.codAmount || 0).toFixed(2)} {getCodBadge(pkg.isPaid, t)}</td>
                                 <td>{new Date(pkg.createdAt).toLocaleDateString()}</td>
                               </tr>
                             ))}
@@ -608,12 +608,12 @@ const ShopDashboard = () => {
       {showCancelModal && (
         <div className="confirmation-overlay" onClick={() => { setShowCancelModal(false); setCancelError(null); }}>
           <div className="confirmation-dialog warning-dialog" onClick={e => e.stopPropagation()}>
-            <h3>Cancel Package</h3>
-            <p>Are you sure you want to cancel this package?</p>
+            <h3>{t('shop.dashboard.modals.cancelPackage.title')}</h3>
+            <p>{t('shop.dashboard.modals.cancelPackage.message')}</p>
             {cancelError && <div style={{color:'#dc3545',marginBottom:'0.5rem'}}>{cancelError}</div>}
             <div className="confirmation-buttons">
-              <button className="btn-secondary" onClick={() => { setShowCancelModal(false); setCancelError(null); }}>No</button>
-              <button className="btn-danger" onClick={handleCancel}>Yes, Cancel</button>
+              <button className="btn-secondary" onClick={() => { setShowCancelModal(false); setCancelError(null); }}>{t('common.cancel')}</button>
+              <button className="btn-danger" onClick={handleCancel}>{t('shop.dashboard.modals.cancelPackage.confirm')}</button>
             </div>
           </div>
         </div>
@@ -623,74 +623,74 @@ const ShopDashboard = () => {
         <div className="confirmation-overlay" onClick={() => setShowPackageDetailsModal(false)}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>Package Details</h2>
+              <h2>{t('shop.dashboard.modals.packageDetails.title')}</h2>
               <button className="btn close-btn" onClick={() => setShowPackageDetailsModal(false)}>&times;</button>
             </div>
             <div className="modal-body">
               <div className="details-grid">
                 <div className="detail-item">
-                  <span className="label">Tracking #</span>
+                  <span className="label">{t('shop.dashboard.modals.packageDetails.trackingNumber')}</span>
                   <span>{selectedPackage.trackingNumber}</span>
                 </div>
                 <div className="detail-item">
-                  <span className="label">Status</span>
-                  <span>{getStatusBadge(selectedPackage.status)}</span>
+                  <span className="label">{t('shop.dashboard.modals.packageDetails.status')}</span>
+                  <span>{getStatusBadge(selectedPackage.status, t)}</span>
                 </div>
                 <div className="detail-item">
-                  <span className="label">Created</span>
+                  <span className="label">{t('shop.dashboard.modals.packageDetails.created')}</span>
                   <span>{new Date(selectedPackage.createdAt).toLocaleString()}</span>
                 </div>
                 <div className="detail-item full-width">
-                  <span className="label">Description</span>
-                  <span>{selectedPackage.packageDescription || 'No description'}</span>
+                  <span className="label">{t('shop.dashboard.modals.packageDetails.description')}</span>
+                  <span>{selectedPackage.packageDescription || t('shop.dashboard.modals.packageDetails.noDescription')}</span>
                 </div>
                 <div className="detail-item">
-                  <span className="label">Recipient</span>
-                  <span>{selectedPackage.deliveryContactName || 'N/A'}</span>
+                  <span className="label">{t('shop.dashboard.modals.packageDetails.recipient')}</span>
+                  <span>{selectedPackage.deliveryContactName || t('common.notAvailable')}</span>
                 </div>
                 {selectedPackage.deliveryContactPhone && (
                   <div className="detail-item">
-                    <span className="label">Recipient Phone</span>
+                    <span className="label">{t('shop.dashboard.modals.packageDetails.recipientPhone')}</span>
                     <span>{selectedPackage.deliveryContactPhone}</span>
                   </div>
                 )}
                 {selectedPackage.deliveryAddress && (
                   <div className="detail-item full-width">
-                    <span className="label">Delivery Address</span>
+                    <span className="label">{t('shop.dashboard.modals.packageDetails.deliveryAddress')}</span>
                     <span>{selectedPackage.deliveryAddress}</span>
                   </div>
                 )}
                 <div className="detail-item">
-                  <span className="label">COD</span>
-                  <span>${parseFloat(selectedPackage.codAmount || 0).toFixed(2)} {getCodBadge(selectedPackage.isPaid)}</span>
+                  <span className="label">{t('shop.dashboard.modals.packageDetails.cod')}</span>
+                  <span>${parseFloat(selectedPackage.codAmount || 0).toFixed(2)} {getCodBadge(selectedPackage.isPaid, t)}</span>
                 </div>
                 {selectedPackage.weight && (
                   <div className="detail-item">
-                    <span className="label">Weight</span>
+                    <span className="label">{t('shop.dashboard.modals.packageDetails.weight')}</span>
                     <span>{selectedPackage.weight} kg</span>
                   </div>
                 )}
                 {selectedPackage.dimensions && (
                   <div className="detail-item">
-                    <span className="label">Dimensions</span>
+                    <span className="label">{t('shop.dashboard.modals.packageDetails.dimensions')}</span>
                     <span>{selectedPackage.dimensions}</span>
                   </div>
                 )}
                 {selectedPackage.notes && (
                   <div className="detail-item full-width">
-                    <span className="label">Notes</span>
+                    <span className="label">{t('shop.dashboard.modals.packageDetails.notes')}</span>
                     <span>{selectedPackage.notes}</span>
                   </div>
                 )}
                 {selectedPackage.shopNotes && (
                   <div className="detail-item full-width">
-                    <span className="label">Shop Notes</span>
+                    <span className="label">{t('shop.dashboard.modals.packageDetails.shopNotes')}</span>
                     <span>{selectedPackage.shopNotes}</span>
                   </div>
                 )}
               </div>
               <div className="modal-actions">
-                <button className="btn close-btn" onClick={() => setShowPackageDetailsModal(false)}>Close</button>
+                <button className="btn close-btn" onClick={() => setShowPackageDetailsModal(false)}>{t('common.close')}</button>
               </div>
             </div>
           </div>

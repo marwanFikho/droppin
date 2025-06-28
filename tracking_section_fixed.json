@@ -1,0 +1,80 @@
+  "tracking": {
+    "title": "Track Your Package",
+    "enterNumber": "Enter your tracking number to get real-time updates",
+    "input": {
+      "placeholder": "Enter tracking number (e.g., DP123456789)"
+    },
+    "search": "Track",
+    "packageInfo": "Package Details",
+    "trackingNumber": "Tracking Number",
+    "description": "Description",
+    "noDescription": "N/A",
+    "priority": "Priority",
+    "weight": "Weight",
+    "dimensions": "Dimensions",
+    "shopInfo": "Shop Information",
+    "businessName": "Business Name",
+    "driverInfo": "Driver Information",
+    "name": "Name",
+    "phone": "Phone",
+    "vehicleType": "Vehicle Type",
+    "workingArea": "Working Area",
+    "deliveryInfo": "Delivery Information",
+    "contactName": "Contact Name",
+    "address": "Address",
+    "estimatedDelivery": "Estimated Delivery",
+    "deliveredOn": "Delivered On",
+    "notesLog": "Notes Log",
+    "unknownDate": "Unknown date",
+    "noNotes": "No notes yet.",
+    "sender": "Sender",
+    "timeline": {
+      "title": "Tracking Timeline",
+      "created": "Package created",
+      "shop": "Shop",
+      "createdDescription": "Package has been created and is awaiting pickup"
+    },
+    "location": {
+      "delivered": "Delivered to recipient",
+      "inTransit": "In transit to destination",
+      "assigned": "Assigned to driver",
+      "scheduled": "Scheduled for pickup",
+      "awaiting": "Awaiting pickup",
+      "processing": "Processing"
+    },
+    "statusDescription": {
+      "delivered": "Package has been successfully delivered to the recipient",
+      "inTransit": "Package is currently in transit to its destination",
+      "pickedup": "Package has been picked up by the driver",
+      "assigned": "Package has been assigned to a driver for delivery",
+      "scheduled": "Package is scheduled for pickup from the sender",
+      "awaitingSchedule": "Package is awaiting pickup scheduling",
+      "awaitingPickup": "Package is ready for pickup",
+      "pending": "Package is being processed",
+      "updated": "Package status updated"
+    },
+    "placeholder": {
+      "title": "Track Your Package",
+      "description": "Enter a tracking number above to see the current status and location of your package.",
+      "example": "Example"
+    },
+    "status": {
+      "delivered": "DELIVERED",
+      "in-transit": "IN TRANSIT",
+      "pickedup": "PICKED UP",
+      "pending": "PENDING",
+      "assigned": "ASSIGNED",
+      "scheduled_for_pickup": "SCHEDULED FOR PICKUP",
+      "awaiting_schedule": "AWAITING SCHEDULE",
+      "awaiting_pickup": "AWAITING PICKUP",
+      "cancelled": "CANCELLED",
+      "cancelled-awaiting-return": "CANCELLED - AWAITING RETURN",
+      "cancelled-returned": "CANCELLED - RETURNED"
+    }
+    "error": {
+      "enterNumber": "Please enter a tracking number",
+      "notFound": "Tracking number not found. Please check and try again.",
+      "failed": "Failed to track package. Please try again."
+    }
+  },
+

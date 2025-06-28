@@ -552,6 +552,10 @@
       },
       "chart": {
         "packageDistribution": "Package Distribution"
+      },
+      "packages": {
+        "paid": "Paid",
+        "unpaid": "Unpaid"
       }
     },
     "businessName": "Business Name",
