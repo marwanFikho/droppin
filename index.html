@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Droppin Redirect</title>
+  <script>
+    function isMobile() {
+      return /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(navigator.userAgent);
+    }
+    if (isMobile()) {
+      window.location.replace('http://localhost:3002' + window.location.pathname + window.location.search);
+    } else {
+      window.location.replace('http://localhost:3001' + window.location.pathname + window.location.search);
+    }
+  </script>
+</head>
+<body>
+  <p>Redirecting...</p>
+</body>
+</html>

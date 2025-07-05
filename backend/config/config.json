@@ -1,0 +1,17 @@
+{
+  "development": {
+    "dialect": "sqlite",
+    "storage": "./db/dropin.sqlite",
+    "logging": true
+  },
+  "test": {
+    "dialect": "sqlite",
+    "storage": ":memory:",
+    "logging": false
+  },
+  "production": {
+    "dialect": "sqlite",
+    "storage": "./db/dropin.sqlite",
+    "logging": false
+  }
+} 
