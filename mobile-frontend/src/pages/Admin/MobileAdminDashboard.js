@@ -632,7 +632,7 @@ const MobileAdminDashboard = () => {
                       <div className="mobile-admin-dashboard-shop-financials">
                         <p><strong>To Collect:</strong> ${parseFloat(user.ToCollect || 0).toFixed(2)}</p>
                         <p><strong>Total Collected:</strong> ${parseFloat(user.TotalCollected || 0).toFixed(2)}</p>
-                        <p><strong>Package Count:</strong> {user.financialData?.packageCount || 0}</p>
+                        <p><strong>Delivered Packages:</strong> {user.financialData?.packageCount || 0}</p>
                         {parseFloat(user.TotalCollected || 0) > 0 && (
                           <button
                             className="mobile-admin-dashboard-settle-btn"
@@ -1098,7 +1098,7 @@ const MobileAdminDashboard = () => {
                     <div className="mobile-modal-detail-item full-width"><span className="label">Business Type</span><span>{selectedUser.businessType || 'N/A'}</span></div>
                     <div className="mobile-modal-detail-item full-width"><span className="label">To Collect</span><span>${parseFloat(selectedUser.ToCollect || 0).toFixed(2)}</span></div>
                     <div className="mobile-modal-detail-item full-width"><span className="label">Total Collected</span><span>${parseFloat(selectedUser.TotalCollected || 0).toFixed(2)}</span></div>
-                    <div className="mobile-modal-detail-item full-width"><span className="label">Package Count</span><span>{selectedUser.financialData?.packageCount || 0}</span></div>
+                    <div className="mobile-modal-detail-item full-width"><span className="label">Delivered Packages</span><span>{selectedUser.financialData?.packageCount || 0}</span></div>
                     <div className="mobile-modal-detail-item full-width">
                       <button
                         className="mobile-admin-dashboard-settle-btn"

@@ -32,6 +32,39 @@ exports.getDashboardStats = async (req, res) => {
     const codSums = (Array.isArray(codSumsRaw) && codSumsRaw[0] && codSumsRaw[0][0]) ? codSumsRaw[0][0] : { totalToCollect: 0, totalCollected: 0 };
     console.log('DEBUG: COD sums from DB:', codSums);
 
+    // Calculate revenue from delivered packages (sum of shippingFees for each delivered package's shop)
+    const deliveredPackagesCount = await Package.count({ where: { status: 'delivered' } });
+    let revenueDeliveredPackages = 0;
+    if (deliveredPackagesCount > 0) {
+      // Get unique shopIds from delivered packages
+      const shopIds = await Package.findAll({
+        where: { status: 'delivered' },
+        attributes: ['shopId'],
+        raw: true
+      });
+      const uniqueShopIds = [...new Set(shopIds.map(pkg => pkg.shopId))];
+
+      // Get all shops with those IDs and their shippingFees
+      const shops = await Shop.findAll({
+        where: { id: uniqueShopIds },
+        attributes: ['id', 'shippingFees'],
+        raw: true
+      });
+      // Count how many delivered packages per shop
+      const shopPackageCount = {};
+      shopIds.forEach(pkg => {
+        shopPackageCount[pkg.shopId] = (shopPackageCount[pkg.shopId] || 0) + 1;
+      });
+      // Sum up shippingFees * delivered count for each shop
+      shops.forEach(shop => {
+        const count = shopPackageCount[shop.id] || 0;
+        const fee = parseFloat(shop.shippingFees || 0);
+        if (fee > 0 && count > 0) {
+          revenueDeliveredPackages += fee * count;
+        }
+      });
+    }
+
     res.json({
       users: {
         total: totalUsers + totalShops + totalDrivers,
@@ -49,7 +82,8 @@ exports.getDashboardStats = async (req, res) => {
       cod: {
         totalToCollect: parseFloat(codSums.totalToCollect) || 0,
         totalCollected: parseFloat(codSums.totalCollected) || 0
-      }
+      },
+      revenueDeliveredPackages: revenueDeliveredPackages
     });
   } catch (error) {
     console.error('Error getting dashboard stats:', error);
@@ -227,7 +261,7 @@ exports.getShops = async (req, res) => {
       if (shop) {
         // Get financial data directly with SQL to ensure accuracy
         const [financialData] = await sequelize.query(
-          `SELECT id, ToCollect, TotalCollected FROM Shops WHERE id = :shopId`,
+          `SELECT id, ToCollect, TotalCollected, settelled FROM Shops WHERE id = :shopId`,
           {
             replacements: { shopId: shop.id },
             type: QueryTypes.SELECT
@@ -239,9 +273,10 @@ exports.getShops = async (req, res) => {
         // Use the database columns directly from the SQL result
         const totalToCollect = parseFloat(financialData.ToCollect || 0);
         const totalCollected = parseFloat(financialData.TotalCollected || 0);
+        const totalSettled = parseFloat(financialData.settelled || 0);
         
-        // Get package count for this shop
-        const packageCount = await Package.count({ where: { shopId: shop.id } });
+        // Get delivered package count for this shop
+        const packageCount = await Package.count({ where: { shopId: shop.id, status: 'delivered' } });
         
         // Find the main driver for this shop (if any)
         const mainDriver = null;
@@ -255,16 +290,18 @@ exports.getShops = async (req, res) => {
           contactPersonName: shop.contactPersonName,
           contactPersonPhone: shop.contactPersonPhone,
           contactPersonEmail: shop.contactPersonEmail,
+          address: shop.address,
           // Use the financial data directly from the SQL query
           ToCollect: financialData.ToCollect,
           TotalCollected: financialData.TotalCollected,
+          settelled: financialData.settelled, // <-- Add this line
           // Include raw values for compatibility
           rawToCollect: financialData.ToCollect,
           rawTotalCollected: financialData.TotalCollected,
           financialData: {
             totalToCollect,
             totalCollected, 
-            totalSettled: 0,
+            totalSettled,
             packageCount: packageCount
           },
           workingArea: mainDriver ? mainDriver.workingArea : null
@@ -327,12 +364,12 @@ exports.getShopById = async (req, res) => {
       return res.status(404).json({ message: 'Shop user not found' });
     }
     
-    // Get shop's packages for stats
-    const packages = await Package.findAll({ where: { shopId: shop.id } });
+    // Get shop's delivered packages for stats
+    const packages = await Package.findAll({ where: { shopId: shop.id, status: 'delivered' } });
     
     // Get exact database values for financial columns
     const [financialData] = await sequelize.query(
-      `SELECT ToCollect, TotalCollected FROM Shops WHERE id = :shopId`,
+      `SELECT ToCollect, TotalCollected, settelled FROM Shops WHERE id = :shopId`,
       {
         replacements: { shopId: shop.id },
         type: QueryTypes.SELECT
@@ -356,13 +393,22 @@ exports.getShopById = async (req, res) => {
       contactPersonName: shop.contactPersonName,
       contactPersonPhone: shop.contactPersonPhone,
       contactPersonEmail: shop.contactPersonEmail,
+      address: shop.address,
       // Using direct SQL results for financial data
       ToCollect: financialData.ToCollect,
       TotalCollected: financialData.TotalCollected,
+      settelled: financialData.settelled, // <-- Add this line
       // Add shippingFees from the Shop model
       shippingFees: shop.shippingFees,
-      // Include package count
+      // Include package count (delivered only)
       packageCount: packages.length,
+      // Add financialData object for consistency
+      financialData: {
+        totalToCollect: parseFloat(financialData.ToCollect || 0),
+        totalCollected: parseFloat(financialData.TotalCollected || 0),
+        totalSettled: parseFloat(financialData.settelled || 0),
+        packageCount: packages.length
+      },
       createdAt: shop.createdAt,
       updatedAt: shop.updatedAt
     };

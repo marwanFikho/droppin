@@ -41,6 +41,10 @@ const ShopProfile = () => {
   const [apiKeyError, setApiKeyError] = useState(null);
   const [apiKeySuccess, setApiKeySuccess] = useState(null);
   const [shippingFees, setShippingFees] = useState('');
+  const [shownShippingFees, setShownShippingFees] = useState('');
+  const [editingShownShippingFees, setEditingShownShippingFees] = useState(false);
+  const [shownShippingFeesDraft, setShownShippingFeesDraft] = useState('');
+  const [shownShippingFeesError, setShownShippingFeesError] = useState('');
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -53,6 +57,8 @@ const ShopProfile = () => {
         setContactPhone(shop.contactPersonPhone || shop.contactPerson?.phone || '');
         setPickupAddress(parseAddress(shop.address));
         setShippingFees(shop.shippingFees !== undefined && shop.shippingFees !== null ? shop.shippingFees : '');
+        setShownShippingFees(shop.shownShippingFees !== undefined && shop.shownShippingFees !== null ? shop.shownShippingFees : '');
+        setShownShippingFeesDraft(shop.shownShippingFees !== undefined && shop.shownShippingFees !== null ? shop.shownShippingFees : '');
       } catch (err) {
         setError('Failed to load profile.');
       } finally {
@@ -76,7 +82,8 @@ const ShopProfile = () => {
       await packageService.updateShopProfile({
         businessName: shopName,
         contactPerson: { name: contactName, phone: contactPhone },
-        address: joinAddress(pickupAddress)
+        address: joinAddress(pickupAddress),
+        shownShippingFees: shownShippingFees !== '' ? parseFloat(shownShippingFees) : null
       });
       setSuccess('Profile updated successfully!');
     } catch (err) {
@@ -199,6 +206,65 @@ const ShopProfile = () => {
           <label>Shipping Fees (EGP)</label>
           <input type="number" value={shippingFees} disabled />
         </div>
+        <div className="form-group">
+          <label>Shown Shipping Fees (EGP)</label>
+          {editingShownShippingFees ? (
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <input
+                type="number"
+                value={shownShippingFeesDraft}
+                onChange={e => setShownShippingFeesDraft(e.target.value)}
+                min="0"
+                step="0.01"
+                style={{ flex: 1 }}
+              />
+              <button
+                type="button"
+                className="profile-save-btn"
+                style={{ background: '#28a745', padding: '0.3rem 1rem', fontSize: '0.95rem' }}
+                onClick={async () => {
+                  if (parseFloat(shownShippingFeesDraft) > parseFloat(shippingFees)) {
+                    setShownShippingFeesError('Shown Shipping Fees cannot be greater than Shipping Fees.');
+                    return;
+                  }
+                  setShownShippingFeesError('');
+                  setEditingShownShippingFees(false);
+                  setShownShippingFees(shownShippingFeesDraft);
+                  try {
+                    await packageService.updateShopProfile({ shownShippingFees: parseFloat(shownShippingFeesDraft) });
+                  } catch (e) {
+                    // Optionally show error
+                  }
+                }}
+              >Save</button>
+              <button
+                type="button"
+                className="profile-save-btn"
+                style={{ background: '#888', padding: '0.3rem 1rem', fontSize: '0.95rem' }}
+                onClick={() => {
+                  setEditingShownShippingFees(false);
+                  setShownShippingFeesDraft(shownShippingFees);
+                }}
+              >Cancel</button>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <input
+                type="number"
+                value={shownShippingFees}
+                disabled
+                style={{ flex: 1 }}
+              />
+              <button
+                type="button"
+                className="profile-save-btn"
+                style={{ background: '#007bff', padding: '0.3rem 1rem', fontSize: '0.95rem' }}
+                onClick={() => setEditingShownShippingFees(true)}
+              >Edit</button>
+            </div>
+          )}
+        </div>
+        {shownShippingFeesError && <div className="error-message">{shownShippingFeesError}</div>}
         {!showChangePassword && (
           <button type="button" className="profile-save-btn" style={{marginBottom: '1rem', background: '#007bff'}} onClick={() => setShowChangePassword(true)}>
             Change Password

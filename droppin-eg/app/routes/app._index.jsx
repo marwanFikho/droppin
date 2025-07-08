@@ -61,6 +61,7 @@ export const loader = async ({ request }) => {
     }
   `);
   const data = await response.json();
+  // For demo: add random deliveryFee and delivered status
   const orders = data.data.orders.edges.map(({ node }) => {
     const shipping = node.shippingAddress || {};
     const billing = node.billingAddress || {};
@@ -69,6 +70,9 @@ export const loader = async ({ request }) => {
       .map(e => `${e.node.quantity}x ${e.node.title}`)
       .join(", ");
     const weight = (node.totalWeight || 0) / 1000; // grams to kg
+    // DEMO: random delivery fee between 20 and 60, and random delivered status
+    const deliveryFee = Math.floor(Math.random() * 41) + 20;
+    const delivered = Math.random() > 0.5;
     return {
       id: node.id,
       name: node.name,
@@ -82,6 +86,8 @@ export const loader = async ({ request }) => {
       weight,
       phone: shipping.phone || billing.phone || customer.phone || "",
       total: Number(node.totalPriceSet.shopMoney.amount),
+      deliveryFee,
+      delivered,
     };
   });
   const apiKey = apiKeyStore.key;
@@ -187,6 +193,9 @@ export default function Index() {
   const totalPages = Math.ceil(filteredOrders.length / limit);
   const paginatedOrders = filteredOrders.slice((page - 1) * limit, page * limit);
 
+  // Calculate revenue for delivered packages
+  const revenue = orders.filter(o => o.delivered).reduce((sum, o) => sum + (o.deliveryFee || 0), 0);
+
   useEffect(() => {
     if (productId) {
       shopify.toast.show("Product created");
@@ -205,6 +214,12 @@ export default function Index() {
   const handleShip = async () => {
     setSending(true);
     setBanner(null);
+    // Check for API key
+    if (!apiKey) {
+      setBanner({ status: "critical", content: "No API key has been set." });
+      setSending(false);
+      return;
+    }
     // Prepare selected orders
     const selectedOrders = orders.filter((o) => selected.includes(o.id));
     // Map to Droppin package fields
@@ -229,17 +244,17 @@ export default function Index() {
         body: JSON.stringify({ packages }),
       });
       if (res.ok) {
-        setBanner({ status: "success", content: "Packages sent to Droppin!" });
+        setBanner({ status: "success", content: "Successfully sent orders to Droppin." });
         setSelected([]);
         // Mark these orders as sent
         const newSent = Array.from(new Set([...sentOrders, ...selected]));
         setSentOrders(newSent);
         if (typeof window !== 'undefined') localStorage.setItem("sentOrders", JSON.stringify(newSent));
       } else {
-        setBanner({ status: "critical", content: "Failed to send packages." });
+        setBanner({ status: "critical", content: "Error sending packages to Droppin." });
       }
     } catch (e) {
-      setBanner({ status: "critical", content: "Error sending packages." });
+      setBanner({ status: "critical", content: "Error sending packages to Droppin." });
     }
     setSending(false);
   };
@@ -360,6 +375,14 @@ export default function Index() {
         }
       `}</style>
       <div className="droppin-orders-container">
+        {banner && (
+          <Banner 
+            status={banner.status} 
+            onDismiss={() => setBanner(null)}
+          >
+            {banner.content}
+          </Banner>
+        )}
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
           <a
             href="https://droppin-eg.com"
@@ -486,6 +509,20 @@ export default function Index() {
           >
             Ship with Droppin
           </Button>
+        </div>
+        
+        {/* Footer Links */}
+        <div style={{ 
+          marginTop: 32, 
+          paddingTop: 16, 
+          borderTop: '1px solid #f0f0f0',
+          textAlign: 'center',
+          fontSize: '14px',
+          color: '#666'
+        }}>
+          <Link url="/privacy" target="_blank">Privacy Policy</Link>
+          {' | '}
+          <Link url="/terms" target="_blank">Terms of Service</Link>
         </div>
       </div>
     </Page>

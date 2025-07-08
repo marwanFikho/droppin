@@ -1607,7 +1607,7 @@ const AdminDashboard = () => {
             {/* Address */}
             <div className="detail-item full-width">
               <span className="label">Address:</span>
-              <span>{formatAddress(selectedEntity)}</span>
+              <span>{selectedEntity.address || 'N/A'}</span>
             </div>
             
             {/* Additional details for shop */}
@@ -1632,595 +1632,246 @@ const AdminDashboard = () => {
                       <span className="nested-label">Tax ID:</span>
                       <span>{selectedEntity.taxId || 'N/A'}</span>
                     </div>
+                    {/* Financial Information */}
+                    {(() => {
+                      const deliveredPkgs = packages.filter(pkg => pkg.shopId === selectedEntity.shopId && pkg.status === 'delivered');
+                      const shippingFee = parseFloat(selectedEntity.shippingFees || 0);
+                      const netRevenue = deliveredPkgs.length * shippingFee;
+                      const toCollect = parseFloat(selectedEntity.ToCollect || 0);
+                      const totalCollected = parseFloat(selectedEntity.TotalCollected || 0);
+                      return <>
+                        <div className="nested-detail">
+                          <span className="nested-label">Net Revenue (Delivered Packages):</span>
+                          <span>${netRevenue.toFixed(2)}</span>
+                        </div>
+                        <div className="nested-detail">
+                          <span className="nested-label">Delivered Packages:</span>
+                          <span>{deliveredPkgs.length}</span>
+                        </div>
+                        <div className="nested-detail">
+                          <span className="nested-label">Total to Collect:</span>
+                          <span>${toCollect.toFixed(2)}</span>
+                        </div>
+                        <div className="nested-detail">
+                          <span className="nested-label">Total Collected:</span>
+                          <span>${totalCollected.toFixed(2)}</span>
+                        </div>
+                        <div className="nested-detail">
+                          <span className="nested-label">Total Settled:</span>
+                          <span>${parseFloat(selectedEntity.settelled || 0).toFixed(2)}</span>
+                        </div>
+                      </>
+                    })()}
                   </div>
                 </div>
-                
-                {/* Financial information */}
-                <div className="detail-item full-width">
-                  <span className="label">Financial Summary:</span>
-                  <div className="nested-details">
-                    <div className="nested-detail">
-                      <span className="nested-label">Total to Collect:</span>
-                      <span className="financial-value">
-                        ${parseFloat(selectedEntity.ToCollect || 0).toFixed(2)}
-                      </span>
-                    </div>
-                    <div className="nested-detail">
-                      <span className="nested-label">Total Collected:</span>
-                      <span className="financial-value">
-                        ${parseFloat(selectedEntity.TotalCollected || 0).toFixed(2)}
-                      </span>
-                    </div>
-                    <div className="nested-detail">
-                      <span className="nested-label">Package Count:</span>
-                      <span>{selectedEntity.financialData?.packageCount || 0}</span>
-                    </div>
-                  </div>
+              </>
+            )}
+            
+            {/* Shipping Fees editable field */}
+            <div className="detail-item full-width">
+              <span className="label">Shipping Fees:</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={shippingFeesInput ?? selectedEntity.shippingFees ?? ''}
+                  onChange={e => setShippingFeesInput(e.target.value)}
+                  style={{ padding: '6px 8px', borderRadius: '4px', border: '1px solid #ccc', width: '120px' }}
+                />
+                <button
+                  className="settle-btn"
+                  onClick={async () => {
+                    if (shippingFeesInput === '' || isNaN(Number(shippingFeesInput))) {
+                      alert('Please enter a valid shipping fee');
+                      return;
+                    }
+                    try {
+                      await adminService.updateShop(selectedEntity.shopId || selectedEntity.id, { shippingFees: parseFloat(shippingFeesInput) });
+                      setSelectedEntity({ ...selectedEntity, shippingFees: parseFloat(shippingFeesInput) });
+                      setStatusMessage({ type: 'success', text: 'Shipping fees updated successfully.' });
+                    } catch (err) {
+                      setStatusMessage({ type: 'error', text: 'Failed to update shipping fees.' });
+                    }
+                  }}
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+            
+            {/* Quick settlement panel (visible without loading packages) */}
+            {parseFloat(selectedEntity.TotalCollected || 0) > 0 && (
+              <div className="settlement-section" style={{marginTop: '1rem'}}>
+                <div className="settlement-title">Settle Payments with Shop</div>
+                <div className="settlement-amount">Total collected: ${parseFloat(selectedEntity.TotalCollected).toFixed(2)}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem' }}>
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="Amount to settle"
+                    value={settleAmountInput}
+                    onChange={e => setSettleAmountInput(e.target.value)}
+                    style={{ padding: '6px 8px', borderRadius: '4px', border: '1px solid #ccc', width: '120px' }}
+                  />
+                  <button className="settle-btn" onClick={() => handlePartialSettle(selectedEntity.shopId || selectedEntity.id)}>
+                    Settle Amount
+                  </button>
                 </div>
-
-                {/* Shipping Fees editable field */}
-                <div className="detail-item full-width">
-                  <span className="label">Shipping Fees:</span>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={shippingFeesInput ?? selectedEntity.shippingFees ?? ''}
-                      onChange={e => setShippingFeesInput(e.target.value)}
-                      style={{ padding: '6px 8px', borderRadius: '4px', border: '1px solid #ccc', width: '120px' }}
-                    />
-                    <button
-                      className="settle-btn"
-                      onClick={async () => {
-                        if (shippingFeesInput === '' || isNaN(Number(shippingFeesInput))) {
-                          alert('Please enter a valid shipping fee');
-                          return;
-                        }
-                        try {
-                          await adminService.updateShop(selectedEntity.shopId || selectedEntity.id, { shippingFees: parseFloat(shippingFeesInput) });
-                          setSelectedEntity({ ...selectedEntity, shippingFees: parseFloat(shippingFeesInput) });
-                          setStatusMessage({ type: 'success', text: 'Shipping fees updated successfully.' });
-                        } catch (err) {
-                          setStatusMessage({ type: 'error', text: 'Failed to update shipping fees.' });
-                        }
-                      }}
-                    >
-                      Save
-                    </button>
-                  </div>
-                </div>
+              </div>
+            )}
+            
+            {/* Shop packages section */}
+            {selectedEntity.shopId && (
+              <div className="detail-item full-width">
+                <span className="label">Recent Packages:</span>
+                <button 
+                  className="load-packages-btn"
+                  onClick={() => loadShopPackages(selectedEntity.shopId)}
+                >
+                  Load Packages
+                </button>
                 
-                {/* Quick settlement panel (visible without loading packages) */}
-                {parseFloat(selectedEntity.TotalCollected || 0) > 0 && (
-                  <div className="settlement-section" style={{marginTop: '1rem'}}>
-                    <div className="settlement-title">Settle Payments with Shop</div>
-                    <div className="settlement-amount">Total collected: ${parseFloat(selectedEntity.TotalCollected).toFixed(2)}</div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem' }}>
-                      <input
-                        type="number"
-                        min="0"
-                        placeholder="Amount to settle"
-                        value={settleAmountInput}
-                        onChange={e => setSettleAmountInput(e.target.value)}
-                        style={{ padding: '6px 8px', borderRadius: '4px', border: '1px solid #ccc', width: '120px' }}
-                      />
-                      <button className="settle-btn" onClick={() => handlePartialSettle(selectedEntity.shopId || selectedEntity.id)}>
-                        Settle Amount
-                      </button>
-                    </div>
-                  </div>
-                )}
-                
-                {/* Shop packages section */}
-                {selectedEntity.shopId && (
-                  <div className="detail-item full-width">
-                    <span className="label">Recent Packages:</span>
-                    <button 
-                      className="load-packages-btn"
-                      onClick={() => loadShopPackages(selectedEntity.shopId)}
-                    >
-                      Load Packages
-                    </button>
-                    
-                    {shopPackages.length > 0 && (
-                      <div className="shop-packages-table">
-                        <table>
-                          <thead>
-                            <tr>
-                              <th>Tracking #</th>
-                              <th>Status</th>
-                              <th>COD Amount</th>
-                              <th>Payment Status</th>
-                              <th>Actions</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {shopPackages.map(pkg => (
-                              <tr key={pkg.id}>
-                                <td>{pkg.trackingNumber}</td>
-                                <td>
-                                  <span className={`status-badge status-${pkg.status}`}>
-                                    {pkg.status}
-                                  </span>
-                                </td>
-                                <td className="financial-cell">${parseFloat(pkg.codAmount || 0).toFixed(2)}</td>
-                                <td>
-                                  <span className={`payment-status ${pkg.isPaid ? 'paid' : 'unpaid'}`}>
-                                    {pkg.isPaid ? 'Paid' : 'Unpaid'}
-                                  </span>
-                                </td>
-                                <td>
-                                  <button 
-                                    className="action-btn view-btn"
-                                    onClick={() => viewDetails(pkg, 'package')}
-                                    title="View Details"
-                                  >
-                                    <FontAwesomeIcon icon={faEye} />
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                        
-                        {/* Shop payment settlement */}
-                        {shopUnpaidTotal > 0 && (
-                          <div className="settlement-section">
-                            <div className="settlement-title">Settle Payments with Shop</div>
-                            <div className="settlement-amount">Total collected: ${parseFloat(shopUnpaidTotal).toFixed(2)}</div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem' }}>
-                              <input
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                placeholder="Amount to settle"
-                                value={settleAmountInput}
-                                onChange={e => setSettleAmountInput(e.target.value)}
-                                style={{ padding: '6px 8px', borderRadius: '4px', border: '1px solid #ccc', width: '120px' }}
-                              />
-                              <button className="settle-btn" onClick={() => handlePartialSettle(selectedEntity.shopId || selectedEntity.id)}>
-                                Settle Amount
+                {shopPackages.length > 0 && (
+                  <div className="shop-packages-table">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Tracking #</th>
+                          <th>Status</th>
+                          <th>COD Amount</th>
+                          <th>Payment Status</th>
+                          <th>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {shopPackages.map(pkg => (
+                          <tr key={pkg.id}>
+                            <td>{pkg.trackingNumber}</td>
+                            <td>
+                              <span className={`status-badge status-${pkg.status}`}>
+                                {pkg.status}
+                              </span>
+                            </td>
+                            <td className="financial-cell">${parseFloat(pkg.codAmount || 0).toFixed(2)}</td>
+                            <td>
+                              <span className={`payment-status ${pkg.isPaid ? 'paid' : 'unpaid'}`}>
+                                {pkg.isPaid ? 'Paid' : 'Unpaid'}
+                              </span>
+                            </td>
+                            <td>
+                              <button 
+                                className="action-btn view-btn"
+                                onClick={() => viewDetails(pkg, 'package')}
+                                title="View Details"
+                              >
+                                <FontAwesomeIcon icon={faEye} />
                               </button>
-                              <button className="settle-btn" onClick={() => handlePartialSettle(selectedEntity.shopId || selectedEntity.id)}>
-                                Settle All
-                            </button>
-                            </div>
-                          </div>
-                        )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    
+                    {/* Shop payment settlement */}
+                    {shopUnpaidTotal > 0 && (
+                      <div className="settlement-section">
+                        <div className="settlement-title">Settle Payments with Shop</div>
+                        <div className="settlement-amount">Total collected: ${parseFloat(shopUnpaidTotal).toFixed(2)}</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem' }}>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            placeholder="Amount to settle"
+                            value={settleAmountInput}
+                            onChange={e => setSettleAmountInput(e.target.value)}
+                            style={{ padding: '6px 8px', borderRadius: '4px', border: '1px solid #ccc', width: '120px' }}
+                          />
+                          <button className="settle-btn" onClick={() => handlePartialSettle(selectedEntity.shopId || selectedEntity.id)}>
+                            Settle Amount
+                          </button>
+                          <button className="settle-btn" onClick={() => handlePartialSettle(selectedEntity.shopId || selectedEntity.id)}>
+                            Settle All
+                        </button>
+                        </div>
                       </div>
                     )}
                   </div>
                 )}
-              </>
-            )}
-            
-            {/* Additional details for driver */}
-            {isDriver && (
-              <div className="detail-item full-width">
-                <span className="label">Vehicle Information:</span>
-                <div className="nested-details">
-                  <div className="nested-detail">
-                    <span className="nested-label">Vehicle Type:</span>
-                    <span className="detail-value">
-                      {selectedEntity.vehicleType ? (
-                        <span className="vehicle-type">{selectedEntity.vehicleType}</span>
-                      ) : 'Not provided'}
-                    </span>
-                  </div>
-                  <div className="nested-detail">
-                    <span className="nested-label">License Plate:</span>
-                    <span className="detail-value">
-                      {selectedEntity.licensePlate ? (
-                        <span className="license-plate">{selectedEntity.licensePlate}</span>
-                      ) : 'Not provided'}
-                    </span>
-                  </div>
-                  <div className="nested-detail">
-                    <span className="nested-label">Model:</span>
-                    <span className="detail-value">
-                      {selectedEntity.model ? (
-                        <span className="vehicle-model">{selectedEntity.model}</span>
-                      ) : 'Not provided'}
-                    </span>
-                  </div>
-                  <div className="nested-detail">
-                    <span className="nested-label">Color:</span>
-                    <span className="detail-value">
-                      {selectedEntity.color ? (
-                        <span className="vehicle-color" 
-                              style={{display: 'inline-block', 
-                                     marginRight: '5px',
-                                     width: '12px', 
-                                     height: '12px', 
-                                     backgroundColor: selectedEntity.color.toLowerCase(),
-                                     border: '1px solid #ccc',
-                                     borderRadius: '2px'}}></span>
-                      ) : ''}
-                      {selectedEntity.color || 'Not provided'}
-                    </span>
-                  </div>
-                  <div className="nested-detail">
-                    <span className="nested-label">Driver License:</span>
-                    <span className="detail-value">
-                      {selectedEntity.driverLicense ? (
-                        <span className="driver-license">{selectedEntity.driverLicense}</span>
-                      ) : 'Not provided'}
-                    </span>
-                  </div>
-                </div>
-                <button
-                  className="btn btn-primary"
-                  style={{ marginTop: 12 }}
-                  onClick={() => {
-                    setSelectedDriverForPackages(selectedEntity);
-                    fetchDriverPackages(selectedEntity.driverId || selectedEntity.id);
-                    setActiveTab('driver-packages');
-                    setShowDetailsModal(false);
-                  }}
-                >
-                  Show Packages
-                </button>
               </div>
             )}
           </div>
         )}
         
-        {/* Package details */}
-        {isPackage && (
-          <div className="details-grid">
-            <div className="detail-item">
-              <span className="label">Tracking Number:</span>
-              <span>{selectedEntity.trackingNumber}</span>
-            </div>
-            <div className="detail-item">
-              <span className="label">Status:</span>
-              <span className={`status-badge ${selectedEntity.status}`}>
-                {selectedEntity.status}
-              </span>
-            </div>
-            <div className="detail-item">
-              <span className="label">Created:</span>
-              <span>{new Date(selectedEntity.createdAt).toLocaleDateString()}</span>
-            </div>
-            <div className="detail-item full-width">
-              <span className="label">Description:</span>
-              <span>{selectedEntity.packageDescription || 'No description'}</span>
-            </div>
-            
-            {/* Package dimensions and weight */}
-            <div className="detail-item">
-              <span className="label">Weight:</span>
-              <span>{selectedEntity.weight ? `${selectedEntity.weight} kg` : 'N/A'}</span>
-            </div>
-            <div className="detail-item">
-              <span className="label">Dimensions:</span>
-              <span>{selectedEntity.dimensions || 'N/A'}</span>
-            </div>
-            <div className="detail-item">
-              <span className="label">COD Amount:</span>
-              <span>{selectedEntity.codAmount ? `${selectedEntity.codAmount} EGP` : 'N/A'}</span>
-            </div>
-            <div className="detail-item">
-              <span className="label">Number of Items:</span>
-              <span>{selectedEntity.itemsNo ?? '-'}</span>
-            </div>
-            <div className="detail-item full-width">
-              <span className="label">Shop Notes:</span>
-              <span>{selectedEntity.shopNotes}</span>
-            </div>
-            
-            {/* Pickup address */}
-            <div className="detail-item full-width">
-              <span className="label">Pickup Details:</span>
-              <div className="nested-details">
-                <div className="nested-detail">
-                  <span className="nested-label">Contact Name:</span>
-                  <span>{selectedEntity.pickupContactName || 'N/A'}</span>
-                </div>
-                <div className="nested-detail">
-                  <span className="nested-label">Contact Phone:</span>
-                  <span>{selectedEntity.pickupContactPhone || 'N/A'}</span>
-                </div>
-                <div className="nested-detail">
-                  <span className="nested-label">Address:</span>
-                  <span>{selectedEntity.pickupAddress || 'N/A'}</span>
-                </div>
-                <div className="nested-detail">
-                    <span className="nested-label">Pickedup Time</span>
-                    <span>{selectedEntity.actualPickupTime ? selectedEntity.actualPickupTime : 'Not pickedup yet'}</span>
-                </div>
+        {/* Additional details for driver */}
+        {isDriver && (
+          <div className="detail-item full-width">
+            <span className="label">Vehicle Information:</span>
+            <div className="nested-details">
+              <div className="nested-detail">
+                <span className="nested-label">Vehicle Type:</span>
+                <span className="detail-value">
+                  {selectedEntity.vehicleType ? (
+                    <span className="vehicle-type">{selectedEntity.vehicleType}</span>
+                  ) : 'Not provided'}
+                </span>
+              </div>
+              <div className="nested-detail">
+                <span className="nested-label">License Plate:</span>
+                <span className="detail-value">
+                  {selectedEntity.licensePlate ? (
+                    <span className="license-plate">{selectedEntity.licensePlate}</span>
+                  ) : 'Not provided'}
+                </span>
+              </div>
+              <div className="nested-detail">
+                <span className="nested-label">Model:</span>
+                <span className="detail-value">
+                  {selectedEntity.model ? (
+                    <span className="vehicle-model">{selectedEntity.model}</span>
+                  ) : 'Not provided'}
+                </span>
+              </div>
+              <div className="nested-detail">
+                <span className="nested-label">Color:</span>
+                <span className="detail-value">
+                  {selectedEntity.color ? (
+                    <span className="vehicle-color" 
+                          style={{display: 'inline-block', 
+                                 marginRight: '5px',
+                                 width: '12px', 
+                                 height: '12px', 
+                                 backgroundColor: selectedEntity.color.toLowerCase(),
+                                 border: '1px solid #ccc',
+                                 borderRadius: '2px'}}></span>
+                  ) : ''}
+                  {selectedEntity.color || 'Not provided'}
+                </span>
+              </div>
+              <div className="nested-detail">
+                <span className="nested-label">Driver License:</span>
+                <span className="detail-value">
+                  {selectedEntity.driverLicense ? (
+                    <span className="driver-license">{selectedEntity.driverLicense}</span>
+                  ) : 'Not provided'}
+                </span>
               </div>
             </div>
-            
-            {/* Delivery address */}
-            <div className="detail-item full-width">
-              <span className="label">Delivery Details:</span>
-              <div className="nested-details">
-                <div className="nested-detail">
-                  <span className="nested-label">Contact Name:</span>
-                  <span>{selectedEntity.deliveryContactName || 'N/A'}</span>
-                </div>
-                <div className="nested-detail">
-                  <span className="nested-label">Contact Phone:</span>
-                  <span>{selectedEntity.deliveryContactPhone || 'N/A'}</span>
-                </div>
-                <div className="nested-detail">
-                  <span className="nested-label">Address:</span>
-                  <span>{selectedEntity.deliveryAddress || 'N/A'}</span>
-                </div>
-                <div className="nested-detail">
-                    <span className="nested-label">Delivery Time</span>
-                    <span>{selectedEntity.actualDeliveryTime ? selectedEntity.actualDeliveryTime : 'Not delivered yet'}</span>
-                </div>
-              </div>
-            </div>
-            
-            {/* Driver details - show only if package has been assigned to a driver */}
-            {false && (
-              <div className="detail-item full-width driver-details-section">
-                <span className="label">Assigned Driver:</span>
-                <div className="nested-details">
-                  {selectedEntity.Driver ? (
-                    <>
-                      <div className="nested-detail">
-                        <span className="nested-label">Name:</span>
-                        <span>{selectedEntity.Driver.User ? selectedEntity.Driver.User.name : 'N/A'}</span>
-                      </div>
-                      <div className="nested-detail">
-                        <span className="nested-label">Phone:</span>
-                        <span>{selectedEntity.Driver.User ? selectedEntity.Driver.User.phone : 'N/A'}</span>
-                      </div>
-                      <div className="nested-detail">
-                        <span className="nested-label">Email:</span>
-                        <span>{selectedEntity.Driver.User ? selectedEntity.Driver.User.email : 'N/A'}</span>
-                      </div>
-                      <div className="nested-detail">
-                        <span className="nested-label">Vehicle:</span>
-                        <span>
-                          {selectedEntity.Driver.vehicleType ? 
-                            `${selectedEntity.Driver.vehicleType}${selectedEntity.Driver.model ? ` - ${selectedEntity.Driver.model}` : ''}${selectedEntity.Driver.color ? ` (${selectedEntity.Driver.color})` : ''}` : 
-                            'N/A'}
-                        </span>
-                      </div>
-                      <div className="nested-detail">
-                        <span className="nested-label">License:</span>
-                        <span>{selectedEntity.Driver.driverLicense || 'N/A'}</span>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="nested-detail">
-                      <span>Driver ID: {selectedEntity.driverId} (Details not available)</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-            {/* --- Notes Log Section (in a box like Delivery Details) --- */}
-            <div className="detail-item full-width" style={{background:'#fff', border:'1px solid #e0e0e0', borderRadius:'8px', padding:'1.25rem', marginTop:'1.5rem', marginBottom:'1.5rem'}}>
-              <span className="label" style={{fontWeight:'bold', fontSize:'1.08em', marginBottom:'0.5rem', display:'block'}}>Notes Log</span>
-              <div className="notes-log-list" style={{display:'flex', flexDirection:'column', gap:'0.75rem'}}>
-                {(() => {
-                  let notesArr = [];
-                  if (Array.isArray(selectedEntity?.notes)) {
-                    notesArr = selectedEntity.notes;
-                  } else if (typeof selectedEntity?.notes === 'string') {
-                    try {
-                      notesArr = JSON.parse(selectedEntity.notes);
-                    } catch {
-                      notesArr = [];
-                    }
-                  }
-                  notesArr = notesArr
-                    .filter(n => n && typeof n.text === 'string' && n.text.trim())
-                    .sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
-                  return (notesArr.length > 0) ? (
-                    notesArr.map((n, idx) => (
-                      <div key={idx} className="notes-log-entry" style={{background:'#f8f9fa', borderRadius:'6px', padding:'0.75rem 1rem', boxShadow:'0 1px 2px rgba(0,0,0,0.03)', border:'1px solid #ececec'}}>
-                        <div className="notes-log-meta" style={{marginBottom:'0.25rem'}}>
-                          <span className="notes-log-date" style={{fontSize:'0.92em', color:'#888'}}>
-                            {n.createdAt ? new Date(n.createdAt).toLocaleString() : 'Unknown date'}
-                          </span>
-                        </div>
-                        <div className="notes-log-text" style={{whiteSpace:'pre-line', fontSize:'1.05em', color:'#222'}}>{n.text}</div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="notes-log-empty" style={{color:'#888', fontStyle:'italic'}}>No notes yet.</div>
-                  );
-                })()}
-              </div>
-              <div style={{marginTop:'1.5rem'}}>
-                <textarea
-                  value={editingNotes}
-                  onChange={e => setEditingNotes(e.target.value)}
-                  placeholder="Add a note for this package..."
-                  rows={2}
-                  style={{ width: '100%', marginTop: 4, borderRadius:'6px', border:'1px solid #ccc', padding:'0.5rem', fontSize:'1em' }}
-                />
-                <button
-                  className="add-note-btn"
-                  onClick={async () => {
-                    if (!editingNotes.trim()) return;
-                    setNotesSaving(true);
-                    setNotesError(null);
-                    try {
-                      const res = await packageService.updatePackageNotes(selectedEntity.id, editingNotes);
-                      setSelectedEntity(prev => ({ ...prev, notes: res.data.notes }));
-                      setEditingNotes('');
-                    } catch (err) {
-                      console.error('Error adding note:', err);
-                      setNotesError(err.response?.data?.message || 'Failed to save note.');
-                    } finally {
-                      setNotesSaving(false);
-                    }
-                  }}
-                  disabled={notesSaving || !editingNotes.trim()}
-                  style={{ marginTop: 8, borderRadius:'6px', padding:'0.5rem 1.2rem', fontWeight:'bold', background:'#007bff', color:'#fff', border:'none', cursor:'pointer' }}
-                >
-                  {notesSaving ? 'Saving...' : 'Add Note'}
-                </button>
-                {notesError && <div className="error-message" style={{color:'#dc3545', marginTop:'0.5rem'}}>{notesError}</div>}
-              </div>
-            </div>
+            <button
+              className="btn btn-primary"
+              style={{ marginTop: 12 }}
+              onClick={() => {
+                setSelectedDriverForPackages(selectedEntity);
+                fetchDriverPackages(selectedEntity.driverId || selectedEntity.id);
+                setActiveTab('driver-packages');
+                setShowDetailsModal(false);
+              }}
+            >
+              Show Packages
+            </button>
           </div>
         )}
-        
-        <div className="modal-actions">
-          {/* Approve/Reject buttons for pending users */}
-          {!selectedEntity.isApproved && (isUser || isShop || isDriver) && (
-            <>
-              <button 
-                className="btn approve-btn"
-                onClick={() => {
-                  // Get the appropriate ID based on entity type
-                  let entityId;
-                  if (isShop) {
-                    entityId = selectedEntity.shopId || selectedEntity.id;
-                    handleApproval(entityId, true, 'shop');
-                  } else if (isDriver) {
-                    entityId = selectedEntity.driverId || selectedEntity.id;
-                    handleApproval(entityId, true, 'driver');
-                  } else {
-                    entityId = selectedEntity.id;
-                    handleApproval(entityId, true, 'user');
-                  }
-                  setShowDetailsModal(false);
-                }}
-              >
-                <FontAwesomeIcon icon={faCheck} /> Approve
-              </button>
-              <button 
-                className="btn reject-btn"
-                onClick={() => {
-                  // Get the appropriate ID based on entity type
-                  let entityId;
-                  if (isShop) {
-                    entityId = selectedEntity.shopId || selectedEntity.id;
-                    handleApproval(entityId, false, 'shop');
-                  } else if (isDriver) {
-                    entityId = selectedEntity.driverId || selectedEntity.id;
-                    handleApproval(entityId, false, 'driver');
-                  } else {
-                    entityId = selectedEntity.id;
-                    handleApproval(entityId, false, 'user');
-                  }
-                  setShowDetailsModal(false);
-                }}
-              >
-                <FontAwesomeIcon icon={faTimes} /> Reject
-              </button>
-            </>
-          )}
-          {/* Delete button for drivers */}
-          {isDriver && (
-            <button
-              className="btn reject-btn"
-              style={{ marginLeft: 8 }}
-              onClick={() => {
-                // Set confirmation dialog content
-                setConfirmationDialogTitle('Confirm Driver Deletion');
-                setConfirmationDialogText(
-                  `Are you sure you want to delete driver ${selectedEntity.name}? This will PERMANENTLY DELETE the driver account from the system.`
-                );
-                
-                // Create the action function to be executed when confirmed
-                const confirmDeleteAction = async () => {
-                  try {
-                    await adminService.deleteUser(selectedEntity.id);
-                    setStatusMessage({ type: 'success', text: 'Driver deleted successfully.' });
-                    setShowConfirmationDialog(false);
-                    setShowDetailsModal(false);
-                    // Refresh drivers list
-                    fetchUsers('drivers');
-                  } catch (error) {
-                    setStatusMessage({ 
-                      type: 'error', 
-                      text: error.response?.data?.message || error.message || 'Failed to delete driver.' 
-                    });
-                    setShowConfirmationDialog(false);
-                  }
-                };
-                
-                setConfirmAction(() => confirmDeleteAction);
-                setShowConfirmationDialog(true);
-              }}
-              title="Delete Driver"
-            >
-              <FontAwesomeIcon icon={faTrash} /> Delete
-            </button>
-          )}
-          {/* Delete button for shops */}
-          {isShop && (
-            <button
-              className="btn reject-btn"
-              style={{ marginLeft: 8 }}
-              onClick={() => {
-                // Set confirmation dialog content
-                setConfirmationDialogTitle('Confirm Shop Deletion');
-                setConfirmationDialogText(
-                  `Are you sure you want to delete shop ${selectedEntity.businessName || selectedEntity.name}? This will PERMANENTLY DELETE the shop account from the system.`
-                );
-                
-                // Create the action function to be executed when confirmed
-                const confirmDeleteAction = async () => {
-                  try {
-                    await adminService.deleteUser(selectedEntity.id);
-                    setStatusMessage({ type: 'success', text: 'Shop deleted successfully.' });
-                    setShowConfirmationDialog(false);
-                    setShowDetailsModal(false);
-                    // Refresh shops list
-                    fetchUsers('shops');
-                  } catch (error) {
-                    setStatusMessage({ 
-                      type: 'error', 
-                      text: error.response?.data?.message || error.message || 'Failed to delete shop.' 
-                    });
-                    setShowConfirmationDialog(false);
-                  }
-                };
-                
-                setConfirmAction(() => confirmDeleteAction);
-                setShowConfirmationDialog(true);
-              }}
-              title="Delete Shop"
-            >
-              <FontAwesomeIcon icon={faTrash} /> Delete
-            </button>
-          )}
-          <button 
-            className="btn close-btn"
-            onClick={() => setShowDetailsModal(false)}
-          >
-            Close
-          </button>
-          
-          {/* Package action buttons */}
-          {isPackage && ['assigned', 'pickedup', 'in-transit'].includes(selectedEntity.status) && (
-            <>
-              <button 
-                className="btn approve-btn"
-                onClick={() => {
-                  setPackageToAction(selectedEntity);
-                  setShowForwardPackageModal(true);
-                }}
-                style={{ marginLeft: 8 }}
-              >
-                <FontAwesomeIcon icon={faCheck} /> Forward Package
-              </button>
-              <button 
-                className="btn reject-btn"
-                onClick={() => {
-                  setPackageToAction(selectedEntity);
-                  setShowRejectPackageModal(true);
-                }}
-                style={{ marginLeft: 8 }}
-              >
-                <FontAwesomeIcon icon={faTimes} /> Reject Package
-              </button>
-            </>
-          )}
-        </div>
       </div>
     </div>
   );
@@ -3098,6 +2749,32 @@ const AdminDashboard = () => {
   const chartBoxStyle = { height: 220, display: 'flex', alignItems: 'center', justifyContent: 'center' };
 
   const renderDashboardHome = () => {
+    // Use backend value for delivered revenue if available
+    let deliveredRevenue = stats.revenueDeliveredPackages;
+    let missingShippingFeePackages = [];
+    if (deliveredRevenue === undefined || deliveredRevenue === null) {
+      // Fallback: Calculate revenue from delivered packages by summing shop shippingFees for each delivered package
+      const deliveredPackages = packages.filter(pkg => pkg.status === 'delivered');
+      deliveredRevenue = 0;
+      deliveredPackages.forEach(pkg => {
+        let shippingFees = null;
+        if (pkg.shop && pkg.shop.shippingFees != null && pkg.shop.shippingFees !== undefined) {
+          shippingFees = pkg.shop.shippingFees;
+        } else {
+          const shopId = pkg.shopId || (pkg.shop && pkg.shop.id);
+          const shop = users.find(u => u.role === 'shop' && (u.id === shopId || u.shopId === shopId));
+          if (shop && shop.shippingFees != null && shop.shippingFees !== undefined) {
+            shippingFees = shop.shippingFees;
+          }
+        }
+        if (shippingFees != null && shippingFees !== undefined) {
+          deliveredRevenue += parseFloat(shippingFees);
+        } else {
+          missingShippingFeePackages.push(pkg);
+        }
+      });
+    }
+
     const kpiData = [
       { title: 'Total Users', value: stats.users.total, icon: faUser },
       { title: 'Shops', value: stats.users.shops, icon: faStore },
@@ -3105,6 +2782,8 @@ const AdminDashboard = () => {
       { title: 'Packages', value: stats.packages.total, icon: faBox },
       { title: 'COD Collected (All Time)', value: stats.cod?.totalCollected || 0, icon: faDollarSign, prefix: '$' },
       { title: 'To Collect COD (All Time)', value: stats.cod?.totalToCollect || 0, icon: faDollarSign, prefix: '$' },
+      // Insert Revenue card right after To Collect COD
+      { title: 'Revenue (Delivered Packages)', value: deliveredRevenue, icon: faDollarSign, prefix: '$' },
     ];
 
     // --- New Analytics Graphs ---
@@ -3145,6 +2824,15 @@ const AdminDashboard = () => {
 
     return (
       <div className="dashboard-home">
+        {/* Warning for missing shipping fees */}
+        {missingShippingFeePackages.length > 0 && (
+          <div style={{ background: '#fffbe6', border: '1px solid #ffe58f', color: '#ad8b00', padding: 16, borderRadius: 8, marginBottom: 24 }}>
+            <strong>Warning:</strong> {missingShippingFeePackages.length} delivered package(s) belong to shops with no shipping fees set. Revenue may be undercounted. <br />
+            <span style={{ fontSize: 13 }}>
+              Please set <b>Shipping Fees</b> for all shops in the <b>Shops</b> tab or by clicking on a shop in the dashboard.
+            </span>
+          </div>
+        )}
         <Flex gap="large" wrap="wrap">
           {kpiData.map((kpi) => (
             <Card key={kpi.title}>

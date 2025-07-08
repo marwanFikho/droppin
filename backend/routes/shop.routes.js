@@ -21,7 +21,7 @@ router.get('/profile', authenticate, authorize('shop'), async (req, res) => {
     // Use direct SQL query to get the exact values from the database
     const [rawShopData] = await sequelize.query(
       `SELECT id, userId, businessName, businessType, contactPersonName, contactPersonPhone, 
-              contactPersonEmail, address, createdAt, updatedAt, ToCollect, TotalCollected, shippingFees, settelled 
+              contactPersonEmail, address, createdAt, updatedAt, ToCollect, TotalCollected, shippingFees, settelled, shownShippingFees 
        FROM Shops WHERE id = :shopId`,
       {
         replacements: { shopId: shop.id },
@@ -96,7 +96,8 @@ router.get('/profile', authenticate, authorize('shop'), async (req, res) => {
       rawToCollect: String(rawShopData.ToCollect || 0),
       rawTotalCollected: String(rawShopData.TotalCollected || 0),
       rawSettelled: String(rawShopData.settelled || 0),
-      shippingFees: rawShopData.shippingFees
+      shippingFees: rawShopData.shippingFees,
+      shownShippingFees: rawShopData.shownShippingFees
     };
     
     console.log('Sending shop profile response:', response);
@@ -115,7 +116,7 @@ router.put('/profile', authenticate, authorize('shop'), async (req, res) => {
     if (!shop) {
       return res.status(404).json({ message: 'Shop not found' });
     }
-    const { businessName, contactPerson, address } = req.body;
+    const { businessName, contactPerson, address, shownShippingFees } = req.body;
     // Update fields if provided
     if (businessName) shop.businessName = businessName;
     if (contactPerson) {
@@ -125,6 +126,9 @@ router.put('/profile', authenticate, authorize('shop'), async (req, res) => {
     }
     if (address) {
       shop.address = address; // Save as a single string
+    }
+    if (shownShippingFees !== undefined) {
+      shop.shownShippingFees = shownShippingFees;
     }
     await shop.save();
     res.json({ message: 'Shop profile updated successfully' });

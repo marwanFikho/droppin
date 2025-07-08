@@ -78,6 +78,7 @@ const ShopPackages = () => {
   const [notesError, setNotesError] = useState(null);
   const [selectedPackages, setSelectedPackages] = useState([]);
   const [shippingFees, setShippingFees] = useState(null);
+  const [shopFees, setShopFees] = useState({ shownShippingFees: null, shippingFees: null });
   const location = useLocation();
   const { currentUser } = useAuth();
 
@@ -118,6 +119,21 @@ const ShopPackages = () => {
       }
     }
     fetchShopShippingFees();
+  }, []);
+
+  useEffect(() => {
+    async function fetchShopFees() {
+      try {
+        const profileRes = await packageService.getShopProfile();
+        setShopFees({
+          shownShippingFees: profileRes.data?.shownShippingFees,
+          shippingFees: profileRes.data?.shippingFees
+        });
+      } catch (err) {
+        setShopFees({ shownShippingFees: null, shippingFees: null });
+      }
+    }
+    fetchShopFees();
   }, []);
 
   useEffect(() => {
@@ -234,7 +250,9 @@ const ShopPackages = () => {
     const logoUrl = window.location.origin + '/assets/images/logo.jpg';
     // Calculate values
     const cod = parseFloat(pkg.codAmount || 0);
-    let shipping = Number(shippingFees);
+    let shipping = (shopFees.shownShippingFees !== undefined && shopFees.shownShippingFees !== null && shopFees.shownShippingFees !== '')
+      ? Number(shopFees.shownShippingFees)
+      : Number(shopFees.shippingFees);
     if (!Number.isFinite(shipping) || shipping < 0) shipping = 0;
     const total = cod + shipping;
     // Build AWB HTML
@@ -255,6 +273,12 @@ const ShopPackages = () => {
             .awb-info-table { width: 100%; margin-top: 16px; }
             .awb-info-table td { padding: 4px 8px; }
             .awb-footer { margin-top: 32px; text-align: center; font-size: 1.1rem; font-weight: bold; }
+            .awb-tracking { font-size: 22px; font-weight: bold; }
+            .awb-recipient { font-size: 18px; font-weight: bold; }
+            .awb-phone { font-size: 18px; font-weight: bold; }
+            .awb-address { font-size: 18px; font-weight: bold; }
+            .awb-data { margin-left: 0; }
+            .awb-row { display: block; }
           </style>
         </head>
         <body onload="window.print()">
@@ -268,13 +292,14 @@ const ShopPackages = () => {
             <div class="awb-section">
               <table class="awb-info-table">
                 <tr>
-                  <td><b>Tracking #:</b> ${pkg.trackingNumber || '-'}</td>
+                  <td><span class="awb-row"><b class="awb-tracking">Tracking #:</b><span class="awb-tracking awb-data">${pkg.trackingNumber || '-'}</span></span></td>
                   <td><b>Date:</b> ${pkg.createdAt ? new Date(pkg.createdAt).toLocaleDateString() : '-'}</td>
                 </tr>
                 <tr>
-                  <td colspan="2"><b>Recipient:</b> ${pkg.deliveryContactName || '-'}<br/>
-                    <b>Phone:</b> ${pkg.deliveryContactPhone || '-'}<br/>
-                    <b>Address:</b> ${pkg.deliveryAddress || '-'}
+                  <td colspan="2">
+                    <span class="awb-row"><b class="awb-recipient">Recipient:</b><span class="awb-recipient awb-data">${pkg.deliveryContactName || '-'}</span></span><br/>
+                    <span class="awb-row"><b class="awb-phone">Phone:</b><span class="awb-phone awb-data">${pkg.deliveryContactPhone || '-'}</span></span><br/>
+                    <span class="awb-row"><b class="awb-address">Address:</b><span class="awb-address awb-data">${pkg.deliveryAddress || '-'}</span></span>
                   </td>
                 </tr>
               </table>
@@ -287,7 +312,7 @@ const ShopPackages = () => {
                 <tbody>
                   <tr>
                     <td>${pkg.packageDescription || '-'}</td>
-                    <td>1</td>
+                    <td>${pkg.itemsNo ?? 1}</td>
                     <td>${cod.toFixed(2)} EGP</td>
                     <td>${cod.toFixed(2)} EGP</td>
                   </tr>
@@ -339,7 +364,9 @@ const ShopPackages = () => {
       const qrDataUrl = await QRCode.toDataURL(pkg.trackingNumber || '');
       const logoUrl = window.location.origin + '/assets/images/logo.jpg';
       const cod = parseFloat(pkg.codAmount || 0);
-      let shipping = Number(shippingFees);
+      let shipping = (shopFees.shownShippingFees !== undefined && shopFees.shownShippingFees !== null && shopFees.shownShippingFees !== '')
+        ? Number(shopFees.shownShippingFees)
+        : Number(shopFees.shippingFees);
       if (!Number.isFinite(shipping) || shipping < 0) shipping = 0;
       const total = cod + shipping;
       allAwbHtml += `
@@ -353,13 +380,14 @@ const ShopPackages = () => {
           <div class="awb-section">
             <table class="awb-info-table">
               <tr>
-                <td><b>Tracking #:</b> ${pkg.trackingNumber || '-'}</td>
+                <td><span class="awb-row"><b class="awb-tracking">Tracking #:</b><span class="awb-tracking awb-data">${pkg.trackingNumber || '-'}</span></span></td>
                 <td><b>Date:</b> ${pkg.createdAt ? new Date(pkg.createdAt).toLocaleDateString() : '-'}</td>
               </tr>
               <tr>
-                <td colspan="2"><b>Recipient:</b> ${pkg.deliveryContactName || '-'}<br/>
-                  <b>Phone:</b> ${pkg.deliveryContactPhone || '-'}<br/>
-                  <b>Address:</b> ${pkg.deliveryAddress || '-'}
+                <td colspan="2">
+                  <span class="awb-row"><b class="awb-recipient">Recipient:</b><span class="awb-recipient awb-data">${pkg.deliveryContactName || '-'}</span></span><br/>
+                  <span class="awb-row"><b class="awb-phone">Phone:</b><span class="awb-phone awb-data">${pkg.deliveryContactPhone || '-'}</span></span><br/>
+                  <span class="awb-row"><b class="awb-address">Address:</b><span class="awb-address awb-data">${pkg.deliveryAddress || '-'}</span></span>
                 </td>
               </tr>
             </table>
@@ -372,7 +400,7 @@ const ShopPackages = () => {
               <tbody>
                 <tr>
                   <td>${pkg.packageDescription || '-'}</td>
-                  <td>1</td>
+                  <td>${pkg.itemsNo ?? 1}</td>
                   <td>${cod.toFixed(2)} EGP</td>
                   <td>${cod.toFixed(2)} EGP</td>
                 </tr>

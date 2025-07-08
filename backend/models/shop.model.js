@@ -70,6 +70,11 @@ const Shop = sequelize.define('Shop', {
     allowNull: true,
     defaultValue: 0.00
   },
+  shownShippingFees: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: true,
+    defaultValue: 0.00
+  },
   apiKey: {
     type: DataTypes.STRING,
     allowNull: true,
