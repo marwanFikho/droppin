@@ -631,7 +631,6 @@ exports.getDrivers = async (req, res) => {
             driverId: driver.id
           }
         });
-        
         // Count all-time delivered packages
         const deliveredPackagesCount = await Package.count({
           where: {
@@ -639,7 +638,35 @@ exports.getDrivers = async (req, res) => {
             status: 'delivered'
           }
         });
-        
+        // Count packages assigned today (using statusHistory)
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(today.getDate() + 1);
+        // Fetch all packages for this driver
+        const assignedPkgs = await Package.findAll({
+          where: {
+            driverId: driver.id
+          },
+          attributes: ['statusHistory']
+        });
+        let assignedTodayCount = 0;
+        for (const pkg of assignedPkgs) {
+          let history = pkg.statusHistory;
+          if (typeof history === 'string') {
+            try { history = JSON.parse(history); } catch { history = []; }
+          }
+          if (Array.isArray(history)) {
+            // Find the most recent 'assigned' entry
+            const assignedEntries = history.filter(h => h.status === 'assigned' && h.timestamp);
+            if (assignedEntries.length > 0) {
+              // Use the latest assigned entry
+              const latest = assignedEntries[assignedEntries.length - 1];
+              const ts = new Date(latest.timestamp);
+              if (ts >= today && ts < tomorrow) assignedTodayCount++;
+            }
+          }
+        }
         return {
           ...userData,
           driverId: driver.id,
@@ -654,6 +681,7 @@ exports.getDrivers = async (req, res) => {
           totalAssigned: driver.totalAssigned,
           activeAssign: driver.activeAssign,
           assignedToday: driver.assignedToday,
+          assignedTodayCount,
           stats: {
             assignedPackages: assignedPackagesCount,
             deliveredPackages: deliveredPackagesCount,

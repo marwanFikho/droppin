@@ -1223,6 +1223,7 @@ const AdminDashboard = () => {
             {activeTab === 'drivers' && (
               <>
                 <th>Working Area</th>
+                <th>Assigned Today</th>
                 <th>Total Assigned Packages</th>
                 <th>Active Assignments</th>
                 <th>Total Delivered</th>
@@ -1268,6 +1269,7 @@ const AdminDashboard = () => {
                       <FontAwesomeIcon icon={faEdit} />
                     </button>
                   </td>
+                  <td data-label="Assigned Today">{user.assignedToday || 0}</td>
                   <td data-label="Total Assigned">{user.totalAssigned || 0}</td>
                   <td data-label="Active Assignments">{user.activeAssign || 0}</td>
                   <td data-label="Total Delivered">{user.totalDeliveries || 0}</td>
@@ -1607,7 +1609,7 @@ const AdminDashboard = () => {
             {/* Address */}
             <div className="detail-item full-width">
               <span className="label">Address:</span>
-              <span>{selectedEntity.address || 'N/A'}</span>
+              <span>{isDriver ? (selectedEntity.street || selectedEntity.city || selectedEntity.state || selectedEntity.zipCode || selectedEntity.country ? [selectedEntity.street, selectedEntity.city && selectedEntity.state ? `${selectedEntity.city}, ${selectedEntity.state}` : (selectedEntity.city || selectedEntity.state || ''), selectedEntity.zipCode, selectedEntity.country].filter(Boolean).join(', ') : 'N/A') : (selectedEntity.address || 'N/A')}</span>
             </div>
             
             {/* Additional details for shop */}
@@ -1668,37 +1670,39 @@ const AdminDashboard = () => {
             )}
             
             {/* Shipping Fees editable field */}
-            <div className="detail-item full-width">
-              <span className="label">Shipping Fees:</span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={shippingFeesInput ?? selectedEntity.shippingFees ?? ''}
-                  onChange={e => setShippingFeesInput(e.target.value)}
-                  style={{ padding: '6px 8px', borderRadius: '4px', border: '1px solid #ccc', width: '120px' }}
-                />
-                <button
-                  className="settle-btn"
-                  onClick={async () => {
-                    if (shippingFeesInput === '' || isNaN(Number(shippingFeesInput))) {
-                      alert('Please enter a valid shipping fee');
-                      return;
-                    }
-                    try {
-                      await adminService.updateShop(selectedEntity.shopId || selectedEntity.id, { shippingFees: parseFloat(shippingFeesInput) });
-                      setSelectedEntity({ ...selectedEntity, shippingFees: parseFloat(shippingFeesInput) });
-                      setStatusMessage({ type: 'success', text: 'Shipping fees updated successfully.' });
-                    } catch (err) {
-                      setStatusMessage({ type: 'error', text: 'Failed to update shipping fees.' });
-                    }
-                  }}
-                >
-                  Save
-                </button>
+            {isShop && (
+              <div className="detail-item full-width">
+                <span className="label">Shipping Fees:</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={shippingFeesInput ?? selectedEntity.shippingFees ?? ''}
+                    onChange={e => setShippingFeesInput(e.target.value)}
+                    style={{ padding: '6px 8px', borderRadius: '4px', border: '1px solid #ccc', width: '120px' }}
+                  />
+                  <button
+                    className="settle-btn"
+                    onClick={async () => {
+                      if (shippingFeesInput === '' || isNaN(Number(shippingFeesInput))) {
+                        alert('Please enter a valid shipping fee');
+                        return;
+                      }
+                      try {
+                        await adminService.updateShop(selectedEntity.shopId || selectedEntity.id, { shippingFees: parseFloat(shippingFeesInput) });
+                        setSelectedEntity({ ...selectedEntity, shippingFees: parseFloat(shippingFeesInput) });
+                        setStatusMessage({ type: 'success', text: 'Shipping fees updated successfully.' });
+                      } catch (err) {
+                        setStatusMessage({ type: 'error', text: 'Failed to update shipping fees.' });
+                      }
+                    }}
+                  >
+                    Save
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
             
             {/* Quick settlement panel (visible without loading packages) */}
             {parseFloat(selectedEntity.TotalCollected || 0) > 0 && (
@@ -3064,10 +3068,10 @@ const AdminDashboard = () => {
                     <td>
                       <button
                         className="btn btn-primary"
-                        disabled={forwardingPackageId === pkg.id || pkg.status === 'delivered' || pkg.status === 'cancelled'}
+                        disabled={forwardingPackageId === pkg.id || pkg.status === 'delivered'}
                         onClick={() => forwardPackageStatus(pkg)}
                       >
-                        {pkg.status === 'delivered' ? 'Delivered' : pkg.status === 'cancelled' ? 'Cancelled' : forwardingPackageId === pkg.id ? 'Forwarding...' : 'Forward Status'}
+                        {pkg.status === 'delivered' ? 'Delivered' : forwardingPackageId === pkg.id ? 'Forwarding...' : 'Forward Status'}
                       </button>
                     </td>
                   </tr>
