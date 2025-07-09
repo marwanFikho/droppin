@@ -21,3 +21,12 @@ exports.getInfo = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+exports.postDebugLog = (req, res) => {
+  try {
+    console.log('DEBUG LOG FROM FRONTEND:', req.body);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};

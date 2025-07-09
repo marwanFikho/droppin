@@ -5,6 +5,8 @@ const { Pickup } = require('../models');
 const { Package } = require('../models');
 const { Shop } = require('../models');
 const { logMoneyTransaction } = require('../utils/moneyLogger');
+const { createNotification } = require('../controllers/notification.controller');
+const { User } = require('../models');
 
 // Create a new pickup
 router.post('/', authenticate, async (req, res) => {
@@ -35,6 +37,22 @@ router.post('/', authenticate, async (req, res) => {
         },
         { where: { id: packageIds } }
       );
+    }
+
+    // Notify admin of new pickup
+    try {
+      const adminUser = await User.findOne({ where: { role: 'admin' } });
+      if (adminUser) {
+        await createNotification({
+          userId: adminUser.id,
+          userType: 'admin',
+          title: 'New Pickup Scheduled',
+          message: `A new pickup (ID: ${pickup.id}) was scheduled by shop ${shop.businessName}.`,
+          data: { pickupId: pickup.id, shopId, shopName: shop.businessName }
+        });
+      }
+    } catch (notifyErr) {
+      console.error('Failed to notify admin of new pickup:', notifyErr);
     }
 
     res.status(201).json({
@@ -172,6 +190,27 @@ router.patch('/:id/pickup', authenticate, async (req, res) => {
         { status: 'pending' },
         { where: { id: packageIds } }
       );
+
+      // Notify shop of each package picked up
+      try {
+        const shop = await Shop.findByPk(pickup.shopId);
+        if (shop) {
+          const shopUser = await User.findByPk(shop.userId);
+          if (shopUser) {
+            for (const pkg of pickup.Packages) {
+              await createNotification({
+                userId: shopUser.id,
+                userType: 'shop',
+                title: 'Package Picked Up',
+                message: `Your package (Tracking: ${pkg.trackingNumber}) has been picked up as part of pickup #${pickup.id}.`,
+                data: { packageId: pkg.id, pickupId: pickup.id, shopName: shop.businessName }
+              });
+            }
+          }
+        }
+      } catch (notifyErr) {
+        console.error('Failed to notify shop of package pickup:', notifyErr);
+      }
 
       // ===================== NEW FEATURE =====================
       // Add total COD amount of these packages to the shop's ToCollect field

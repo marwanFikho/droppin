@@ -3,6 +3,7 @@ const { Op } = require('sequelize');
 const { sequelize } = require('../config/db.config');
 const { getCairoDateTime, formatDateTimeToDDMMYYYY } = require('../utils/dateUtils');
 const { logMoneyTransaction } = require('../utils/moneyLogger');
+const { createNotification } = require('./notification.controller');
 
 // Create a new package
 exports.createPackage = async (req, res) => {
@@ -80,6 +81,22 @@ exports.createPackage = async (req, res) => {
     console.log(`Created package with ID ${package.id}, tracking number ${trackingNumber}`);
     if (codAmount && parseFloat(codAmount) > 0) {
       console.log(`Package has COD amount of ${codAmount}`);
+    }
+
+    // Notify admin of new package
+    try {
+      const adminUser = await User.findOne({ where: { role: 'admin' } });
+      if (adminUser) {
+        await createNotification({
+          userId: adminUser.id,
+          userType: 'admin',
+          title: 'New Package Created',
+          message: `A new package (Tracking: ${package.trackingNumber}) was created by shop ${shop.businessName}.`,
+          data: { packageId: package.id, shopId: shop.id, shopName: shop.businessName }
+        });
+      }
+    } catch (notifyErr) {
+      console.error('Failed to notify admin of new package:', notifyErr);
     }
 
     res.status(201).json(package);
@@ -554,6 +571,51 @@ exports.updatePackageStatus = async (req, res) => {
     // Format the response with Cairo timezone dates
     const formattedPackage = formatPackageForResponse(updatedPackage);
     res.json(formattedPackage);
+
+    // Notify admin of package status change
+    try {
+      const adminUser = await User.findOne({ where: { role: 'admin' } });
+      if (adminUser) {
+        // Get shop name
+        let shopName = '';
+        if (package.shopId) {
+          const shop = await Shop.findByPk(package.shopId);
+          if (shop) shopName = shop.businessName;
+        }
+        await createNotification({
+          userId: adminUser.id,
+          userType: 'admin',
+          title: 'Package Status Changed',
+          message: `Package (Tracking: ${package.trackingNumber}) for shop ${shopName} status changed from ${originalStatus} to ${status}.`,
+          data: { packageId: package.id, oldStatus: originalStatus, newStatus: status, shopName }
+        });
+      }
+      // Notify shop of package status change
+      if (package.shopId) {
+        const shop = await Shop.findByPk(package.shopId);
+        if (shop) {
+          const shopUser = await User.findByPk(shop.userId);
+          if (shopUser) {
+            let title = 'Package Status Changed';
+            let message = `The status of your package (Tracking: ${package.trackingNumber}) has changed from ${originalStatus} to ${status}.`;
+            if (status === 'pickedup') {
+              title = 'Package Picked Up';
+              message = `Your package (Tracking: ${package.trackingNumber}) has been picked up.`;
+            }
+            await createNotification({
+              userId: shopUser.id,
+              userType: 'shop',
+              title,
+              message,
+              data: { packageId: package.id, oldStatus: originalStatus, newStatus: status, shopName: shop.businessName }
+            });
+          }
+        }
+      }
+    } catch (notifyErr) {
+      console.error('Failed to notify admin or shop of package status change:', notifyErr);
+    }
+
   } catch (error) {
     await t.rollback();
     console.error('Error updating package status:', error);

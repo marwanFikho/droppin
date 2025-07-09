@@ -1,6 +1,23 @@
+const express = require('express');
+const router = express.Router();
 const apiKeyAuth = require('../middleware/apiKeyAuth');
 const { Package } = require('../models');
 const { formatDateTimeToDDMMYYYY, getCairoDateTime } = require('../utils/dateUtils');
+const notificationController = require('../controllers/notification.controller');
+
+// Middleware to mock userId and userType for demonstration (replace with real auth in production)
+router.use((req, res, next) => {
+  // Example: set userId and userType from headers or session
+  req.userId = req.headers['x-user-id'] || 1; // Replace with real user ID
+  req.userType = req.headers['x-user-type'] || 'admin'; // Replace with real user type
+  next();
+});
+
+// Notification routes
+router.get('/notifications', notificationController.getNotifications);
+router.post('/notifications/:id/read', notificationController.markAsRead);
+router.post('/notifications/mark-all-read', notificationController.markAllAsRead);
+router.delete('/notifications/:id', notificationController.deleteNotification);
 
 router.post('/packages/shopify', apiKeyAuth, async (req, res) => {
   console.log('Received POST /api/packages/shopify');
@@ -43,4 +60,6 @@ router.post('/packages/shopify', apiKeyAuth, async (req, res) => {
     console.error('Error creating packages from Shopify:', error);
     res.status(500).json({ message: error.message });
   }
-}); 
+});
+
+module.exports = router; 

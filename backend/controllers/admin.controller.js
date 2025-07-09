@@ -2,6 +2,7 @@ const { Op, QueryTypes } = require('sequelize');
 const { sequelize, User, Shop, Driver, Package } = require('../models/index');
 const { formatDateTimeToDDMMYYYY, getCairoDateTime } = require('../utils/dateUtils');
 const { logMoneyTransaction } = require('../utils/moneyLogger');
+const { createNotification } = require('./notification.controller');
 
 // Get dashboard statistics
 exports.getDashboardStats = async (req, res) => {
@@ -989,6 +990,25 @@ exports.assignDriverToPackage = async (req, res) => {
 
       await transaction.commit();
       
+      // Notify shop of driver assignment
+      try {
+        const shop = await Shop.findByPk(package.shopId);
+        if (shop) {
+          const shopUser = await User.findByPk(shop.userId);
+          if (shopUser) {
+            await createNotification({
+              userId: shopUser.id,
+              userType: 'shop',
+              title: 'Driver Assigned to Package',
+              message: `A driver has been assigned to your package (Tracking: ${package.trackingNumber}).`,
+              data: { packageId: package.id, driverId: driver.id, driverName: driverUser.name, shopName: shop.businessName }
+            });
+          }
+        }
+      } catch (notifyErr) {
+        console.error('Failed to notify shop of driver assignment:', notifyErr);
+      }
+
       console.log(`Successfully assigned driver ${driverId} to package ${packageId}`);
       return res.json({ 
         message: 'Driver assigned successfully',

@@ -7,6 +7,7 @@ const Driver = require('./driver.model');
 const Package = require('./package.model');
 const Pickup = require('./pickup.model');
 const MoneyTransaction = require('./moneytransaction.model');
+const Notification = require('./notification.model');
 
 // Define relationships
 User.hasOne(Shop, { foreignKey: 'userId' });
@@ -42,5 +43,6 @@ module.exports = {
   Package,
   Pickup,
   MoneyTransaction,
-  PickupPackages
+  PickupPackages,
+  Notification
 };

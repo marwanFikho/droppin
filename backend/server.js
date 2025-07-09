@@ -42,6 +42,7 @@ const packageRoutes = require('./routes/package.routes');
 const adminRoutes = require('./routes/admin.routes');
 const infoRoutes = require('./routes/info.routes');
 const pickupRoutes = require('./routes/pickup.routes');
+const apiRoutes = require('./routes/api.js');
 
 // API routes
 app.use('/api/auth', authRoutes);
@@ -52,6 +53,7 @@ app.use('/api/packages', packageRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/info', infoRoutes);
 app.use('/api/pickups', pickupRoutes);
+app.use('/api', apiRoutes);
 
 // Default route
 app.get('/', (req, res) => {
