@@ -3,7 +3,7 @@
 client_id = "204d55c4dc34850c3820d421098f101b"
 name = "Droppin EG"
 handle = "droppin-eg-2"
-application_url = "https://exciting-alliance-dow-ceremony.trycloudflare.com"
+application_url = "https://gc-tcp-margaret-cardiovascular.trycloudflare.com"
 embedded = true
 
 [build]
@@ -43,7 +43,7 @@ uri = "/webhooks/shop/redact"
 scopes = "write_products, read_orders, read_customers"
 
 [auth]
-redirect_urls = ["https://exciting-alliance-dow-ceremony.trycloudflare.com/auth/callback", "https://exciting-alliance-dow-ceremony.trycloudflare.com/auth/shopify/callback", "https://exciting-alliance-dow-ceremony.trycloudflare.com/api/auth/callback"]
+redirect_urls = ["https://gc-tcp-margaret-cardiovascular.trycloudflare.com/auth/callback", "https://gc-tcp-margaret-cardiovascular.trycloudflare.com/auth/shopify/callback", "https://gc-tcp-margaret-cardiovascular.trycloudflare.com/api/auth/callback"]
 
 [pos]
 embedded = false

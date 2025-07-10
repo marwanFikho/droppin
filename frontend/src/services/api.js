@@ -1,8 +1,8 @@
 import axios from 'axios';
 import { getToken } from '../utils/auth';
 
-// const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
-const API_URL = process.env.REACT_APP_API_URL || 'https://api.droppin-eg.com/api';
+const API_URL = process.env.REACT_APP_API_URL || 'http://197.37.243.87:5000/api';
+// const API_URL = process.env.REACT_APP_API_URL || 'https://api.droppin-eg.com/api';
 
 // Create axios instance
 const api = axios.create({

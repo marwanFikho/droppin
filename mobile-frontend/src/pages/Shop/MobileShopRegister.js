@@ -14,6 +14,11 @@ const MobileShopRegister = () => {
     city: '',
     state: '',
     zipCode: '',
+    country: '', // NEW
+    businessType: '', // NEW
+    contactPersonEmail: '', // NEW
+    registrationNumber: '', // NEW
+    taxId: '', // NEW
     password: '',
     confirmPassword: ''
   });
@@ -94,6 +99,18 @@ const MobileShopRegister = () => {
     } else if (formData.password !== formData.confirmPassword) {
       newErrors.confirmPassword = 'Passwords do not match';
     }
+
+    if (!formData.businessType.trim()) {
+      newErrors.businessType = 'Business type is required';
+    }
+    if (!formData.contactPersonEmail.trim()) {
+      newErrors.contactPersonEmail = 'Contact person email is required';
+    } else if (!/\S+@\S+\.\S+/.test(formData.contactPersonEmail)) {
+      newErrors.contactPersonEmail = 'Please enter a valid email';
+    }
+    if (!formData.country.trim()) {
+      newErrors.country = 'Country is required';
+    }
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -115,21 +132,21 @@ const MobileShopRegister = () => {
         email: formData.email,
         password: formData.password,
         phone: formData.phone,
-        businessType: '',
+        businessType: formData.businessType,
         contactPerson: {
           name: formData.ownerName,
           phone: formData.phone,
-          email: formData.email
+          email: formData.contactPersonEmail
         },
         businessAddress: {
           street: formData.address,
           city: formData.city,
           state: formData.state,
           zipCode: formData.zipCode,
-          country: ''
+          country: formData.country
         },
-        registrationNumber: '',
-        taxId: ''
+        registrationNumber: formData.registrationNumber,
+        taxId: formData.taxId
       };
       
       await authService.registerShop(userData);
@@ -264,7 +281,19 @@ const MobileShopRegister = () => {
               {errors.state && <div className="error-message">{errors.state}</div>}
             </div>
           </div>
-
+          <div className="form-group">
+            <label htmlFor="country" className="form-label">Country *</label>
+            <input
+              type="text"
+              id="country"
+              name="country"
+              value={formData.country}
+              onChange={handleChange}
+              className={`form-control ${errors.country ? 'error' : ''}`}
+              placeholder="Country"
+            />
+            {errors.country && <div className="error-message">{errors.country}</div>}
+          </div>
           <div className="form-group">
             <label htmlFor="zipCode" className="form-label">ZIP Code *</label>
             <input
@@ -307,6 +336,60 @@ const MobileShopRegister = () => {
               autoComplete="new-password"
             />
             {errors.confirmPassword && <div className="error-message">{errors.confirmPassword}</div>}
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="businessType" className="form-label">Business Type *</label>
+            <input
+              type="text"
+              id="businessType"
+              name="businessType"
+              value={formData.businessType}
+              onChange={handleChange}
+              className={`form-control ${errors.businessType ? 'error' : ''}`}
+              placeholder="E.g., Retail, Restaurant, etc."
+            />
+            {errors.businessType && <div className="error-message">{errors.businessType}</div>}
+          </div>
+          <div className="form-group">
+            <label htmlFor="contactPersonEmail" className="form-label">Contact Person Email *</label>
+            <input
+              type="email"
+              id="contactPersonEmail"
+              name="contactPersonEmail"
+              value={formData.contactPersonEmail}
+              onChange={handleChange}
+              className={`form-control ${errors.contactPersonEmail ? 'error' : ''}`}
+              placeholder="Contact person email"
+              autoComplete="email"
+            />
+            {errors.contactPersonEmail && <div className="error-message">{errors.contactPersonEmail}</div>}
+          </div>
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="registrationNumber" className="form-label">Registration Number</label>
+              <input
+                type="text"
+                id="registrationNumber"
+                name="registrationNumber"
+                value={formData.registrationNumber}
+                onChange={handleChange}
+                className="form-control"
+                placeholder="Registration number (optional)"
+              />
+            </div>
+            <div className="form-group">
+              <label htmlFor="taxId" className="form-label">Tax ID</label>
+              <input
+                type="text"
+                id="taxId"
+                name="taxId"
+                value={formData.taxId}
+                onChange={handleChange}
+                className="form-control"
+                placeholder="Tax ID (optional)"
+              />
+            </div>
           </div>
 
           <button

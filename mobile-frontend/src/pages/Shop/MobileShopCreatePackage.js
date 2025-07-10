@@ -7,16 +7,30 @@ const CATEGORY_OPTIONS = [
   'Shoes', 'Perfumes', 'Clothes', 'Electronics', 'Accessories', 'Books', 'Other'
 ];
 
+const initialAddress = { street: '', city: '', state: '', zipCode: '', country: '', instructions: '' };
+function parseAddress(addressStr) {
+  if (!addressStr) return initialAddress;
+  const [street, city, state, zipCode, country] = addressStr.split(',').map(s => s.trim());
+  return { street: street || '', city: city || '', state: state || '', zipCode: zipCode || '', country: country || '', instructions: '' };
+}
+
 const initialForm = {
   packageDescription: '',
   category: '',
   weight: '',
   dimensions: { length: '', width: '', height: '' },
+  itemsNo: '',
+  pickupAddress: initialAddress, // auto-fetched, not shown
   deliveryAddress: {
     contactName: '', contactPhone: '', street: '', city: '', state: '', zipCode: '', country: '', instructions: ''
   },
+  shopNotes: '',
   codAmount: '',
-  shopNotes: ''
+  // Hidden fields, sent as null/empty
+  schedulePickupTime: '',
+  deliveryCost: '',
+  paymentMethod: '',
+  paymentNotes: ''
 };
 
 const MobileShopCreatePackage = () => {
@@ -25,6 +39,21 @@ const MobileShopCreatePackage = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    // Fetch shop profile and set pickup address automatically
+    const fetchShopProfile = async () => {
+      try {
+        const res = await packageService.getShopProfile();
+        const shop = res.data;
+        const pickupAddress = parseAddress(shop.address);
+        setFormData(prev => ({ ...prev, pickupAddress }));
+      } catch (err) {
+        // Optionally handle error
+      }
+    };
+    fetchShopProfile();
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -54,20 +83,40 @@ const MobileShopCreatePackage = () => {
       }
       if (!formData.deliveryAddress.contactName || !formData.deliveryAddress.contactPhone ||
           !formData.deliveryAddress.street || !formData.deliveryAddress.city ||
-          !formData.deliveryAddress.state || !formData.deliveryAddress.zipCode ||
           !formData.deliveryAddress.country) {
         throw new Error('Please complete all delivery address fields');
       }
+      if (!formData.itemsNo) {
+        throw new Error('Please enter the number of items in the package');
+      }
       const packageData = {
-        ...formData,
+        packageDescription: formData.packageDescription,
+        category: formData.category,
         weight: parseFloat(formData.weight),
         dimensions: {
           length: formData.dimensions.length ? parseFloat(formData.dimensions.length) : 0,
           width: formData.dimensions.width ? parseFloat(formData.dimensions.width) : 0,
           height: formData.dimensions.height ? parseFloat(formData.dimensions.height) : 0
         },
+        itemsNo: formData.itemsNo ? parseInt(formData.itemsNo, 10) : 1,
+        pickupAddress: formData.pickupAddress, // auto-fetched
+        deliveryAddress: {
+          contactName: formData.deliveryAddress.contactName,
+          contactPhone: formData.deliveryAddress.contactPhone,
+          street: formData.deliveryAddress.street,
+          city: formData.deliveryAddress.city,
+          state: formData.deliveryAddress.state,
+          zipCode: formData.deliveryAddress.zipCode,
+          country: formData.deliveryAddress.country,
+          instructions: ''
+        },
+        shopNotes: formData.shopNotes,
         codAmount: formData.codAmount ? parseFloat(formData.codAmount) : 0,
-        shopNotes: formData.shopNotes
+        // Hidden fields sent as null/empty
+        schedulePickupTime: '',
+        deliveryCost: '',
+        paymentMethod: '',
+        paymentNotes: ''
       };
       await packageService.createPackage(packageData);
       setSuccess(true);
@@ -92,26 +141,34 @@ const MobileShopCreatePackage = () => {
         </select>
         <label>Weight (kg)*</label>
         <input name="weight" type="number" min="0" step="0.01" value={formData.weight} onChange={handleChange} required />
-        <label>Dimensions (cm)</label>
-        <div className="mobile-shop-create-dimensions">
-          <input name="dimensions.length" type="number" min="0" step="0.1" placeholder="Length" value={formData.dimensions.length} onChange={handleChange} />
-          <input name="dimensions.width" type="number" min="0" step="0.1" placeholder="Width" value={formData.dimensions.width} onChange={handleChange} />
-          <input name="dimensions.height" type="number" min="0" step="0.1" placeholder="Height" value={formData.dimensions.height} onChange={handleChange} />
-        </div>
-        <label>Recipient Name*</label>
+        <label>Length (cm)</label>
+        <input name="dimensions.length" type="number" min="0" step="0.1" placeholder="Length" value={formData.dimensions.length} onChange={handleChange} />
+        <label>Width (cm)</label>
+        <input name="dimensions.width" type="number" min="0" step="0.1" placeholder="Width" value={formData.dimensions.width} onChange={handleChange} />
+        <label>Height (cm)</label>
+        <input name="dimensions.height" type="number" min="0" step="0.1" placeholder="Height" value={formData.dimensions.height} onChange={handleChange} />
+        <label>Number of Items in Package</label>
+        <input name="itemsNo" type="number" min="1" value={formData.itemsNo} onChange={handleChange} required />
+        <hr style={{margin: '1.5rem 0'}} />
+        <label>Contact Name*</label>
         <input name="deliveryAddress.contactName" value={formData.deliveryAddress.contactName} onChange={handleChange} required />
-        <label>Recipient Phone*</label>
+        <label>Contact Phone*</label>
         <input name="deliveryAddress.contactPhone" value={formData.deliveryAddress.contactPhone} onChange={handleChange} required />
-        <label>Delivery Address*</label>
-        <input name="deliveryAddress.street" placeholder="Street" value={formData.deliveryAddress.street} onChange={handleChange} required />
+        <label>Street Address*</label>
+        <input name="deliveryAddress.street" placeholder="Street address" value={formData.deliveryAddress.street} onChange={handleChange} required />
+        <label>City*</label>
         <input name="deliveryAddress.city" placeholder="City" value={formData.deliveryAddress.city} onChange={handleChange} required />
-        <input name="deliveryAddress.state" placeholder="State" value={formData.deliveryAddress.state} onChange={handleChange} required />
-        <input name="deliveryAddress.zipCode" placeholder="Zip Code" value={formData.deliveryAddress.zipCode} onChange={handleChange} />
-        <input name="deliveryAddress.country" placeholder="Country" value={formData.deliveryAddress.country} onChange={handleChange} />
-        <label>COD Amount</label>
-        <input name="codAmount" type="number" min="0" step="0.01" value={formData.codAmount} onChange={handleChange} />
+        <label>State</label>
+        <input name="deliveryAddress.state" placeholder="State" value={formData.deliveryAddress.state} onChange={handleChange} />
+        <label>Zip Code</label>
+        <input name="deliveryAddress.zipCode" placeholder="Zip code" value={formData.deliveryAddress.zipCode} onChange={handleChange} />
+        <label>Country*</label>
+        <input name="deliveryAddress.country" placeholder="Country" value={formData.deliveryAddress.country} onChange={handleChange} required />
+        <hr style={{margin: '1.5rem 0'}} />
         <label>Shop Notes</label>
         <textarea name="notes" value={formData.shopNotes} onChange={handleChange} />
+        <label>COD Amount (Cash on Delivery)</label>
+        <input name="codAmount" type="number" min="0" step="0.01" value={formData.codAmount} onChange={handleChange} />
         {error && <div className="mobile-shop-create-error">{error}</div>}
         {success && <div className="mobile-shop-create-success">Package created successfully!</div>}
         <button type="submit" className="mobile-shop-create-btn" disabled={isSubmitting}>{isSubmitting ? 'Creating...' : 'Create Package'}</button>
