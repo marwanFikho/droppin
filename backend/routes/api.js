@@ -18,6 +18,7 @@ router.get('/notifications', notificationController.getNotifications);
 router.post('/notifications/:id/read', notificationController.markAsRead);
 router.post('/notifications/mark-all-read', notificationController.markAllAsRead);
 router.delete('/notifications/:id', notificationController.deleteNotification);
+router.delete('/notifications', notificationController.deleteAllNotifications);
 
 router.post('/packages/shopify', apiKeyAuth, async (req, res) => {
   console.log('Received POST /api/packages/shopify');

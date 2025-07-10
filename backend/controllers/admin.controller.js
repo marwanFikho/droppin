@@ -1,5 +1,5 @@
 const { Op, QueryTypes } = require('sequelize');
-const { sequelize, User, Shop, Driver, Package } = require('../models/index');
+const { sequelize, User, Shop, Driver, Package, Pickup, MoneyTransaction } = require('../models/index');
 const { formatDateTimeToDDMMYYYY, getCairoDateTime } = require('../utils/dateUtils');
 const { logMoneyTransaction } = require('../utils/moneyLogger');
 const { createNotification } = require('./notification.controller');
@@ -1356,27 +1356,35 @@ exports.settleShopPayments = async (req, res) => {
 
 // Delete a user
 exports.deleteUser = async (req, res) => {
+  const transaction = await sequelize.transaction();
   try {
     const { id } = req.params;
-    
-    const user = await User.findByPk(id);
-    
+    const user = await User.findByPk(id, { transaction });
     if (!user) {
+      await transaction.rollback();
       return res.status(404).json({ message: 'User not found' });
     }
-    
-    // Delete associated records based on user role
     if (user.role === 'shop') {
-      await Shop.destroy({ where: { userId: id } });
+      const shop = await Shop.findOne({ where: { userId: id }, transaction });
+      if (shop) {
+        // Delete related Packages, Pickups, MoneyTransactions
+        await Package.destroy({ where: { shopId: shop.id }, transaction });
+        await Pickup.destroy({ where: { shopId: shop.id }, transaction });
+        await MoneyTransaction.destroy({ where: { shopId: shop.id }, transaction });
+        await Shop.destroy({ where: { id: shop.id }, transaction });
+      }
     } else if (user.role === 'driver') {
-      await Driver.destroy({ where: { userId: id } });
+      const driver = await Driver.findOne({ where: { userId: id }, transaction });
+      if (driver) {
+        await Package.destroy({ where: { driverId: driver.id }, transaction });
+        await Driver.destroy({ where: { id: driver.id }, transaction });
+      }
     }
-    
-    // Delete the user
-    await user.destroy();
-    
+    await user.destroy({ transaction });
+    await transaction.commit();
     res.json({ message: 'User deleted successfully' });
   } catch (error) {
+    await transaction.rollback();
     console.error('Error deleting user:', error);
     res.status(500).json({ message: error.message });
   }
@@ -1419,15 +1427,13 @@ exports.getMoneyTransactions = async (req, res) => {
     }
 
     const offset = (page - 1) * limit;
-    const { MoneyTransaction, Shop } = require('../models');
+    const { MoneyTransaction, Shop, Package, Driver, User } = require('../models');
     const { Op } = require('sequelize');
 
     // Validate sort field
     const validSortFields = ['createdAt', 'amount', 'attribute', 'changeType'];
     const actualSortBy = validSortFields.includes(sortBy) ? sortBy : 'createdAt';
     const actualSortOrder = ['ASC', 'DESC'].includes(sortOrder?.toUpperCase()) ? sortOrder.toUpperCase() : 'DESC';
-
-    console.log('Sorting by:', actualSortBy, actualSortOrder);
 
     const { count, rows } = await MoneyTransaction.findAndCountAll({
       where,
@@ -1441,8 +1447,30 @@ exports.getMoneyTransactions = async (req, res) => {
       }]
     });
 
+    // Enhance each transaction with driver info if possible
+    const enhancedRows = await Promise.all(rows.map(async (tx) => {
+      let driver = null;
+      // If it's a pickup transaction, show '-'
+      if (tx.description && /pickup/i.test(tx.description)) {
+        driver = null;
+      } else {
+        // Try to extract tracking number from description for delivered/returned/cancelled
+        let trackingMatch = tx.description && tx.description.match(/Package ([A-Z0-9]+)/);
+        if (trackingMatch && trackingMatch[1]) {
+          const pkg = await Package.findOne({
+            where: { trackingNumber: trackingMatch[1] },
+            include: [{ model: Driver, include: [{ model: User, attributes: ['name'] }] }]
+          });
+          if (pkg && pkg.Driver && pkg.Driver.User) {
+            driver = { id: pkg.Driver.id, name: pkg.Driver.User.name };
+          }
+        }
+      }
+      return { ...tx.toJSON(), driver };
+    }));
+
     res.json({
-      transactions: rows,
+      transactions: enhancedRows,
       total: count,
       totalPages: Math.ceil(count / limit),
       currentPage: parseInt(page),

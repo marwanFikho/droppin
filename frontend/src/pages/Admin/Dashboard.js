@@ -1533,6 +1533,44 @@ const AdminDashboard = () => {
       return entity.address || 'N/A';
     };
 
+    // Handler to delete a shop (now just sets up confirmation dialog)
+    const handleDeleteShop = (shopUserId) => {
+      setConfirmationDialogTitle('Delete Shop');
+      setConfirmationDialogText('Are you sure you want to delete this shop? This action cannot be undone.');
+      setConfirmAction(() => async () => {
+        try {
+          await adminService.deleteUser(shopUserId);
+          setShowDetailsModal(false);
+          setStatusMessage({ type: 'success', text: 'Shop deleted successfully.' });
+          fetchUsers('shop');
+        } catch (err) {
+          setStatusMessage({ type: 'error', text: 'Failed to delete shop.' });
+        } finally {
+          setShowConfirmationDialog(false);
+        }
+      });
+      setShowConfirmationDialog(true);
+    };
+
+    // Handler to delete a driver (sets up confirmation dialog)
+    const handleDeleteDriver = (driverUserId) => {
+      setConfirmationDialogTitle('Delete Driver');
+      setConfirmationDialogText('Are you sure you want to delete this driver? This action cannot be undone.');
+      setConfirmAction(() => async () => {
+        try {
+          await adminService.deleteUser(driverUserId);
+          setShowDetailsModal(false);
+          setStatusMessage({ type: 'success', text: 'Driver deleted successfully.' });
+          fetchUsers('driver');
+        } catch (err) {
+          setStatusMessage({ type: 'error', text: 'Failed to delete driver.' });
+        } finally {
+          setShowConfirmationDialog(false);
+        }
+      });
+      setShowConfirmationDialog(true);
+    };
+
     return (
       <div
         className={`modal-overlay ${showDetailsModal ? 'show' : ''}`}
@@ -1790,76 +1828,102 @@ const AdminDashboard = () => {
                   )}
                 </div>
               )}
+              {/* Delete shop button for shop entity */}
+              {isShop && (
+                <div className="detail-item full-width" style={{ marginTop: 16, textAlign: 'right' }}>
+                  <button
+                    className="btn-primary danger"
+                    onClick={() => handleDeleteShop(selectedEntity.userId || selectedEntity.id)}
+                    style={{ marginLeft: 'auto', fontWeight: 600, fontSize: '1rem', padding: '12px 28px', borderRadius: '8px', boxShadow: '0 2px 8px rgba(220,53,69,0.10)', display: 'inline-flex', alignItems: 'center', gap: 10, background: '#dc3545', border: 'none', color: '#fff' }}
+                  >
+                    <FontAwesomeIcon icon={faTrash} style={{ marginRight: 8 }} /> Delete Shop
+                  </button>
+                </div>
+              )}
             </div>
           )}
           
           {/* Additional details for driver */}
           {isDriver && (
-            <div className="detail-item full-width">
-              <span className="label">Vehicle Information:</span>
-              <div className="nested-details">
-                <div className="nested-detail">
-                  <span className="nested-label">Vehicle Type:</span>
-                  <span className="detail-value">
-                    {selectedEntity.vehicleType ? (
-                      <span className="vehicle-type">{selectedEntity.vehicleType}</span>
-                    ) : 'Not provided'}
-                  </span>
+            <>
+              <div className="detail-item full-width">
+                <span className="label">Vehicle Information:</span>
+                <div className="nested-details">
+                  <div className="nested-detail">
+                    <span className="nested-label">Vehicle Type:</span>
+                    <span className="detail-value">
+                      {selectedEntity.vehicleType ? (
+                        <span className="vehicle-type">{selectedEntity.vehicleType}</span>
+                      ) : 'Not provided'}
+                    </span>
+                  </div>
+                  <div className="nested-detail">
+                    <span className="nested-label">License Plate:</span>
+                    <span className="detail-value">
+                      {selectedEntity.licensePlate ? (
+                        <span className="license-plate">{selectedEntity.licensePlate}</span>
+                      ) : 'Not provided'}
+                    </span>
+                  </div>
+                  <div className="nested-detail">
+                    <span className="nested-label">Model:</span>
+                    <span className="detail-value">
+                      {selectedEntity.model ? (
+                        <span className="vehicle-model">{selectedEntity.model}</span>
+                      ) : 'Not provided'}
+                    </span>
+                  </div>
+                  <div className="nested-detail">
+                    <span className="nested-label">Color:</span>
+                    <span className="detail-value">
+                      {selectedEntity.color ? (
+                        <span className="vehicle-color" 
+                              style={{display: 'inline-block', 
+                                     marginRight: '5px',
+                                     width: '12px', 
+                                     height: '12px', 
+                                     backgroundColor: selectedEntity.color.toLowerCase(),
+                                     border: '1px solid #ccc',
+                                     borderRadius: '2px'}}></span>
+                      ) : ''}
+                      {selectedEntity.color || 'Not provided'}
+                    </span>
+                  </div>
+                  <div className="nested-detail">
+                    <span className="nested-label">Driver License:</span>
+                    <span className="detail-value">
+                      {selectedEntity.driverLicense ? (
+                        <span className="driver-license">{selectedEntity.driverLicense}</span>
+                      ) : 'Not provided'}
+                    </span>
+                  </div>
                 </div>
-                <div className="nested-detail">
-                  <span className="nested-label">License Plate:</span>
-                  <span className="detail-value">
-                    {selectedEntity.licensePlate ? (
-                      <span className="license-plate">{selectedEntity.licensePlate}</span>
-                    ) : 'Not provided'}
-                  </span>
-                </div>
-                <div className="nested-detail">
-                  <span className="nested-label">Model:</span>
-                  <span className="detail-value">
-                    {selectedEntity.model ? (
-                      <span className="vehicle-model">{selectedEntity.model}</span>
-                    ) : 'Not provided'}
-                  </span>
-                </div>
-                <div className="nested-detail">
-                  <span className="nested-label">Color:</span>
-                  <span className="detail-value">
-                    {selectedEntity.color ? (
-                      <span className="vehicle-color" 
-                            style={{display: 'inline-block', 
-                                   marginRight: '5px',
-                                   width: '12px', 
-                                   height: '12px', 
-                                   backgroundColor: selectedEntity.color.toLowerCase(),
-                                   border: '1px solid #ccc',
-                                   borderRadius: '2px'}}></span>
-                    ) : ''}
-                    {selectedEntity.color || 'Not provided'}
-                  </span>
-                </div>
-                <div className="nested-detail">
-                  <span className="nested-label">Driver License:</span>
-                  <span className="detail-value">
-                    {selectedEntity.driverLicense ? (
-                      <span className="driver-license">{selectedEntity.driverLicense}</span>
-                    ) : 'Not provided'}
-                  </span>
-                </div>
+                <button
+                  className="btn btn-primary"
+                  style={{ marginTop: 12 }}
+                  onClick={() => {
+                    setSelectedDriverForPackages(selectedEntity);
+                    fetchDriverPackages(selectedEntity.driverId || selectedEntity.id);
+                    setActiveTab('driver-packages');
+                    setShowDetailsModal(false);
+                  }}
+                >
+                  Show Packages
+                </button>
               </div>
-              <button
-                className="btn btn-primary"
-                style={{ marginTop: 12 }}
-                onClick={() => {
-                  setSelectedDriverForPackages(selectedEntity);
-                  fetchDriverPackages(selectedEntity.driverId || selectedEntity.id);
-                  setActiveTab('driver-packages');
-                  setShowDetailsModal(false);
-                }}
-              >
-                Show Packages
-              </button>
-            </div>
+              {/* Delete driver button for driver entity */}
+              {isDriver && (
+                <div className="detail-item full-width" style={{ marginTop: 16, textAlign: 'right' }}>
+                  <button
+                    className="btn-primary danger"
+                    onClick={() => handleDeleteDriver(selectedEntity.userId || selectedEntity.id)}
+                    style={{ marginLeft: 'auto', fontWeight: 600, fontSize: '1rem', padding: '12px 28px', borderRadius: '8px', boxShadow: '0 2px 8px rgba(220,53,69,0.10)', display: 'inline-flex', alignItems: 'center', gap: 10, background: '#dc3545', border: 'none', color: '#fff' }}
+                  >
+                    <FontAwesomeIcon icon={faTrash} style={{ marginRight: 8 }} /> Delete Driver
+                  </button>
+                </div>
+              )}
+            </>
           )}
 
           {/* Package details */}
@@ -1918,6 +1982,10 @@ const AdminDashboard = () => {
                   <div className="nested-detail">
                     <span className="nested-label">Pickedup Time</span>
                     <span>{selectedEntity.actualPickupTime ? selectedEntity.actualPickupTime : 'Not pickedup yet'}</span>
+                  </div>
+                  <div className="nested-detail">
+                    <span className="nested-label">Number of Items: </span>
+                    <span>{selectedEntity.itemsNo || '-'}</span>
                   </div>
                 </div>
               </div>
@@ -2020,7 +2088,8 @@ const AdminDashboard = () => {
   // Render confirmation dialog
   const renderConfirmationDialog = () => {
     if (!showConfirmationDialog) return null;
-    
+    const isDeleteShop = confirmationDialogTitle && confirmationDialogTitle.toLowerCase().includes('delete shop');
+    const isDeleteDriver = confirmationDialogTitle && confirmationDialogTitle.toLowerCase().includes('delete driver');
     return (
       <div className="confirmation-overlay">
         <div className="confirmation-dialog warning-dialog">
@@ -2034,8 +2103,7 @@ const AdminDashboard = () => {
               Cancel
             </button>
             <button 
-              className="btn-primary danger"
-              style={{background:'green'}}
+              className={`btn-primary${(isDeleteShop || isDeleteDriver) ? ' danger' : ''}`}
               onClick={() => confirmAction && confirmAction()}
             >
               Confirm
@@ -2741,6 +2809,7 @@ const AdminDashboard = () => {
                 Date {renderSortIcon('createdAt')}
               </th>
               <th>Shop</th>
+              <th>Driver</th>
               <th 
                 onClick={() => handleMoneyFilterChange('sortBy', 'attribute')} 
                 className="sortable-header"
@@ -2767,6 +2836,7 @@ const AdminDashboard = () => {
               <tr key={tx.id}>
                 <td data-label="Date">{new Date(tx.createdAt).toLocaleString()}</td>
                 <td data-label="Shop">{tx.Shop?.businessName || tx.shopId}</td>
+                <td data-label="Driver">{tx.driver ? tx.driver.name : '-'}</td>
                 <td data-label="Attribute">{tx.attribute}</td>
                 <td data-label="Type">
                   <span className={`change-type ${tx.changeType}`}>

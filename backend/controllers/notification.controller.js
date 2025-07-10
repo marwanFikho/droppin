@@ -78,4 +78,23 @@ exports.deleteNotification = async (req, res) => {
   } catch (err) {
     res.status(500).json({ message: 'Error deleting notification', error: err.message });
   }
+};
+
+// Delete all notifications for the current user
+exports.deleteAllNotifications = async (req, res) => {
+  try {
+    const { userId, userType } = req;
+    let where = {};
+    if (userType === 'admin') {
+      where = { userType: 'admin' };
+    } else if (userType === 'shop' || userType === 'driver') {
+      where = { userType, userId };
+    } else {
+      return res.json({ success: true });
+    }
+    await Notification.destroy({ where });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ message: 'Error deleting all notifications', error: err.message });
+  }
 }; 

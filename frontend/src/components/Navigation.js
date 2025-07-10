@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import logo from '../assets/images/logo.jpg';
 import api from '../services/api';
 import { FaTrash } from 'react-icons/fa';
+import { FaTrashAlt } from 'react-icons/fa';
 
 const Navigation = () => {
   const { currentUser, logout } = useAuth();
@@ -103,6 +104,19 @@ const Navigation = () => {
     });
   };
 
+  // Handler to delete all notifications
+  const handleDeleteAllNotifications = () => {
+    api.delete('/notifications', {
+      headers: {
+        'x-user-id': currentUser?.id || 1,
+        'x-user-type': currentUser?.role || 'admin'
+      }
+    }).then(() => {
+      setNotifications([]);
+      setUnreadCount(0);
+    });
+  };
+
   // Get dashboard link based on user role
   const getDashboardLink = () => {
     if (!currentUser) return null;
@@ -172,7 +186,18 @@ const Navigation = () => {
                   </button>
                   {showNotifications && (
                     <div style={{ position: 'absolute', right: 0, top: '110%', background: '#fff', boxShadow: '0 2px 8px rgba(0,0,0,0.15)', borderRadius: 6, minWidth: 280, zIndex: 1000 }}>
-                      <div style={{ padding: '10px', borderBottom: '1px solid #eee', fontWeight: 'bold' }}>Notifications</div>
+                      <div style={{ padding: '10px', borderBottom: '1px solid #eee', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span>Notifications</span>
+                        {(currentUser?.role === 'admin' || currentUser?.role === 'shop') && notifications.length > 0 && (
+                          <button
+                            onClick={handleDeleteAllNotifications}
+                            style={{ background: 'none', border: 'none', color: '#c00', marginLeft: 8, cursor: 'pointer' }}
+                            title="Delete all notifications"
+                          >
+                            <FaTrashAlt size={16} />
+                          </button>
+                        )}
+                      </div>
                       {loadingNotifications ? (
                         <div style={{ padding: '10px' }}>Loading...</div>
                       ) : notifications.length === 0 ? (

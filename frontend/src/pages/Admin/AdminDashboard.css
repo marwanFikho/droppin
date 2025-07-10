@@ -391,13 +391,15 @@
 
 /* Danger button */
 .btn-primary.danger {
-  background-color: #dc3545;
-  border-color: #dc3545;
+  background-color: #dc3545 !important;
+  border-color: #dc3545 !important;
+  color: #fff !important;
+  background-image: none !important;
 }
-
 .btn-primary.danger:hover {
-  background-color: #c82333;
-  border-color: #bd2130;
+  background-color: #c82333 !important;
+  border-color: #bd2130 !important;
+  color: #fff !important;
 }
 
 .confirmation-buttons {
