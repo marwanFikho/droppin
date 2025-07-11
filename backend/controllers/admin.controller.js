@@ -1635,3 +1635,47 @@ exports.updateShop = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+/**
+ * Manually adjust a shop's TotalCollected value by a difference (increase or decrease) and log the change
+ * @route POST /admin/shops/:id/adjust-total-collected
+ * @param {number} id - Shop ID
+ * @body {number} amount - The amount to increase or decrease by
+ * @body {string} reason - Reason for the adjustment
+ * @body {string} changeType - 'increase' or 'decrease'
+ */
+exports.adjustShopTotalCollected = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { amount, reason, changeType } = req.body;
+    if (amount === undefined || isNaN(Number(amount)) || Number(amount) <= 0) {
+      return res.status(400).json({ message: 'A valid positive amount is required.' });
+    }
+    if (!reason || typeof reason !== 'string' || reason.trim().length === 0) {
+      return res.status(400).json({ message: 'A reason for the adjustment is required.' });
+    }
+    if (!['increase', 'decrease'].includes(changeType)) {
+      return res.status(400).json({ message: 'changeType must be either increase or decrease.' });
+    }
+    const shop = await Shop.findByPk(id);
+    if (!shop) {
+      return res.status(404).json({ message: 'Shop not found.' });
+    }
+    const oldAmount = parseFloat(shop.TotalCollected || 0);
+    let newAmount;
+    if (changeType === 'increase') {
+      newAmount = oldAmount + parseFloat(amount);
+    } else {
+      newAmount = oldAmount - parseFloat(amount);
+    }
+    // Update the shop's TotalCollected
+    shop.TotalCollected = newAmount;
+    await shop.save();
+    // Log the adjustment in MoneyTransaction
+    await logMoneyTransaction(shop.id, parseFloat(amount), 'TotalCollected', changeType, `Manual adjustment by admin. Reason: ${reason}`);
+    res.json({ message: `TotalCollected ${changeType}d by $${parseFloat(amount).toFixed(2)}. New value: $${newAmount.toFixed(2)}.`, oldAmount, newAmount });
+  } catch (error) {
+    console.error('Error adjusting TotalCollected:', error);
+    res.status(500).json({ message: error.message });
+  }
+};

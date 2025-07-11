@@ -116,6 +116,9 @@ const AdminDashboard = () => {
   const [showRejectPackageModal, setShowRejectPackageModal] = useState(false);
   const [packageToAction, setPackageToAction] = useState(null);
   const [shippingFeesInput, setShippingFeesInput] = useState('');
+  const [adjustTotalCollectedInput, setAdjustTotalCollectedInput] = useState('');
+  const [adjustTotalCollectedReason, setAdjustTotalCollectedReason] = useState('');
+  const [adjustingTotalCollected, setAdjustingTotalCollected] = useState(false);
 
   useEffect(() => {
     if (selectedEntity && selectedEntity.shippingFees !== undefined) {
@@ -1687,6 +1690,103 @@ const AdminDashboard = () => {
                           </div>
                         </>
                       })()}
+                    </div>
+                  </div>
+                  {/* Manual Total Collected adjustment by admin */}
+                  <div className="detail-item full-width" style={{ marginTop: 16, borderTop: '1px solid #eee', paddingTop: 16 }}>
+                    <span className="label">Adjust Total Collected (Admin Only):</span>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 400 }}>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="Amount to adjust by"
+                        value={adjustTotalCollectedInput ?? ''}
+                        onChange={e => setAdjustTotalCollectedInput(e.target.value)}
+                        style={{ padding: '6px 8px', borderRadius: '4px', border: '1px solid #ccc', width: '100%' }}
+                      />
+                      <textarea
+                        placeholder="Reason for adjustment (required)"
+                        value={adjustTotalCollectedReason ?? ''}
+                        onChange={e => setAdjustTotalCollectedReason(e.target.value)}
+                        style={{ padding: '6px 8px', borderRadius: '4px', border: '1px solid #ccc', width: '100%', minHeight: 48 }}
+                      />
+                      <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                        <button
+                          className="btn-primary"
+                          style={{ flex: 1, background: '#28a745', color: '#fff' }}
+                          disabled={adjustingTotalCollected}
+                          onClick={async () => {
+                            if (!adjustTotalCollectedInput || isNaN(Number(adjustTotalCollectedInput)) || Number(adjustTotalCollectedInput) <= 0) {
+                              setStatusMessage({ type: 'error', text: 'Please enter a valid positive amount.' });
+                              return;
+                            }
+                            if (!adjustTotalCollectedReason || adjustTotalCollectedReason.trim().length === 0) {
+                              setStatusMessage({ type: 'error', text: 'Please provide a reason for the adjustment.' });
+                              return;
+                            }
+                            setAdjustingTotalCollected(true);
+                            try {
+                              const res = await adminService.adjustShopTotalCollected(selectedEntity.shopId || selectedEntity.id, {
+                                amount: parseFloat(adjustTotalCollectedInput),
+                                reason: adjustTotalCollectedReason,
+                                changeType: 'increase'
+                              });
+                              setStatusMessage({ type: 'success', text: res.data.message || 'Total Collected increased.' });
+                              // Refresh shop details
+                              const response = await adminService.getShopById(selectedEntity.shopId || selectedEntity.id);
+                              if (response && response.data) {
+                                setSelectedEntity({ ...response.data, entityType: selectedEntity.entityType });
+                              }
+                              setAdjustTotalCollectedInput('');
+                              setAdjustTotalCollectedReason('');
+                            } catch (err) {
+                              setStatusMessage({ type: 'error', text: err.response?.data?.message || 'Failed to increase Total Collected.' });
+                            } finally {
+                              setAdjustingTotalCollected(false);
+                            }
+                          }}
+                        >
+                          Increase
+                        </button>
+                        <button
+                          className="btn-primary danger"
+                          style={{ flex: 1 }}
+                          disabled={adjustingTotalCollected}
+                          onClick={async () => {
+                            if (!adjustTotalCollectedInput || isNaN(Number(adjustTotalCollectedInput)) || Number(adjustTotalCollectedInput) <= 0) {
+                              setStatusMessage({ type: 'error', text: 'Please enter a valid positive amount.' });
+                              return;
+                            }
+                            if (!adjustTotalCollectedReason || adjustTotalCollectedReason.trim().length === 0) {
+                              setStatusMessage({ type: 'error', text: 'Please provide a reason for the adjustment.' });
+                              return;
+                            }
+                            setAdjustingTotalCollected(true);
+                            try {
+                              const res = await adminService.adjustShopTotalCollected(selectedEntity.shopId || selectedEntity.id, {
+                                amount: parseFloat(adjustTotalCollectedInput),
+                                reason: adjustTotalCollectedReason,
+                                changeType: 'decrease'
+                              });
+                              setStatusMessage({ type: 'success', text: res.data.message || 'Total Collected decreased.' });
+                              // Refresh shop details
+                              const response = await adminService.getShopById(selectedEntity.shopId || selectedEntity.id);
+                              if (response && response.data) {
+                                setSelectedEntity({ ...response.data, entityType: selectedEntity.entityType });
+                              }
+                              setAdjustTotalCollectedInput('');
+                              setAdjustTotalCollectedReason('');
+                            } catch (err) {
+                              setStatusMessage({ type: 'error', text: err.response?.data?.message || 'Failed to decrease Total Collected.' });
+                            } finally {
+                              setAdjustingTotalCollected(false);
+                            }
+                          }}
+                        >
+                          Decrease
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </>

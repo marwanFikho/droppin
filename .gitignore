@@ -1,2 +1,2 @@
-node_modules
-backend/db/
+/backend/db/
+/index.html

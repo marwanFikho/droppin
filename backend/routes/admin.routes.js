@@ -23,6 +23,7 @@ router.get('/shops', adminController.getShops);
 router.get('/shops/:id', adminController.getShopById);
 router.patch('/shops/:id/approve', adminController.approveShop);
 router.patch('/shops/:id', adminController.updateShop);
+router.post('/shops/:id/adjust-total-collected', adminController.adjustShopTotalCollected);
 
 // Driver management
 router.get('/drivers', adminController.getDrivers);

@@ -53,6 +53,10 @@ const MobileAdminDashboard = () => {
   const [loadingDriverPackages, setLoadingDriverPackages] = useState(false);
   const { t, i18n } = useTranslation();
   const [lang, setLang] = React.useState(i18n.language || 'en');
+  const [adjustTotalCollectedInput, setAdjustTotalCollectedInput] = useState('');
+  const [adjustTotalCollectedReason, setAdjustTotalCollectedReason] = useState('');
+  const [adjustingTotalCollected, setAdjustingTotalCollected] = useState(false);
+  const [adjustTotalCollectedStatus, setAdjustTotalCollectedStatus] = useState(null);
 
   const navigate = useNavigate();
 
@@ -912,7 +916,7 @@ const MobileAdminDashboard = () => {
                 {selectedPackage.shopNotes && (
                   <div className="mobile-modal-detail-item full-width"><span className="label">Shop Notes</span><span>{selectedPackage.shopNotes}</span></div>
                 )}
-                <div className="mobile-modal-detail-item"><span className="label">Number of Items</span><span>{selectedPackage?.itemsNo ?? '-'}</span></div>
+                <div className="mobile-modal-detail-item"><span className="label">Number of Items</span><span>{selectedAdminPackage?.itemsNo ?? '-'}</span></div>
               </div>
               <div className="mobile-modal-actions">
                 <button className="mobile-modal-close-btn" onClick={closeDetailsModal}>Close</button>
@@ -1099,6 +1103,106 @@ const MobileAdminDashboard = () => {
                     <div className="mobile-modal-detail-item full-width"><span className="label">To Collect</span><span>${parseFloat(selectedUser.ToCollect || 0).toFixed(2)}</span></div>
                     <div className="mobile-modal-detail-item full-width"><span className="label">Total Collected</span><span>${parseFloat(selectedUser.TotalCollected || 0).toFixed(2)}</span></div>
                     <div className="mobile-modal-detail-item full-width"><span className="label">Delivered Packages</span><span>{selectedUser.financialData?.packageCount || 0}</span></div>
+                    {/* Manual Total Collected adjustment by admin */}
+                    <div className="mobile-modal-detail-item full-width" style={{ borderTop: '1px solid #eee', paddingTop: 12, marginTop: 12 }}>
+                      <span className="label">Adjust Total Collected (Admin Only):</span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="Amount to adjust by"
+                        value={adjustTotalCollectedInput || ''}
+                        onChange={e => setAdjustTotalCollectedInput(e.target.value)}
+                        style={{ padding: '6px 8px', borderRadius: '4px', border: '1px solid #ccc', width: '100%', marginBottom: 6 }}
+                      />
+                      <textarea
+                        placeholder="Reason for adjustment (required)"
+                        value={adjustTotalCollectedReason || ''}
+                        onChange={e => setAdjustTotalCollectedReason(e.target.value)}
+                        style={{ padding: '6px 8px', borderRadius: '4px', border: '1px solid #ccc', width: '100%', minHeight: 40, marginBottom: 6 }}
+                      />
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button
+                          className="mobile-admin-dashboard-settle-btn"
+                          style={{ flex: 1, background: '#28a745', color: '#fff' }}
+                          disabled={adjustingTotalCollected}
+                          onClick={async () => {
+                            if (!adjustTotalCollectedInput || isNaN(Number(adjustTotalCollectedInput)) || Number(adjustTotalCollectedInput) <= 0) {
+                              setAdjustTotalCollectedStatus({ type: 'error', text: 'Please enter a valid positive amount.' });
+                              return;
+                            }
+                            if (!adjustTotalCollectedReason || adjustTotalCollectedReason.trim().length === 0) {
+                              setAdjustTotalCollectedStatus({ type: 'error', text: 'Please provide a reason for the adjustment.' });
+                              return;
+                            }
+                            setAdjustingTotalCollected(true);
+                            try {
+                              const res = await adminService.adjustShopTotalCollected(selectedUser.shopId || selectedUser.id, {
+                                amount: parseFloat(adjustTotalCollectedInput),
+                                reason: adjustTotalCollectedReason,
+                                changeType: 'increase'
+                              });
+                              setAdjustTotalCollectedStatus({ type: 'success', text: res.data.message || 'Total Collected increased.' });
+                              // Refresh user details
+                              const response = await adminService.getShopById(selectedUser.shopId || selectedUser.id);
+                              if (response && response.data) {
+                                setSelectedUser({ ...response.data, entityType: selectedUser.entityType });
+                              }
+                              setAdjustTotalCollectedInput('');
+                              setAdjustTotalCollectedReason('');
+                            } catch (err) {
+                              setAdjustTotalCollectedStatus({ type: 'error', text: err.response?.data?.message || 'Failed to increase Total Collected.' });
+                            } finally {
+                              setAdjustingTotalCollected(false);
+                            }
+                          }}
+                        >
+                          Increase
+                        </button>
+                        <button
+                          className="mobile-admin-dashboard-settle-btn"
+                          style={{ flex: 1, background: '#d32f2f', color: '#fff' }}
+                          disabled={adjustingTotalCollected}
+                          onClick={async () => {
+                            if (!adjustTotalCollectedInput || isNaN(Number(adjustTotalCollectedInput)) || Number(adjustTotalCollectedInput) <= 0) {
+                              setAdjustTotalCollectedStatus({ type: 'error', text: 'Please enter a valid positive amount.' });
+                              return;
+                            }
+                            if (!adjustTotalCollectedReason || adjustTotalCollectedReason.trim().length === 0) {
+                              setAdjustTotalCollectedStatus({ type: 'error', text: 'Please provide a reason for the adjustment.' });
+                              return;
+                            }
+                            setAdjustingTotalCollected(true);
+                            try {
+                              const res = await adminService.adjustShopTotalCollected(selectedUser.shopId || selectedUser.id, {
+                                amount: parseFloat(adjustTotalCollectedInput),
+                                reason: adjustTotalCollectedReason,
+                                changeType: 'decrease'
+                              });
+                              setAdjustTotalCollectedStatus({ type: 'success', text: res.data.message || 'Total Collected decreased.' });
+                              // Refresh user details
+                              const response = await adminService.getShopById(selectedUser.shopId || selectedUser.id);
+                              if (response && response.data) {
+                                setSelectedUser({ ...response.data, entityType: selectedUser.entityType });
+                              }
+                              setAdjustTotalCollectedInput('');
+                              setAdjustTotalCollectedReason('');
+                            } catch (err) {
+                              setAdjustTotalCollectedStatus({ type: 'error', text: err.response?.data?.message || 'Failed to decrease Total Collected.' });
+                            } finally {
+                              setAdjustingTotalCollected(false);
+                            }
+                          }}
+                        >
+                          Decrease
+                        </button>
+                      </div>
+                      {adjustTotalCollectedStatus && (
+                        <div style={{ marginTop: 6, color: adjustTotalCollectedStatus.type === 'error' ? '#d32f2f' : '#28a745', fontWeight: 500 }}>
+                          {adjustTotalCollectedStatus.text}
+                        </div>
+                      )}
+                    </div>
                     <div className="mobile-modal-detail-item full-width">
                       <button
                         className="mobile-admin-dashboard-settle-btn"

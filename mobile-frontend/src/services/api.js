@@ -1,8 +1,8 @@
 import axios from 'axios';
 import { getToken } from '../utils/auth';
 
-// const API_URL = process.env.REACT_APP_API_URL || 'http://197.37.243.87:5000/api';
-const API_URL = process.env.REACT_APP_API_URL || 'https://api.droppin-eg.com/api';
+const API_URL = process.env.REACT_APP_API_URL || 'http://102.43.58.238:5000/api';
+// const API_URL = process.env.REACT_APP_API_URL || 'https://api.droppin-eg.com/api';
 
 // Create axios instance
 const api = axios.create({
@@ -140,6 +140,7 @@ export const adminService = {
   getShops: (filters = {}) => api.get('/admin/shops', { params: filters }),
   getShopById: (id) => api.get(`/admin/shops/${id}`),
   approveShop: (id, approved) => api.patch(`/admin/shops/${id}/approve`, { approved }),
+  adjustShopTotalCollected: (shopId, data) => api.post(`/admin/shops/${shopId}/adjust-total-collected`, data),
   
   // Driver management
   getDrivers: (filters = {}) => api.get('/admin/drivers', { params: filters }),
