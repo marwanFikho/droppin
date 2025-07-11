@@ -1,8 +1,8 @@
 import axios from 'axios';
 import { getToken } from '../utils/auth';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://102.43.58.238:5000/api';
-// const API_URL = process.env.REACT_APP_API_URL || 'https://api.droppin-eg.com/api';
+// const API_URL = process.env.REACT_APP_API_URL || 'http://102.43.58.238:5000/api';
+const API_URL = process.env.REACT_APP_API_URL || 'https://api.droppin-eg.com/api';
 
 // Create axios instance
 const api = axios.create({
@@ -150,6 +150,8 @@ export const adminService = {
   // Pickup management
   getAllPickups: () => api.get('/pickups/admin/all'),
   markPickupAsPickedUp: (pickupId) => api.patch(`/pickups/${pickupId}/pickup`),
+  assignDriverToPickup: (pickupId, driverId) => api.patch(`/pickups/admin/pickups/${pickupId}/assign-driver`, { driverId }),
+  updatePickupStatus: (pickupId, status) => api.patch(`/pickups/admin/pickups/${pickupId}/status`, { status }),
   // Financial management
   settleShopPayments: (shopId, data) => api.post(`/admin/shops/${shopId}/settle-payments`, data),
   updatePackagePayment: (packageId, data) => api.patch(`/admin/packages/${packageId}/payment`, data),

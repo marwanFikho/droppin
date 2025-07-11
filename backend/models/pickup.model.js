@@ -18,8 +18,16 @@ const Pickup = sequelize.define('Pickup', {
     type: DataTypes.STRING,
     allowNull: false
   },
+  driverId: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: 'Drivers',
+      key: 'id'
+    }
+  },
   status: {
-    type: DataTypes.ENUM('pending', 'scheduled', 'picked_up', 'completed', 'cancelled'),
+    type: DataTypes.ENUM('pending', 'scheduled', 'picked_up', 'in_storage', 'completed', 'cancelled'),
     defaultValue: 'pending'
   },
   actualPickupTime: {

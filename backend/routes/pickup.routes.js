@@ -288,4 +288,83 @@ router.patch('/:id/cancel', authenticate, async (req, res) => {
   }
 });
 
+// Assign a driver to a pickup (admin only)
+router.patch('/admin/pickups/:id/assign-driver', authenticate, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Admin access required' });
+    }
+    const { driverId } = req.body;
+    if (!driverId) {
+      return res.status(400).json({ message: 'Driver ID is required' });
+    }
+    const pickup = await Pickup.findByPk(req.params.id);
+    if (!pickup) {
+      return res.status(404).json({ message: 'Pickup not found' });
+    }
+    pickup.driverId = driverId;
+    await pickup.save();
+    res.json({ message: 'Driver assigned to pickup successfully', pickup });
+  } catch (error) {
+    console.error('Error assigning driver to pickup:', error);
+    res.status(500).json({ message: 'Failed to assign driver to pickup', error: error.message });
+  }
+});
+
+// Update pickup status (admin only)
+router.patch('/admin/pickups/:id/status', authenticate, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Admin access required' });
+    }
+    const { status } = req.body;
+    if (!status) {
+      return res.status(400).json({ message: 'Status is required' });
+    }
+    // Fetch pickup with packages
+    const pickup = await Pickup.findByPk(req.params.id, { include: [{ model: Package }] });
+    if (!pickup) {
+      return res.status(404).json({ message: 'Pickup not found' });
+    }
+    // If status is being set to picked_up, do COD/ToCollect logic
+    if (status === 'picked_up') {
+      // Only run if not already picked_up
+      if (pickup.status !== 'picked_up') {
+        // Update pickup status and actual pickup time
+        await pickup.update({ status: 'picked_up', actualPickupTime: new Date() });
+        // Update all packages in this pickup to 'pending' status
+        if (pickup.Packages && pickup.Packages.length > 0) {
+          const packageIds = pickup.Packages.map(pkg => pkg.id);
+          await Package.update(
+            { status: 'pending' },
+            { where: { id: packageIds } }
+          );
+          // Sum COD amounts for the packages in this pickup
+          const totalCodAmount = pickup.Packages.reduce((sum, pkg) => {
+            const cod = parseFloat(pkg.codAmount || 0);
+            return sum + (isNaN(cod) ? 0 : cod);
+          }, 0);
+          if (totalCodAmount > 0) {
+            const shop = await Shop.findByPk(pickup.shopId);
+            if (shop) {
+              const currentToCollect = parseFloat(shop.ToCollect || 0);
+              const newToCollect = currentToCollect + totalCodAmount;
+              await shop.update({ ToCollect: newToCollect });
+              await logMoneyTransaction(shop.id, totalCodAmount, 'ToCollect', 'increase', `COD added via pickup ${pickup.id}`);
+              console.log(`Updated shop (${shop.id}) ToCollect on pickup: ${currentToCollect} -> ${newToCollect}`);
+            }
+          }
+        }
+      }
+    } else {
+      // For other statuses, just update the status
+      await pickup.update({ status });
+    }
+    res.json({ message: 'Pickup status updated successfully', pickup });
+  } catch (error) {
+    console.error('Error updating pickup status:', error);
+    res.status(500).json({ message: 'Failed to update pickup status', error: error.message });
+  }
+});
+
 module.exports = router; 

@@ -119,6 +119,13 @@ const AdminDashboard = () => {
   const [adjustTotalCollectedInput, setAdjustTotalCollectedInput] = useState('');
   const [adjustTotalCollectedReason, setAdjustTotalCollectedReason] = useState('');
   const [adjustingTotalCollected, setAdjustingTotalCollected] = useState(false);
+  const [pickupTab, setPickupTab] = useState('pending');
+  // --- Add state for pickup driver assignment and status update ---
+  const [selectedPickupForDriver, setSelectedPickupForDriver] = useState(null);
+  const [showAssignPickupDriverModal, setShowAssignPickupDriverModal] = useState(false);
+  const [pickupDriverSearchTerm, setPickupDriverSearchTerm] = useState('');
+  const [assigningPickupDriver, setAssigningPickupDriver] = useState(false);
+  const [pickupStatusUpdating, setPickupStatusUpdating] = useState({});
 
   useEffect(() => {
     if (selectedEntity && selectedEntity.shippingFees !== undefined) {
@@ -1444,6 +1451,29 @@ const AdminDashboard = () => {
     );
   };
 
+  // Render pickups sub-tabs
+  const renderPickupsSubTabs = () => {
+    if (activeTab !== 'pickups') return null;
+    return (
+      <div className="pickups-header">
+        <div className="pickups-sub-tabs">
+          <button
+            className={`sub-tab-btn ${pickupTab === 'pending' ? 'active' : ''}`}
+            onClick={() => setPickupTab('pending')}
+          >
+            Pending
+          </button>
+          <button
+            className={`sub-tab-btn ${pickupTab === 'pickedup' ? 'active' : ''}`}
+            onClick={() => setPickupTab('pickedup')}
+          >
+            Picked Up
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   // Render pickups table
   const renderPickupsTable = () => {
     if (pickupLoading) {
@@ -1453,15 +1483,16 @@ const AdminDashboard = () => {
         </div>
       );
     }
-
-    if (pickups.length === 0) {
+    const filteredPickups = pickups.filter(pickup =>
+      pickupTab === 'pending' ? pickup.status === 'scheduled' : pickup.status === 'picked_up'
+    );
+    if (filteredPickups.length === 0) {
       return (
         <div className="empty-state">
           <p>No pickups found{searchTerm ? ' matching your search' : ''}.</p>
         </div>
       );
     }
-
     return (
       <table className="admin-table">
         <thead>
@@ -1471,11 +1502,12 @@ const AdminDashboard = () => {
             <th>Address</th>
             <th>Status</th>
             <th>Package Count</th>
+            <th>Driver</th>
             <th>Actions</th>
           </tr>
         </thead>
         <tbody>
-          {pickups.map(pickup => (
+          {filteredPickups.map(pickup => (
             <tr key={pickup.id}>
               <td data-label="Shop">{pickup.Shop?.businessName || 'N/A'}</td>
               <td data-label="Scheduled Time">{new Date(pickup.scheduledTime).toLocaleString()}</td>
@@ -1486,17 +1518,33 @@ const AdminDashboard = () => {
                 </span>
               </td>
               <td data-label="Package Count">{pickup.Packages?.length || 0}</td>
+              <td data-label="Driver">{(() => {
+                const driver = drivers.find(d => d.driverId === pickup.driverId || d.id === pickup.driverId);
+                return driver ? driver.name : 'Unassigned';
+              })()}</td>
               <td data-label="Actions">
                 {pickup.status === 'scheduled' && (
-                  <button 
-                    className="action-btn assign-btn"
-                    onClick={() => handleMarkPickupAsPickedUp(pickup.id)}
-                    title="Mark as Picked Up"
-                  >
-                    <FontAwesomeIcon icon={faCheck} />
-                  </button>
+                  <>
+                    <button
+                      className="action-btn assign-btn"
+                      onClick={() => openAssignPickupDriverModal(pickup)}
+                      title="Assign Driver"
+                    >
+                      <FontAwesomeIcon icon={faTruck} />
+                    </button>
+                    <select
+                      value={pickup.status}
+                      onChange={e => updatePickupStatus(pickup.id, e.target.value)}
+                      disabled={pickupStatusUpdating[pickup.id]}
+                      style={{ marginLeft: 8 }}
+                    >
+                      <option value="scheduled">Pending</option>
+                      <option value="picked_up">PickedUp</option>
+                      <option value="in_storage">InStorage</option>
+                    </select>
+                  </>
                 )}
-                <button 
+                <button
                   className="action-btn view-btn"
                   onClick={() => handlePickupClick(pickup)}
                   title="View Packages"
@@ -3251,6 +3299,106 @@ const AdminDashboard = () => {
     );
   };
 
+  // --- Handler to open assign driver modal for pickup ---
+  const openAssignPickupDriverModal = async (pickup) => {
+    setSelectedPickupForDriver(pickup);
+    setPickupDriverSearchTerm('');
+    setAssigningPickupDriver(false);
+    try {
+      const { data } = await adminService.getDrivers({ isApproved: true });
+      setAvailableDrivers(data);
+      setShowAssignPickupDriverModal(true);
+    } catch (error) {
+      setStatusMessage({ type: 'error', text: 'Failed to fetch available drivers.' });
+    }
+  };
+  // --- Handler to assign driver to pickup ---
+  const assignDriverToPickup = async (driverId) => {
+    if (!selectedPickupForDriver || !driverId) return;
+    setAssigningPickupDriver(true);
+    try {
+      await adminService.assignDriverToPickup(selectedPickupForDriver.id, driverId);
+      // Refresh pickups data
+      const pickupsResponse = await adminService.getAllPickups();
+      setPickups(pickupsResponse.data || []);
+      setShowAssignPickupDriverModal(false);
+      setStatusMessage({ type: 'success', text: 'Driver assigned to pickup successfully!' });
+    } catch (error) {
+      setStatusMessage({ type: 'error', text: error.response?.data?.message || 'Failed to assign driver.' });
+    } finally {
+      setAssigningPickupDriver(false);
+    }
+  };
+  // --- Handler to update pickup status ---
+  const updatePickupStatus = async (pickupId, status) => {
+    setPickupStatusUpdating(prev => ({ ...prev, [pickupId]: true }));
+    try {
+      await adminService.updatePickupStatus(pickupId, status);
+      const pickupsResponse = await adminService.getAllPickups();
+      setPickups(pickupsResponse.data || []);
+      setStatusMessage({ type: 'success', text: 'Pickup status updated.' });
+    } catch (error) {
+      setStatusMessage({ type: 'error', text: error.response?.data?.message || 'Failed to update status.' });
+    } finally {
+      setPickupStatusUpdating(prev => ({ ...prev, [pickupId]: false }));
+    }
+  };
+  // --- Render assign driver modal for pickup ---
+  const renderAssignPickupDriverModal = () => {
+    if (!showAssignPickupDriverModal || !selectedPickupForDriver) return null;
+    const filteredDrivers = availableDrivers.filter(driver =>
+      driver.name?.toLowerCase().includes(pickupDriverSearchTerm.toLowerCase()) ||
+      driver.email?.toLowerCase().includes(pickupDriverSearchTerm.toLowerCase())
+    );
+    return (
+      <div className="modal-overlay">
+        <div className="modal-content">
+          <div className="modal-header">
+            <h3>Assign Driver to Pickup</h3>
+            <button className="modal-close" onClick={() => setShowAssignPickupDriverModal(false)}>
+              <FontAwesomeIcon icon={faClose} />
+            </button>
+          </div>
+          <div className="modal-body">
+            <p><strong>Shop:</strong> {selectedPickupForDriver.Shop?.businessName || 'N/A'}</p>
+            <p><strong>Scheduled Time:</strong> {new Date(selectedPickupForDriver.scheduledTime).toLocaleString()}</p>
+            <div className="search-section">
+              <input
+                type="text"
+                placeholder="Search drivers..."
+                value={pickupDriverSearchTerm}
+                onChange={e => setPickupDriverSearchTerm(e.target.value)}
+                className="search-input"
+              />
+            </div>
+            <div className="drivers-list">
+              {filteredDrivers.length === 0 ? (
+                <p>No available drivers found.</p>
+              ) : (
+                filteredDrivers.map(driver => (
+                  <div key={driver.id} className="driver-item">
+                    <div className="driver-info">
+                      <strong>{driver.name}</strong>
+                      <span>{driver.email}</span>
+                      <span>Phone: {driver.phone}</span>
+                    </div>
+                    <button
+                      className="assign-btn"
+                      onClick={() => assignDriverToPickup(driver.driverId)}
+                      disabled={assigningPickupDriver}
+                    >
+                      {assigningPickupDriver ? 'Assigning...' : 'Assign'}
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="admin-dashboard">
       {renderStatusMessage()}
@@ -3326,7 +3474,7 @@ const AdminDashboard = () => {
         ) : (
           <>
             {activeTab === 'dashboard' ? renderDashboardHome() :
-             activeTab === 'pickups' ? renderPickupsTable() : 
+             activeTab === 'pickups' ? <>{renderPickupsSubTabs()}{renderPickupsTable()}</> : 
              activeTab === 'packages' ? <> {renderPackagesSubTabs()} {renderPackagesTable()} </> :
              activeTab === 'money' ? renderMoneyTable() : 
              renderUsersTable()}
@@ -3337,6 +3485,7 @@ const AdminDashboard = () => {
       {renderDetailsModal()}
       {renderAssignDriverModal()}
       {renderPickupModal()}
+      {renderAssignPickupDriverModal()}
       {renderBulkAssignModal()}
       {renderDriverPackagesModal()}
       {activeTab === 'driver-packages' && selectedDriverForPackages && (
