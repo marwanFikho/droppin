@@ -214,6 +214,9 @@ const resources = {
           tab_delivered: 'تم التوصيل',
           tab_cancelled: 'الملغاة',
           tab_all: 'الكل',
+          pickupTab_notPickedUp: 'لم يتم الالتقاط',
+          pickupTab_pickedUp: 'تم الالتقاط',
+          pickupTab_all: 'الكل',
         },
         register: {
           joinAsDriver: 'انضم كسائق',

@@ -3104,6 +3104,21 @@ const AdminDashboard = () => {
     }
   }, [activeTab]);
 
+  useEffect(() => {
+    if (activeTab === 'pickups') {
+      // Always fetch drivers when opening pickups tab
+      const fetchDrivers = async () => {
+        try {
+          const driversResponse = await adminService.getDrivers();
+          setDrivers(driversResponse.data || []);
+        } catch (error) {
+          setDrivers([]);
+        }
+      };
+      fetchDrivers();
+    }
+  }, [activeTab]);
+
   const chartBoxStyle = { height: 220, display: 'flex', alignItems: 'center', justifyContent: 'center' };
 
   const renderDashboardHome = () => {
@@ -3351,8 +3366,8 @@ const AdminDashboard = () => {
       driver.email?.toLowerCase().includes(pickupDriverSearchTerm.toLowerCase())
     );
     return (
-      <div className="modal-overlay">
-        <div className="modal-content">
+      <div className={`modal-overlay show`} onClick={() => setShowAssignPickupDriverModal(false)}>
+        <div className="modal-content" onClick={e => e.stopPropagation()}>
           <div className="modal-header">
             <h3>Assign Driver to Pickup</h3>
             <button className="modal-close" onClick={() => setShowAssignPickupDriverModal(false)}>

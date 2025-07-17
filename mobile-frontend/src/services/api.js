@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { getToken } from '../utils/auth';
 
-// const API_URL = process.env.REACT_APP_API_URL || 'http://102.43.58.238:5000/api';
+// const API_URL = process.env.REACT_APP_API_URL || 'http://197.37.47.105:5000/api';
 const API_URL = process.env.REACT_APP_API_URL || 'https://api.droppin-eg.com/api';
 
 // Create axios instance
@@ -163,6 +163,11 @@ export const adminService = {
   getShopPackages: (shopId) => api.get(`/admin/packages`, { params: { shopId } }),
   getMoneyTransactions: (params = {}) => api.get('/admin/money', { params }),
   getRecentActivities: () => api.get('/admin/activities'),
+};
+
+export const pickupService = {
+  getDriverPickups: () => api.get('/pickups/driver'),
+  markPickupAsPickedUp: (pickupId) => api.patch(`/pickups/driver/${pickupId}/pickup`),
 };
 
 export default api;

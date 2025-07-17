@@ -7,6 +7,7 @@ const { Shop } = require('../models');
 const { logMoneyTransaction } = require('../utils/moneyLogger');
 const { createNotification } = require('../controllers/notification.controller');
 const { User } = require('../models');
+const Driver = require('../models/driver.model');
 
 // Create a new pickup
 router.post('/', authenticate, async (req, res) => {
@@ -121,6 +122,37 @@ router.get('/shop', authenticate, async (req, res) => {
       message: 'Failed to fetch pickups',
       error: error.message
     });
+  }
+});
+
+// Get pickups assigned to the current driver
+router.get('/driver', authenticate, async (req, res) => {
+  try {
+    console.log('[DEBUG] /pickups/driver called by user:', req.user && req.user.id, 'role:', req.user && req.user.role);
+    if (req.user.role !== 'driver') {
+      console.log('[DEBUG] User is not a driver, aborting.');
+      return res.status(403).json({ message: 'Driver access required' });
+    }
+    // Find the driver's id using the logged-in user's id
+    const driver = await Driver.findOne({ where: { userId: req.user.id } });
+    if (!driver) {
+      console.log('[DEBUG] No driver profile found for userId:', req.user.id);
+      return res.status(404).json({ message: 'Driver profile not found' });
+    }
+    console.log('[DEBUG] Found driver:', driver.id, 'for userId:', req.user.id);
+    const pickups = await Pickup.findAll({
+      where: { driverId: driver.id },
+      include: [
+        { model: Shop, attributes: ['businessName'] },
+        { model: Package }
+      ],
+      order: [['createdAt', 'DESC']]
+    });
+    console.log('[DEBUG] Pickups found for driverId', driver.id, ':', pickups.length);
+    res.json(pickups);
+  } catch (error) {
+    console.error('[DEBUG] Error in /pickups/driver:', error);
+    res.status(500).json({ message: 'Failed to fetch driver pickups', error: error.message });
   }
 });
 
@@ -364,6 +396,46 @@ router.patch('/admin/pickups/:id/status', authenticate, async (req, res) => {
   } catch (error) {
     console.error('Error updating pickup status:', error);
     res.status(500).json({ message: 'Failed to update pickup status', error: error.message });
+  }
+});
+
+// Allow driver to mark their assigned pickup as picked up
+router.patch('/driver/:id/pickup', authenticate, async (req, res) => {
+  try {
+    if (req.user.role !== 'driver') {
+      return res.status(403).json({ message: 'Driver access required' });
+    }
+    // Find the driver profile for the current user
+    const driver = await Driver.findOne({ where: { userId: req.user.id } });
+    if (!driver) {
+      return res.status(404).json({ message: 'Driver profile not found' });
+    }
+    const pickup = await Pickup.findByPk(req.params.id, { include: [{ model: Package }] });
+    if (!pickup) {
+      return res.status(404).json({ message: 'Pickup not found' });
+    }
+    if (pickup.driverId !== driver.id) {
+      return res.status(403).json({ message: 'Not authorized to update this pickup' });
+    }
+    if (pickup.status === 'picked_up') {
+      return res.status(400).json({ message: 'Pickup already marked as picked up' });
+    }
+    // Update pickup status and actual pickup time
+    await pickup.update({
+      status: 'picked_up',
+      actualPickupTime: new Date()
+    });
+    // Update all packages in this pickup to 'pending' status
+    if (pickup.Packages && pickup.Packages.length > 0) {
+      const packageIds = pickup.Packages.map(pkg => pkg.id);
+      await Package.update(
+        { status: 'pending' },
+        { where: { id: packageIds } }
+      );
+    }
+    res.json({ message: 'Pickup marked as picked up successfully', pickup });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to mark pickup as picked up', error: error.message });
   }
 });
 

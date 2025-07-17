@@ -31,6 +31,9 @@ Pickup.belongsTo(Shop, { foreignKey: 'shopId' });
 Shop.hasMany(MoneyTransaction, { foreignKey: 'shopId' });
 MoneyTransaction.belongsTo(Shop, { foreignKey: 'shopId' });
 
+Driver.hasMany(Pickup, { foreignKey: 'driverId' });
+Pickup.belongsTo(Driver, { foreignKey: 'driverId' });
+
 const PickupPackages = sequelize.define('PickupPackages', {}, { timestamps: true });
 Pickup.belongsToMany(Package, { through: PickupPackages, foreignKey: 'pickupId' });
 Package.belongsToMany(Pickup, { through: PickupPackages, foreignKey: 'packageId' });

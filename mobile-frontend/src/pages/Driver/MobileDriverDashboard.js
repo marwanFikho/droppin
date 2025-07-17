@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { driverService, packageService } from '../../services/api';
+import { driverService, packageService, pickupService } from '../../services/api';
 import { Doughnut } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import './MobileDriverDashboard.css';
@@ -14,6 +14,12 @@ const packageCategories = {
   delivered: ['delivered'],
   cancelled: ['cancelled'],
   all: ['assigned', 'pickedup', 'in-transit', 'delivered', 'cancelled', 'returned']
+};
+
+const pickupCategories = {
+  notPickedUp: ['scheduled', 'pending', 'in_storage'],
+  pickedUp: ['picked_up', 'completed'],
+  all: ['scheduled', 'pending', 'in_storage', 'picked_up', 'completed', 'cancelled']
 };
 
 const getStatusBadge = (status) => (
@@ -65,6 +71,12 @@ const MobileDriverDashboard = () => {
   const [lang, setLang] = useState(i18n.language || 'en');
   const [savingLang, setSavingLang] = useState(false);
   const [langError, setLangError] = useState(null);
+  const [pickups, setPickups] = useState([]);
+  const [pickupModalOpen, setPickupModalOpen] = useState(false);
+  const [selectedPickup, setSelectedPickup] = useState(null);
+  const [pickupActionLoading, setPickupActionLoading] = useState(false);
+  const [pickupModalError, setPickupModalError] = useState(null);
+  const [activePickupTab, setActivePickupTab] = useState('notPickedUp');
 
   const handleToggleLanguage = async () => {
     const newLang = lang === 'en' ? 'ar' : 'en';
@@ -116,6 +128,47 @@ const MobileDriverDashboard = () => {
     const timer = setTimeout(() => setDebouncedSearchQuery(searchQuery), 300);
     return () => clearTimeout(timer);
   }, [searchQuery]);
+
+  useEffect(() => {
+    // Fetch assigned pickups for this driver
+    const fetchDriverPickups = async () => {
+      try {
+        const res = await pickupService.getDriverPickups();
+        setPickups(res.data || []);
+      } catch (err) {
+        setPickups([]);
+      }
+    };
+    fetchDriverPickups();
+  }, []);
+
+  // Handler to open pickup modal
+  const openPickupModal = (pickup) => {
+    setSelectedPickup(pickup);
+    setPickupModalOpen(true);
+    setPickupModalError(null);
+  };
+  const closePickupModal = () => {
+    setPickupModalOpen(false);
+    setSelectedPickup(null);
+    setPickupModalError(null);
+  };
+  // Handler to mark pickup as picked up
+  const handleMarkPickupAsPickedUp = async (pickupId) => {
+    setPickupActionLoading(true);
+    setPickupModalError(null);
+    try {
+      await pickupService.markPickupAsPickedUp(pickupId);
+      // Refresh pickups
+      const res = await pickupService.getDriverPickups();
+      setPickups(res.data || []);
+      closePickupModal();
+    } catch (err) {
+      setPickupModalError('Failed to mark pickup as picked up.');
+    } finally {
+      setPickupActionLoading(false);
+    }
+  };
 
   const handleToggleAvailability = async () => {
     if (!driverProfile) return;
@@ -222,6 +275,15 @@ const MobileDriverDashboard = () => {
     return filtered;
   }, [packages, activeTab, debouncedSearchQuery]);
 
+  // Helper to filter pickups by tab
+  const getFilteredPickups = useCallback(() => {
+    let filtered = pickups;
+    if (activePickupTab !== 'all') {
+      filtered = filtered.filter(pickup => pickupCategories[activePickupTab].includes(pickup.status));
+    }
+    return filtered;
+  }, [pickups, activePickupTab]);
+
   // Chart Data
   const chartData = {
     labels: ['Active Assigned', 'Delivered', 'Cancelled'],
@@ -299,6 +361,40 @@ const MobileDriverDashboard = () => {
           >
             {t('driver.dashboard.markAsPickup')}
           </button>
+        </div>
+
+        {/* Assigned Pickups Section with Tabs */}
+        <div className="mobile-driver-dashboard-section">
+          <h2 className="mobile-driver-dashboard-section-title">Assigned Pickups</h2>
+          <div className="mobile-driver-dashboard-tabs-modern" style={{ marginBottom: 12 }}>
+            {Object.keys(pickupCategories).map(tab => (
+              <button
+                key={tab}
+                className={`mobile-driver-dashboard-tab-modern${activePickupTab === tab ? ' active' : ''}`}
+                onClick={() => setActivePickupTab(tab)}
+              >
+                {t(`driver.dashboard.pickupTab_${tab}`, tab === 'notPickedUp' ? 'Not Picked Up' : tab === 'pickedUp' ? 'Picked Up' : 'All')}
+                <span className="mobile-driver-dashboard-tab-count">
+                  {pickups.filter(pickup => tab === 'all' ? true : pickupCategories[tab].includes(pickup.status)).length}
+                </span>
+              </button>
+            ))}
+          </div>
+          {getFilteredPickups().length === 0 ? (
+            <div style={{ color: '#888', textAlign: 'center', padding: '1rem' }}>No assigned pickups.</div>
+          ) : (
+            getFilteredPickups().map(pickup => (
+              <div key={pickup.id} className="mobile-driver-dashboard-pickup-card" style={{marginBottom: 16, background: '#fff', borderRadius: 12, boxShadow: '0 2px 4px rgba(0,0,0,0.07)', padding: 16}}>
+                <div><strong>Shop:</strong> {pickup.Shop?.businessName || 'N/A'}</div>
+                <div><strong>Scheduled:</strong> {pickup.scheduledTime ? new Date(pickup.scheduledTime).toLocaleString() : '-'}</div>
+                <div><strong>Status:</strong> {pickup.status}</div>
+                <div><strong>Packages:</strong> {pickup.Packages?.length || 0}</div>
+                <button className="btn btn-primary" style={{marginTop: 8}} onClick={() => openPickupModal(pickup)}>
+                  View Details
+                </button>
+              </div>
+            ))
+          )}
         </div>
 
         {/* Stats & Chart */}
@@ -499,6 +595,42 @@ const MobileDriverDashboard = () => {
                   )}
                 </div>
               ) : null}
+            </div>
+          </div>
+        </div>
+      )}
+      {pickupModalOpen && selectedPickup && (
+        <div className="mobile-modal-overlay" onClick={closePickupModal}>
+          <div className="mobile-modal-content" onClick={e => e.stopPropagation()} style={{maxWidth: 340}}>
+            <div className="mobile-modal-header">
+              <h3>Pickup Details</h3>
+              <button className="mobile-modal-close" onClick={closePickupModal}>&times;</button>
+            </div>
+            <div className="mobile-modal-body">
+              <div><strong>Shop:</strong> {selectedPickup.Shop?.businessName || 'N/A'}</div>
+              <div><strong>Scheduled:</strong> {selectedPickup.scheduledTime ? new Date(selectedPickup.scheduledTime).toLocaleString() : '-'}</div>
+              <div><strong>Status:</strong> {selectedPickup.status}</div>
+              <div><strong>Packages:</strong> {selectedPickup.Packages?.length || 0}</div>
+              <div style={{marginTop: 12}}>
+                <strong>Packages in this Pickup:</strong>
+                {selectedPickup.Packages && selectedPickup.Packages.length > 0 ? (
+                  <ul style={{margin: 0, padding: 0, listStyle: 'none'}}>
+                    {selectedPickup.Packages.map(pkg => (
+                      <li key={pkg.id} style={{marginBottom: 6, fontSize: 14}}>
+                        #{pkg.trackingNumber} - {pkg.packageDescription} - <span className={`status-badge status-${pkg.status}`}>{pkg.status}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <div style={{fontSize: 14, color: '#888'}}>No packages in this pickup.</div>
+                )}
+              </div>
+              {selectedPickup.status !== 'picked_up' && (
+                <button className="btn btn-primary" style={{marginTop: 16, width: '100%'}} onClick={() => handleMarkPickupAsPickedUp(selectedPickup.id)} disabled={pickupActionLoading}>
+                  {pickupActionLoading ? 'Marking...' : 'Mark as Picked Up'}
+                </button>
+              )}
+              {pickupModalError && <div className="mobile-error-message" style={{marginTop: 8}}>{pickupModalError}</div>}
             </div>
           </div>
         </div>

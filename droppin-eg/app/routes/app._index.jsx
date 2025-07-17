@@ -271,25 +271,6 @@ export default function Index() {
       </TitleBar>
       {/* Add Droppin Website button styles */}
       <style>{`
-        .droppin-website-btn {
-          display: inline-block;
-          padding: 6px 14px;
-          background: #FF7A29;
-          color: #fff;
-          border-radius: 20px;
-          text-decoration: none;
-          font-weight: 500;
-          font-size: 14px;
-          border: none;
-          cursor: pointer;
-          font-family: 'Montserrat', sans-serif;
-          transition: background 0.2s, box-shadow 0.2s;
-        }
-        .droppin-website-btn:hover {
-          background: #ff944d;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.12);
-          color: #fff;
-        }
         .droppin-orders-container {
           background: #fff;
           border-radius: 16px;
@@ -383,16 +364,6 @@ export default function Index() {
             {banner.content}
           </Banner>
         )}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
-          <a
-            href="https://droppin-eg.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="droppin-website-btn"
-          >
-            Go to Droppin Website
-          </a>
-        </div>
         {/* Filter Dropdown */}
         <div className="droppin-filter-bar">
           <label style={{ marginRight: 8 }}>Filter:</label>
