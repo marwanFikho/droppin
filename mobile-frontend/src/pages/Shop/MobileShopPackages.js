@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { packageService } from '../../services/api';
 import './MobileShopDashboard.css';
+import QRCode from 'qrcode';
 
 const TABS = [
   { label: 'All', value: 'all' },
@@ -34,6 +35,7 @@ const MobileShopPackages = () => {
   const [showMarkPendingModal, setShowMarkPendingModal] = useState(false);
   const [showMarkCancelledAwaitingReturnModal, setShowMarkCancelledAwaitingReturnModal] = useState(false);
   const [packageToMark, setPackageToMark] = useState(null);
+  const [shopFees, setShopFees] = useState({ shippingFees: 0, shownShippingFees: 0 });
 
   useEffect(() => {
     const fetchPackages = async () => {
@@ -49,6 +51,19 @@ const MobileShopPackages = () => {
       }
     };
     fetchPackages();
+  }, []);
+
+  useEffect(() => {
+    async function fetchShopFees() {
+      try {
+        const res = await packageService.getShopProfile();
+        setShopFees({
+          shippingFees: res.data.shippingFees || 0,
+          shownShippingFees: res.data.shownShippingFees || 0,
+        });
+      } catch {}
+    }
+    fetchShopFees();
   }, []);
 
   const filterPackages = () => {
@@ -121,6 +136,104 @@ const MobileShopPackages = () => {
     }
   };
 
+  const handlePrintAWB = async (pkg) => {
+    // Generate QR code as data URL
+    const qrDataUrl = await QRCode.toDataURL(pkg.trackingNumber || '');
+    // Logo path (now in public directory)
+    const logoUrl = 'http://localhost:3001/assets/images/logo.jpg';
+    // Calculate values
+    const cod = parseFloat(pkg.codAmount || 0);
+    let shipping = (shopFees.shownShippingFees !== undefined && shopFees.shownShippingFees !== null && shopFees.shownShippingFees !== '' && Number(shopFees.shownShippingFees) > 0)
+      ? Number(shopFees.shownShippingFees)
+      : Number(shopFees.shippingFees);
+    if (!Number.isFinite(shipping) || shipping < 0) shipping = 0;
+    const total = cod + shipping;
+    // Build AWB HTML (copied from desktop)
+    const awbHtml = `
+      <html>
+        <head>
+          <title>Droppin Air Waybill</title>
+          <style>
+            body { font-family: Arial, sans-serif; background: #fff; color: #111; margin: 0; padding: 0; }
+            .awb-container { width: 800px; margin: 0 auto; padding: 32px; background: #fff; }
+            .awb-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #111; padding-bottom: 16px; }
+            .awb-logo { height: 80px; width: auto; }
+            .awb-title { font-size: 2rem; font-weight: bold; }
+            .awb-section { margin-top: 24px; }
+            .awb-table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+            .awb-table th, .awb-table td { border: 1px solid #111; padding: 8px; text-align: left; }
+            .awb-table th { background: #f5f5f5; }
+            .awb-info-table { width: 100%; margin-top: 16px; }
+            .awb-info-table td { padding: 4px 8px; }
+            .awb-footer { margin-top: 32px; text-align: center; font-size: 1.1rem; font-weight: bold; }
+            .awb-tracking { font-size: 22px; font-weight: bold; }
+            .awb-recipient { font-size: 18px; font-weight: bold; }
+            .awb-phone { font-size: 18px; font-weight: bold; }
+            .awb-address { font-size: 18px; font-weight: bold; }
+            .awb-data { margin-left: 0; }
+            .awb-row { display: block; }
+          </style>
+        </head>
+        <body onload="window.print()">
+          <div class="awb-container">
+            <div class="awb-header">
+              <img src="${logoUrl}" class="awb-logo" alt="Droppin Logo" />
+              <div>
+                <img src="${qrDataUrl}" alt="QR Code" style="height:140px;width:140px;" />
+              </div>
+            </div>
+            <div class="awb-section">
+              <table class="awb-info-table">
+                <tr>
+                  <td><span class="awb-row"><b class="awb-tracking">Tracking #:</b><span class="awb-tracking awb-data">${pkg.trackingNumber || '-'}</span></span></td>
+                  <td><b>Date:</b> ${pkg.createdAt ? new Date(pkg.createdAt).toLocaleDateString() : '-'}</td>
+                </tr>
+                <tr>
+                  <td colspan="2">
+                    <span class="awb-row"><b class="awb-recipient">Recipient:</b><span class="awb-recipient awb-data">${pkg.deliveryContactName || '-'}</span></span><br/>
+                    <span class="awb-row"><b class="awb-phone">Phone:</b><span class="awb-phone awb-data">${pkg.deliveryContactPhone || '-'}</span></span><br/>
+                    <span class="awb-row"><b class="awb-address">Address:</b><span class="awb-address awb-data">${pkg.deliveryAddress || '-'}</span></span>
+                  </td>
+                </tr>
+              </table>
+            </div>
+            <div class="awb-section">
+              <table class="awb-table">
+                <thead>
+                  <tr><th>Item</th><th>Qty</th><th>Price</th><th>Total</th></tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>${pkg.packageDescription || '-'}</td>
+                    <td>${pkg.itemsNo ?? 1}</td>
+                    <td>${cod.toFixed(2)} EGP</td>
+                    <td>${cod.toFixed(2)} EGP</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="awb-section">
+              <b>Payment Method:</b> COD
+            </div>
+            <div class="awb-section" style="display:flex;justify-content:flex-end;">
+              <table class="awb-info-table" style="width:300px;">
+                <tr><td>Sub Total:</td><td>${cod.toFixed(2)} EGP</td></tr>
+                <tr><td>Shipping:</td><td>${shipping.toFixed(2)} EGP</td></tr>
+                <tr><td><b>Total:</b></td><td><b>${total.toFixed(2)} EGP</b></td></tr>
+              </table>
+            </div>
+            <div class="awb-footer">Thank you for your order!</div>
+          </div>
+        </body>
+      </html>
+    `;
+    // Open new tab and write AWB HTML
+    const printWindow = window.open('', '_blank');
+    printWindow.document.open();
+    printWindow.document.write(awbHtml);
+    printWindow.document.close();
+  };
+
   return (
     <div className="mobile-shop-packages" style={{marginLeft: '1rem', marginRight: '1rem', marginTop: '6rem'}}>
       <h2 className="mobile-shop-packages-title">All Packages</h2>
@@ -183,6 +296,9 @@ const MobileShopPackages = () => {
               </div>
               <div className="mobile-shop-package-actions">
                 <button onClick={() => openDetailsModal(pkg)} className="mobile-shop-package-details-btn">View Details</button>
+                {pkg.status !== 'delivered' && (
+                  <button onClick={() => handlePrintAWB(pkg)} className="mobile-shop-package-details-btn" style={{background:'#007bff',color:'#fff'}}>Print AWB</button>
+                )}
                 {pkg.status === 'rejected' ? (
                   <>
                     <button className="btn btn-primary" style={{marginBottom:8}} onClick={() => { setPackageToMark(pkg); setShowMarkPendingModal(true); }}>Mark as Pending</button>

@@ -496,7 +496,7 @@ const ShopDashboard = () => {
           <Route path="new-pickup" element={<NewPickup />} />
           <Route path="wallet" element={<Wallet />} />
           <Route path="*" element={
-            <div className="dashboard-content">
+            <div className="dashboard-content-shop">
               <div className="dashboard-header">
                 <div className="welcome-message">
                   <h1 style={{color:'white'}}>Welcome, {currentUser?.name || 'Shop Owner'}</h1>

@@ -30,6 +30,12 @@ ChartJS.register(
   Legend
 );
 
+// Helper to get YYYY-MM-DD string for a date
+function getDateString(date) {
+  const d = new Date(date);
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
 const AdminDashboard = () => {
   const { currentUser, logout } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -126,6 +132,10 @@ const AdminDashboard = () => {
   const [pickupDriverSearchTerm, setPickupDriverSearchTerm] = useState('');
   const [assigningPickupDriver, setAssigningPickupDriver] = useState(false);
   const [pickupStatusUpdating, setPickupStatusUpdating] = useState({});
+  // Add state for delete confirmation and status
+  const [pickupToDelete, setPickupToDelete] = useState(null);
+  const [deletingPickup, setDeletingPickup] = useState(false);
+  const [shopSort, setShopSort] = useState({ field: 'revenue', order: 'desc' });
 
   useEffect(() => {
     if (selectedEntity && selectedEntity.shippingFees !== undefined) {
@@ -282,18 +292,15 @@ const AdminDashboard = () => {
           const createdAfter = sevenDaysAgo.toISOString();
           const deliveredAfter = createdAfter;
           // Fetch packages created OR delivered in the last 7 days
-          const [createdPkgs, deliveredPkgs, trans] = await Promise.all([
-            adminService.getPackages({ createdAfter }),
-            adminService.getPackages({ deliveredAfter }),
+          const [allPkgsRes, trans] = await Promise.all([
+            adminService.getPackages({ limit: 1000 }),
             adminService.getMoneyTransactions()
           ]);
-          // Merge and deduplicate packages by ID
-          const pkgsMap = {};
-          (createdPkgs.data || []).forEach(pkg => { pkgsMap[pkg.id] = pkg; });
-          (deliveredPkgs.data || []).forEach(pkg => { pkgsMap[pkg.id] = pkg; });
-          const pkgs = Object.values(pkgsMap);
+          const pkgs = allPkgsRes.data || [];
           setPackages(pkgs);
           setMoneyTransactions(trans.data.transactions || []);
+          // --- Fetch shops for dashboard revenue table ---
+          await fetchUsers('shops');
         }
         
         // Load appropriate data based on active tab
@@ -348,36 +355,62 @@ const AdminDashboard = () => {
     fetchData();
   }, [activeTab, packagesTab, sortConfig]);
 
+  // Add a helper function for day difference
+  function getDayDiff(date1, date2) {
+    // date1, date2: JS Date objects
+    const d1 = new Date(date1.getFullYear(), date1.getMonth(), date1.getDate());
+    const d2 = new Date(date2.getFullYear(), date2.getMonth(), date2.getDate());
+    return Math.floor((d1 - d2) / (1000 * 60 * 60 * 24));
+  }
+
   // New useEffect for processing dashboard data
   useEffect(() => {
     if (activeTab === 'dashboard' && packages.length > 0) {
-      // Process Packages Over Time (last 7 days)
-      const last7DaysLabels = [...Array(7)].map((_, i) => {
-        const d = new Date();
-        d.setDate(d.getDate() - (6 - i));
+      // Use the most recent createdAt date as the reference for the last 7 days
+      const allDates = packages.map(p => p.createdAt ? new Date(p.createdAt) : null).filter(Boolean);
+      const maxDate = allDates.length > 0 ? new Date(Math.max(...allDates.map(d => d.getTime()))) : new Date();
+      const last7Days = [...Array(7)].map((_, i) => {
+        const d = new Date(maxDate);
+        d.setDate(maxDate.getDate() - (6 - i));
+        return d.toISOString().split('T')[0];
+      });
+      const last7DaysLabels = last7Days.map(dateStr => {
+        const d = new Date(dateStr);
         return d.toLocaleDateString('en-US', { weekday: 'short' });
       });
-
       const createdPerDay = Array(7).fill(0);
       const deliveredPerDay = Array(7).fill(0);
-
+      // Debug output
+      console.log('last7Days:', last7Days);
+      console.log('All createdAt:', packages.map(p => p.createdAt));
+      console.log('All actualDeliveryTime:', packages.map(p => p.actualDeliveryTime));
       packages.forEach(pkg => {
-        const now = new Date();
-        const sevenDaysAgo = new Date();
-        sevenDaysAgo.setDate(now.getDate() - 7);
-
-        const createdAt = new Date(pkg.createdAt);
-        if (createdAt >= sevenDaysAgo) {
-          const dayIndex = 6 - Math.floor((now - createdAt) / (1000 * 60 * 60 * 24));
-          if(dayIndex >= 0 && dayIndex < 7) createdPerDay[dayIndex]++;
+        // Universal date extraction
+        let createdDateStr = '';
+        if (pkg.createdAt) {
+          if (pkg.createdAt.includes('T')) {
+            createdDateStr = pkg.createdAt.split('T')[0];
+          } else {
+            createdDateStr = pkg.createdAt;
+          }
         }
-
-        // Count as delivered if status is exactly 'delivered', regardless of actualDeliveryTime
+        const createdIdx = last7Days.indexOf(createdDateStr);
+        if (createdIdx !== -1) {
+          createdPerDay[createdIdx]++;
+        }
         if (pkg.status === 'delivered') {
-          const deliveredAt = pkg.actualDeliveryTime ? new Date(pkg.actualDeliveryTime) : new Date(pkg.updatedAt || pkg.createdAt);
-          if (deliveredAt >= sevenDaysAgo) {
-            const dayIndex = 6 - Math.floor((now - deliveredAt) / (1000 * 60 * 60 * 24));
-            if(dayIndex >= 0 && dayIndex < 7) deliveredPerDay[dayIndex]++;
+          let deliveredDate = pkg.actualDeliveryTime || pkg.updatedAt || pkg.createdAt;
+          let deliveredDateStr = '';
+          if (deliveredDate) {
+            if (deliveredDate.includes('T')) {
+              deliveredDateStr = deliveredDate.split('T')[0];
+            } else {
+              deliveredDateStr = deliveredDate;
+            }
+          }
+          const deliveredIdx = last7Days.indexOf(deliveredDateStr);
+          if (deliveredIdx !== -1) {
+            deliveredPerDay[deliveredIdx]++;
           }
         }
       });
@@ -973,7 +1006,6 @@ const AdminDashboard = () => {
   // Filter packages
   const getFilteredPackages = () => {
     let filtered = packages;
-    
     // Apply tab filter
     if (packagesTab === 'ready-to-assign') {
       filtered = filtered.filter(pkg => pkg.status === 'pending');
@@ -981,10 +1013,15 @@ const AdminDashboard = () => {
       filtered = filtered.filter(pkg => ['assigned', 'pickedup', 'in-transit'].includes(pkg.status));
     } else if (packagesTab === 'delivered') {
       filtered = filtered.filter(pkg => pkg.status === 'delivered');
+      // Sort by actualDeliveryTime descending (most recent first)
+      filtered = filtered.slice().sort((a, b) => {
+        const aTime = a.actualDeliveryTime ? new Date(a.actualDeliveryTime).getTime() : 0;
+        const bTime = b.actualDeliveryTime ? new Date(b.actualDeliveryTime).getTime() : 0;
+        return bTime - aTime;
+      });
     } else if (packagesTab === 'return-to-shop') {
       filtered = filtered.filter(pkg => ['cancelled-awaiting-return', 'cancelled-returned'].includes(pkg.status));
     }
-
     // Apply search filter
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase();
@@ -995,7 +1032,6 @@ const AdminDashboard = () => {
         pkg.deliveryAddress.toLowerCase().includes(searchLower)
       );
     }
-
     return filtered;
   };
 
@@ -1542,6 +1578,15 @@ const AdminDashboard = () => {
                       <option value="picked_up">PickedUp</option>
                       <option value="in_storage">InStorage</option>
                     </select>
+                    <button
+                      className="action-btn reject-btn"
+                      onClick={() => handleDeletePickup(pickup)}
+                      title="Delete Pickup"
+                      disabled={deletingPickup}
+                      style={{ marginLeft: 8 }}
+                    >
+                      <FontAwesomeIcon icon={faTrash} />
+                    </button>
                   </>
                 )}
                 <button
@@ -2929,24 +2974,38 @@ const AdminDashboard = () => {
   }, [activeTab, moneyFilters]);
 
   const renderMoneyTable = () => {
-    if (moneyTransactions.length === 0) {
-      return <p style={{textAlign:'center'}}>No transactions found.</p>;
+    // Filter moneyTransactions by searchTerm if present
+    let filteredTransactions = moneyTransactions;
+    if (searchTerm) {
+      const search = searchTerm.toLowerCase();
+      filteredTransactions = moneyTransactions.filter(tx => {
+        const shopName = tx.Shop?.businessName?.toLowerCase() || '';
+        const driverName = tx.driver?.name?.toLowerCase() || '';
+        const attribute = tx.attribute?.toLowerCase() || '';
+        const description = tx.description?.toLowerCase() || '';
+        return (
+          shopName.includes(search) ||
+          driverName.includes(search) ||
+          attribute.includes(search) ||
+          description.includes(search)
+        );
+      });
     }
-
+    if (filteredTransactions.length === 0) {
+      return <p style={{textAlign:'center'}}>No transactions found{searchTerm ? ' matching your search' : ''}.</p>;
+    }
     const renderSortIcon = (field) => {
       if (moneyFilters.sortBy === field) {
         return <span className="sort-icon">{moneyFilters.sortOrder === 'DESC' ? '▼' : '▲'}</span>;
       }
       return null;
     };
-
     return (
       <div className="money-transactions-section">
         {/* Filters section remains the same */}
         <div className="filters-section">
           {/* ... existing filter inputs ... */}
         </div>
-
         <table className="admin-table money-table">
           <thead>
             <tr>
@@ -2980,7 +3039,7 @@ const AdminDashboard = () => {
             </tr>
           </thead>
           <tbody>
-            {moneyTransactions.map(tx => (
+            {filteredTransactions.map(tx => (
               <tr key={tx.id}>
                 <td data-label="Date">{new Date(tx.createdAt).toLocaleString()}</td>
                 <td data-label="Shop">{tx.Shop?.businessName || tx.shopId}</td>
@@ -3120,6 +3179,127 @@ const AdminDashboard = () => {
   }, [activeTab]);
 
   const chartBoxStyle = { height: 220, display: 'flex', alignItems: 'center', justifyContent: 'center' };
+
+  const renderBottomFinancialSection = () => {
+    // --- Recent Money Transactions Table ---
+    const recentTransactions = moneyTransactions
+      .slice()
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      .slice(0, 10);
+
+    // --- All Shops Revenue Table ---
+    // Get all shops from users state
+    const allShops = users.filter(u => u.role === 'shop');
+    // For each shop, use backend-provided delivered count and shipping fees
+    const shopRows = allShops.map(shop => {
+      const deliveredCount = shop.financialData?.packageCount || 0;
+      const shippingFees = parseFloat(shop.shippingFees || 0);
+      const revenue = deliveredCount * shippingFees;
+      return {
+        id: shop.shopId || shop.id,
+        name: shop.businessName,
+        shippingFees,
+        deliveredCount,
+        revenue
+      };
+    });
+
+    // --- Sorting logic ---
+    const sortedShopRows = [...shopRows].sort((a, b) => {
+      const { field, order } = shopSort;
+      let valA = a[field];
+      let valB = b[field];
+      if (typeof valA === 'string') valA = valA.toLowerCase();
+      if (typeof valB === 'string') valB = valB.toLowerCase();
+      if (valA < valB) return order === 'asc' ? -1 : 1;
+      if (valA > valB) return order === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    const handleShopSort = (field) => {
+      setShopSort(prev => {
+        if (prev.field === field) {
+          return { field, order: prev.order === 'asc' ? 'desc' : 'asc' };
+        } else {
+          return { field, order: 'desc' };
+        }
+      });
+    };
+
+    const renderSortIcon = (field) => {
+      if (shopSort.field !== field) return null;
+      return <span style={{ marginLeft: 4 }}>{shopSort.order === 'asc' ? '▲' : '▼'}</span>;
+    };
+
+    return (
+      <div style={{ marginTop: 48 }}>
+        <Row gutter={[24, 24]}>
+          <Col xs={24} lg={12}>
+            <Card title="Recent Money Transactions (Last 10)">
+              <div style={{ maxHeight: 320, overflowY: 'auto' }}>
+                <table className="admin-table money-table">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Shop</th>
+                      <th>Type</th>
+                      <th>Amount ($)</th>
+                      <th>Description</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {recentTransactions.length === 0 ? (
+                      <tr><td colSpan={5} style={{ textAlign: 'center' }}>No transactions found.</td></tr>
+                    ) : (
+                      recentTransactions.map(tx => (
+                        <tr key={tx.id}>
+                          <td>{new Date(tx.createdAt).toLocaleString()}</td>
+                          <td>{tx.Shop?.businessName || tx.shopId || '-'}</td>
+                          <td>{tx.changeType}</td>
+                          <td>${parseFloat(tx.amount).toFixed(2)}</td>
+                          <td>{tx.description || '-'}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          </Col>
+          <Col xs={24} lg={12}>
+            <Card title="All Shops Revenue (Delivered Packages)">
+              <div style={{ maxHeight: 320, overflowY: 'auto' }}>
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th onClick={() => handleShopSort('name')} style={{ cursor: 'pointer' }}>Shop Name {renderSortIcon('name')}</th>
+                      <th onClick={() => handleShopSort('shippingFees')} style={{ cursor: 'pointer' }}>Shipping Fees ($) {renderSortIcon('shippingFees')}</th>
+                      <th onClick={() => handleShopSort('deliveredCount')} style={{ cursor: 'pointer' }}>Delivered {renderSortIcon('deliveredCount')}</th>
+                      <th onClick={() => handleShopSort('revenue')} style={{ cursor: 'pointer' }}>Revenue ($) {renderSortIcon('revenue')}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sortedShopRows.length === 0 ? (
+                      <tr><td colSpan={4} style={{ textAlign: 'center' }}>No shops found.</td></tr>
+                    ) : (
+                      sortedShopRows.map(row => (
+                        <tr key={row.id}>
+                          <td>{row.name}</td>
+                          <td>${row.shippingFees.toFixed(2)}</td>
+                          <td>{row.deliveredCount}</td>
+                          <td>${row.revenue.toFixed(2)}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          </Col>
+        </Row>
+      </div>
+    );
+  };
 
   const renderDashboardHome = () => {
     // Use backend value for delivered revenue if available
@@ -3310,6 +3490,8 @@ const AdminDashboard = () => {
             </>
           )}
         </div>
+        {/* Add new financial section at the bottom */}
+        {renderBottomFinancialSection()}
       </div>
     );
   };
@@ -3412,6 +3594,30 @@ const AdminDashboard = () => {
         </div>
       </div>
     );
+  };
+
+  // Function to delete a pickup (now uses confirmation dialog)
+  const handleDeletePickup = (pickup) => {
+    setConfirmationDialogTitle('Delete Pickup');
+    setConfirmationDialogText('Are you sure you want to delete this pickup? All packages in it will be marked as awaiting_schedule.');
+    setConfirmAction(() => async () => {
+      setDeletingPickup(true);
+      try {
+        await packageService.deletePickup(pickup.id);
+        setStatusMessage({ type: 'success', text: 'Pickup deleted and packages reset.' });
+        // Refresh pickups list
+        const pickupsResponse = await adminService.getAllPickups();
+        setPickups(pickupsResponse.data || []);
+      } catch (error) {
+        setStatusMessage({ type: 'error', text: 'Failed to delete pickup.' });
+        // fallback: reload window
+        window.location.reload();
+      } finally {
+        setDeletingPickup(false);
+        setShowConfirmationDialog(false);
+      }
+    });
+    setShowConfirmationDialog(true);
   };
 
   return (

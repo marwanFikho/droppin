@@ -1277,3 +1277,7 @@
 .btn.close-btn:hover {
   background-color: #ececec;
 }
+
+.dashboard-content-shop {
+  margin-left: 280px;
+}

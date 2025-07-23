@@ -292,6 +292,7 @@ exports.getShops = async (req, res) => {
           contactPersonPhone: shop.contactPersonPhone,
           contactPersonEmail: shop.contactPersonEmail,
           address: shop.address,
+          shippingFees: shop.shippingFees, // <-- add this line
           // Use the financial data directly from the SQL query
           ToCollect: financialData.ToCollect,
           TotalCollected: financialData.TotalCollected,

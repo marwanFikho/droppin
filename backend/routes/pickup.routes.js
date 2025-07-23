@@ -286,10 +286,13 @@ router.patch('/:id/pickup', authenticate, async (req, res) => {
 // Cancel a pickup and reset package statuses
 router.patch('/:id/cancel', authenticate, async (req, res) => {
   try {
-    // Find the shop for the current user
-    const shop = await Shop.findOne({ where: { userId: req.user.id } });
-    if (!shop) {
-      return res.status(400).json({ message: 'Shop not found for this user.' });
+    let shop = null;
+    if (req.user.role !== 'admin') {
+      // Find the shop for the current user
+      shop = await Shop.findOne({ where: { userId: req.user.id } });
+      if (!shop) {
+        return res.status(400).json({ message: 'Shop not found for this user.' });
+      }
     }
     const pickup = await Pickup.findByPk(req.params.id, {
       include: [{ model: Package }]
@@ -297,7 +300,7 @@ router.patch('/:id/cancel', authenticate, async (req, res) => {
     if (!pickup) {
       return res.status(404).json({ message: 'Pickup not found' });
     }
-    if (pickup.shopId !== shop.id && req.user.role !== 'admin') {
+    if (req.user.role !== 'admin' && pickup.shopId !== shop.id) {
       return res.status(403).json({ message: 'Not authorized to cancel this pickup' });
     }
     // Update pickup status

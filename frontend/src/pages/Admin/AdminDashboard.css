@@ -1478,7 +1478,6 @@
 
   .dashboard-content {
     width: 100%;
-    padding: 1rem;
   }
 
   .filters-section {
@@ -1580,4 +1579,18 @@
 
 .action-btn.return-btn:hover {
   background-color: #43a047;
+}
+
+.search-box input {
+  color: #333;
+  background: white;
+}
+.search-box input::placeholder {
+  color: #888;
+  opacity: 1;
+}
+
+.dashboard-home {
+  margin: 0 !important;
+  padding: 0 !important;
 }
