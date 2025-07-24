@@ -54,7 +54,8 @@ router.post('/shopify', apiKeyAuth, async (req, res) => {
         paymentNotes: pkg.paymentNotes || null,
         shopNotes: pkg.shopNotes || null,
         isPaid: false,
-        paymentStatus: 'pending'
+        paymentStatus: 'pending',
+        shopifyOrderId: pkg.shopifyOrderId // Only set shopifyOrderId, not isShopifySent
       });
       createdPackages.push(newPackage);
     } else {
@@ -80,7 +81,8 @@ router.post('/shopify', apiKeyAuth, async (req, res) => {
         paymentNotes: pkg.paymentNotes || null,
         shopNotes: pkg.shopNotes || null,
         isPaid: false,
-        paymentStatus: 'pending'
+        paymentStatus: 'pending',
+        shopifyOrderId: pkg.shopifyOrderId // Only set shopifyOrderId, not isShopifySent
       }));
       const newPackages = await Package.bulkCreate(pkgsToCreate, { individualHooks: true });
       createdPackages.push(...newPackages);
@@ -93,7 +95,22 @@ router.post('/shopify', apiKeyAuth, async (req, res) => {
   }
 });
 
-// Protected routes
+// Get all Shopify Order IDs that are already sent for the current shop
+router.get('/shopify/sent-ids', apiKeyAuth, async (req, res) => {
+  try {
+    const sent = await Package.findAll({
+      where: { shopId: req.shop.id },
+      attributes: ['shopifyOrderId'],
+      raw: true
+    });
+    // Filter out null/empty IDs
+    res.json({ sent: sent.map(pkg => pkg.shopifyOrderId).filter(Boolean) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Protected routes (JWT auth)
 router.use(authenticate);
 
 // Routes for shops, drivers, and admins

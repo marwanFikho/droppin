@@ -224,6 +224,7 @@ export default function Index() {
     const selectedOrders = orders.filter((o) => selected.includes(o.id));
     // Map to Droppin package fields
     const packages = selectedOrders.map((o) => ({
+      shopifyOrderId: o.id, // Add the Shopify order ID
       packageDescription: o.items,
       weight: o.weight,
       deliveryAddress: [o.address, o.city, o.province, o.zip, o.country].filter(Boolean).join(', '),
@@ -257,6 +258,27 @@ export default function Index() {
       setBanner({ status: "critical", content: "Error sending packages to Droppin." });
     }
     setSending(false);
+  };
+
+  // Add syncSentOrders function
+  const syncSentOrders = async () => {
+    setBanner({ status: "info", content: "Syncing sent orders..." });
+    try {
+      const res = await fetch("https://api.droppin-eg.com/api/packages/shopify/sent-ids", {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+          "ngrok-skip-browser-warning": "true",
+        }
+      });
+      if (!res.ok) throw new Error("Failed to fetch sent orders");
+      const data = await res.json();
+      setSentOrders(data.sent);
+      if (typeof window !== 'undefined') localStorage.setItem("sentOrders", JSON.stringify(data.sent));
+      setBanner({ status: "success", content: "Sync complete!" });
+    } catch (e) {
+      setBanner({ status: "critical", content: "Error syncing sent orders." });
+    }
   };
 
   return (
@@ -364,6 +386,10 @@ export default function Index() {
             {banner.content}
           </Banner>
         )}
+        {/* Sync Button */}
+        <div style={{ marginBottom: 16 }}>
+          <Button onClick={syncSentOrders} variant="primary">Sync Sent Orders</Button>
+        </div>
         {/* Filter Dropdown */}
         <div className="droppin-filter-bar">
           <label style={{ marginRight: 8 }}>Filter:</label>
@@ -406,9 +432,9 @@ export default function Index() {
                 <td>${o.total}</td>
                 <td>
                   {sentOrders.includes(o.id) ? (
-                    <span style={{ color: "green", fontWeight: "bold" }}>Sent</span>
+                    <span style={{ color: 'green', fontWeight: 600 }}>Sent</span>
                   ) : (
-                    <span style={{ color: "gray" }}>Not Sent</span>
+                    <span style={{ color: 'red', fontWeight: 600 }}>Not Sent</span>
                   )}
                 </td>
                 <td>

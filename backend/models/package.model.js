@@ -164,6 +164,11 @@ const Package = sequelize.define('Package', {
     type: DataTypes.INTEGER,
     allowNull: true
   },
+  shopifyOrderId: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    unique: false
+  },
 }, {
   hooks: {
     beforeCreate: (package) => {
