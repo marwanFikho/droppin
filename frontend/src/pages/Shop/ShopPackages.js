@@ -13,13 +13,16 @@ const TABS = [
   { label: 'In Transit', value: 'in-transit' },
   { label: 'Delivered', value: 'delivered' },
   { label: 'Return to Shop', value: 'return-to-shop' },
-  { label: 'Cancelled', value: 'cancelled' },
-  { label: 'Rejected', value: 'rejected' },
   { label: 'Pickups', value: 'pickups' },
 ];
 
 const inTransitStatuses = ['assigned', 'pickedup', 'in-transit'];
-const returnToShopStatuses = ['cancelled-awaiting-return', 'cancelled-returned'];
+const returnToShopStatuses = [
+  'cancelled-awaiting-return',
+  'cancelled-returned',
+  'rejected-awaiting-return',
+  'rejected-returned'
+];
 
 export function getStatusBadge(status) {
   let className = 'status-badge';
@@ -218,7 +221,7 @@ const ShopPackages = () => {
       // Show all cancelled-related statuses in the Cancelled tab
       return filtered.filter(pkg => ['cancelled', 'cancelled-awaiting-return', 'cancelled-returned'].includes(pkg.status));
     } else if (activeTab === 'rejected') {
-      return filtered.filter(pkg => pkg.status === 'rejected');
+      return filtered.filter(pkg => ['rejected', 'rejected-awaiting-return', 'rejected-returned'].includes(pkg.status));
     } else if (activeTab === 'pickups') {
       return filtered; // This will be handled by the pickups tab
     } else {
@@ -297,9 +300,9 @@ const ShopPackages = () => {
                 </tr>
                 <tr>
                   <td colspan="2">
-                    <span class="awb-row"><b class="awb-recipient">Recipient:</b><span class="awb-recipient awb-data">${pkg.deliveryContactName || '-'}</span></span><br/>
-                    <span class="awb-row"><b class="awb-phone">Phone:</b><span class="awb-phone awb-data">${pkg.deliveryContactPhone || '-'}</span></span><br/>
-                    <span class="awb-row"><b class="awb-address">Address:</b><span class="awb-address awb-data">${pkg.deliveryAddress || '-'}</span></span>
+                    <span class="awb-row"><b class="awb-recipient">Recipient: ${pkg.deliveryContactName || '-'}</b></span><br/>
+                    <span class="awb-row"><b class="awb-phone">Phone: ${pkg.deliveryContactPhone || '-'}</b></span><br/>
+                    <span class="awb-row"><b class="awb-address">Address: ${pkg.deliveryAddress || '-'}</b></span>
                   </td>
                 </tr>
               </table>
@@ -582,7 +585,7 @@ const ShopPackages = () => {
                     <td data-label="Date">{new Date(pkg.createdAt).toLocaleDateString()}</td>
                     {activeTab !== 'cancelled' && (
                       <td data-label="Actions" className="actions-cell">
-                        {pkg.status !== 'cancelled' && pkg.status !== 'delivered' && pkg.status !== 'cancelled-returned' && pkg.status !== 'cancelled-awaiting-return' && pkg.status !== 'rejected' &&(
+                        {pkg.status !== 'cancelled' && pkg.status !== 'delivered' && pkg.status !== 'cancelled-returned' && pkg.status !== 'cancelled-awaiting-return' && pkg.status !== 'rejected' && pkg.status !== 'rejected-awaiting-return' && pkg.status !== 'rejected-returned' &&(
                           <>
                             <button
                               className="action-button cancel-btn"
@@ -697,6 +700,10 @@ const ShopPackages = () => {
                   <span className="label">COD</span>
                   <span>${parseFloat(selectedPackage.codAmount || 0).toFixed(2)} {getCodBadge(selectedPackage.isPaid)}</span>
                 </div>
+                <div className="detail-item">
+                  <span className="label">Delivery Cost</span>
+                  <span>${parseFloat(selectedPackage.deliveryCost || 0).toFixed(2)}</span>
+                </div>
                 {selectedPackage.weight && (
                   <div className="detail-item">
                     <span className="label">Weight</span>
@@ -720,21 +727,7 @@ const ShopPackages = () => {
                   </div>
                 )}
               </div>
-              {/* Shop actions for rejected packages */}
-              {selectedPackage.status === 'rejected' && (
-                <div className="modal-actions">
-                  <button className="btn btn-primary" onClick={async () => {
-                    await packageService.updatePackageStatus(selectedPackage.id, { status: 'pending' });
-                    setShowPackageDetailsModal(false);
-                    setPackages(prev => prev.map(p => p.id === selectedPackage.id ? { ...p, status: 'pending' } : p));
-                  }}>Mark as Pending</button>
-                  <button className="btn btn-danger" onClick={async () => {
-                    await packageService.updatePackageStatus(selectedPackage.id, { status: 'cancelled-awaiting-return' });
-                    setShowPackageDetailsModal(false);
-                    setPackages(prev => prev.map(p => p.id === selectedPackage.id ? { ...p, status: 'cancelled-awaiting-return' } : p));
-                  }}>Mark as Cancelled Awaiting Return</button>
-                </div>
-              )}
+              
               {/* Notes Log Section - moved above Close button and improved UI */}
               <div className="package-notes-log-section" style={{marginTop:'2rem', marginBottom:'1.5rem'}}>
                 <h4 style={{marginBottom:'0.75rem'}}>Notes Log</h4>

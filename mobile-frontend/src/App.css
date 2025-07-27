@@ -305,3 +305,13 @@ body {
 a {
   -webkit-tap-highlight-color: rgba(243, 99, 37, 0.1);
 } 
+
+/* Remove number input spinners for all browsers */
+input[type=number]::-webkit-outer-spin-button,
+input[type=number]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type=number] {
+  -moz-appearance: textfield;
+} 

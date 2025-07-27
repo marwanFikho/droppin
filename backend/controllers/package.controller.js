@@ -69,7 +69,7 @@ exports.createPackage = async (req, res) => {
       priority: priority || 'normal',
       // Financial information - COD amount and payment status
       codAmount: parseFloat(codAmount) || 0,
-      deliveryCost: parseFloat(deliveryCost) || 0,
+      deliveryCost: shop.shippingFees != null ? parseFloat(shop.shippingFees) : (parseFloat(deliveryCost) || 0),
       paymentMethod: paymentMethod || null,
       paymentNotes: paymentNotes || null,
       shopNotes: shopNotes || null,
@@ -179,7 +179,7 @@ exports.getPackages = async (req, res) => {
         'schedulePickupTime', 'estimatedDeliveryTime',
         'actualPickupTime', 'actualDeliveryTime',
         'priority', 'paymentStatus', 'createdAt', 'updatedAt',
-        'codAmount', 'isPaid', 'paymentDate', 'notes', 'shopNotes',
+        'codAmount', 'deliveryCost', 'isPaid', 'paymentDate', 'notes', 'shopNotes',
         'itemsNo'
       ],
       where,
@@ -224,7 +224,7 @@ exports.getPackageById = async (req, res) => {
         'schedulePickupTime', 'estimatedDeliveryTime',
         'actualPickupTime', 'actualDeliveryTime',
         'priority', 'paymentStatus', 'createdAt', 'updatedAt',
-        'codAmount', 'isPaid', 'paymentDate', 'notes', 'shopNotes',
+        'codAmount', 'deliveryCost', 'isPaid', 'paymentDate', 'notes', 'shopNotes',
         'itemsNo'
       ],
       include: [
@@ -371,15 +371,16 @@ exports.updatePackageStatus = async (req, res) => {
   try {
     const { id } = req.params;
     const { status, note } = req.body;
+    let nextStatus = status; // Use a mutable variable
     
-    if (!status) {
+    if (!nextStatus) {
       await t.rollback();
       return res.status(400).json({ message: 'Status is required' });
     }
     
     // Validate status
-    const validStatuses = ['pending', 'assigned', 'pickedup', 'in-transit', 'delivered', 'cancelled', 'cancelled-awaiting-return', 'cancelled-returned', 'rejected'];
-    if (!validStatuses.includes(status)) {
+    const validStatuses = ['pending', 'assigned', 'pickedup', 'in-transit', 'delivered', 'cancelled', 'cancelled-awaiting-return', 'cancelled-returned', 'rejected', 'rejected-awaiting-return', 'rejected-returned'];
+    if (!validStatuses.includes(nextStatus)) {
       await t.rollback();
       return res.status(400).json({ message: 'Invalid status' });
     }
@@ -403,14 +404,14 @@ exports.updatePackageStatus = async (req, res) => {
       }
       
       // Shops can only cancel packages that aren't delivered
-      if (status === 'cancelled' && package.status === 'delivered') {
+      if (nextStatus === 'cancelled' && package.status === 'delivered') {
         await t.rollback();
         return res.status(403).json({ message: 'Cannot cancel a delivered package' });
       }
     }
     
     // Log status change for debugging
-    console.log(`Updating package ${id} status from ${package.status} to ${status} by ${req.user.id} (${req.user.role})`);
+    console.log(`Updating package ${id} status from ${package.status} to ${nextStatus} by ${req.user.id} (${req.user.role})`);
     if (note) {
       console.log(`Status change note: ${note}`);
     }
@@ -419,30 +420,35 @@ exports.updatePackageStatus = async (req, res) => {
     const originalStatus = package.status;
     
     // If marking a rejected package as pending, remove assigned driver
-    if (status === 'pending' && package.status === 'rejected') {
+    if (nextStatus === 'pending' && package.status === 'rejected') {
       package.driverId = null;
+    }
+    
+    // Handle rejected packages that have been picked up or are assigned or in transit
+    if (nextStatus === 'rejected' && ['assigned', 'pickedup', 'in-transit'].includes(package.status)) {
+      nextStatus = 'rejected-awaiting-return';
     }
     // --- BEGIN: Set actualPickupTime and actualDeliveryTime based on status change ---
     // If status is being set to 'pickedup', set actualPickupTime
-    if (status === 'pickedup' && package.actualPickupTime == null) {
+    if (nextStatus === 'pickedup' && package.actualPickupTime == null) {
       package.actualPickupTime = getCairoDateTime();
     }
     // If status is being set to 'delivered', set actualDeliveryTime
-    if (status === 'delivered' && package.actualDeliveryTime == null) {
+    if (nextStatus === 'delivered' && package.actualDeliveryTime == null) {
       package.actualDeliveryTime = getCairoDateTime();
     }
     // If status is being changed from 'delivered' to something else, clear actualDeliveryTime
-    if (originalStatus === 'delivered' && status !== 'delivered') {
+    if (originalStatus === 'delivered' && nextStatus !== 'delivered') {
       package.actualDeliveryTime = null;
     }
     // --- END: Set actualPickupTime and actualDeliveryTime based on status change ---
     // Update package status
-    package.status = status;
+    package.status = nextStatus;
     
-    // If the package was awaiting_pickup or scheduled_for_pickup, remove it from the pickup and PickupPackages join table
+    // If the package is cancelled or rejected and was not yet picked up, remove it from the pickup and PickupPackages join table
     if (
-      status === 'cancelled' &&
-      ["awaiting_pickup", "scheduled_for_pickup"].includes(package._previousDataValues.status)
+      (nextStatus === 'cancelled' || nextStatus === 'rejected' || nextStatus === 'rejected-awaiting-return') &&
+      ["awaiting_schedule", "awaiting_pickup", "scheduled_for_pickup", "pending", "assigned"].includes(package._previousDataValues.status)
     ) {
       package.pickupId = null;
       await PickupPackages.destroy({
@@ -462,7 +468,7 @@ exports.updatePackageStatus = async (req, res) => {
     
     // === COD transfer logic when delivered ===
     if (
-      status === 'delivered' &&
+      nextStatus === 'delivered' &&
       originalStatus !== 'delivered' &&
       shop &&
       package.codAmount > 0
@@ -489,19 +495,47 @@ exports.updatePackageStatus = async (req, res) => {
       package.isPaid = true;
       await package.save({ transaction: t });
     }
+
+    // === Increment Stats.profit by deliveryCost when delivered ===
+    if (
+      nextStatus === 'delivered' &&
+      originalStatus !== 'delivered'
+    ) {
+      const deliveryCost = parseFloat(package.deliveryCost || 0);
+      if (deliveryCost > 0) {
+        await sequelize.query(
+          'UPDATE Stats SET profit = profit + :amount',
+          {
+            replacements: { amount: deliveryCost },
+            type: sequelize.QueryTypes.UPDATE,
+            transaction: t
+          }
+        );
+        
+        // Log revenue transaction for the shop
+        await logMoneyTransaction(
+          shop.id, 
+          deliveryCost, 
+          'Revenue', 
+          'increase', 
+          `Package ${package.trackingNumber} delivered (delivery cost revenue)`, 
+          t
+        );
+      }
+    }
     
     // Update driver statistics if the package has a driver assigned
     if (package.driverId) {
       const driver = await Driver.findByPk(package.driverId, { transaction: t });
       if (driver) {
         // When package is marked as delivered
-        if (status === 'delivered') {
+        if (nextStatus === 'delivered') {
           driver.totalDeliveries += 1;
           driver.activeAssign = Math.max(0, driver.activeAssign - 1);
           await driver.save({ transaction: t });
         }
         // When package is cancelled
-        else if (status === 'cancelled') {
+        else if (nextStatus === 'cancelled') {
           driver.totalCancelled += 1;
           if (['assigned', 'pickedup', 'in-transit'].includes(originalStatus)) {
             driver.activeAssign = Math.max(0, driver.activeAssign - 1);
@@ -513,7 +547,7 @@ exports.updatePackageStatus = async (req, res) => {
     
     // 1. If shop marks a rejected package as cancelled-awaiting-return, increment driver's totalCancelled
     if (
-      status === 'cancelled-awaiting-return' &&
+      nextStatus === 'cancelled-awaiting-return' &&
       originalStatus === 'rejected' &&
       req.user.role === 'shop' &&
       package.driverId
@@ -527,7 +561,7 @@ exports.updatePackageStatus = async (req, res) => {
 
     // 2. If admin marks a package as cancelled-returned, subtract COD from shop's ToCollect
     if (
-      status === 'cancelled-returned' &&
+      nextStatus === 'cancelled-returned' &&
       req.user.role === 'admin' &&
       package.codAmount > 0 &&
       shop
@@ -547,6 +581,31 @@ exports.updatePackageStatus = async (req, res) => {
           }
         );
         await logMoneyTransaction(shop.id, codAmount, 'ToCollect', 'decrease', `Package ${package.trackingNumber} returned to shop`, t);
+      }
+    }
+    
+    // 3. If admin marks a package as rejected-returned, subtract COD from shop's ToCollect
+    if (
+      nextStatus === 'rejected-returned' &&
+      req.user.role === 'admin' &&
+      package.codAmount > 0 &&
+      shop
+    ) {
+      const codAmount = parseFloat(package.codAmount || 0);
+      const currentToCollect = parseFloat(shop.ToCollect || 0);
+      // Only subtract if the package had its COD added previously
+      const wasCodAdded = ['pending','assigned','pickedup','in-transit','delivered','rejected-awaiting-return'].includes(originalStatus.toLowerCase());
+      const newToCollect = wasCodAdded ? Math.max(0, currentToCollect - codAmount) : currentToCollect;
+      if (wasCodAdded && codAmount > 0) {
+        await sequelize.query(
+          'UPDATE Shops SET ToCollect = :newToCollect WHERE id = :shopId',
+          {
+            replacements: { newToCollect, shopId: shop.id },
+            type: sequelize.QueryTypes.UPDATE,
+            transaction: t
+          }
+        );
+        await logMoneyTransaction(shop.id, codAmount, 'ToCollect', 'decrease', `Package ${package.trackingNumber} rejected and returned to shop`, t);
       }
     }
     
@@ -586,8 +645,8 @@ exports.updatePackageStatus = async (req, res) => {
           userId: adminUser.id,
           userType: 'admin',
           title: 'Package Status Changed',
-          message: `Package (Tracking: ${package.trackingNumber}) for shop ${shopName} status changed from ${originalStatus} to ${status}.`,
-          data: { packageId: package.id, oldStatus: originalStatus, newStatus: status, shopName }
+          message: `Package (Tracking: ${package.trackingNumber}) for shop ${shopName} status changed from ${originalStatus} to ${nextStatus}.`,
+          data: { packageId: package.id, oldStatus: originalStatus, newStatus: nextStatus, shopName }
         });
       }
       // Notify shop of package status change
@@ -597,8 +656,8 @@ exports.updatePackageStatus = async (req, res) => {
           const shopUser = await User.findByPk(shop.userId);
           if (shopUser) {
             let title = 'Package Status Changed';
-            let message = `The status of your package (Tracking: ${package.trackingNumber}) has changed from ${originalStatus} to ${status}.`;
-            if (status === 'pickedup') {
+            let message = `The status of your package (Tracking: ${package.trackingNumber}) has changed from ${originalStatus} to ${nextStatus}.`;
+            if (nextStatus === 'pickedup') {
               title = 'Package Picked Up';
               message = `Your package (Tracking: ${package.trackingNumber}) has been picked up.`;
             }
@@ -607,7 +666,7 @@ exports.updatePackageStatus = async (req, res) => {
               userType: 'shop',
               title,
               message,
-              data: { packageId: package.id, oldStatus: originalStatus, newStatus: status, shopName: shop.businessName }
+              data: { packageId: package.id, oldStatus: originalStatus, newStatus: nextStatus, shopName: shop.businessName }
             });
           }
         }
@@ -971,10 +1030,10 @@ exports.cancelPackage = async (req, res) => {
       pkg.status = 'cancelled';
     }
     
-    // If the package was awaiting_pickup or scheduled_for_pickup, remove it from the pickup and PickupPackages join table
+    // If the package is cancelled and was not yet picked up, remove it from the pickup and PickupPackages join table
     if (
       pkg.status !== "cancelled-awaiting-return" &&
-      ["awaiting_pickup", "scheduled_for_pickup"].includes(pkg._previousDataValues.status)
+      ["awaiting_schedule", "awaiting_pickup", "scheduled_for_pickup", "pending", "assigned"].includes(pkg._previousDataValues.status)
     ) {
       pkg.pickupId = null;
       await PickupPackages.destroy({

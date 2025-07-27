@@ -28,7 +28,7 @@ const logMoneyTransaction = async (shopId, amount, attribute, changeType, descri
       if (shopUser) {
         let title = 'Financial Update';
         let changeWord = changeType === 'increase' ? 'increased' : 'decreased';
-        let attrLabel = attribute === 'ToCollect' ? 'To Collect' : (attribute === 'TotalCollected' ? 'Total Collected' : attribute);
+        let attrLabel = attribute === 'ToCollect' ? 'To Collect' : (attribute === 'TotalCollected' ? 'Total Collected' : (attribute === 'Revenue' ? 'Revenue' : attribute));
         let msg = `Your shop's ${attrLabel} has ${changeWord} by $${parseFloat(amount).toFixed(2)}.`;
         if (description) msg += ` Reason: ${description}`;
         await createNotification({

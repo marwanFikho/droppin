@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { validateName, sanitizeNameInput, validatePhone } from '../utils/inputValidators';
 
 const ShopRegister = () => {
   const [formData, setFormData] = useState({
@@ -33,6 +34,18 @@ const ShopRegister = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    let newValue = value;
+    // Business name and contact person name: sanitize and validate
+    if (name === 'businessName' || name === 'contactPerson.name') {
+      newValue = sanitizeNameInput(value);
+      if (!validateName(newValue) && newValue !== '') return;
+    }
+    // Phone fields: restrict to numbers and length
+    if (name === 'phone' || name === 'contactPerson.phone') {
+      newValue = newValue.replace(/[^0-9]/g, '');
+      if (newValue.length > 11) newValue = newValue.slice(0, 11);
+      if (newValue && !/^01\d{0,9}$/.test(newValue)) return;
+    }
     
     if (name.includes('.')) {
       // Handle nested fields
@@ -41,11 +54,11 @@ const ShopRegister = () => {
         ...formData,
         [parent]: {
           ...formData[parent],
-          [child]: value
+          [child]: newValue
         }
       });
     } else {
-      setFormData({ ...formData, [name]: value });
+      setFormData({ ...formData, [name]: newValue });
     }
     
     setFormError(''); // Clear error when user types
@@ -113,6 +126,9 @@ const ShopRegister = () => {
               onChange={handleChange}
               placeholder="Enter your business name"
               required
+              pattern="[A-Za-z\u0600-\u06FF ]+"
+              inputMode="text"
+              autoComplete="off"
             />
           </div>
           
@@ -140,6 +156,10 @@ const ShopRegister = () => {
                 onChange={handleChange}
                 placeholder="Enter business phone number"
                 required
+                pattern="01[0-9]{9}"
+                inputMode="numeric"
+                maxLength={11}
+                autoComplete="tel"
               />
             </div>
           </div>
@@ -198,6 +218,9 @@ const ShopRegister = () => {
                 onChange={handleChange}
                 placeholder="Contact person name"
                 required
+                pattern="[A-Za-z\u0600-\u06FF ]+"
+                inputMode="text"
+                autoComplete="off"
               />
             </div>
             
@@ -211,6 +234,10 @@ const ShopRegister = () => {
                 onChange={handleChange}
                 placeholder="Contact person phone"
                 required
+                pattern="01[0-9]{9}"
+                inputMode="numeric"
+                maxLength={11}
+                autoComplete="tel"
               />
             </div>
           </div>

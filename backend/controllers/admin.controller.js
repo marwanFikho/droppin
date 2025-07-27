@@ -33,37 +33,15 @@ exports.getDashboardStats = async (req, res) => {
     const codSums = (Array.isArray(codSumsRaw) && codSumsRaw[0] && codSumsRaw[0][0]) ? codSumsRaw[0][0] : { totalToCollect: 0, totalCollected: 0 };
     console.log('DEBUG: COD sums from DB:', codSums);
 
-    // Calculate revenue from delivered packages (sum of shippingFees for each delivered package's shop)
-    const deliveredPackagesCount = await Package.count({ where: { status: 'delivered' } });
-    let revenueDeliveredPackages = 0;
-    if (deliveredPackagesCount > 0) {
-      // Get unique shopIds from delivered packages
-      const shopIds = await Package.findAll({
-        where: { status: 'delivered' },
-        attributes: ['shopId'],
-        raw: true
-      });
-      const uniqueShopIds = [...new Set(shopIds.map(pkg => pkg.shopId))];
-
-      // Get all shops with those IDs and their shippingFees
-      const shops = await Shop.findAll({
-        where: { id: uniqueShopIds },
-        attributes: ['id', 'shippingFees'],
-        raw: true
-      });
-      // Count how many delivered packages per shop
-      const shopPackageCount = {};
-      shopIds.forEach(pkg => {
-        shopPackageCount[pkg.shopId] = (shopPackageCount[pkg.shopId] || 0) + 1;
-      });
-      // Sum up shippingFees * delivered count for each shop
-      shops.forEach(shop => {
-        const count = shopPackageCount[shop.id] || 0;
-        const fee = parseFloat(shop.shippingFees || 0);
-        if (fee > 0 && count > 0) {
-          revenueDeliveredPackages += fee * count;
-        }
-      });
+    // Fetch profit from Stats table
+    let profit = 0;
+    try {
+      const [statsResult] = await sequelize.query('SELECT profit FROM Stats LIMIT 1');
+      if (statsResult && statsResult[0] && statsResult[0].profit != null) {
+        profit = parseFloat(statsResult[0].profit);
+      }
+    } catch (err) {
+      console.error('Error fetching profit from Stats:', err);
     }
 
     res.json({
@@ -84,7 +62,8 @@ exports.getDashboardStats = async (req, res) => {
         totalToCollect: parseFloat(codSums.totalToCollect) || 0,
         totalCollected: parseFloat(codSums.totalCollected) || 0
       },
-      revenueDeliveredPackages: revenueDeliveredPackages
+      revenueDeliveredPackages: profit,
+      profit: profit
     });
   } catch (error) {
     console.error('Error getting dashboard stats:', error);
@@ -934,10 +913,11 @@ exports.assignDriverToPackage = async (req, res) => {
         return res.status(404).json({ message: 'Package not found' });
       }
 
-      // Check if package is already assigned
-      if (package.driverId) {
+      // Check if package is already assigned - allow reassignment
+      const previousDriverId = package.driverId;
+      if (previousDriverId && previousDriverId === driverId) {
         await transaction.rollback();
-        return res.status(400).json({ message: 'Package is already assigned to a driver' });
+        return res.status(400).json({ message: 'Package is already assigned to this driver' });
       }
 
       // Find the driver
@@ -963,18 +943,36 @@ exports.assignDriverToPackage = async (req, res) => {
       // Update package with driver ID and change status to 'assigned'
       let statusHistory = [];
       try {
-        statusHistory = JSON.parse(package.statusHistory || '[]');
+        // Handle various cases: null, undefined, empty string, or invalid JSON
+        console.log('Package statusHistory type:', typeof package.statusHistory, 'value:', package.statusHistory);
+        if (package.statusHistory && typeof package.statusHistory === 'string' && package.statusHistory.trim() !== '') {
+          const parsed = JSON.parse(package.statusHistory);
+          statusHistory = Array.isArray(parsed) ? parsed : [];
+          console.log('Parsed statusHistory:', statusHistory);
+        } else {
+          statusHistory = [];
+          console.log('Using empty statusHistory array');
+        }
       } catch (parseError) {
         console.log('Error parsing statusHistory, using empty array:', parseError);
         statusHistory = [];
       }
       
+      if (previousDriverId && previousDriverId !== driverId) {
+        statusHistory.push({
+          status: 'assigned',
+          timestamp: new Date(),
+          note: `Driver changed from ID: ${previousDriverId} to ID: ${driverId}`,
+          updatedBy: req.user.id
+        });
+      } else {
       statusHistory.push({
         status: 'assigned',
         timestamp: new Date(),
         note: `Assigned to driver ID: ${driverId}`,
         updatedBy: req.user.id
       });
+      }
 
       await package.update({
         driverId: driverId,
@@ -988,6 +986,16 @@ exports.assignDriverToPackage = async (req, res) => {
         totalAssigned: driver.totalAssigned + 1,
         activeAssign: driver.activeAssign + 1
       }, { transaction });
+
+      // If there was a previous driver, update their statistics
+      if (previousDriverId && previousDriverId !== driverId) {
+        const previousDriver = await Driver.findByPk(previousDriverId, { transaction });
+        if (previousDriver) {
+          await previousDriver.update({
+            activeAssign: Math.max(0, previousDriver.activeAssign - 1)
+          }, { transaction });
+        }
+      }
 
       await transaction.commit();
       
@@ -1090,7 +1098,7 @@ exports.getPackages = async (req, res) => {
         'schedulePickupTime', 'estimatedDeliveryTime',
         'actualPickupTime', 'actualDeliveryTime',
         'priority', 'paymentStatus', 'createdAt', 'updatedAt',
-        'codAmount', 'isPaid', 'paymentDate', 'shopNotes',
+        'codAmount', 'deliveryCost', 'isPaid', 'paymentDate', 'shopNotes',
         'notes',
         'itemsNo'
       ],
@@ -1395,7 +1403,7 @@ exports.getMoneyTransactions = async (req, res) => {
   try {
     const { 
       page = 1, 
-      limit = 20, 
+      limit, 
       shopId,
       startDate,
       endDate,
@@ -1427,26 +1435,28 @@ exports.getMoneyTransactions = async (req, res) => {
       ];
     }
 
-    const offset = (page - 1) * limit;
-    const { MoneyTransaction, Shop, Package, Driver, User } = require('../models');
-    const { Op } = require('sequelize');
+    const offset = limit ? (page - 1) * limit : undefined;
+    // Models and Op should be imported at the top of the file
 
     // Validate sort field
     const validSortFields = ['createdAt', 'amount', 'attribute', 'changeType'];
     const actualSortBy = validSortFields.includes(sortBy) ? sortBy : 'createdAt';
     const actualSortOrder = ['ASC', 'DESC'].includes(sortOrder?.toUpperCase()) ? sortOrder.toUpperCase() : 'DESC';
 
-    const { count, rows } = await MoneyTransaction.findAndCountAll({
+    const findOptions = {
       where,
-      limit: parseInt(limit),
-      offset,
       order: [[actualSortBy, actualSortOrder]],
       include: [{ 
         model: Shop, 
         attributes: ['businessName'],
         required: false
       }]
-    });
+    };
+    if (limit !== undefined && limit !== null) {
+      findOptions.limit = parseInt(limit);
+      findOptions.offset = offset;
+    }
+    const { count, rows } = await MoneyTransaction.findAndCountAll(findOptions);
 
     // Enhance each transaction with driver info if possible
     const enhancedRows = await Promise.all(rows.map(async (tx) => {
@@ -1470,10 +1480,29 @@ exports.getMoneyTransactions = async (req, res) => {
       return { ...tx.toJSON(), driver };
     }));
 
+    // If search is provided, also filter by driver name
+    let filteredRows = enhancedRows;
+    if (search) {
+      const searchLower = search.toLowerCase();
+      filteredRows = enhancedRows.filter(tx => {
+        if (tx.driver && tx.driver.name && tx.driver.name.toLowerCase().includes(searchLower)) {
+          return true;
+        }
+        // Also keep those that matched the SQL filter
+        if (
+          (tx.description && tx.description.toLowerCase().includes(searchLower)) ||
+          (tx.Shop && tx.Shop.businessName && tx.Shop.businessName.toLowerCase().includes(searchLower))
+        ) {
+          return true;
+        }
+        return false;
+      });
+    }
+
     res.json({
-      transactions: enhancedRows,
+      transactions: filteredRows,
       total: count,
-      totalPages: Math.ceil(count / limit),
+      totalPages: limit ? Math.ceil(count / limit) : 1,
       currentPage: parseInt(page),
       filters: {
         shopId,

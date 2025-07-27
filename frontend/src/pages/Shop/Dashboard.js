@@ -271,6 +271,7 @@ const ShopDashboard = () => {
               <option value="">All Attributes</option>
               <option value="ToCollect">To Collect</option>
               <option value="TotalCollected">Total Collected</option>
+              <option value="Revenue">Revenue</option>
             </select>
             <select
               className="filter-select"
@@ -671,6 +672,10 @@ const ShopDashboard = () => {
                 <div className="detail-item">
                   <span className="label">COD</span>
                   <span>${parseFloat(selectedPackage.codAmount || 0).toFixed(2)} {getCodBadge(selectedPackage.isPaid)}</span>
+                </div>
+                <div className="detail-item">
+                  <span className="label">Delivery Cost</span>
+                  <span>${parseFloat(selectedPackage.deliveryCost || 0).toFixed(2)}</span>
                 </div>
                 {selectedPackage.weight && (
                   <div className="detail-item">

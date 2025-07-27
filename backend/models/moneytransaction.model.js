@@ -15,7 +15,7 @@ const MoneyTransaction = sequelize.define('MoneyTransaction', {
     allowNull: false
   },
   attribute: {
-    type: DataTypes.ENUM('ToCollect', 'TotalCollected'),
+    type: DataTypes.ENUM('ToCollect', 'TotalCollected', 'Revenue'),
     allowNull: false
   },
   changeType: {

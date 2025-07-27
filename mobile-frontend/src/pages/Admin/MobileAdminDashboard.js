@@ -99,7 +99,7 @@ const MobileAdminDashboard = () => {
         } else if (packageSubTab === 'assigned') {
           filteredPackages = filteredPackages.filter(pkg => pkg.status === 'assigned');
         } else if (packageSubTab === 'return-to-shop') {
-          const returnToShopStatuses = ['cancelled-awaiting-return', 'cancelled-returned'];
+          const returnToShopStatuses = ['cancelled-awaiting-return', 'cancelled-returned', 'rejected-awaiting-return', 'rejected-returned'];
           filteredPackages = filteredPackages.filter(pkg => returnToShopStatuses.includes(pkg.status));
         } else if (packageSubTab === 'in-transit') {
           const inTransitStatuses = ['pickedup', 'in-transit'];
@@ -327,7 +327,12 @@ const MobileAdminDashboard = () => {
 
   const handleMarkAsReturned = async (pkg) => {
     try {
-      await packageService.updatePackageStatus(pkg.id, { status: 'cancelled-returned' });
+      // Determine the appropriate status based on current status
+      let newStatus = 'cancelled-returned';
+      if (pkg.status === 'rejected-awaiting-return') {
+        newStatus = 'rejected-returned';
+      }
+      await packageService.updatePackageStatus(pkg.id, { status: newStatus });
       // Refresh packages list
       fetchPackages();
     } catch (error) {
@@ -904,6 +909,7 @@ const MobileAdminDashboard = () => {
                   <div className="mobile-modal-detail-item full-width"><span className="label">Delivery Address</span><span>{selectedPackage.recipient.address}</span></div>
                 )}
                 <div className="mobile-modal-detail-item"><span className="label">COD</span><span>${parseFloat(selectedPackage.codAmount || 0).toFixed(2)} {selectedPackage.isPaid ? 'Paid' : 'Unpaid'}</span></div>
+                <div className="mobile-modal-detail-item"><span className="label">Delivery Cost</span><span>${parseFloat(selectedPackage.deliveryCost || 0).toFixed(2)}</span></div>
                 {selectedPackage.weight && (
                   <div className="mobile-modal-detail-item"><span className="label">Weight</span><span>{selectedPackage.weight} kg</span></div>
                 )}
@@ -1017,6 +1023,7 @@ const MobileAdminDashboard = () => {
                           <p><strong>Recipient:</strong> {pkg.deliveryContactName || 'N/A'}</p>
                           <p><strong>Address:</strong> {pkg.deliveryAddress || 'N/A'}</p>
                           <p><strong>COD Amount:</strong> ${parseFloat(pkg.codAmount || 0).toFixed(2)}</p>
+                          {pkg.deliveryCost && <p><strong>Delivery Cost:</strong> ${parseFloat(pkg.deliveryCost || 0).toFixed(2)}</p>}
                         </div>
                       </div>
                     ))}
@@ -1315,6 +1322,7 @@ const MobileAdminDashboard = () => {
                 <div className="mobile-modal-detail-item"><span className="label">Recipient Phone</span><span>{selectedAdminPackage.deliveryContactPhone || 'N/A'}</span></div>
                 <div className="mobile-modal-detail-item full-width"><span className="label">Delivery Address</span><span>{selectedAdminPackage.deliveryAddress || 'N/A'}</span></div>
                 <div className="mobile-modal-detail-item"><span className="label">COD</span><span>${parseFloat(selectedAdminPackage.codAmount || 0).toFixed(2)} {selectedAdminPackage.isPaid ? 'Paid' : 'Unpaid'}</span></div>
+                <div className="mobile-modal-detail-item"><span className="label">Delivery Cost</span><span>${parseFloat(selectedAdminPackage.deliveryCost || 0).toFixed(2)}</span></div>
                 <div className="mobile-modal-detail-item"><span className="label">Number of Items</span><span>{selectedAdminPackage?.itemsNo ?? '-'}</span></div>
                 {selectedAdminPackage.weight && (
                   <div className="mobile-modal-detail-item"><span className="label">Weight</span><span>{selectedAdminPackage.weight} kg</span></div>
@@ -1390,15 +1398,15 @@ const MobileAdminDashboard = () => {
                 </div>
               </div>
               <div className="mobile-modal-actions">
-                {/* Assign Driver action */}
-                {(!selectedAdminPackage.driverId && selectedAdminPackage.status === 'pending') && (
+                {/* Assign/Change Driver action */}
+                {selectedAdminPackage.driverId && ['assigned', 'pickedup', 'in-transit'].includes(selectedAdminPackage.status) && (
                   <button
                     className="mobile-admin-dashboard-settle-btn"
                     onClick={async () => {
                       setShowAssignDriverModal(true);
                     }}
                   >
-                    Assign Driver
+                    Change Driver
                   </button>
                 )}
                 {/* Mark as Returned action */}
@@ -1425,7 +1433,7 @@ const MobileAdminDashboard = () => {
         <div className="mobile-modal-overlay" onClick={() => setShowAssignDriverModal(false)}>
           <div className="mobile-modal-content" onClick={e => e.stopPropagation()}>
             <div className="mobile-modal-header">
-              <h3>Assign Driver</h3>
+              <h3>{selectedAdminPackage?.driverId ? 'Change Driver' : 'Assign Driver'}</h3>
               <button className="mobile-modal-close" onClick={() => setShowAssignDriverModal(false)}>&times;</button>
             </div>
             <div className="mobile-modal-body">
@@ -1480,7 +1488,7 @@ const MobileAdminDashboard = () => {
                   }}
                   disabled={!assignDriverId || assignDriverLoading}
                 >
-                  {assignDriverLoading ? 'Assigning...' : 'Assign'}
+                  {assignDriverLoading ? (selectedAdminPackage?.driverId ? 'Changing...' : 'Assigning...') : (selectedAdminPackage?.driverId ? 'Change Driver' : 'Assign')}
                 </button>
                 <button className="mobile-modal-close-btn" onClick={() => setShowAssignDriverModal(false)} disabled={assignDriverLoading}>Cancel</button>
               </div>
@@ -1504,6 +1512,7 @@ const MobileAdminDashboard = () => {
                   className="mobile-modal-close-btn"
                   onClick={async () => {
                     try {
+                      // The backend will automatically handle the status transition based on current status
                       await packageService.updatePackageStatus(packageToReject.id, { status: 'rejected' });
                       fetchPackages();
                       setShowRejectConfirmation(false);

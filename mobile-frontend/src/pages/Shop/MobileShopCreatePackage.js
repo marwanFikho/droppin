@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { packageService } from '../../services/api';
 import './MobileShopDashboard.css';
+import { sanitizeNameInput, validateName, validatePhone } from '../../utils/inputValidators';
 
 const CATEGORY_OPTIONS = [
   'Shoes', 'Perfumes', 'Clothes', 'Electronics', 'Accessories', 'Books', 'Other'
@@ -57,17 +58,34 @@ const MobileShopCreatePackage = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    let newValue = value;
+    
+    // Delivery contact name: sanitize and allow any input
+    if (name === 'deliveryAddress.contactName') {
+      newValue = sanitizeNameInput(value);
+    }
+    // Delivery contact phone: restrict to numbers and format as 01xxxxxxxxx
+    else if (name === 'deliveryAddress.contactPhone') {
+      newValue = newValue.replace(/[^0-9]/g, '');
+      if (newValue.length > 11) newValue = newValue.slice(0, 11);
+      // Allow any number input, validation will be done on submit
+    }
+    // Shop notes: allow any input
+    else if (name === 'notes') {
+      newValue = value; // Allow any characters in shop notes
+    }
+    
     if (name.includes('.')) {
       const [parent, child] = name.split('.');
       setFormData({
         ...formData,
-        [parent]: { ...formData[parent], [child]: value }
+        [parent]: { ...formData[parent], [child]: newValue }
       });
     } else {
       if (name === 'notes') {
-        setFormData({ ...formData, shopNotes: value });
+        setFormData({ ...formData, shopNotes: newValue });
       } else {
-        setFormData({ ...formData, [name]: value });
+        setFormData({ ...formData, [name]: newValue });
       }
     }
     setError('');
@@ -85,6 +103,11 @@ const MobileShopCreatePackage = () => {
           !formData.deliveryAddress.street || !formData.deliveryAddress.city ||
           !formData.deliveryAddress.country) {
         throw new Error('Please complete all delivery address fields');
+      }
+      
+      // Validate phone number format (01xxxxxxxxx)
+      if (!/^01\d{9}$/.test(formData.deliveryAddress.contactPhone)) {
+        throw new Error('Phone number must be in format: 01xxxxxxxxx (11 digits starting with 01)');
       }
       if (!formData.itemsNo) {
         throw new Error('Please enter the number of items in the package');
@@ -151,9 +174,9 @@ const MobileShopCreatePackage = () => {
         <input name="itemsNo" type="number" min="1" value={formData.itemsNo} onChange={handleChange} required />
         <hr style={{margin: '1.5rem 0'}} />
         <label>Contact Name*</label>
-        <input name="deliveryAddress.contactName" value={formData.deliveryAddress.contactName} onChange={handleChange} required />
+        <input name="deliveryAddress.contactName" value={formData.deliveryAddress.contactName} onChange={handleChange} required inputMode="text" autoComplete="off" />
         <label>Contact Phone*</label>
-        <input name="deliveryAddress.contactPhone" value={formData.deliveryAddress.contactPhone} onChange={handleChange} required />
+        <input name="deliveryAddress.contactPhone" value={formData.deliveryAddress.contactPhone} onChange={handleChange} required pattern="01[0-9]{9}" inputMode="numeric" maxLength={11} autoComplete="tel" placeholder="01xxxxxxxxx" />
         <label>Street Address*</label>
         <input name="deliveryAddress.street" placeholder="Street address" value={formData.deliveryAddress.street} onChange={handleChange} required />
         <label>City*</label>

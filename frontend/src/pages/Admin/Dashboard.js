@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { adminService, packageService } from '../../services/api';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -136,6 +136,19 @@ const AdminDashboard = () => {
   const [pickupToDelete, setPickupToDelete] = useState(null);
   const [deletingPickup, setDeletingPickup] = useState(false);
   const [shopSort, setShopSort] = useState({ field: 'revenue', order: 'desc' });
+  // Add state for variable settlement amount popup
+  const [showSettleAmountModal, setShowSettleAmountModal] = useState(false);
+  const [settleShopId, setSettleShopId] = useState(null);
+  // Add state for auto-scrolling to settlement
+  const [autoScrollToSettle, setAutoScrollToSettle] = useState(false);
+  // Move these to the top level of AdminDashboard
+  const settlementRef = useRef(null);
+  useEffect(() => {
+    if (autoScrollToSettle && showDetailsModal && settlementRef.current) {
+      settlementRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setAutoScrollToSettle(false);
+    }
+  }, [autoScrollToSettle, showDetailsModal]);
 
   useEffect(() => {
     if (selectedEntity && selectedEntity.shippingFees !== undefined) {
@@ -175,11 +188,20 @@ const AdminDashboard = () => {
       return;
     }
     const nextStatus = statusFlow[currentIndex + 1];
+
+    // --- Optimistically update UI ---
+    setPackages(prev => prev.map(p => p.id === pkg.id ? { ...p, status: nextStatus } : p));
+    setSelectedEntity(prev => prev && prev.id === pkg.id ? { ...prev, status: nextStatus } : prev);
+
     try {
       await packageService.updatePackageStatus(pkg.id, { status: nextStatus });
-      fetchDriverPackages(pkg.driverId);
+      if (pkg.driverId) fetchDriverPackages(pkg.driverId);
+      // No need to update UI again, already done optimistically
     } catch (err) {
-      // Optionally show error
+      // Revert the change if the API call fails
+      setPackages(prev => prev.map(p => p.id === pkg.id ? { ...p, status: pkg.status } : p));
+      setSelectedEntity(prev => prev && prev.id === pkg.id ? { ...prev, status: pkg.status } : prev);
+      // Optionally show an error message
     } finally {
       setForwardingPackageId(null);
     }
@@ -325,9 +347,13 @@ const AdminDashboard = () => {
             // For ready-to-assign tab, only show pending packages
             // For all-packages tab, show all packages except those that aren't picked up yet
             if (packagesTab === 'ready-to-assign') {
-              const pendingPackages = (packagesResponse.data || []).filter(pkg => pkg.status === 'pending');
-              console.log('Filtered pending packages:', pendingPackages);
-              setPackages(pendingPackages);
+              const readyToAssignPackages = (packagesResponse.data || []).filter(pkg =>
+                pkg.status === 'pending' ||
+                pkg.status === 'cancelled-awaiting-return' ||
+                pkg.status === 'rejected-awaiting-return'
+              );
+              console.log('Filtered ready-to-assign packages:', readyToAssignPackages);
+              setPackages(readyToAssignPackages);
             } else {
               const filteredPackages = (packagesResponse.data || []);
               console.log('Filtered all packages (excluding non-picked up):', filteredPackages);
@@ -797,8 +823,12 @@ const AdminDashboard = () => {
               case 'packages':
                 const packagesResponse = await adminService.getPackages();
                 if (packagesTab === 'ready-to-assign') {
-                  const pendingPackages = (packagesResponse.data || []).filter(pkg => pkg.status === 'pending');
-                  setPackages(pendingPackages);
+                  const readyToAssignPackages = (packagesResponse.data || []).filter(pkg =>
+                    pkg.status === 'pending' ||
+                    pkg.status === 'cancelled-awaiting-return' ||
+                    pkg.status === 'rejected-awaiting-return'
+                  );
+                  setPackages(readyToAssignPackages);
                 } else {
                   const filteredPackages = (packagesResponse.data || []).filter(pkg => 
                     !['awaiting_schedule', 'awaiting_pickup', 'scheduled_for_pickup'].includes(pkg.status)
@@ -885,8 +915,12 @@ const AdminDashboard = () => {
       if (activeTab === 'packages') {
         const packagesResponse = await adminService.getPackages();
         if (packagesTab === 'ready-to-assign') {
-          const pendingPackages = (packagesResponse.data || []).filter(pkg => pkg.status === 'pending');
-          setPackages(pendingPackages);
+          const readyToAssignPackages = (packagesResponse.data || []).filter(pkg =>
+            pkg.status === 'pending' ||
+            pkg.status === 'cancelled-awaiting-return' ||
+            pkg.status === 'rejected-awaiting-return'
+          );
+          setPackages(readyToAssignPackages);
         } else {
           const filteredPackages = (packagesResponse.data || []).filter(pkg => 
             !['awaiting_schedule', 'awaiting_pickup', 'scheduled_for_pickup'].includes(pkg.status)
@@ -896,7 +930,7 @@ const AdminDashboard = () => {
       }
       
       setShowAssignDriverModal(false);
-      setStatusMessage({ type: 'success', text: 'Driver assigned successfully!' });
+      setStatusMessage({ type: 'success', text: selectedPackage.driverId ? 'Driver changed successfully!' : 'Driver assigned successfully!' });
     } catch (error) {
       console.error('Error assigning driver:', error);
       setStatusMessage({ 
@@ -918,10 +952,10 @@ const AdminDashboard = () => {
     );
 
     return (
-      <div className="modal-overlay">
+      <div className="modal-overlay show" style={{ zIndex: 3000 }}>
         <div className="modal-content">
           <div className="modal-header">
-            <h3>Assign Driver to Package</h3>
+            <h3>{selectedPackage.driverId ? 'Change Driver for Package' : 'Assign Driver to Package'}</h3>
             <button 
               className="modal-close"
               onClick={() => setShowAssignDriverModal(false)}
@@ -933,6 +967,12 @@ const AdminDashboard = () => {
             <p><strong>Package:</strong> {selectedPackage.trackingNumber} - {selectedPackage.packageDescription}</p>
             <p><strong>From:</strong> {selectedPackage.shop?.businessName || 'N/A'}</p>
             <p><strong>To:</strong> {selectedPackage.deliveryContactName}</p>
+            {selectedPackage.driverId && (
+              <p><strong>Current Driver:</strong> {(() => {
+                const currentDriver = drivers.find(d => d.driverId === selectedPackage.driverId || d.id === selectedPackage.driverId);
+                return currentDriver ? currentDriver.name : 'Unknown Driver';
+              })()}</p>
+            )}
             
             <div className="search-section">
               <input
@@ -960,7 +1000,7 @@ const AdminDashboard = () => {
                       onClick={() => assignDriverToPackage(driver.driverId)}
                       disabled={assigningDriver}
                     >
-                      {assigningDriver ? 'Assigning...' : 'Assign'}
+                      {assigningDriver ? (selectedPackage.driverId ? 'Changing...' : 'Assigning...') : (selectedPackage.driverId ? 'Change to This Driver' : 'Assign')}
                     </button>
                   </div>
                 ))
@@ -1001,38 +1041,6 @@ const AdminDashboard = () => {
       default:
         return filtered.filter(user => user.role !== 'admin');
     }
-  };
-
-  // Filter packages
-  const getFilteredPackages = () => {
-    let filtered = packages;
-    // Apply tab filter
-    if (packagesTab === 'ready-to-assign') {
-      filtered = filtered.filter(pkg => pkg.status === 'pending');
-    } else if (packagesTab === 'in-transit') {
-      filtered = filtered.filter(pkg => ['assigned', 'pickedup', 'in-transit'].includes(pkg.status));
-    } else if (packagesTab === 'delivered') {
-      filtered = filtered.filter(pkg => pkg.status === 'delivered');
-      // Sort by actualDeliveryTime descending (most recent first)
-      filtered = filtered.slice().sort((a, b) => {
-        const aTime = a.actualDeliveryTime ? new Date(a.actualDeliveryTime).getTime() : 0;
-        const bTime = b.actualDeliveryTime ? new Date(b.actualDeliveryTime).getTime() : 0;
-        return bTime - aTime;
-      });
-    } else if (packagesTab === 'return-to-shop') {
-      filtered = filtered.filter(pkg => ['cancelled-awaiting-return', 'cancelled-returned'].includes(pkg.status));
-    }
-    // Apply search filter
-    if (searchTerm) {
-      const searchLower = searchTerm.toLowerCase();
-      filtered = filtered.filter(pkg => 
-        pkg.trackingNumber.toLowerCase().includes(searchLower) ||
-        pkg.packageDescription.toLowerCase().includes(searchLower) ||
-        (pkg.shop?.businessName || '').toLowerCase().includes(searchLower) ||
-        pkg.deliveryAddress.toLowerCase().includes(searchLower)
-      );
-    }
-    return filtered;
   };
 
   // Get role icon
@@ -1150,56 +1158,9 @@ const AdminDashboard = () => {
   
   // Prepare settlement dialog for shop payments
   const prepareSettleShopPayment = (shopId) => {
-    // Create the action function to be executed when confirmed
-    const action = async () => {
-      try {        
-        // Get IDs of packages to mark as settled
-        const packageIds = shopPackagesWithUnpaidMoney.map(pkg => pkg.id);
-        
-        console.log(`Attempting to settle ${packageIds.length} packages for shop ID ${shopId}`);
-        
-        // Call API to process the settlement
-        const response = await adminService.settleShopPayments(shopId, { packageIds });
-        
-        console.log('Settlement response:', response);
-        
-        // Calculate the total amount that was settled
-        const totalAmount = shopUnpaidTotal;
-        
-        // Update the UI with a success message
-        setStatusMessage({
-          type: 'success',
-          text: `Successfully processed payment of $${totalAmount.toFixed(2)} to shop`
-        });
-        
-        // Clear the unpaid packages and reset collected money UI
-        setShopPackagesWithUnpaidMoney([]);
-        setShopUnpaidTotal(0);
-        
-        // Update the shop's TotalCollected value in the UI immediately
-        updateShopFinancialData(shopId, totalAmount);
-        
-        // Refresh the shops data after a short delay
-        setTimeout(() => {
-          fetchUsers('shop');
-        }, 1000);
-      } catch (error) {
-        console.error('Error settling shop payments:', error);
-        setStatusMessage({
-          type: 'error',
-          text: `Error processing shop payment: ${error.response?.data?.message || error.message || 'Unknown error'}`
-        });
-      } finally {
-        // Close the confirmation dialog
-        setShowConfirmationDialog(false);
-      }
-    };
-    
-    // Set confirmation dialog content
-    setConfirmationDialogTitle('Confirm Settlement');
-    setConfirmationDialogText(`Are you sure you want to settle payments for this shop? This will mark all selected packages as paid out.`);
-    setConfirmAction(() => action);
-    setShowConfirmationDialog(true);
+    setSettleShopId(shopId);
+    setSettleAmountInput('');
+    setShowSettleAmountModal(true);
   };
   
   // Helper function to update shop's financial data in the UI after settlement
@@ -1294,10 +1255,10 @@ const AdminDashboard = () => {
               )}
               {activeTab === 'shops' && (
                 <>
-                  <td data-label="To Collect ($)" className="financial-cell" style={{fontSize: '15px'}}>
+                  <td data-label="To Collect ($)" className="financial-cell" style={{fontSize: '15px', color: parseFloat(user.ToCollect || 0) > 0 ? '#2e7d32' : '#d32f2f'}}>
                     ${parseFloat(user.ToCollect || 0).toFixed(2)}
                   </td>
-                  <td data-label="Collected ($)" className="financial-cell" style={{fontSize: '15px'}}>
+                  <td data-label="Collected ($)" className="financial-cell" style={{fontSize: '15px', color: parseFloat(user.TotalCollected || 0) > 0 ? '#2e7d32' : '#d32f2f'}}>
                     ${parseFloat(user.TotalCollected || 0).toFixed(2)}
                   </td>
                 </>
@@ -1358,9 +1319,38 @@ const AdminDashboard = () => {
                   className="action-btn view-btn"
                   onClick={() => viewDetails(user, user.role)}
                   title="View Details"
+                  style={{ marginRight: '0.25rem', width: '36px', height: '36px', borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}
                 >
                   <FontAwesomeIcon icon={faEye} />
                 </button>
+                {activeTab === 'shops' && parseFloat(user.TotalCollected) > 0 && (
+                  <button
+                    className="action-btn settle-btn"
+                    onClick={() => {
+                      viewDetails(user, user.role);
+                      setAutoScrollToSettle(true);
+                    }}
+                    title="Settle Payments with Shop"
+                    style={{
+                      marginRight: '0.25rem',
+                      width: '36px',
+                      height: '36px',
+                      borderRadius: '50%',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '18px',
+                      background: '#2e7d32',
+                      color: '#fff',
+                      border: 'none',
+                      boxShadow: '0 1px 4px rgba(46,125,50,0.08)',
+                      cursor: 'pointer',
+                      transition: 'background 0.2s',
+                    }}
+                  >
+                    <FontAwesomeIcon icon={faDollarSign} />
+                  </button>
+                )}
               </td>
             </tr>
           ))}
@@ -1428,8 +1418,34 @@ const AdminDashboard = () => {
             )}
             <th>Tracking Number</th>
             <th>Description</th>
-            <th>Status</th>
-            <th>From</th>
+            <th>
+              Status
+              <select
+                value={packageStatusFilter}
+                onChange={e => setPackageStatusFilter(e.target.value)}
+                style={{ marginLeft: 6, fontSize: '0.95em' }}
+              >
+                <option value="">All</option>
+                {allStatuses.map(status => (
+                  <option key={status} value={status}>
+                    {status.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+                  </option>
+                ))}
+              </select>
+            </th>
+            <th>
+              From
+              <select
+                value={packageShopFilter}
+                onChange={e => setPackageShopFilter(e.target.value)}
+                style={{ marginLeft: 6, fontSize: '0.95em' }}
+              >
+                <option value="">All</option>
+                {allShops.map(shop => (
+                  <option key={shop} value={shop}>{shop}</option>
+                ))}
+              </select>
+            </th>
             <th>To</th>
             <th>COD Amount</th>
             <th>Driver</th>
@@ -1470,11 +1486,21 @@ const AdminDashboard = () => {
                 >
                   <FontAwesomeIcon icon={faEye} />
                 </button>
+
                 {packagesTab === 'return-to-shop' && pkg.status === 'cancelled-awaiting-return' && (
                   <button
                     className="action-btn return-btn"
                     onClick={() => handleMarkAsReturned(pkg)}
                     title="Mark as Returned"
+                  >
+                    <FontAwesomeIcon icon={faCheck} />
+                  </button>
+                )}
+                {packagesTab === 'return-to-shop' && pkg.status === 'rejected-awaiting-return' && (
+                  <button
+                    className="action-btn return-btn"
+                    onClick={() => handleMarkAsReturned(pkg)}
+                    title="Mark as Rejected Returned"
                   >
                     <FontAwesomeIcon icon={faCheck} />
                   </button>
@@ -1605,7 +1631,7 @@ const AdminDashboard = () => {
   };
 
   // Render details modal
-  const renderDetailsModal = () => {
+  const renderDetailsModal = (settlementRef) => {
     if (!selectedEntity) return null;
 
     const entityType = selectedEntity.entityType;
@@ -1674,7 +1700,19 @@ const AdminDashboard = () => {
         onClick={() => setShowDetailsModal(false)}
       >
         <div className="modal-content" onClick={e => e.stopPropagation()}>
-          <div className="modal-header">
+          <div className="modal-header" style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'space-between',
+            position: 'sticky',
+            top: 0,
+            zIndex: 20,
+            background: '#fff',
+            borderBottom: '1px solid #eee',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+            padding: '18px 24px 12px 24px',
+            minHeight: 60
+          }}>
             <h2>
               {isUser && (
                 <>
@@ -1687,16 +1725,14 @@ const AdminDashboard = () => {
                 </>
               )}
             </h2>
-            {(isUser || isShop || isDriver) && (
-              <div className={`status-badge ${selectedEntity.isApproved ? 'approved' : 'pending'}`}>
-                {selectedEntity.isApproved ? 'Approved' : 'Pending Approval'}
-              </div>
-            )}
-            {isPackage && (
-              <div className={`status-badge ${selectedEntity.status}`}>
-                {selectedEntity.status}
-              </div>
-            )}
+            <button
+              className="modal-close"
+              onClick={() => setShowDetailsModal(false)}
+              style={{ background: 'none', border: 'none', fontSize: 28, cursor: 'pointer', color: '#888', marginLeft: 16 }}
+              title="Close"
+            >
+              &times;
+            </button>
           </div>
 
           {/* User, Shop, or Driver details */}
@@ -1922,7 +1958,7 @@ const AdminDashboard = () => {
               
               {/* Quick settlement panel (visible without loading packages) */}
               {parseFloat(selectedEntity.TotalCollected || 0) > 0 && (
-                <div className="settlement-section" style={{marginTop: '1rem'}}>
+                <div className="settlement-section" style={{marginTop: '1rem'}} ref={settlementRef}>
                   <div className="settlement-title">Settle Payments with Shop</div>
                   <div className="settlement-amount">Total collected: ${parseFloat(selectedEntity.TotalCollected).toFixed(2)}</div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem' }}>
@@ -2152,6 +2188,10 @@ const AdminDashboard = () => {
                 <span className="label">COD Amount:</span>
                 <span>{selectedEntity.codAmount ? `${selectedEntity.codAmount} EGP` : 'N/A'}</span>
               </div>
+              <div className="detail-item">
+                <span className="label">Delivery Cost:</span>
+                <span>{selectedEntity.deliveryCost ? `${selectedEntity.deliveryCost} EGP` : 'N/A'}</span>
+              </div>
               <div className="detail-item full-width">
                 <span className="label">Shop Notes:</span>
                 <span>{selectedEntity.shopNotes}</span>
@@ -2272,6 +2312,109 @@ const AdminDashboard = () => {
                 </div>
               </div>
             </div>
+          )}
+          {/* Package details: Forward Status button for admin */}
+          {isPackage && (
+            <>
+              {/* Remove previous button block if present */}
+              {/* Sticky footer for actions */}
+              <div
+                style={{
+                  position: 'sticky',
+                  bottom: 0,
+                  left: 0,
+                  width: '100%',
+                  background: '#fff',
+                  borderTop: '1px solid #eee',
+                  padding: '16px 24px',
+                  boxShadow: '0 -2px 8px rgba(0,0,0,0.04)',
+                  display: 'flex',
+                  justifyContent: 'flex-end',
+                  alignItems: 'center',
+                  gap: '12px',
+                  zIndex: 10,
+                  marginTop: 32
+                }}
+              >
+                {/* Change Driver button - only show for assigned, pickedup, in-transit statuses */}
+                {selectedEntity.driverId && ['assigned', 'pickedup', 'in-transit'].includes(selectedEntity.status) && (
+                  <button
+                    className="btn btn-secondary"
+                    onClick={() => openAssignDriverModal(selectedEntity)}
+                    style={{
+                      padding: '10px 24px',
+                      borderRadius: 8,
+                      fontWeight: 600,
+                      fontSize: 16,
+                      background: '#4a6cf7',
+                      color: '#fff',
+                      border: 'none',
+                      cursor: 'pointer',
+                      transition: 'background 0.2s',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}
+                  >
+                    <FontAwesomeIcon icon={faTruck} />
+                    Change Driver
+                  </button>
+                )}
+                
+                {/* Only show Forward Status button for packages that are not cancelled, rejected, or delivered */}
+                {!['cancelled','pending', 'cancelled-awaiting-return', 'cancelled-returned', 'rejected', 'rejected-awaiting-return', 'rejected-returned', 'delivered', 'awaiting_schedule', 'awaiting_pickup', 'scheduled_for_pickup'].includes(selectedEntity.status) && (
+                  <button
+                    className="btn btn-primary"
+                    disabled={forwardingPackageId === selectedEntity.id}
+                    onClick={() => forwardPackageStatus(selectedEntity)}
+                    style={{
+                      padding: '10px 32px',
+                      borderRadius: 8,
+                      fontWeight: 700,
+                      fontSize: 18,
+                      background: 'linear-gradient(90deg, #FFC107 0%, #FF9800 100%)',
+                      color: '#222',
+                      border: 'none',
+                      boxShadow: '0 2px 8px rgba(255,193,7,0.08)',
+                      cursor: forwardingPackageId === selectedEntity.id ? 'not-allowed' : 'pointer',
+                      transition: 'background 0.2s',
+                    }}
+                  >
+                    {forwardingPackageId === selectedEntity.id
+                      ? 'Forwarding...'
+                      : 'Forward Status'}
+                  </button>
+                )}
+                
+                {/* Reject Package button - only show for packages that are not already rejected, cancelled, or delivered */}
+                {!['cancelled', 'cancelled-awaiting-return', 'cancelled-returned', 'rejected', 'rejected-awaiting-return', 'rejected-returned', 'delivered'].includes(selectedEntity.status) && (
+                  <button
+                    className="btn btn-danger"
+                    onClick={() => {
+                      setPackageToAction(selectedEntity);
+                      setShowRejectPackageModal(true);
+                    }}
+                    style={{
+                      padding: '10px 24px',
+                      borderRadius: 8,
+                      fontWeight: 600,
+                      fontSize: 16,
+                      background: '#dc3545',
+                      color: '#fff',
+                      border: 'none',
+                      cursor: 'pointer',
+                      transition: 'background 0.2s',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}
+                  >
+                    <FontAwesomeIcon icon={faTimes} />
+                    Reject Package
+                  </button>
+                )}
+              </div>
+            </>
           )}
         </div>
       </div>
@@ -2943,19 +3086,20 @@ const AdminDashboard = () => {
     try {
       const params = {
         ...moneyFilters,
-        page: 1,
-        limit: 50
+        page: 1
       };
-      
+      // Convert shopId to number if present
+      if (params.shopId) {
+        params.shopId = Number(params.shopId);
+        if (isNaN(params.shopId)) delete params.shopId;
+      }
       // Remove empty filters
       Object.keys(params).forEach(key => {
         if (params[key] === '' || params[key] === null || params[key] === undefined) {
           delete params[key];
         }
       });
-
-      const queryParams = new URLSearchParams(params);
-      const res = await adminService.getMoneyTransactions(queryParams);
+      const res = await adminService.getMoneyTransactions(params);
       setMoneyTransactions(res.data.transactions || []);
     } catch (error) {
       console.error('Error fetching money transactions:', error);
@@ -2974,26 +3118,8 @@ const AdminDashboard = () => {
   }, [activeTab, moneyFilters]);
 
   const renderMoneyTable = () => {
-    // Filter moneyTransactions by searchTerm if present
+    // Use all transactions from backend, do not filter by searchTerm on frontend
     let filteredTransactions = moneyTransactions;
-    if (searchTerm) {
-      const search = searchTerm.toLowerCase();
-      filteredTransactions = moneyTransactions.filter(tx => {
-        const shopName = tx.Shop?.businessName?.toLowerCase() || '';
-        const driverName = tx.driver?.name?.toLowerCase() || '';
-        const attribute = tx.attribute?.toLowerCase() || '';
-        const description = tx.description?.toLowerCase() || '';
-        return (
-          shopName.includes(search) ||
-          driverName.includes(search) ||
-          attribute.includes(search) ||
-          description.includes(search)
-        );
-      });
-    }
-    if (filteredTransactions.length === 0) {
-      return <p style={{textAlign:'center'}}>No transactions found{searchTerm ? ' matching your search' : ''}.</p>;
-    }
     const renderSortIcon = (field) => {
       if (moneyFilters.sortBy === field) {
         return <span className="sort-icon">{moneyFilters.sortOrder === 'DESC' ? '▼' : '▲'}</span>;
@@ -3002,62 +3128,121 @@ const AdminDashboard = () => {
     };
     return (
       <div className="money-transactions-section">
-        {/* Filters section remains the same */}
+        {/* Filters section */}
         <div className="filters-section">
-          {/* ... existing filter inputs ... */}
+          <div className="filter-group">
+            <input
+              type="date"
+              className="filter-input"
+              value={moneyFilters.startDate}
+              onChange={e => handleMoneyFilterChange('startDate', e.target.value)}
+              placeholder="Start Date"
+            />
+            <input
+              type="date"
+              className="filter-input"
+              value={moneyFilters.endDate}
+              onChange={e => handleMoneyFilterChange('endDate', e.target.value)}
+              placeholder="End Date"
+            />
+          </div>
+          <div className="filter-group">
+            <select
+              className="filter-select"
+              value={moneyFilters.shopId || ''}
+              onChange={e => handleMoneyFilterChange('shopId', e.target.value)}
+            >
+              <option value="">All Shops</option>
+              {users.filter(u => u.role === 'shop').map(shop => (
+                <option key={shop.shopId} value={shop.shopId}>{shop.businessName || shop.shopId}</option>
+              ))}
+            </select>
+            <select
+              className="filter-select"
+              value={moneyFilters.attribute}
+              onChange={e => handleMoneyFilterChange('attribute', e.target.value)}
+            >
+              <option value="">All Attributes</option>
+              <option value="ToCollect">To Collect</option>
+              <option value="TotalCollected">Total Collected</option>
+              <option value="Revenue">Revenue</option>
+            </select>
+            <select
+              className="filter-select"
+              value={moneyFilters.changeType}
+              onChange={e => handleMoneyFilterChange('changeType', e.target.value)}
+            >
+              <option value="">All Types</option>
+              <option value="increase">Increase</option>
+              <option value="decrease">Decrease</option>
+            </select>
+          </div>
+          <div className="filter-group">
+            <input
+              type="text"
+              className="filter-input"
+              value={moneyFilters.search}
+              onChange={e => handleMoneyFilterChange('search', e.target.value)}
+              placeholder="Search transactions..."
+            />
+          </div>
         </div>
-        <table className="admin-table money-table">
-          <thead>
-            <tr>
-              <th 
-                onClick={() => handleMoneyFilterChange('sortBy', 'createdAt')} 
-                className="sortable-header"
-              >
-                Date {renderSortIcon('createdAt')}
-              </th>
-              <th>Shop</th>
-              <th>Driver</th>
-              <th 
-                onClick={() => handleMoneyFilterChange('sortBy', 'attribute')} 
-                className="sortable-header"
-              >
-                Attribute {renderSortIcon('attribute')}
-              </th>
-              <th 
-                onClick={() => handleMoneyFilterChange('sortBy', 'changeType')} 
-                className="sortable-header"
-              >
-                Type {renderSortIcon('changeType')}
-              </th>
-              <th 
-                onClick={() => handleMoneyFilterChange('sortBy', 'amount')} 
-                className="sortable-header"
-              >
-                Amount ($) {renderSortIcon('amount')}
-              </th>
-              <th>Description</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredTransactions.map(tx => (
-              <tr key={tx.id}>
-                <td data-label="Date">{new Date(tx.createdAt).toLocaleString()}</td>
-                <td data-label="Shop">{tx.Shop?.businessName || tx.shopId}</td>
-                <td data-label="Driver">{tx.driver ? tx.driver.name : '-'}</td>
-                <td data-label="Attribute">{tx.attribute}</td>
-                <td data-label="Type">
-                  <span className={`change-type ${tx.changeType}`}>
-                    {tx.changeType}
-                  </span>
-                </td>
-                <td data-label="Amount ($)" className={`financial-cell ${tx.changeType}`}>
-                  ${parseFloat(tx.amount).toFixed(2)}
-                </td>
-                <td data-label="Description">{tx.description || '-'}</td>
+        {filteredTransactions.length === 0 ? (
+          <p style={{textAlign:'center'}}>No transactions found{moneyFilters.search ? ' matching your search' : ''}.</p>
+        ) : (
+          <table className="admin-table money-table">
+            <thead>
+              <tr>
+                <th 
+                  onClick={() => handleMoneyFilterChange('sortBy', 'createdAt')} 
+                  className="sortable-header"
+                >
+                  Date {renderSortIcon('createdAt')}
+                </th>
+                <th>Shop</th>
+                <th>Driver</th>
+                <th 
+                  onClick={() => handleMoneyFilterChange('sortBy', 'attribute')} 
+                  className="sortable-header"
+                >
+                  Attribute {renderSortIcon('attribute')}
+                </th>
+                <th 
+                  onClick={() => handleMoneyFilterChange('sortBy', 'changeType')} 
+                  className="sortable-header"
+                >
+                  Type {renderSortIcon('changeType')}
+                </th>
+                <th 
+                  onClick={() => handleMoneyFilterChange('sortBy', 'amount')} 
+                  className="sortable-header"
+                >
+                  Amount ($) {renderSortIcon('amount')}
+                </th>
+                <th>Description</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {filteredTransactions.map(tx => (
+                <tr key={tx.id}>
+                  <td data-label="Date">{new Date(tx.createdAt).toLocaleString()}</td>
+                  <td data-label="Shop">{tx.Shop?.businessName || tx.shopId}</td>
+                  <td data-label="Driver">{tx.driver ? tx.driver.name : '-'}</td>
+                  <td data-label="Attribute">{tx.attribute}</td>
+                  <td data-label="Type">
+                    <span className={`change-type ${tx.changeType}`}>
+                      {tx.changeType}
+                    </span>
+                  </td>
+                  <td data-label="Amount ($)" className={`financial-cell ${tx.changeType}`}>
+                    ${parseFloat(tx.amount).toFixed(2)}
+                  </td>
+                  <td data-label="Description">{tx.description || '-'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
     );
   };
@@ -3091,7 +3276,13 @@ const AdminDashboard = () => {
   // Add new function to handle marking package as returned
   const handleMarkAsReturned = async (pkg) => {
     try {
-      await packageService.updatePackageStatus(pkg.id, { status: 'cancelled-returned' });
+      // Determine the appropriate status based on current status
+      let newStatus = 'cancelled-returned';
+      if (pkg.status === 'rejected-awaiting-return') {
+        newStatus = 'rejected-returned';
+      }
+      
+      await packageService.updatePackageStatus(pkg.id, { status: newStatus });
       // Refresh packages list
       fetchPackages();
     } catch (error) {
@@ -3109,9 +3300,13 @@ const AdminDashboard = () => {
       
       // Filter packages based on the current tab
       if (packagesTab === 'ready-to-assign') {
-        const pendingPackages = (response.data || []).filter(pkg => pkg.status === 'pending');
-        console.log('Filtered pending packages:', pendingPackages);
-        setPackages(pendingPackages);
+        const readyToAssignPackages = (response.data || []).filter(pkg =>
+          pkg.status === 'pending' ||
+          pkg.status === 'cancelled-awaiting-return' ||
+          pkg.status === 'rejected-awaiting-return'
+        );
+        console.log('Filtered ready-to-assign packages:', readyToAssignPackages);
+        setPackages(readyToAssignPackages);
       } else if (packagesTab === 'in-transit') {
         const inTransitPackages = (response.data || []).filter(pkg => 
           ['assigned', 'pickedup', 'in-transit'].includes(pkg.status)
@@ -3122,7 +3317,7 @@ const AdminDashboard = () => {
         setPackages(deliveredPackages);
       } else if (packagesTab === 'return-to-shop') {
         const returnPackages = (response.data || []).filter(pkg => 
-          ['cancelled-awaiting-return', 'cancelled-returned'].includes(pkg.status)
+          ['cancelled-awaiting-return', 'cancelled-returned', 'rejected-awaiting-return', 'rejected-returned'].includes(pkg.status)
         );
         setPackages(returnPackages);
       } else {
@@ -3620,6 +3815,65 @@ const AdminDashboard = () => {
     setShowConfirmationDialog(true);
   };
 
+  // Simple handler for button
+  const handleSettleMoneyClick = () => {
+    setSettleAmountInput('');
+    setShowSettleAmountModal(true);
+  };
+
+  // Simple confirm handler
+  const handleConfirmSettleAmount = () => {
+    setShowSettleAmountModal(false);
+  };
+
+  // Add state for package filters
+  const [packageStatusFilter, setPackageStatusFilter] = useState('');
+  const [packageShopFilter, setPackageShopFilter] = useState('');
+
+  // In getFilteredPackages, apply the new filters
+  const getFilteredPackages = () => {
+    let filtered = packages;
+    // Apply tab filter
+    if (packagesTab === 'ready-to-assign') {
+      filtered = filtered.filter(pkg => pkg.status === 'pending');
+    } else if (packagesTab === 'in-transit') {
+      filtered = filtered.filter(pkg => ['assigned', 'pickedup', 'in-transit'].includes(pkg.status));
+    } else if (packagesTab === 'delivered') {
+      filtered = filtered.filter(pkg => pkg.status === 'delivered');
+      // Sort by actualDeliveryTime descending (most recent first)
+      filtered = filtered.slice().sort((a, b) => {
+        const aTime = a.actualDeliveryTime ? new Date(a.actualDeliveryTime).getTime() : 0;
+        const bTime = b.actualDeliveryTime ? new Date(b.actualDeliveryTime).getTime() : 0;
+        return bTime - aTime;
+      });
+    } else if (packagesTab === 'return-to-shop') {
+      filtered = filtered.filter(pkg => ['cancelled-awaiting-return', 'cancelled-returned', 'rejected-awaiting-return', 'rejected-returned'].includes(pkg.status));
+    }
+    // Apply status filter
+    if (packageStatusFilter) {
+      filtered = filtered.filter(pkg => pkg.status === packageStatusFilter);
+    }
+    // Apply shop filter
+    if (packageShopFilter) {
+      filtered = filtered.filter(pkg => (pkg.shop?.businessName || 'N/A') === packageShopFilter);
+    }
+    // Apply search filter
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      filtered = filtered.filter(pkg => 
+        pkg.trackingNumber.toLowerCase().includes(searchLower) ||
+        pkg.packageDescription.toLowerCase().includes(searchLower) ||
+        (pkg.shop?.businessName || '').toLowerCase().includes(searchLower) ||
+        pkg.deliveryAddress.toLowerCase().includes(searchLower)
+      );
+    }
+    return filtered;
+  };
+
+  // In renderPackagesTable, compute unique statuses and shops for dropdowns
+  const allStatuses = Array.from(new Set(packages.map(pkg => pkg.status))).sort();
+  const allShops = Array.from(new Set(packages.map(pkg => pkg.shop?.businessName || 'N/A'))).sort();
+
   return (
     <div className="admin-dashboard">
       {renderStatusMessage()}
@@ -3703,7 +3957,7 @@ const AdminDashboard = () => {
         )}
       </div>
 
-      {renderDetailsModal()}
+      {renderDetailsModal(settlementRef)}
       {renderAssignDriverModal()}
       {renderPickupModal()}
       {renderAssignPickupDriverModal()}
@@ -3749,6 +4003,26 @@ const AdminDashboard = () => {
               </tbody>
             </table>
           )}
+        </div>
+      )}
+      {showSettleAmountModal && (
+        <div className="modal-overlay" style={{ zIndex: 9999, display: 'block' }}>
+          <div className="modal-content">
+            <h3>Settle Money</h3>
+            <p>Enter the amount to settle for this shop:</p>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={settleAmountInput}
+              onChange={e => setSettleAmountInput(e.target.value)}
+              style={{ width: '100%', marginBottom: '1rem', padding: '0.5rem', fontSize: '16px' }}
+            />
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
+              <button onClick={() => setShowSettleAmountModal(false)} style={{ padding: '0.5rem 1.5rem' }}>Cancel</button>
+              <button onClick={() => handlePartialSettle(settleShopId)} style={{ background: '#2e7d32', color: 'white', padding: '0.5rem 1.5rem', border: 'none', borderRadius: '4px' }}>Settle</button>
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { packageService } from '../../services/api';
 import { ShopDashboardContext } from './Dashboard'; // Import the ShopDashboardContext
+import { sanitizeNameInput, validateName, validatePhone } from '../../utils/inputValidators';
 
 const CATEGORY_OPTIONS = [
   'Shoes',
@@ -86,23 +87,34 @@ const CreatePackage = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    let newValue = value;
+    
+    // Delivery contact name: sanitize and allow any input
+    if (name === 'deliveryAddress.contactName') {
+      newValue = sanitizeNameInput(value);
+    }
+    // Delivery contact phone: restrict to numbers and format as 01xxxxxxxxx
+    else if (name === 'deliveryAddress.contactPhone') {
+      newValue = newValue.replace(/[^0-9]/g, '');
+      if (newValue.length > 11) newValue = newValue.slice(0, 11);
+      // Allow any number input, validation will be done on submit
+    }
+    // Shop notes: allow any input
+    else if (name === 'notes') {
+      newValue = value; // Allow any characters in shop notes
+    }
     
     if (name.includes('.')) {
-      // Handle nested fields
       const [parent, child] = name.split('.');
       setFormData({
         ...formData,
         [parent]: {
           ...formData[parent],
-          [child]: value
+          [child]: newValue
         }
       });
     } else {
-      if (name === 'notes') {
-        setFormData({ ...formData, shopNotes: value });
-      } else {
-        setFormData({ ...formData, [name]: value });
-      }
+      setFormData({ ...formData, [name]: newValue });
     }
     
     setError('');
@@ -123,6 +135,11 @@ const CreatePackage = () => {
           !formData.deliveryAddress.street || !formData.deliveryAddress.city ||
           !formData.deliveryAddress.country) {
         throw new Error('Please complete all delivery address fields');
+      }
+      
+      // Validate phone number format (01xxxxxxxxx)
+      if (!/^01\d{9}$/.test(formData.deliveryAddress.contactPhone)) {
+        throw new Error('Phone number must be in format: 01xxxxxxxxx (11 digits starting with 01)');
       }
       
       // Format data for API
@@ -194,7 +211,7 @@ const CreatePackage = () => {
       // Redirect after modal is shown
       setTimeout(() => {
         navigate('/shop/packages', { replace: true });
-      }, 4000);
+      }, 2000);
       
     } catch (err) {
       setError(err.message || 'Failed to create package. Please try again.');
@@ -387,6 +404,8 @@ const CreatePackage = () => {
                   onChange={handleChange}
                   placeholder="Recipient's name"
                   required
+                  inputMode="text"
+                  autoComplete="off"
                 />
               </div>
               
@@ -398,8 +417,12 @@ const CreatePackage = () => {
                   name="deliveryAddress.contactPhone"
                   value={formData.deliveryAddress.contactPhone}
                   onChange={handleChange}
-                  placeholder="Recipient's phone"
+                  placeholder="01xxxxxxxxx"
                   required
+                  pattern="01[0-9]{9}"
+                  inputMode="numeric"
+                  maxLength={11}
+                  autoComplete="tel"
                 />
               </div>
             </div>

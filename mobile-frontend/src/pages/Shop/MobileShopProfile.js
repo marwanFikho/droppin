@@ -3,6 +3,7 @@ import { packageService, authService } from '../../services/api';
 import { userService } from '../../services/api';
 import './MobileShopDashboard.css';
 import { useTranslation } from 'react-i18next';
+import { sanitizeNameInput, validateName, validatePhone } from '../../utils/inputValidators';
 
 const initialAddress = {
   street: '', city: '', state: '', zipCode: '', country: ''
@@ -183,9 +184,35 @@ const MobileShopProfile = () => {
         <label>Shop Name</label>
         <input type="text" value={shopName} disabled />
         <label>Default Contact Name</label>
-        <input type="text" value={contactName} onChange={e => setContactName(e.target.value)} required />
+        <input
+          type="text"
+          value={contactName}
+          onChange={e => {
+            const val = sanitizeNameInput(e.target.value);
+            if (!validateName(val) && val !== '') return;
+            setContactName(val);
+          }}
+          required
+          pattern="[A-Za-z\u0600-\u06FF ]+"
+          inputMode="text"
+          autoComplete="off"
+        />
         <label>Default Contact Phone</label>
-        <input type="tel" value={contactPhone} onChange={e => setContactPhone(e.target.value)} required />
+        <input
+          type="tel"
+          value={contactPhone}
+          onChange={e => {
+            let val = e.target.value.replace(/[^0-9]/g, '');
+            if (val.length > 11) val = val.slice(0, 11);
+            if (val && !/^01\d{0,9}$/.test(val)) return;
+            setContactPhone(val);
+          }}
+          required
+          pattern="01[0-9]{9}"
+          inputMode="numeric"
+          maxLength={11}
+          autoComplete="tel"
+        />
         <label>Shipping Fees (EGP)</label>
         <input type="number" value={shippingFees} disabled />
         <label>Shown Shipping Fees (EGP)</label>

@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import './MobileDriverRegister.css';
 import { useTranslation } from 'react-i18next';
 import { authService } from '../../services/api';
+import { sanitizeNameInput, validateName, validatePhone } from '../../utils/inputValidators';
 
 const MobileDriverRegister = () => {
   const [formData, setFormData] = useState({
@@ -41,9 +42,21 @@ const MobileDriverRegister = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    let newValue = value;
+    // Name fields: sanitize and validate
+    if (name === 'firstName' || name === 'lastName') {
+      newValue = sanitizeNameInput(value);
+      if (!validateName(newValue) && newValue !== '') return;
+    }
+    // Phone field: restrict to numbers and length
+    if (name === 'phone') {
+      newValue = newValue.replace(/[^0-9]/g, '');
+      if (newValue.length > 11) newValue = newValue.slice(0, 11);
+      if (newValue && !/^01\d{0,9}$/.test(newValue)) return;
+    }
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      [name]: newValue
     }));
     
     // Clear error when user starts typing
@@ -201,6 +214,10 @@ const MobileDriverRegister = () => {
                 onChange={handleChange}
                 className={`form-control ${errors.firstName ? 'error' : ''}`}
                 placeholder={t('driver.register.firstName')}
+                required
+                pattern="[A-Za-z\u0600-\u06FF ]+"
+                inputMode="text"
+                autoComplete="off"
               />
               {errors.firstName && <div className="error-message">{errors.firstName}</div>}
             </div>
@@ -215,6 +232,10 @@ const MobileDriverRegister = () => {
                 onChange={handleChange}
                 className={`form-control ${errors.lastName ? 'error' : ''}`}
                 placeholder={t('driver.register.lastName')}
+                required
+                pattern="[A-Za-z\u0600-\u06FF ]+"
+                inputMode="text"
+                autoComplete="off"
               />
               {errors.lastName && <div className="error-message">{errors.lastName}</div>}
             </div>
@@ -245,6 +266,10 @@ const MobileDriverRegister = () => {
               onChange={handleChange}
               className={`form-control ${errors.phone ? 'error' : ''}`}
               placeholder={t('driver.register.phone')}
+              required
+              pattern="01[0-9]{9}"
+              inputMode="numeric"
+              maxLength={11}
               autoComplete="tel"
             />
             {errors.phone && <div className="error-message">{errors.phone}</div>}

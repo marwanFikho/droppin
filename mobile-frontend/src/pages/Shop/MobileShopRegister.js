@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import './MobileShopRegister.css';
 import { authService } from '../../services/api';
+import { sanitizeNameInput, validateName, validatePhone } from '../../utils/inputValidators';
 
 const MobileShopRegister = () => {
   const [formData, setFormData] = useState({
@@ -33,9 +34,21 @@ const MobileShopRegister = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    let newValue = value;
+    // Name fields: sanitize and validate
+    if (name === 'shopName' || name === 'ownerName') {
+      newValue = sanitizeNameInput(value);
+      if (!validateName(newValue) && newValue !== '') return;
+    }
+    // Phone field: restrict to numbers and length
+    if (name === 'phone') {
+      newValue = newValue.replace(/[^0-9]/g, '');
+      if (newValue.length > 11) newValue = newValue.slice(0, 11);
+      if (newValue && !/^01\d{0,9}$/.test(newValue)) return;
+    }
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      [name]: newValue
     }));
     
     // Clear error when user starts typing
@@ -190,6 +203,10 @@ const MobileShopRegister = () => {
               onChange={handleChange}
               className={`form-control ${errors.shopName ? 'error' : ''}`}
               placeholder="Enter your shop name"
+              required
+              pattern="[A-Za-z\u0600-\u06FF ]+"
+              inputMode="text"
+              autoComplete="off"
             />
             {errors.shopName && <div className="error-message">{errors.shopName}</div>}
           </div>
@@ -203,7 +220,11 @@ const MobileShopRegister = () => {
               value={formData.ownerName}
               onChange={handleChange}
               className={`form-control ${errors.ownerName ? 'error' : ''}`}
-              placeholder="Enter owner's full name"
+              placeholder="Enter owner name"
+              required
+              pattern="[A-Za-z\u0600-\u06FF ]+"
+              inputMode="text"
+              autoComplete="off"
             />
             {errors.ownerName && <div className="error-message">{errors.ownerName}</div>}
           </div>
@@ -233,6 +254,10 @@ const MobileShopRegister = () => {
               onChange={handleChange}
               className={`form-control ${errors.phone ? 'error' : ''}`}
               placeholder="Enter phone number"
+              required
+              pattern="01[0-9]{9}"
+              inputMode="numeric"
+              maxLength={11}
               autoComplete="tel"
             />
             {errors.phone && <div className="error-message">{errors.phone}</div>}

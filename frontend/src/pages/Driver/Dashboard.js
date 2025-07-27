@@ -665,6 +665,10 @@ const DriverDashboard = () => {
                     </span>
                   </div>
                   <div className="detail-item">
+                    <span className="label">Delivery Cost</span>
+                    <span>${parseFloat(selectedPackage.deliveryCost || 0).toFixed(2)}</span>
+                  </div>
+                  <div className="detail-item">
                     <span className="label">Number of Items</span>
                     <span>{selectedPackage.itemsNo ?? '-'}</span>
                   </div>

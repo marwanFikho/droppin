@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { packageService } from '../../services/api';
 import api from '../../services/api';
 import './ShopDashboard.css';
+import { sanitizeNameInput, validateName, validatePhone } from '../../utils/inputValidators';
 
 const initialAddress = {
   street: '',
@@ -188,11 +189,37 @@ const ShopProfile = () => {
         </div>
         <div className="form-group">
           <label>Default Contact Name</label>
-          <input type="text" value={contactName} onChange={e => setContactName(e.target.value)} required />
+          <input
+            type="text"
+            value={contactName}
+            onChange={e => {
+              const val = sanitizeNameInput(e.target.value);
+              if (!validateName(val) && val !== '') return;
+              setContactName(val);
+            }}
+            required
+            pattern="[A-Za-z\u0600-\u06FF ]+"
+            inputMode="text"
+            autoComplete="off"
+          />
         </div>
         <div className="form-group">
           <label>Default Contact Phone</label>
-          <input type="tel" value={contactPhone} onChange={e => setContactPhone(e.target.value)} required />
+          <input
+            type="tel"
+            value={contactPhone}
+            onChange={e => {
+              let val = e.target.value.replace(/[^0-9]/g, '');
+              if (val.length > 11) val = val.slice(0, 11);
+              if (val && !/^01\d{0,9}$/.test(val)) return;
+              setContactPhone(val);
+            }}
+            required
+            pattern="01[0-9]{9}"
+            inputMode="numeric"
+            maxLength={11}
+            autoComplete="tel"
+          />
         </div>
         <div className="form-group">
           <label>Default Pickup Location</label>

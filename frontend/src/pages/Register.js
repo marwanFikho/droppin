@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { validateName, sanitizeNameInput, validatePhone } from '../utils/inputValidators';
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -25,22 +26,31 @@ const Register = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    
+    let newValue = value;
+    // Name field: sanitize and validate
+    if (name === 'name') {
+      newValue = sanitizeNameInput(value);
+      if (!validateName(newValue) && newValue !== '') return; // block invalid
+    }
+    // Phone field: restrict to numbers and length
+    if (name === 'phone') {
+      newValue = newValue.replace(/[^0-9]/g, '');
+      if (newValue.length > 11) newValue = newValue.slice(0, 11);
+      if (newValue && !/^01\d{0,9}$/.test(newValue)) return; // block if not starting with 01
+    }
     if (name.includes('.')) {
-      // Handle nested address fields
       const [parent, child] = name.split('.');
       setFormData({
         ...formData,
         [parent]: {
           ...formData[parent],
-          [child]: value
+          [child]: newValue
         }
       });
     } else {
-      setFormData({ ...formData, [name]: value });
+      setFormData({ ...formData, [name]: newValue });
     }
-    
-    setFormError(''); // Clear error when user types
+    setFormError('');
   };
 
   const handleSubmit = async (e) => {
@@ -87,6 +97,9 @@ const Register = () => {
               onChange={handleChange}
               placeholder="Enter your shop name"
               required
+              pattern="[A-Za-z\u0600-\u06FF ]+"
+              inputMode="text"
+              autoComplete="off"
             />
           </div>
           <div className="form-group">
@@ -111,6 +124,10 @@ const Register = () => {
               onChange={handleChange}
               placeholder="Enter your shop phone number"
               required
+              pattern="01[0-9]{9}"
+              inputMode="numeric"
+              maxLength={11}
+              autoComplete="tel"
             />
           </div>
           <div className="form-row">

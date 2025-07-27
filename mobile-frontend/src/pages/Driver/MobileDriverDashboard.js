@@ -529,6 +529,7 @@ const MobileDriverDashboard = () => {
                   <div className="mobile-modal-detail-item"><span className="label">{t('driver.dashboard.pickupAddress')}</span><span>{selectedPackage.pickupAddress}</span></div>
                   <div className="mobile-modal-detail-item"><span className="label">{t('driver.dashboard.deliveryAddress')}</span><span>{selectedPackage.deliveryAddress}</span></div>
                   <div className="mobile-modal-detail-item"><span className="label">{t('driver.dashboard.codAmount')}</span><span>${parseFloat(selectedPackage.codAmount || 0).toFixed(2)}</span></div>
+                  <div className="mobile-modal-detail-item"><span className="label">Delivery Cost</span><span>${parseFloat(selectedPackage.deliveryCost || 0).toFixed(2)}</span></div>
                   <div className="mobile-modal-detail-item"><span className="label">{t('driver.dashboard.recipientName')}</span><span>{selectedPackage.deliveryContactName}</span></div>
                   <div className="mobile-modal-detail-item"><span className="label">{t('driver.dashboard.recipientPhone')}</span><span>{selectedPackage.deliveryContactPhone}</span></div>
                   <div className="mobile-modal-detail-item"><span className="label">{t('driver.dashboard.itemsNo')}</span><span>{selectedPackage.itemsNo ?? '-'}</span></div>

@@ -13,6 +13,7 @@ const badgeColors = {
   decrease: '#ffebee',
   ToCollect: '#ff9800',
   TotalCollected: '#4caf50',
+  Revenue: '#2196f3',
 };
 
 const MobileShopWallet = () => {

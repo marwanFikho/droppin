@@ -252,7 +252,7 @@ const MobileShopPackages = () => {
                   if (tab.value === 'in-transit') return inTransitStatuses.includes(pkg.status);
                   if (tab.value === 'return-to-shop') return returnToShopStatuses.includes(pkg.status);
                   if (tab.value === 'cancelled') return ['cancelled', 'cancelled-awaiting-return', 'cancelled-returned'].includes(pkg.status);
-                  if (tab.value === 'rejected') return pkg.status === 'rejected';
+                  if (tab.value === 'rejected') return ['rejected', 'rejected-awaiting-return', 'rejected-returned'].includes(pkg.status);
                   return pkg.status === tab.value;
                 }).length
               }
@@ -337,6 +337,7 @@ const MobileShopPackages = () => {
                   <div className="mobile-modal-detail-item full-width"><span className="label">Delivery Address</span><span>{selectedPackage.deliveryAddress?.address || selectedPackage.deliveryAddress}</span></div>
                 )}
                 <div className="mobile-modal-detail-item"><span className="label">COD</span><span>${parseFloat(selectedPackage.codAmount || 0).toFixed(2)} {selectedPackage.isPaid ? 'Paid' : 'Unpaid'}</span></div>
+                <div className="mobile-modal-detail-item"><span className="label">Delivery Cost</span><span>${parseFloat(selectedPackage.deliveryCost || 0).toFixed(2)}</span></div>
                 {selectedPackage.weight && (
                   <div className="mobile-modal-detail-item"><span className="label">Weight</span><span>{selectedPackage.weight} kg</span></div>
                 )}

@@ -64,7 +64,9 @@ const Package = sequelize.define('Package', {
       'cancelled',
       'cancelled-awaiting-return',
       'cancelled-returned',
-      'rejected'
+      'rejected',
+      'rejected-awaiting-return',
+      'rejected-returned'
     ),
     defaultValue: 'awaiting_schedule'
   },
