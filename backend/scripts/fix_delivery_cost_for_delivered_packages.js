@@ -7,7 +7,7 @@ async function fixDeliveryCostForAllPackages() {
   try {
     // Fetch all packages (not just delivered ones)
     const allPackages = await Package.findAll({
-      attributes: ['id', 'shopId', 'deliveryCost', 'status'],
+      attributes: ['id', 'shopId', 'shownDeliveryCost', 'status'],
     });
     console.log(`Found ${allPackages.length} total packages.`);
 
@@ -17,25 +17,25 @@ async function fixDeliveryCostForAllPackages() {
 
     for (const pkg of allPackages) {
       try {
-        // Fetch the shop's shippingFees
+        // Fetch the shop's shownShippingFees
         const shop = await Shop.findByPk(pkg.shopId);
-        if (shop && shop.shippingFees != null) {
-          const shippingFees = parseFloat(shop.shippingFees);
-          if (pkg.deliveryCost !== shippingFees) {
-            // Update the deliveryCost
+        if (shop && shop.shownShippingFees != null) {
+          const shownShippingFees = parseFloat(shop.shownShippingFees);
+          if (pkg.shownDeliveryCost !== shownShippingFees) {
+            // Update the shownDeliveryCost
             await Package.update(
-              { deliveryCost: shippingFees },
+              { shownDeliveryCost: shownShippingFees },
               { where: { id: pkg.id } }
             );
             updatedCount++;
-            console.log(`Updated package ${pkg.id} (${pkg.status}): deliveryCost set to ${shippingFees}`);
+            console.log(`Updated package ${pkg.id} (${pkg.status}): shownDeliveryCost set to ${shownShippingFees}`);
           } else {
             skippedCount++;
-            console.log(`Skipped package ${pkg.id} (${pkg.status}): deliveryCost already correct (${shippingFees})`);
+            console.log(`Skipped package ${pkg.id} (${pkg.status}): shownDeliveryCost already correct (${shownShippingFees})`);
           }
         } else {
           skippedCount++;
-          console.log(`Skipped package ${pkg.id} (${pkg.status}): shop not found or no shipping fees`);
+          console.log(`Skipped package ${pkg.id} (${pkg.status}): shop not found or no shown shipping fees`);
         }
       } catch (err) {
         errorCount++;
@@ -51,7 +51,7 @@ async function fixDeliveryCostForAllPackages() {
     console.log(`Done.`);
     process.exit(0);
   } catch (err) {
-    console.error('Error updating deliveryCost for all packages:', err);
+    console.error('Error updating shownDeliveryCost for all packages:', err);
     process.exit(1);
   }
 }

@@ -136,6 +136,11 @@ const AdminDashboard = () => {
   const [pickupToDelete, setPickupToDelete] = useState(null);
   const [deletingPickup, setDeletingPickup] = useState(false);
   const [shopSort, setShopSort] = useState({ field: 'revenue', order: 'desc' });
+  
+  // Add state for give money to driver functionality
+  const [giveMoneyAmount, setGiveMoneyAmount] = useState('');
+  const [giveMoneyReason, setGiveMoneyReason] = useState('');
+  const [givingMoney, setGivingMoney] = useState(false);
   // Add state for variable settlement amount popup
   const [showSettleAmountModal, setShowSettleAmountModal] = useState(false);
   const [settleShopId, setSettleShopId] = useState(null);
@@ -1584,44 +1589,52 @@ const AdminDashboard = () => {
                 const driver = drivers.find(d => d.driverId === pickup.driverId || d.id === pickup.driverId);
                 return driver ? driver.name : 'Unassigned';
               })()}</td>
-              <td data-label="Actions">
+              <td data-label="Actions" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 {pickup.status === 'scheduled' && (
                   <>
                     <button
                       className="action-btn assign-btn"
                       onClick={() => openAssignPickupDriverModal(pickup)}
                       title="Assign Driver"
+                      style={{ backgroundColor: '#fd7e14', color: 'white' }}
                     >
                       <FontAwesomeIcon icon={faTruck} />
                     </button>
-                    <select
-                      value={pickup.status}
-                      onChange={e => updatePickupStatus(pickup.id, e.target.value)}
+                    <button
+                      className="action-btn pickup-btn"
+                      onClick={() => handleMarkPickupAsPickedUp(pickup.id)}
+                      title="Mark as Picked Up"
                       disabled={pickupStatusUpdating[pickup.id]}
-                      style={{ marginLeft: 8 }}
+                      style={{ backgroundColor: '#28a745', color: 'white' }}
                     >
-                      <option value="scheduled">Pending</option>
-                      <option value="picked_up">PickedUp</option>
-                      <option value="in_storage">InStorage</option>
-                    </select>
+                      <FontAwesomeIcon icon={faCheck} />
+                    </button>
                     <button
                       className="action-btn reject-btn"
                       onClick={() => handleDeletePickup(pickup)}
                       title="Delete Pickup"
                       disabled={deletingPickup}
-                      style={{ marginLeft: 8 }}
                     >
                       <FontAwesomeIcon icon={faTrash} />
                     </button>
+                    <button
+                      className="action-btn view-btn"
+                      onClick={() => handlePickupClick(pickup)}
+                      title="View Packages"
+                    >
+                      <FontAwesomeIcon icon={faEye} />
+                    </button>
                   </>
                 )}
-                <button
-                  className="action-btn view-btn"
-                  onClick={() => handlePickupClick(pickup)}
-                  title="View Packages"
-                >
-                  <FontAwesomeIcon icon={faEye} />
-                </button>
+                {pickup.status !== 'scheduled' && (
+                  <button
+                    className="action-btn view-btn"
+                    onClick={() => handlePickupClick(pickup)}
+                    title="View Packages"
+                  >
+                    <FontAwesomeIcon icon={faEye} />
+                  </button>
+                )}
               </td>
             </tr>
           ))}
@@ -2140,6 +2153,87 @@ const AdminDashboard = () => {
                   Show Packages
                 </button>
               </div>
+              {/* Give Money to Driver Section */}
+              {isDriver && (
+                <div className="detail-item full-width" style={{ marginTop: 24, padding: '20px', backgroundColor: '#f8f9fa', borderRadius: '8px', border: '1px solid #e9ecef' }}>
+                  <h4 style={{ marginBottom: 16, color: '#495057', fontSize: '1.1rem', fontWeight: 600 }}>
+                    <FontAwesomeIcon icon={faDollarSign} style={{ marginRight: 8, color: '#28a745' }} />
+                    Give Money to Driver
+                  </h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: 4, fontWeight: 500, color: '#495057' }}>
+                        Amount ($):
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        value={giveMoneyAmount}
+                        onChange={(e) => setGiveMoneyAmount(e.target.value)}
+                        placeholder="Enter amount"
+                        style={{
+                          width: '100%',
+                          padding: '8px 12px',
+                          border: '1px solid #ced4da',
+                          borderRadius: '4px',
+                          fontSize: '14px'
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: 4, fontWeight: 500, color: '#495057' }}>
+                        Reason (Optional):
+                      </label>
+                      <input
+                        type="text"
+                        value={giveMoneyReason}
+                        onChange={(e) => setGiveMoneyReason(e.target.value)}
+                        placeholder="Enter reason for payment"
+                        style={{
+                          width: '100%',
+                          padding: '8px 12px',
+                          border: '1px solid #ced4da',
+                          borderRadius: '4px',
+                          fontSize: '14px'
+                        }}
+                      />
+                    </div>
+                    <button
+                      onClick={handleGiveMoneyToDriver}
+                      disabled={givingMoney || !giveMoneyAmount || isNaN(parseFloat(giveMoneyAmount)) || parseFloat(giveMoneyAmount) <= 0}
+                      style={{
+                        padding: '10px 20px',
+                        backgroundColor: '#28a745',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        fontSize: '14px',
+                        fontWeight: 600,
+                        cursor: givingMoney || !giveMoneyAmount || isNaN(parseFloat(giveMoneyAmount)) || parseFloat(giveMoneyAmount) <= 0 ? 'not-allowed' : 'pointer',
+                        opacity: givingMoney || !giveMoneyAmount || isNaN(parseFloat(giveMoneyAmount)) || parseFloat(giveMoneyAmount) <= 0 ? 0.6 : 1,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 8
+                      }}
+                    >
+                      {givingMoney ? (
+                        <>
+                          <div className="loading-spinner" style={{ width: '16px', height: '16px', border: '2px solid #ffffff', borderTop: '2px solid transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
+                          Processing...
+                        </>
+                      ) : (
+                        <>
+                          <FontAwesomeIcon icon={faDollarSign} />
+                          Give Money
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Delete driver button for driver entity */}
               {isDriver && (
                 <div className="detail-item full-width" style={{ marginTop: 16, textAlign: 'right' }}>
@@ -2190,8 +2284,70 @@ const AdminDashboard = () => {
               </div>
               <div className="detail-item">
                 <span className="label">Delivery Cost:</span>
-                <span>{selectedEntity.deliveryCost ? `${selectedEntity.deliveryCost} EGP` : 'N/A'}</span>
+                {editingDeliveryCost ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <input
+                      type="number"
+                      value={newDeliveryCost}
+                      onChange={e => setNewDeliveryCost(e.target.value)}
+                      style={{ width: 90, padding: '6px 10px', borderRadius: 4, border: '1px solid #ccc', fontSize: '1em' }}
+                      min="0"
+                    />
+                    <button
+                      onClick={async () => {
+                        setSavingDeliveryCost(true);
+                        try {
+                          await adminService.updatePackage(selectedEntity.id, { deliveryCost: parseFloat(newDeliveryCost) });
+                          setSelectedEntity(prev => ({ ...prev, deliveryCost: parseFloat(newDeliveryCost) }));
+                          setEditingDeliveryCost(false);
+                        } catch (err) {
+                          alert('Failed to update delivery cost');
+                        } finally {
+                          setSavingDeliveryCost(false);
+                        }
+                      }}
+                      disabled={savingDeliveryCost || newDeliveryCost === ''}
+                      style={{
+                        background: '#28a745', color: 'white', border: 'none', borderRadius: 4, padding: '6px 16px', fontWeight: 'bold', cursor: savingDeliveryCost ? 'not-allowed' : 'pointer', transition: 'background 0.2s',
+                        marginRight: 4
+                      }}
+                    >
+                      {savingDeliveryCost ? 'Saving...' : 'Save'}
+                    </button>
+                    <button
+                      onClick={() => setEditingDeliveryCost(false)}
+                      style={{
+                        background: '#f5f5f5', color: '#333', border: '1px solid #ccc', borderRadius: 4, padding: '6px 16px', fontWeight: 'bold', cursor: 'pointer', transition: 'background 0.2s'
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontWeight: 500 }}>{selectedEntity.deliveryCost ? `${selectedEntity.deliveryCost} EGP` : 'N/A'}</span>
+                    <button
+                      style={{
+                        background: '#fff', border: '1px solid #007bff', color: '#007bff', borderRadius: 4, padding: '4px 12px', marginLeft: 4, cursor: 'pointer', fontWeight: 'bold', transition: 'background 0.2s'
+                      }}
+                      onClick={() => {
+                        setEditingDeliveryCost(true);
+                        setNewDeliveryCost(selectedEntity.deliveryCost || '');
+                      }}
+                      onMouseOver={e => e.currentTarget.style.background = '#e6f0ff'}
+                      onMouseOut={e => e.currentTarget.style.background = '#fff'}
+                    >
+                      Edit
+                    </button>
+                  </div>
+                )}
               </div>
+              {selectedEntity.shownDeliveryCost !== undefined && selectedEntity.shownDeliveryCost !== null && (
+                <div className="detail-item">
+                  <span className="label">Shown Delivery Cost:</span>
+                  <span>{selectedEntity.shownDeliveryCost} EGP</span>
+                </div>
+              )}
               <div className="detail-item full-width">
                 <span className="label">Shop Notes:</span>
                 <span>{selectedEntity.shopNotes}</span>
@@ -3826,6 +3982,44 @@ const AdminDashboard = () => {
     setShowSettleAmountModal(false);
   };
 
+  // Function to handle giving money to driver
+  const handleGiveMoneyToDriver = async () => {
+    if (!giveMoneyAmount || isNaN(parseFloat(giveMoneyAmount)) || parseFloat(giveMoneyAmount) <= 0) {
+      setStatusMessage({ type: 'error', text: 'Please enter a valid positive amount.' });
+      return;
+    }
+
+    try {
+      setGivingMoney(true);
+      const response = await adminService.giveMoneyToDriver(selectedEntity.driverId || selectedEntity.id, {
+        amount: parseFloat(giveMoneyAmount),
+        reason: giveMoneyReason.trim() || undefined
+      });
+
+      setStatusMessage({ 
+        type: 'success', 
+        text: `Successfully gave $${parseFloat(giveMoneyAmount).toFixed(2)} to ${response.data.driverName}. New profit: $${response.data.newProfit.toFixed(2)}.` 
+      });
+
+      // Reset form
+      setGiveMoneyAmount('');
+      setGiveMoneyReason('');
+      
+      // Refresh dashboard stats to show updated profit
+      const statsResponse = await adminService.getDashboardStats();
+      setStats(statsResponse.data);
+
+    } catch (error) {
+      console.error('Error giving money to driver:', error);
+      setStatusMessage({ 
+        type: 'error', 
+        text: error.response?.data?.message || 'Failed to give money to driver.' 
+      });
+    } finally {
+      setGivingMoney(false);
+    }
+  };
+
   // Add state for package filters
   const [packageStatusFilter, setPackageStatusFilter] = useState('');
   const [packageShopFilter, setPackageShopFilter] = useState('');
@@ -3873,6 +4067,11 @@ const AdminDashboard = () => {
   // In renderPackagesTable, compute unique statuses and shops for dropdowns
   const allStatuses = Array.from(new Set(packages.map(pkg => pkg.status))).sort();
   const allShops = Array.from(new Set(packages.map(pkg => pkg.shop?.businessName || 'N/A'))).sort();
+
+  // Add new state variables for delivery cost editing
+  const [editingDeliveryCost, setEditingDeliveryCost] = useState(false);
+  const [newDeliveryCost, setNewDeliveryCost] = useState('');
+  const [savingDeliveryCost, setSavingDeliveryCost] = useState(false);
 
   return (
     <div className="admin-dashboard">

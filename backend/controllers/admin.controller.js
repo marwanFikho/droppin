@@ -1098,7 +1098,7 @@ exports.getPackages = async (req, res) => {
         'schedulePickupTime', 'estimatedDeliveryTime',
         'actualPickupTime', 'actualDeliveryTime',
         'priority', 'paymentStatus', 'createdAt', 'updatedAt',
-        'codAmount', 'deliveryCost', 'isPaid', 'paymentDate', 'shopNotes',
+        'codAmount', 'deliveryCost', 'shownDeliveryCost', 'isPaid', 'paymentDate', 'shopNotes',
         'notes',
         'itemsNo'
       ],
@@ -1706,6 +1706,132 @@ exports.adjustShopTotalCollected = async (req, res) => {
     res.json({ message: `TotalCollected ${changeType}d by $${parseFloat(amount).toFixed(2)}. New value: $${newAmount.toFixed(2)}.`, oldAmount, newAmount });
   } catch (error) {
     console.error('Error adjusting TotalCollected:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/**
+ * Give money to a driver, subtracting from Stats profit and logging the transaction
+ * @route POST /admin/drivers/:id/give-money
+ * @param {number} id - Driver ID
+ * @body {number} amount - The amount to give to the driver
+ * @body {string} reason - Reason for giving money (optional)
+ */
+exports.giveMoneyToDriver = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { amount, reason } = req.body;
+
+    // Validate input
+    if (amount === undefined || isNaN(Number(amount)) || Number(amount) <= 0) {
+      return res.status(400).json({ message: 'A valid positive amount is required.' });
+    }
+
+    // Find the driver
+    const driver = await Driver.findByPk(id, {
+      include: [{ model: User, attributes: ['name', 'email'] }]
+    });
+
+    if (!driver) {
+      return res.status(404).json({ message: 'Driver not found.' });
+    }
+
+    // Check if Stats table has enough profit
+    const [statsResult] = await sequelize.query('SELECT profit FROM Stats LIMIT 1');
+    if (!statsResult || !statsResult[0] || statsResult[0].profit == null) {
+      return res.status(500).json({ message: 'Stats table not found or profit not available.' });
+    }
+
+    const currentProfit = parseFloat(statsResult[0].profit);
+    const amountToGive = parseFloat(amount);
+
+    if (currentProfit < amountToGive) {
+      return res.status(400).json({ 
+        message: `Insufficient profit. Current profit: $${currentProfit.toFixed(2)}, requested amount: $${amountToGive.toFixed(2)}.` 
+      });
+    }
+
+    // Start transaction
+    const transaction = await sequelize.transaction();
+
+    try {
+      // Subtract from Stats profit
+      await sequelize.query(
+        'UPDATE Stats SET profit = profit - :amount',
+        {
+          replacements: { amount: amountToGive },
+          type: sequelize.QueryTypes.UPDATE,
+          transaction
+        }
+      );
+
+      // Log the transaction in MoneyTransaction table
+      // We'll use a special admin shop record for admin transactions
+      // First, try to find or create an admin shop record
+      let adminShop = await Shop.findOne({ where: { businessName: 'ADMIN_SYSTEM' } });
+      if (!adminShop) {
+        // Create a special admin shop for system transactions
+        adminShop = await Shop.create({
+          userId: 1, // Use a default user ID
+          businessName: 'ADMIN_SYSTEM',
+          businessType: 'System',
+          address: 'System Address',
+          ToCollect: 0,
+          TotalCollected: 0,
+          settelled: 0
+        }, { transaction });
+      }
+
+      await MoneyTransaction.create({
+        shopId: adminShop.id,
+        amount: amountToGive,
+        attribute: 'Revenue',
+        changeType: 'decrease',
+        description: `Money given to driver ${driver.User.name} (${driver.User.email}). ${reason ? `Reason: ${reason}` : ''}`
+      }, { transaction });
+
+      // Commit transaction
+      await transaction.commit();
+
+      res.json({ 
+        message: `Successfully gave $${amountToGive.toFixed(2)} to driver ${driver.User.name}.`,
+        driverName: driver.User.name,
+        driverEmail: driver.User.email,
+        amount: amountToGive,
+        newProfit: currentProfit - amountToGive
+      });
+
+    } catch (error) {
+      // Rollback transaction on error
+      await transaction.rollback();
+      throw error;
+    }
+
+  } catch (error) {
+    console.error('Error giving money to driver:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Update package delivery cost (and optionally shownDeliveryCost) by admin
+exports.updatePackage = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { deliveryCost, shownDeliveryCost } = req.body;
+    const pkg = await Package.findByPk(id);
+    if (!pkg) {
+      return res.status(404).json({ message: 'Package not found' });
+    }
+    if (deliveryCost !== undefined) {
+      pkg.deliveryCost = deliveryCost;
+    }
+    if (shownDeliveryCost !== undefined) {
+      pkg.shownDeliveryCost = shownDeliveryCost;
+    }
+    await pkg.save();
+    res.json({ success: true, package: pkg });
+  } catch (error) {
+    console.error('Error updating package:', error);
     res.status(500).json({ message: error.message });
   }
 };

@@ -28,11 +28,13 @@ router.post('/shops/:id/adjust-total-collected', adminController.adjustShopTotal
 // Driver management
 router.get('/drivers', adminController.getDrivers);
 router.patch('/drivers/:id/approve', adminController.approveDriver);
+router.post('/drivers/:id/give-money', adminController.giveMoneyToDriver);
 
 // Package management
 router.get('/packages', adminController.getPackages);
 router.post('/packages/:packageId/assign-driver', adminController.assignDriverToPackage);
 router.patch('/packages/:packageId/payment', adminController.updatePackagePayment);
+router.put('/packages/:id', adminController.updatePackage);
 
 // Financial management
 router.post('/shops/:shopId/settle-payments', adminController.settleShopPayments);

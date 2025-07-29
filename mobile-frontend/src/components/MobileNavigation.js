@@ -2,11 +2,20 @@ import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import './MobileNavigation.css';
+import { notificationService } from '../services/api';
+import { FaBell } from 'react-icons/fa';
 
 const MobileNavigation = () => {
   const { currentUser, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+
+  // NOTE: All React hooks must be called at the top level, not conditionally!
+  const [showNotifications, setShowNotifications] = React.useState(false);
+  const [notifications, setNotifications] = React.useState([]);
+  const [loadingNotifications, setLoadingNotifications] = React.useState(false);
+  const [unreadCount, setUnreadCount] = React.useState(0);
+  const notificationDropdownRef = React.useRef(null);
 
   const handleLogout = async () => {
     try {
@@ -19,6 +28,55 @@ const MobileNavigation = () => {
 
   // Don't show navigation on certain pages
   const hideNavigationOn = ['/login', '/register', '/register/shop', '/register/driver', '/registration-success'];
+
+  // All useState, useRef, useEffect hooks must be above this line
+  // Fetch notifications when dropdown is opened
+  React.useEffect(() => {
+    if (showNotifications && currentUser && (currentUser.role === 'admin' || currentUser.role === 'shop')) {
+      setLoadingNotifications(true);
+      notificationService.getNotifications(currentUser.id, currentUser.role)
+        .then(res => {
+          setNotifications(res.data);
+          setLoadingNotifications(false);
+          // Mark all as read
+          if (res.data.some(n => !n.isRead)) {
+            notificationService.markAllRead(currentUser.id, currentUser.role).then(() => {
+              setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+              setUnreadCount(0);
+            });
+          }
+        })
+        .catch(() => setLoadingNotifications(false));
+    }
+  }, [showNotifications, currentUser]);
+
+  // Fetch unread count on mount or when currentUser changes
+  React.useEffect(() => {
+    if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'shop')) {
+      notificationService.getNotifications(currentUser.id, currentUser.role)
+        .then(res => setUnreadCount(res.data.filter(n => !n.isRead).length))
+        .catch(() => setUnreadCount(0));
+    }
+  }, [currentUser]);
+
+  // Close dropdown when clicking outside
+  React.useEffect(() => {
+    function handleClickOutside(event) {
+      if (notificationDropdownRef.current && !notificationDropdownRef.current.contains(event.target)) {
+        setShowNotifications(false);
+      }
+    }
+    if (showNotifications) {
+      document.addEventListener('mousedown', handleClickOutside);
+    } else {
+      document.removeEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showNotifications]);
+
+  // Now move the conditional return here:
   if (hideNavigationOn.includes(location.pathname)) {
     return null;
   }

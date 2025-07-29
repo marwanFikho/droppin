@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Link, Route, Routes, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { adminService, packageService } from '../../services/api';
+import { adminService, packageService, notificationService } from '../../services/api';
 import './MobileAdminDashboard.css';
 import { useTranslation } from 'react-i18next';
+import { FaTrashAlt } from 'react-icons/fa';
 
 const MobileAdminDashboard = () => {
   const { currentUser } = useAuth();
@@ -57,8 +58,48 @@ const MobileAdminDashboard = () => {
   const [adjustTotalCollectedReason, setAdjustTotalCollectedReason] = useState('');
   const [adjustingTotalCollected, setAdjustingTotalCollected] = useState(false);
   const [adjustTotalCollectedStatus, setAdjustTotalCollectedStatus] = useState(null);
+  
+  // Add state for give money to driver functionality
+  const [giveMoneyAmount, setGiveMoneyAmount] = useState('');
+  const [giveMoneyReason, setGiveMoneyReason] = useState('');
+  const [givingMoney, setGivingMoney] = useState(false);
+  
+  // Add state for driver details and packages
+  const [selectedDriver, setSelectedDriver] = useState(null);
+  const [showDriverDetailsModal, setShowDriverDetailsModal] = useState(false);
+  
+  // Add state for working area management
+  const [showWorkingAreaModal, setShowWorkingAreaModal] = useState(false);
+  const [selectedDriverForWorkingArea, setSelectedDriverForWorkingArea] = useState(null);
+  const [workingAreaInput, setWorkingAreaInput] = useState('');
+  const [updatingWorkingArea, setUpdatingWorkingArea] = useState(false);
+
+  // Add status message state
+  const [statusMessage, setStatusMessage] = useState(null);
+
+  // Add pickup driver assignment state
+  const [selectedPickupForDriver, setSelectedPickupForDriver] = useState(null);
+  const [showAssignPickupDriverModal, setShowAssignPickupDriverModal] = useState(false);
+  const [pickupDriverSearchTerm, setPickupDriverSearchTerm] = useState('');
+  const [assigningPickupDriver, setAssigningPickupDriver] = useState(false);
+  const [availableDrivers, setAvailableDrivers] = useState([]);
+  const [pickupStatusUpdating, setPickupStatusUpdating] = useState({});
+
+  const [searchTerm, setSearchTerm] = useState('');
 
   const navigate = useNavigate();
+
+  // Add notification state and refs at the top of the component:
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [loadingNotifications, setLoadingNotifications] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const notificationDropdownRef = useRef(null);
+
+  // Add state for editing delivery cost in package details modal
+  const [editingDeliveryCost, setEditingDeliveryCost] = useState(false);
+  const [newDeliveryCost, setNewDeliveryCost] = useState('');
+  const [savingDeliveryCost, setSavingDeliveryCost] = useState(false);
 
   const handleLanguageChange = () => {
     const newLang = lang === 'en' ? 'ar' : 'en';
@@ -370,20 +411,114 @@ const MobileAdminDashboard = () => {
   const handleMarkPickupAsPickedUp = async (pickupId) => {
     try {
       await adminService.markPickupAsPickedUp(pickupId);
-      
       // Refresh pickups data
-      await fetchPickups();
-      
-      // Refresh packages data if we're on the packages tab
-      if (activeTab === 'packages') {
-        await fetchPackages();
-      }
-      
-      setError(null);
+      const response = await adminService.getAllPickups();
+      setPickups(response.data || []);
     } catch (error) {
       console.error('Error marking pickup as picked up:', error);
-      setError(`Error: ${error.response?.data?.message || 'Failed to mark pickup as picked up'}`);
     }
+  };
+
+  // Function to handle giving money to driver
+  const handleGiveMoneyToDriver = async () => {
+    if (!giveMoneyAmount || isNaN(parseFloat(giveMoneyAmount)) || parseFloat(giveMoneyAmount) <= 0) {
+      setStatusMessage({ type: 'error', text: 'Please enter a valid positive amount.' });
+      return;
+    }
+
+    try {
+      setGivingMoney(true);
+      const response = await adminService.giveMoneyToDriver(selectedDriver.driverId || selectedDriver.id, {
+        amount: parseFloat(giveMoneyAmount),
+        reason: giveMoneyReason.trim() || undefined
+      });
+
+      // Show success message
+      setStatusMessage({ type: 'success', text: `Successfully gave $${parseFloat(giveMoneyAmount).toFixed(2)} to ${selectedDriver.name}` });
+      // Reset form
+      setGiveMoneyAmount('');
+      setGiveMoneyReason('');
+      
+      // Refresh dashboard stats
+      const statsResponse = await adminService.getDashboardStats();
+      setDashboardStats(statsResponse.data);
+
+    } catch (error) {
+      console.error('Error giving money to driver:', error);
+      setStatusMessage({ type: 'error', text: error.response?.data?.message || 'Failed to give money to driver.' });
+    } finally {
+      setGivingMoney(false);
+    }
+  };
+
+  // Function to fetch driver packages
+  const fetchDriverPackages = async (driverId) => {
+    try {
+      setLoadingDriverPackages(true);
+      // Fetch all packages and filter for the specific driver
+      const response = await adminService.getPackages();
+      const allPackages = response.data || [];
+      
+      // Filter packages that are assigned or were assigned to this driver
+      const driverPackages = allPackages.filter(pkg => {
+        // Current assignment
+        if (pkg.driverId === driverId) return true;
+        // Previous assignments in statusHistory
+        if (pkg.statusHistory) {
+          let historyArr = [];
+          if (typeof pkg.statusHistory === 'string') {
+            try {
+              historyArr = JSON.parse(pkg.statusHistory);
+            } catch {
+              historyArr = [];
+            }
+          } else if (Array.isArray(pkg.statusHistory)) {
+            historyArr = pkg.statusHistory;
+          }
+          return historyArr.some(h => h.note && h.note.includes(`ID: ${driverId}`));
+        }
+        return false;
+      });
+      
+      setDriverPackages(driverPackages);
+    } catch (err) {
+      setStatusMessage({ type: 'error', text: 'Failed to fetch driver packages.' });
+    } finally {
+      setLoadingDriverPackages(false);
+    }
+  };
+
+  // Function to open driver details modal
+  const openDriverDetailsModal = async (driver) => {
+    setSelectedDriver(driver);
+    setShowDriverDetailsModal(true);
+    await fetchDriverPackages(driver.driverId || driver.id);
+  };
+
+  // Function to update driver working area
+  const updateDriverWorkingArea = async (driverId, workingArea) => {
+    try {
+      setUpdatingWorkingArea(true);
+      await adminService.updateDriverWorkingArea(driverId, workingArea);
+      setShowWorkingAreaModal(false);
+      setSelectedDriverForWorkingArea(null);
+      setWorkingAreaInput('');
+      setStatusMessage({ type: 'success', text: 'Working area updated successfully.' });
+      // Refresh drivers list
+      const driversResponse = await adminService.getDrivers();
+      setDrivers(driversResponse.data || []);
+    } catch (err) {
+      setStatusMessage({ type: 'error', text: 'Failed to update working area.' });
+    } finally {
+      setUpdatingWorkingArea(false);
+    }
+  };
+
+  // Function to open working area modal
+  const openWorkingAreaModal = (driver) => {
+    setSelectedDriverForWorkingArea(driver);
+    setWorkingAreaInput(driver.workingArea || '');
+    setShowWorkingAreaModal(true);
   };
 
   const quickActions = [
@@ -431,6 +566,131 @@ const MobileAdminDashboard = () => {
     }
   };
 
+  // Add these just before the return statement of the component:
+  const filteredPackages = packages.filter(pkg => {
+    if (!searchTerm) return true;
+    const search = searchTerm.toLowerCase();
+    return (
+      pkg.trackingNumber?.toLowerCase().includes(search) ||
+      pkg.packageDescription?.toLowerCase().includes(search) ||
+      pkg.status?.toLowerCase().includes(search) ||
+      (pkg.shop?.businessName && pkg.shop.businessName.toLowerCase().includes(search)) ||
+      (pkg.deliveryContactName && pkg.deliveryContactName.toLowerCase().includes(search)) ||
+      (pkg.deliveryAddress && pkg.deliveryAddress.toLowerCase().includes(search))
+    );
+  });
+  const filteredUsers = users.filter(user => {
+    if (!searchTerm) return true;
+    const search = searchTerm.toLowerCase();
+    return (
+      user.name?.toLowerCase().includes(search) ||
+      user.email?.toLowerCase().includes(search) ||
+      user.phone?.includes(search) ||
+      (user.businessName && user.businessName.toLowerCase().includes(search))
+    );
+  });
+
+  // Fetch notifications when dropdown is opened
+  useEffect(() => {
+    if (showNotifications && currentUser && (currentUser.role === 'admin' || currentUser.role === 'shop')) {
+      setLoadingNotifications(true);
+      notificationService.getNotifications(currentUser.id, currentUser.role)
+        .then(res => {
+          setNotifications(res.data);
+          setLoadingNotifications(false);
+          // Mark all as read
+          if (res.data.some(n => !n.isRead)) {
+            notificationService.markAllRead(currentUser.id, currentUser.role).then(() => {
+              setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+              setUnreadCount(0);
+            });
+          }
+        })
+        .catch(() => setLoadingNotifications(false));
+    }
+  }, [showNotifications, currentUser]);
+
+  // Fetch unread count on mount or when currentUser changes
+  useEffect(() => {
+    if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'shop')) {
+      notificationService.getNotifications(currentUser.id, currentUser.role)
+        .then(res => setUnreadCount(res.data.filter(n => !n.isRead).length))
+        .catch(() => setUnreadCount(0));
+    }
+  }, [currentUser]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (notificationDropdownRef.current && !notificationDropdownRef.current.contains(event.target)) {
+        setShowNotifications(false);
+      }
+    }
+    if (showNotifications) {
+      document.addEventListener('mousedown', handleClickOutside);
+    } else {
+      document.removeEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showNotifications]);
+
+  // Add pickup driver assignment functions
+  const openAssignPickupDriverModal = async (pickup) => {
+    setSelectedPickupForDriver(pickup);
+    setPickupDriverSearchTerm('');
+    setAssigningPickupDriver(false);
+    try {
+      const { data } = await adminService.getDrivers({ isApproved: true });
+      setAvailableDrivers(data);
+      setShowAssignPickupDriverModal(true);
+    } catch (error) {
+      setStatusMessage({ type: 'error', text: 'Failed to fetch available drivers.' });
+    }
+  };
+
+  const assignDriverToPickup = async (driverId) => {
+    if (!selectedPickupForDriver || !driverId) return;
+    setAssigningPickupDriver(true);
+    try {
+      await adminService.assignDriverToPickup(selectedPickupForDriver.id, driverId);
+      // Refresh pickups data
+      const pickupsResponse = await adminService.getAllPickups();
+      setPickups(pickupsResponse.data || []);
+      setShowAssignPickupDriverModal(false);
+      setStatusMessage({ type: 'success', text: 'Driver assigned to pickup successfully!' });
+    } catch (error) {
+      setStatusMessage({ type: 'error', text: error.response?.data?.message || 'Failed to assign driver.' });
+    } finally {
+      setAssigningPickupDriver(false);
+    }
+  };
+
+  const updatePickupStatus = async (pickupId, status) => {
+    setPickupStatusUpdating(prev => ({ ...prev, [pickupId]: true }));
+    try {
+      await adminService.updatePickupStatus(pickupId, status);
+      const pickupsResponse = await adminService.getAllPickups();
+      setPickups(pickupsResponse.data || []);
+      setStatusMessage({ type: 'success', text: 'Pickup status updated.' });
+    } catch (error) {
+      setStatusMessage({ type: 'error', text: error.response?.data?.message || 'Failed to update status.' });
+    } finally {
+      setPickupStatusUpdating(prev => ({ ...prev, [pickupId]: false }));
+    }
+  };
+
+  // Clear status message after 3 seconds
+  useEffect(() => {
+    if (statusMessage) {
+      const timer = setTimeout(() => {
+        setStatusMessage(null);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [statusMessage]);
+
   if (loading) {
     return <div className="loading-container">Loading...</div>;
   }
@@ -450,8 +710,102 @@ const MobileAdminDashboard = () => {
               {t('profile.subtitle')}
             </p>
           </div>
-          <div className="mobile-admin-dashboard-icon">👨‍💼</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div className="mobile-admin-dashboard-icon" style={{ fontSize: 36 }}>👨‍💼</div>
+            <div className="mobile-notification-bell-wrapper" style={{ position: 'relative' }}>
+              <button
+                className="mobile-notification-bell"
+                onClick={() => setShowNotifications(v => !v)}
+                aria-label="Notifications"
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 28, padding: 0, margin: 0 }}
+              >
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'block' }}>
+                  <path d="M12 22c1.1 0 2-.9 2-2h-4a2 2 0 0 0 2 2zm6-6V11c0-3.3-2-6-6-6s-6 2.7-6 6v5l-2 2v1h16v-1l-2-2z" />
+                </svg>
+                {unreadCount > 0 && (
+                  <span className="mobile-notification-badge" style={{ position: 'absolute', top: -4, right: -4, background: '#d32f2f', color: '#fff', borderRadius: '50%', fontSize: 12, padding: '2px 6px', minWidth: 18, textAlign: 'center', fontWeight: 700 }}>{unreadCount}</span>
+                )}
+              </button>
+              {showNotifications && (
+                <div className="mobile-notification-dropdown" ref={notificationDropdownRef} style={{ position: 'absolute', right: 0, top: 36, background: '#fff', border: '1px solid #eee', borderRadius: 8, boxShadow: '0 2px 8px rgba(0,0,0,0.15)', width: 320, zIndex: 1000 }}>
+                  <div style={{ padding: '10px', borderBottom: '1px solid #eee', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: '#222' }}>
+                    <span>Notifications</span>
+                    {(currentUser?.role === 'admin' || currentUser?.role === 'shop') && notifications.length > 0 && (
+                      <button
+                        onClick={() => {
+                          notificationService.deleteAll(currentUser.id, currentUser.role).then(() => {
+                            setNotifications([]);
+                            setUnreadCount(0);
+                          });
+                        }}
+                        style={{ background: 'none', border: 'none', color: '#c00', marginLeft: 8, cursor: 'pointer' }}
+                        title="Delete all notifications"
+                      >
+                        <FaTrashAlt size={16} />
+                      </button>
+                    )}
+                  </div>
+                  {loadingNotifications ? (
+                    <div style={{ padding: 12 }}>Loading...</div>
+                  ) : notifications.length === 0 ? (
+                    <div style={{ padding: 24, textAlign: 'center', color: '#888', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+                      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#bbb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'block', opacity: 0.3 }}>
+                        <path d="M12 22c1.1 0 2-.9 2-2h-4a2 2 0 0 0 2 2zm6-6V11c0-3.3-2-6-6-6s-6 2.7-6 6v5l-2 2v1h16v-1l-2-2z" />
+                      </svg>
+                      <div style={{ fontWeight: 500, fontSize: 16 }}>No notifications</div>
+                    </div>
+                  ) : (
+                    <ul style={{ listStyle: 'none', margin: 0, padding: 0, maxHeight: 320, overflowY: 'auto' }}>
+                      {notifications.slice(0, 10).map(notif => (
+                        <li key={notif.id} style={{ padding: 10, borderBottom: '1px solid #f0f0f0', background: notif.isRead ? '#fff' : '#f5faff' }}>
+                          <div style={{ fontWeight: notif.isRead ? 'normal' : 'bold', color: '#222' }}>{notif.title}</div>
+                          <div style={{ fontSize: 13, color: '#555' }}>{notif.message}</div>
+                          <div style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>{new Date(notif.createdAt).toLocaleString()}</div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
+
+        {/* Status Message Display */}
+        {statusMessage && (
+          <div 
+            className="mobile-admin-dashboard-status-message"
+            style={{
+              padding: '12px 16px',
+              marginBottom: '16px',
+              borderRadius: '8px',
+              fontSize: '14px',
+              fontWeight: '500',
+              backgroundColor: statusMessage.type === 'success' ? '#d4edda' : '#f8d7da',
+              color: statusMessage.type === 'success' ? '#155724' : '#721c24',
+              border: `1px solid ${statusMessage.type === 'success' ? '#c3e6cb' : '#f5c6cb'}`,
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}
+          >
+            <span>{statusMessage.text}</span>
+            <button
+              onClick={() => setStatusMessage(null)}
+              style={{
+                background: 'none',
+                border: 'none',
+                fontSize: '18px',
+                cursor: 'pointer',
+                color: 'inherit',
+                padding: '0',
+                marginLeft: '8px'
+              }}
+            >
+              ×
+            </button>
+          </div>
+        )}
 
         <div className="mobile-admin-dashboard-tabs">
           <button
@@ -484,6 +838,16 @@ const MobileAdminDashboard = () => {
           >
             Money
           </button>
+        </div>
+
+        <div className="mobile-admin-dashboard-search-bar" style={{ padding: '12px', background: '#fff', borderBottom: '1px solid #eee' }}>
+          <input
+            type="text"
+            placeholder="Search packages, drivers, shops..."
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ddd', fontSize: '16px' }}
+          />
         </div>
 
         {activeTab === 'dashboard' && (
@@ -525,37 +889,9 @@ const MobileAdminDashboard = () => {
               💰
             </div>
             <div className="mobile-admin-dashboard-stat-content">
-                  <div className="mobile-admin-dashboard-stat-number">${dashboardStats.revenue}</div>
+                  <div className="mobile-admin-dashboard-stat-number">${dashboardStats.profit ?? 0}</div>
               <div className="mobile-admin-dashboard-stat-label">System Revenue</div>
             </div>
-          </div>
-        </div>
-
-        {/* Quick Actions */}
-        <div className="mobile-admin-dashboard-section">
-          <h2 className="mobile-admin-dashboard-section-title">Quick Actions</h2>
-          <div className="mobile-admin-dashboard-actions">
-            {quickActions.map((action, index) => (
-              <div
-                key={index}
-                className="mobile-admin-dashboard-action"
-                style={{ cursor: 'pointer' }}
-                onClick={action.onClick ? action.onClick : undefined}
-                as={action.onClick ? 'div' : undefined}
-              >
-                <div 
-                  className="mobile-admin-dashboard-action-icon"
-                  style={{ backgroundColor: action.color }}
-                >
-                  {action.icon}
-                </div>
-                <div className="mobile-admin-dashboard-action-content">
-                  <h3 className="mobile-admin-dashboard-action-title">{action.title}</h3>
-                  <p className="mobile-admin-dashboard-action-description">{action.description}</p>
-                </div>
-                <div className="mobile-admin-dashboard-action-arrow">→</div>
-              </div>
-            ))}
           </div>
         </div>
 
@@ -630,8 +966,14 @@ const MobileAdminDashboard = () => {
               </button>
             </div>
             <div className="mobile-admin-dashboard-user-list">
-              {users.map((user) => (
-                <div key={user.id} className="mobile-admin-dashboard-user-card" onClick={() => setSelectedUser(user)} style={{ cursor: 'pointer' }}>
+              {filteredUsers.map((user) => (
+                <div key={user.id} className="mobile-admin-dashboard-user-card" onClick={() => {
+                  if (user.role === 'driver') {
+                    openDriverDetailsModal(user);
+                  } else {
+                    setSelectedUser(user);
+                  }
+                }} style={{ cursor: 'pointer' }}>
                   <div className="mobile-admin-dashboard-user-info">
                     <p><strong>Name:</strong> {user?.name || 'N/A'}</p>
                     <p><strong>Email:</strong> {user.email}</p>
@@ -718,8 +1060,8 @@ const MobileAdminDashboard = () => {
             )}
 
             <div className="mobile-admin-dashboard-package-list">
-              {packages.map((pkg) => (
-                <div key={pkg.id} className="mobile-admin-dashboard-package-card" onClick={() => setSelectedAdminPackage(pkg)} style={{ cursor: 'pointer' }}>
+              {filteredPackages.map((pkg) => (
+                <div key={pkg.id} className="mobile-admin-dashboard-package-card" onClick={() => openDetailsModal(pkg)} style={{ cursor: 'pointer' }}>
                   <div className="mobile-admin-dashboard-package-header">
                     {packageSubTab === 'ready-to-assign' && (
                       <input
@@ -796,6 +1138,8 @@ const MobileAdminDashboard = () => {
           </div>
         )}
 
+
+
         {activeTab === 'pickups' && (
           <div className="mobile-admin-dashboard-section">
             <h2 className="mobile-admin-dashboard-section-title">Pickups</h2>
@@ -806,21 +1150,38 @@ const MobileAdminDashboard = () => {
                   <p><strong>Status:</strong> {pickup.status}</p>
                   <p><strong>Shop:</strong> {pickup.Shop?.businessName || 'N/A'}</p>
                   <p><strong>Packages:</strong> {pickup.Packages?.length || 0}</p>
-                  <div className="mobile-admin-dashboard-pickup-actions">
+                  <p><strong>Driver:</strong> {(() => {
+                    const driver = drivers.find(d => d.driverId === pickup.driverId || d.id === pickup.driverId);
+                    return driver ? driver.name : 'Unassigned';
+                  })()}</p>
+                  <div className="mobile-admin-dashboard-pickup-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      {pickup.status === 'scheduled' && (
+                        <>
+                          <button
+                            onClick={() => openAssignPickupDriverModal(pickup)}
+                            className="mobile-admin-dashboard-assign-driver-btn"
+                            style={{ backgroundColor: '#007bff', color: 'white', border: 'none', padding: '8px 12px', borderRadius: '4px' }}
+                          >
+                            Assign Driver
+                          </button>
+                          <button
+                            onClick={() => handleMarkPickupAsPickedUp(pickup.id)}
+                            className="mobile-admin-dashboard-mark-pickedup-btn"
+                            style={{ backgroundColor: '#28a745', color: 'white', border: 'none', padding: '8px 12px', borderRadius: '4px' }}
+                          >
+                            Mark as Picked Up
+                          </button>
+                        </>
+                      )}
+                    </div>
                     <button 
                       onClick={() => openPickupDetailsModal(pickup)} 
                       className="mobile-admin-dashboard-pickup-details-btn"
+                      style={{ backgroundColor: '#007bff', color: 'white', border: 'none', padding: '8px 12px', borderRadius: '4px' }}
                     >
                       View Details
                     </button>
-                    {pickup.status === 'scheduled' && (
-                      <button
-                        onClick={() => handleMarkPickupAsPickedUp(pickup.id)}
-                        className="mobile-admin-dashboard-mark-pickedup-btn"
-                      >
-                        Mark as Picked Up
-                      </button>
-                    )}
                   </div>
                 </div>
               ))}
@@ -909,7 +1270,63 @@ const MobileAdminDashboard = () => {
                   <div className="mobile-modal-detail-item full-width"><span className="label">Delivery Address</span><span>{selectedPackage.recipient.address}</span></div>
                 )}
                 <div className="mobile-modal-detail-item"><span className="label">COD</span><span>${parseFloat(selectedPackage.codAmount || 0).toFixed(2)} {selectedPackage.isPaid ? 'Paid' : 'Unpaid'}</span></div>
-                <div className="mobile-modal-detail-item"><span className="label">Delivery Cost</span><span>${parseFloat(selectedPackage.deliveryCost || 0).toFixed(2)}</span></div>
+                <div className="mobile-modal-detail-item"><span className="label">Delivery Cost</span>
+                {editingDeliveryCost ? (
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <input
+                      type="number"
+                      value={newDeliveryCost}
+                      onChange={e => setNewDeliveryCost(e.target.value)}
+                      style={{ width: 80, padding: '6px 10px', borderRadius: 4, border: '1px solid #ccc', fontSize: '1em' }}
+                      min="0"
+                    />
+                    <button
+                      onClick={async () => {
+                        setSavingDeliveryCost(true);
+                        try {
+                          await adminService.updatePackage(selectedPackage.id, { deliveryCost: parseFloat(newDeliveryCost) });
+                          setSelectedPackage(prev => ({ ...prev, deliveryCost: parseFloat(newDeliveryCost) }));
+                          setEditingDeliveryCost(false);
+                        } catch (err) {
+                          alert('Failed to update delivery cost');
+                        } finally {
+                          setSavingDeliveryCost(false);
+                        }
+                      }}
+                      disabled={savingDeliveryCost || newDeliveryCost === ''}
+                      style={{ background: '#28a745', color: 'white', border: 'none', borderRadius: 4, padding: '6px 16px', fontWeight: 'bold', cursor: savingDeliveryCost ? 'not-allowed' : 'pointer', marginRight: 4 }}
+                    >
+                      {savingDeliveryCost ? 'Saving...' : 'Save'}
+                    </button>
+                    <button
+                      onClick={() => setEditingDeliveryCost(false)}
+                      style={{ background: '#f5f5f5', color: '#333', border: '1px solid #ccc', borderRadius: 4, padding: '6px 16px', fontWeight: 'bold', cursor: 'pointer' }}
+                    >
+                      Cancel
+                    </button>
+                  </span>
+                ) : (
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontWeight: 500 }}>${parseFloat(selectedPackage.deliveryCost || 0).toFixed(2)}</span>
+                    <button
+                      style={{ background: '#fff', border: '1px solid #007bff', color: '#007bff', borderRadius: 4, padding: '4px 12px', marginLeft: 4, cursor: 'pointer', fontWeight: 'bold' }}
+                      onClick={() => {
+                        setEditingDeliveryCost(true);
+                        setNewDeliveryCost(
+                          selectedPackage.deliveryCost !== undefined && selectedPackage.deliveryCost !== null
+                            ? String(selectedPackage.deliveryCost)
+                            : '0'
+                        );
+                      }}
+                    >
+                      Edit
+                    </button>
+                  </span>
+                )}
+                </div>
+                {selectedPackage.shownDeliveryCost !== undefined && selectedPackage.shownDeliveryCost !== null && (
+                  <div className="mobile-modal-detail-item"><span className="label">Shown Delivery Cost</span><span>${parseFloat(selectedPackage.shownDeliveryCost).toFixed(2)}</span></div>
+                )}
                 {selectedPackage.weight && (
                   <div className="mobile-modal-detail-item"><span className="label">Weight</span><span>{selectedPackage.weight} kg</span></div>
                 )}
@@ -1322,8 +1739,64 @@ const MobileAdminDashboard = () => {
                 <div className="mobile-modal-detail-item"><span className="label">Recipient Phone</span><span>{selectedAdminPackage.deliveryContactPhone || 'N/A'}</span></div>
                 <div className="mobile-modal-detail-item full-width"><span className="label">Delivery Address</span><span>{selectedAdminPackage.deliveryAddress || 'N/A'}</span></div>
                 <div className="mobile-modal-detail-item"><span className="label">COD</span><span>${parseFloat(selectedAdminPackage.codAmount || 0).toFixed(2)} {selectedAdminPackage.isPaid ? 'Paid' : 'Unpaid'}</span></div>
-                <div className="mobile-modal-detail-item"><span className="label">Delivery Cost</span><span>${parseFloat(selectedAdminPackage.deliveryCost || 0).toFixed(2)}</span></div>
-                <div className="mobile-modal-detail-item"><span className="label">Number of Items</span><span>{selectedAdminPackage?.itemsNo ?? '-'}</span></div>
+                <div className="mobile-modal-detail-item"><span className="label">Delivery Cost</span>
+                {editingDeliveryCost ? (
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <input
+                      type="number"
+                      value={newDeliveryCost}
+                      onChange={e => setNewDeliveryCost(e.target.value)}
+                      style={{ width: 80, padding: '6px 10px', borderRadius: 4, border: '1px solid #ccc', fontSize: '1em' }}
+                      min="0"
+                    />
+                    <button
+                      onClick={async () => {
+                        console.log('Save clicked', newDeliveryCost, selectedAdminPackage.id);
+                        setSavingDeliveryCost(true);
+                        try {
+                          await adminService.updatePackage(selectedAdminPackage.id, { deliveryCost: parseFloat(newDeliveryCost) });
+                          setSelectedAdminPackage(prev => ({ ...prev, deliveryCost: parseFloat(newDeliveryCost) }));
+                          setEditingDeliveryCost(false);
+                        } catch (err) {
+                          alert('Failed to update delivery cost');
+                        } finally {
+                          setSavingDeliveryCost(false);
+                        }
+                      }}
+                      disabled={savingDeliveryCost || newDeliveryCost === ''}
+                      style={{ background: '#28a745', color: 'white', border: 'none', borderRadius: 4, padding: '6px 16px', fontWeight: 'bold', cursor: savingDeliveryCost ? 'not-allowed' : 'pointer', marginRight: 4 }}
+                    >
+                      {savingDeliveryCost ? 'Saving...' : 'Save'}
+                    </button>
+                    <button
+                      onClick={() => setEditingDeliveryCost(false)}
+                      style={{ background: '#f5f5f5', color: '#333', border: '1px solid #ccc', borderRadius: 4, padding: '6px 16px', fontWeight: 'bold', cursor: 'pointer' }}
+                    >
+                      Cancel
+                    </button>
+                  </span>
+                ) : (
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontWeight: 500 }}>${parseFloat(selectedAdminPackage.deliveryCost || 0).toFixed(2)}</span>
+                    <button
+                      style={{ background: '#fff', border: '1px solid #007bff', color: '#007bff', borderRadius: 4, padding: '4px 12px', marginLeft: 4, cursor: 'pointer', fontWeight: 'bold' }}
+                      onClick={() => {
+                        setEditingDeliveryCost(true);
+                        setNewDeliveryCost(
+                          selectedAdminPackage.deliveryCost !== undefined && selectedAdminPackage.deliveryCost !== null
+                            ? String(selectedAdminPackage.deliveryCost)
+                            : '0'
+                        );
+                      }}
+                    >
+                      Edit
+                    </button>
+                  </span>
+                )}
+                </div>
+                {selectedAdminPackage.shownDeliveryCost !== undefined && selectedAdminPackage.shownDeliveryCost !== null && (
+                  <div className="mobile-modal-detail-item"><span className="label">Shown Delivery Cost</span><span>${parseFloat(selectedAdminPackage.shownDeliveryCost).toFixed(2)}</span></div>
+                )}
                 {selectedAdminPackage.weight && (
                   <div className="mobile-modal-detail-item"><span className="label">Weight</span><span>{selectedAdminPackage.weight} kg</span></div>
                 )}
@@ -1343,22 +1816,40 @@ const MobileAdminDashboard = () => {
                   <div className="notes-log-list">
                     {(() => {
                       let notesArr = [];
-                      if (Array.isArray(selectedAdminPackage?.notes)) {
-                        notesArr = selectedAdminPackage.notes;
-                      } else if (typeof selectedAdminPackage?.notes === 'string') {
-                        try {
-                          notesArr = JSON.parse(selectedAdminPackage.notes);
-                        } catch {
-                          notesArr = [];
+                      
+                      // Handle different types of notes data
+                      if (selectedAdminPackage?.notes) {
+                        if (Array.isArray(selectedAdminPackage.notes)) {
+                          notesArr = selectedAdminPackage.notes;
+                        } else if (typeof selectedAdminPackage.notes === 'string') {
+                          try {
+                            const parsed = JSON.parse(selectedAdminPackage.notes);
+                            notesArr = Array.isArray(parsed) ? parsed : [];
+                          } catch {
+                            notesArr = [];
+                          }
+                        } else if (typeof selectedAdminPackage.notes === 'object') {
+                          // If it's an object, try to convert to array
+                          notesArr = Object.values(selectedAdminPackage.notes).filter(item => 
+                            item && typeof item === 'object' && item.text
+                          );
                         }
                       }
+                      
+                      // Ensure notesArr is always an array
+                      if (!Array.isArray(notesArr)) {
+                        notesArr = [];
+                      }
+                      
                       return (notesArr.length > 0) ? (
                         notesArr.map((n, idx) => (
                           <div key={idx} className="notes-log-entry">
                             <div className="notes-log-meta">
-                              <span className="notes-log-date">{new Date(n.createdAt).toLocaleString()}</span>
+                              <span className="notes-log-date">
+                                {n.createdAt ? new Date(n.createdAt).toLocaleString() : 'No date'}
+                              </span>
                             </div>
-                            <div className="notes-log-text">{n.text}</div>
+                            <div className="notes-log-text">{n.text || n.note || 'No text'}</div>
                           </div>
                         ))
                       ) : (
@@ -1398,6 +1889,33 @@ const MobileAdminDashboard = () => {
                 </div>
               </div>
               <div className="mobile-modal-actions">
+                {/* Forward Status Button */}
+                {(() => {
+                  const statusFlow = ['assigned', 'pickedup', 'in-transit', 'delivered'];
+                  const currentIndex = statusFlow.indexOf(selectedAdminPackage.status);
+                  const canForward = currentIndex !== -1 && currentIndex < statusFlow.length - 1;
+                  if (!canForward) return null;
+                  const nextStatus = statusFlow[currentIndex + 1];
+                  const nextLabel = {
+                    'pickedup': 'Mark as Picked Up',
+                    'in-transit': 'Mark In Transit',
+                    'delivered': 'Mark as Delivered'
+                  }[nextStatus] || 'Forward Status';
+                  return (
+                    <button
+                      className="mobile-admin-dashboard-settle-btn"
+                      style={{ background: '#007bff', color: '#fff', border: 'none', borderRadius: '6px', padding: '0.5rem 1.2rem', fontWeight: 'bold', marginRight: '0.5rem', marginBottom: '0.5rem', fontSize: '1em', boxShadow: '0 1px 2px rgba(0,0,0,0.04)', cursor: 'pointer' }}
+                      onClick={async () => {
+                        await packageService.updatePackageStatus(selectedAdminPackage.id, { status: nextStatus });
+                        setSelectedAdminPackage(null);
+                        fetchPackages();
+                      }}
+                    >
+                      {nextLabel}
+                    </button>
+                  );
+                })()}
+
                 {/* Assign/Change Driver action */}
                 {selectedAdminPackage.driverId && ['assigned', 'pickedup', 'in-transit'].includes(selectedAdminPackage.status) && (
                   <button
@@ -1409,6 +1927,21 @@ const MobileAdminDashboard = () => {
                     Change Driver
                   </button>
                 )}
+
+                {/* Reject Button - only show for packages between assigned and delivered */}
+                {['assigned', 'pickedup', 'in-transit'].includes(selectedAdminPackage.status) && (
+                  <button
+                    className="mobile-admin-dashboard-settle-btn"
+                    onClick={async () => {
+                      setPackageToReject(selectedAdminPackage);
+                      setShowRejectConfirmation(true);
+                    }}
+                    style={{ background: '#dc3545', color: '#fff', border: 'none', borderRadius: '6px', padding: '0.5rem 1.2rem', fontWeight: 'bold', fontSize: '1em', boxShadow: '0 1px 2px rgba(0,0,0,0.04)', cursor: 'pointer' }}
+                  >
+                    Reject
+                  </button>
+                )}
+
                 {/* Mark as Returned action */}
                 {selectedAdminPackage.status === 'cancelled-awaiting-return' && (
                   <button
@@ -1421,6 +1954,7 @@ const MobileAdminDashboard = () => {
                     Mark as Returned
                   </button>
                 )}
+
                 <button className="mobile-modal-close-btn" onClick={() => setSelectedAdminPackage(null)}>Close</button>
               </div>
             </div>
@@ -1497,6 +2031,210 @@ const MobileAdminDashboard = () => {
         </div>
       )}
 
+      {/* Driver Details Modal */}
+      {showDriverDetailsModal && selectedDriver && (
+        <div className="mobile-modal-overlay" onClick={() => setShowDriverDetailsModal(false)}>
+          <div className="mobile-modal-content" onClick={e => e.stopPropagation()}>
+            <div className="mobile-modal-header">
+              <h3>Driver Details - {selectedDriver.name}</h3>
+              <button className="mobile-modal-close" onClick={() => setShowDriverDetailsModal(false)}>&times;</button>
+            </div>
+            <div className="mobile-modal-body">
+              <div className="mobile-modal-details-grid">
+                <div className="mobile-modal-detail-item"><span className="label">Name</span><span>{selectedDriver.name}</span></div>
+                <div className="mobile-modal-detail-item"><span className="label">Email</span><span>{selectedDriver.email}</span></div>
+                <div className="mobile-modal-detail-item"><span className="label">Phone</span><span>{selectedDriver.phone}</span></div>
+                <div className="mobile-modal-detail-item"><span className="label">Role</span><span>{selectedDriver.role}</span></div>
+                <div className="mobile-modal-detail-item"><span className="label">Joined</span><span>{selectedDriver.createdAt ? new Date(selectedDriver.createdAt).toLocaleDateString() : ''}</span></div>
+                
+                {/* Vehicle Information */}
+                <div className="mobile-modal-detail-item full-width">
+                  <span className="label">Vehicle Information:</span>
+                  <div style={{ marginTop: 8 }}>
+                    <div><strong>Vehicle Type:</strong> {selectedDriver.vehicleType || 'Not provided'}</div>
+                    <div><strong>License Plate:</strong> {selectedDriver.licensePlate || 'Not provided'}</div>
+                    <div><strong>Model:</strong> {selectedDriver.model || 'Not provided'}</div>
+                    <div><strong>Color:</strong> {selectedDriver.color || 'Not provided'}</div>
+                    <div><strong>Driver License:</strong> {selectedDriver.driverLicense || 'Not provided'}</div>
+                  </div>
+                </div>
+
+                {/* Working Area */}
+                <div className="mobile-modal-detail-item full-width">
+                  <span className="label">Working Area:</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                    <span>{selectedDriver.workingArea || 'Not set'}</span>
+                    <button
+                      className="mobile-modal-edit-btn"
+                      onClick={() => openWorkingAreaModal(selectedDriver)}
+                      style={{ padding: '4px 8px', fontSize: '12px', background: '#007bff', color: 'white', border: 'none', borderRadius: '4px' }}
+                    >
+                      Edit
+                    </button>
+                  </div>
+                </div>
+
+                {/* Driver Statistics */}
+                <div className="mobile-modal-detail-item full-width">
+                  <span className="label">Statistics:</span>
+                  <div style={{ marginTop: 8 }}>
+                    <div><strong>Total Deliveries:</strong> {selectedDriver.totalDeliveries || 0}</div>
+                    <div><strong>Total Assigned:</strong> {selectedDriver.totalAssigned || 0}</div>
+                    <div><strong>Total Cancelled:</strong> {selectedDriver.totalCancelled || 0}</div>
+                    <div><strong>Active Assignments:</strong> {selectedDriver.activeAssign || 0}</div>
+                    <div><strong>Assigned Today:</strong> {selectedDriver.assignedToday || 0}</div>
+                  </div>
+                </div>
+
+                {/* Give Money Section */}
+                <div className="mobile-modal-detail-item full-width" style={{ marginTop: 16, padding: '16px', backgroundColor: '#f8f9fa', borderRadius: '8px', border: '1px solid #e9ecef' }}>
+                  <h4 style={{ marginBottom: 12, color: '#495057', fontSize: '1rem', fontWeight: 600 }}>
+                    💰 Give Money to Driver
+                  </h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: 4, fontWeight: 500, color: '#495057', fontSize: '14px' }}>
+                        Amount ($):
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        value={giveMoneyAmount}
+                        onChange={(e) => setGiveMoneyAmount(e.target.value)}
+                        placeholder="Enter amount"
+                        style={{
+                          width: '100%',
+                          padding: '8px 12px',
+                          border: '1px solid #ced4da',
+                          borderRadius: '4px',
+                          fontSize: '14px'
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: 4, fontWeight: 500, color: '#495057', fontSize: '14px' }}>
+                        Reason (Optional):
+                      </label>
+                      <input
+                        type="text"
+                        value={giveMoneyReason}
+                        onChange={(e) => setGiveMoneyReason(e.target.value)}
+                        placeholder="Enter reason for payment"
+                        style={{
+                          width: '100%',
+                          padding: '8px 12px',
+                          border: '1px solid #ced4da',
+                          borderRadius: '4px',
+                          fontSize: '14px'
+                        }}
+                      />
+                    </div>
+                    <button
+                      onClick={handleGiveMoneyToDriver}
+                      disabled={givingMoney || !giveMoneyAmount || isNaN(parseFloat(giveMoneyAmount)) || parseFloat(giveMoneyAmount) <= 0}
+                      style={{
+                        padding: '10px 16px',
+                        backgroundColor: '#28a745',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        fontSize: '14px',
+                        fontWeight: 600,
+                        cursor: givingMoney || !giveMoneyAmount || isNaN(parseFloat(giveMoneyAmount)) || parseFloat(giveMoneyAmount) <= 0 ? 'not-allowed' : 'pointer',
+                        opacity: givingMoney || !giveMoneyAmount || isNaN(parseFloat(giveMoneyAmount)) || parseFloat(giveMoneyAmount) <= 0 ? 0.6 : 1,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 8
+                      }}
+                    >
+                      {givingMoney ? (
+                        <>
+                          <div style={{ width: '16px', height: '16px', border: '2px solid #ffffff', borderTop: '2px solid transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
+                          Processing...
+                        </>
+                      ) : (
+                        <>
+                          💰 Give Money
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Driver Packages */}
+                <div className="mobile-modal-detail-item full-width">
+                  <span className="label">Driver Packages:</span>
+                  <div style={{ marginTop: 8 }}>
+                    {loadingDriverPackages ? (
+                      <div style={{ textAlign: 'center', padding: '20px' }}>Loading packages...</div>
+                    ) : driverPackages.length > 0 ? (
+                      <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                        {driverPackages.map(pkg => (
+                          <div key={pkg.id} style={{ padding: '8px', border: '1px solid #ddd', borderRadius: '4px', marginBottom: '8px', fontSize: '12px' }}>
+                            <div><strong>#{pkg.trackingNumber}</strong> - {pkg.status}</div>
+                            <div>{pkg.packageDescription}</div>
+                            <div>To: {pkg.deliveryContactName}</div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div style={{ textAlign: 'center', padding: '20px', color: '#666' }}>No packages assigned</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div className="mobile-modal-actions">
+                <button className="mobile-modal-close-btn" onClick={() => setShowDriverDetailsModal(false)}>Close</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Working Area Modal */}
+      {showWorkingAreaModal && selectedDriverForWorkingArea && (
+        <div className="mobile-modal-overlay" onClick={() => setShowWorkingAreaModal(false)}>
+          <div className="mobile-modal-content" onClick={e => e.stopPropagation()}>
+            <div className="mobile-modal-header">
+              <h3>Update Working Area - {selectedDriverForWorkingArea.name}</h3>
+              <button className="mobile-modal-close" onClick={() => setShowWorkingAreaModal(false)}>&times;</button>
+            </div>
+            <div className="mobile-modal-body">
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>
+                  Working Area:
+                </label>
+                <input
+                  type="text"
+                  value={workingAreaInput}
+                  onChange={(e) => setWorkingAreaInput(e.target.value)}
+                  placeholder="Enter working area"
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    border: '1px solid #ced4da',
+                    borderRadius: '4px',
+                    fontSize: '16px'
+                  }}
+                />
+              </div>
+              <div className="mobile-modal-actions">
+                <button
+                  className="mobile-modal-close-btn"
+                  onClick={() => updateDriverWorkingArea(selectedDriverForWorkingArea.driverId || selectedDriverForWorkingArea.id, workingAreaInput)}
+                  disabled={updatingWorkingArea}
+                >
+                  {updatingWorkingArea ? 'Updating...' : 'Update'}
+                </button>
+                <button className="mobile-modal-close-btn" onClick={() => setShowWorkingAreaModal(false)} disabled={updatingWorkingArea}>Cancel</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Reject Confirmation Modal */}
       {showRejectConfirmation && packageToReject && (
         <div className="mobile-modal-overlay" onClick={() => setShowRejectConfirmation(false)}>
@@ -1528,6 +2266,95 @@ const MobileAdminDashboard = () => {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Assign Pickup Driver Modal */}
+      {showAssignPickupDriverModal && selectedPickupForDriver && (
+        <div className="mobile-modal-overlay" onClick={() => setShowAssignPickupDriverModal(false)}>
+          <div className="mobile-modal-content" onClick={e => e.stopPropagation()}>
+            <div className="mobile-modal-header">
+              <h3>Assign Driver to Pickup</h3>
+              <button className="mobile-modal-close" onClick={() => setShowAssignPickupDriverModal(false)}>&times;</button>
+            </div>
+            <div className="mobile-modal-body">
+              <p><strong>Shop:</strong> {selectedPickupForDriver.Shop?.businessName || 'N/A'}</p>
+              <p><strong>Scheduled Time:</strong> {new Date(selectedPickupForDriver.scheduledTime).toLocaleString()}</p>
+              <input
+                type="text"
+                placeholder="Search drivers..."
+                value={pickupDriverSearchTerm}
+                onChange={e => setPickupDriverSearchTerm(e.target.value)}
+                style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc', marginBottom: '1rem' }}
+              />
+              <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                {availableDrivers
+                  .filter(driver =>
+                    driver.name?.toLowerCase().includes(pickupDriverSearchTerm.toLowerCase()) ||
+                    driver.email?.toLowerCase().includes(pickupDriverSearchTerm.toLowerCase())
+                  )
+                  .length === 0 ? (
+                  <p>No available drivers found.</p>
+                ) : (
+                  availableDrivers
+                    .filter(driver =>
+                      driver.name?.toLowerCase().includes(pickupDriverSearchTerm.toLowerCase()) ||
+                      driver.email?.toLowerCase().includes(pickupDriverSearchTerm.toLowerCase())
+                    )
+                    .map(driver => (
+                      <div key={driver.id} style={{ 
+                        padding: '12px', 
+                        border: '1px solid #eee', 
+                        borderRadius: '4px', 
+                        marginBottom: '8px',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center'
+                      }}>
+                        <div>
+                          <strong>{driver.name}</strong>
+                          <br />
+                          <span style={{ fontSize: '14px', color: '#666' }}>{driver.email}</span>
+                          <br />
+                          <span style={{ fontSize: '14px', color: '#666' }}>Phone: {driver.phone}</span>
+                        </div>
+                        <button
+                          onClick={() => assignDriverToPickup(driver.driverId)}
+                          disabled={assigningPickupDriver}
+                          style={{
+                            backgroundColor: '#007bff',
+                            color: 'white',
+                            border: 'none',
+                            padding: '8px 12px',
+                            borderRadius: '4px',
+                            cursor: assigningPickupDriver ? 'not-allowed' : 'pointer'
+                          }}
+                        >
+                          {assigningPickupDriver ? 'Assigning...' : 'Assign'}
+                        </button>
+                      </div>
+                    ))
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Status Message */}
+      {statusMessage && (
+        <div style={{
+          position: 'fixed',
+          top: '20px',
+          right: '20px',
+          padding: '12px 16px',
+          borderRadius: '4px',
+          color: 'white',
+          backgroundColor: statusMessage.type === 'success' ? '#28a745' : '#dc3545',
+          zIndex: 9999,
+          maxWidth: '300px'
+        }}>
+          {statusMessage.text}
         </div>
       )}
     </div>

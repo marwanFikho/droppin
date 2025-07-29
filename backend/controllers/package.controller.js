@@ -70,6 +70,7 @@ exports.createPackage = async (req, res) => {
       // Financial information - COD amount and payment status
       codAmount: parseFloat(codAmount) || 0,
       deliveryCost: shop.shippingFees != null ? parseFloat(shop.shippingFees) : (parseFloat(deliveryCost) || 0),
+      shownDeliveryCost: shop.shownShippingFees != null ? parseFloat(shop.shownShippingFees) : 0,
       paymentMethod: paymentMethod || null,
       paymentNotes: paymentNotes || null,
       shopNotes: shopNotes || null,
@@ -179,7 +180,7 @@ exports.getPackages = async (req, res) => {
         'schedulePickupTime', 'estimatedDeliveryTime',
         'actualPickupTime', 'actualDeliveryTime',
         'priority', 'paymentStatus', 'createdAt', 'updatedAt',
-        'codAmount', 'deliveryCost', 'isPaid', 'paymentDate', 'notes', 'shopNotes',
+        'codAmount', 'deliveryCost', 'shownDeliveryCost', 'isPaid', 'paymentDate', 'notes', 'shopNotes',
         'itemsNo'
       ],
       where,
@@ -224,7 +225,7 @@ exports.getPackageById = async (req, res) => {
         'schedulePickupTime', 'estimatedDeliveryTime',
         'actualPickupTime', 'actualDeliveryTime',
         'priority', 'paymentStatus', 'createdAt', 'updatedAt',
-        'codAmount', 'deliveryCost', 'isPaid', 'paymentDate', 'notes', 'shopNotes',
+        'codAmount', 'deliveryCost', 'shownDeliveryCost', 'isPaid', 'paymentDate', 'notes', 'shopNotes',
         'itemsNo'
       ],
       include: [
@@ -692,7 +693,8 @@ exports.updatePackage = async (req, res) => {
     const allowedUpdates = [
       'packageDescription', 'weight', 'dimensions', 
       'pickupAddress', 'deliveryAddress', 'schedulePickupTime',
-      'priority', 'notes', 'deliveryFee'
+      'priority', 'notes', 'deliveryFee',
+      'shownDeliveryCost'
     ];
     
     // Filter out fields that are not allowed to be updated
@@ -715,10 +717,17 @@ exports.updatePackage = async (req, res) => {
       if (!shop || package.shopId !== shop.id) {
         return res.status(403).json({ message: 'Unauthorized access' });
       }
-      
-      // Shops can only update packages with pending status
-      if (package.status !== 'pending') {
-        return res.status(403).json({ message: 'Can only update packages with pending status' });
+      // Shops can only update shownDeliveryCost for any status, other fields only if pending
+      const onlyShownDeliveryCost = Object.keys(filteredUpdateData).every(key => key === 'shownDeliveryCost');
+      if (!onlyShownDeliveryCost && package.status !== 'pending') {
+        return res.status(403).json({ message: 'Can only update packages with pending status, except shownDeliveryCost' });
+      }
+      // Prevent shownDeliveryCost > deliveryCost
+      if (
+        'shownDeliveryCost' in filteredUpdateData &&
+        (parseFloat(filteredUpdateData.shownDeliveryCost) > parseFloat(package.deliveryCost))
+      ) {
+        return res.status(400).json({ message: 'Shown Delivery Cost cannot be greater than Delivery Cost.' });
       }
     } else if (req.user.role !== 'admin') {
       return res.status(403).json({ message: 'Unauthorized access' });

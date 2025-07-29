@@ -69,6 +69,10 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.FLOAT,
       defaultValue: 0
     },
+    shownDeliveryCost: {
+      type: DataTypes.FLOAT,
+      defaultValue: 0
+    },
     priority: {
       type: DataTypes.ENUM('normal', 'express', 'same-day'),
       defaultValue: 'normal'

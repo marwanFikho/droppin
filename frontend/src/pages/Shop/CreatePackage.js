@@ -508,7 +508,7 @@ const CreatePackage = () => {
                 <label htmlFor="shopNotes">Shop Notes</label>
                 <textarea
                   id="shopNotes"
-                  name="notes"
+                  name="shopNotes"
                   value={formData.shopNotes}
                   onChange={handleChange}
                   placeholder="Additional notes from the shop"

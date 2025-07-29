@@ -36,6 +36,10 @@ const MobileShopPackages = () => {
   const [showMarkCancelledAwaitingReturnModal, setShowMarkCancelledAwaitingReturnModal] = useState(false);
   const [packageToMark, setPackageToMark] = useState(null);
   const [shopFees, setShopFees] = useState({ shippingFees: 0, shownShippingFees: 0 });
+  const [editingShownDeliveryCost, setEditingShownDeliveryCost] = useState(false);
+  const [newShownDeliveryCost, setNewShownDeliveryCost] = useState('');
+  const [savingShownDeliveryCost, setSavingShownDeliveryCost] = useState(false);
+  const [shownDeliveryCostError, setShownDeliveryCostError] = useState('');
 
   useEffect(() => {
     const fetchPackages = async () => {
@@ -57,9 +61,11 @@ const MobileShopPackages = () => {
     async function fetchShopFees() {
       try {
         const res = await packageService.getShopProfile();
+        console.log('DEBUG: shop profile response:', res.data);
         setShopFees({
           shippingFees: res.data.shippingFees || 0,
           shownShippingFees: res.data.shownShippingFees || 0,
+          businessName: res.data.businessName || res.data.shop?.businessName || '-'
         });
       } catch {}
     }
@@ -137,15 +143,23 @@ const MobileShopPackages = () => {
   };
 
   const handlePrintAWB = async (pkg) => {
+    // Fetch the latest shop profile for the most up-to-date businessName
+    let shopName = '-';
+    try {
+      const res = await packageService.getShopProfile();
+      shopName = res.data.businessName || res.data.shop?.businessName || '-';
+    } catch {}
     // Generate QR code as data URL
     const qrDataUrl = await QRCode.toDataURL(pkg.trackingNumber || '');
     // Logo path (now in public directory)
     const logoUrl = 'http://localhost:3001/assets/images/logo.jpg';
     // Calculate values
     const cod = parseFloat(pkg.codAmount || 0);
-    let shipping = (shopFees.shownShippingFees !== undefined && shopFees.shownShippingFees !== null && shopFees.shownShippingFees !== '' && Number(shopFees.shownShippingFees) > 0)
-      ? Number(shopFees.shownShippingFees)
-      : Number(shopFees.shippingFees);
+    let shipping = (pkg.shownDeliveryCost !== undefined && pkg.shownDeliveryCost !== null && pkg.shownDeliveryCost !== '' && Number(pkg.shownDeliveryCost) > 0)
+      ? Number(pkg.shownDeliveryCost)
+      : ((shopFees.shownShippingFees !== undefined && shopFees.shownShippingFees !== null && shopFees.shownShippingFees !== '' && Number(shopFees.shownShippingFees) > 0)
+        ? Number(shopFees.shownShippingFees)
+        : Number(shopFees.shippingFees));
     if (!Number.isFinite(shipping) || shipping < 0) shipping = 0;
     const total = cod + shipping;
     // Build AWB HTML (copied from desktop)
@@ -159,6 +173,7 @@ const MobileShopPackages = () => {
             .awb-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #111; padding-bottom: 16px; }
             .awb-logo { height: 80px; width: auto; }
             .awb-title { font-size: 2rem; font-weight: bold; }
+            .awb-shop-name { font-size: 1.2rem; font-weight: bold; color: #004b6f; margin-top: 4px; }
             .awb-section { margin-top: 24px; }
             .awb-table { width: 100%; border-collapse: collapse; margin-top: 16px; }
             .awb-table th, .awb-table td { border: 1px solid #111; padding: 8px; text-align: left; }
@@ -185,7 +200,9 @@ const MobileShopPackages = () => {
             <div class="awb-section">
               <table class="awb-info-table">
                 <tr>
-                  <td><span class="awb-row"><b class="awb-tracking">Tracking #:</b><span class="awb-tracking awb-data">${pkg.trackingNumber || '-'}</span></span></td>
+                  <td><span class="awb-row"><b class="awb-tracking">Tracking #:</b><span class="awb-tracking awb-data">${pkg.trackingNumber || '-'}</span></span>
+                  <div class="awb-shop-name">Shop Name: ${shopName}</div>
+                  </td>
                   <td><b>Date:</b> ${pkg.createdAt ? new Date(pkg.createdAt).toLocaleDateString() : '-'}</td>
                 </tr>
                 <tr>
@@ -376,6 +393,74 @@ const MobileShopPackages = () => {
                 </div>
                 {selectedPackage.shopNotes && (
                   <div className="mobile-modal-detail-item full-width"><span className="label">Shop notes</span><span>{selectedPackage.shopNotes}</span></div>
+                )}
+                {selectedPackage.shownDeliveryCost !== undefined && selectedPackage.shownDeliveryCost !== null && (
+                  <div className="mobile-modal-detail-item">
+                    <span className="label">Shown Delivery Cost</span>
+                    {editingShownDeliveryCost ? (
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <input
+                          type="number"
+                          value={newShownDeliveryCost}
+                          onChange={e => {
+                            setNewShownDeliveryCost(e.target.value);
+                            if (parseFloat(e.target.value) > parseFloat(selectedPackage.deliveryCost)) {
+                              setShownDeliveryCostError('Shown Delivery Cost cannot be greater than Delivery Cost.');
+                            } else {
+                              setShownDeliveryCostError('');
+                            }
+                          }}
+                          style={{ width: 80, padding: '6px 10px', borderRadius: 4, border: '1px solid #ccc', fontSize: '1em' }}
+                          min="0"
+                        />
+                        {shownDeliveryCostError && (
+                          <span style={{ color: '#dc3545', fontSize: 13, marginLeft: 4 }}>{shownDeliveryCostError}</span>
+                        )}
+                        <button
+                          onClick={async () => {
+                            if (parseFloat(newShownDeliveryCost) > parseFloat(selectedPackage.deliveryCost)) {
+                              setShownDeliveryCostError('Shown Delivery Cost cannot be greater than Delivery Cost.');
+                              return;
+                            }
+                            setSavingShownDeliveryCost(true);
+                            try {
+                              await packageService.updatePackage(selectedPackage.id, { shownDeliveryCost: parseFloat(newShownDeliveryCost) });
+                              setSelectedPackage(prev => ({ ...prev, shownDeliveryCost: parseFloat(newShownDeliveryCost) }));
+                              setEditingShownDeliveryCost(false);
+                              setShownDeliveryCostError('');
+                            } catch (err) {
+                              alert('Failed to update shown delivery cost');
+                            } finally {
+                              setSavingShownDeliveryCost(false);
+                            }
+                          }}
+                          disabled={savingShownDeliveryCost || newShownDeliveryCost === '' || shownDeliveryCostError}
+                          style={{ background: '#28a745', color: 'white', border: 'none', borderRadius: 4, padding: '6px 16px', fontWeight: 'bold', cursor: savingShownDeliveryCost ? 'not-allowed' : 'pointer', marginRight: 4 }}
+                        >
+                          {savingShownDeliveryCost ? 'Saving...' : 'Save'}
+                        </button>
+                        <button
+                          onClick={() => setEditingShownDeliveryCost(false)}
+                          style={{ background: '#f5f5f5', color: '#333', border: '1px solid #ccc', borderRadius: 4, padding: '6px 16px', fontWeight: 'bold', cursor: 'pointer' }}
+                        >
+                          Cancel
+                        </button>
+                      </span>
+                    ) : (
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontWeight: 500 }}>${parseFloat(selectedPackage.shownDeliveryCost).toFixed(2)}</span>
+                        <button
+                          style={{ background: '#fff', border: '1px solid #007bff', color: '#007bff', borderRadius: 4, padding: '4px 12px', marginLeft: 4, cursor: 'pointer', fontWeight: 'bold' }}
+                          onClick={() => {
+                            setEditingShownDeliveryCost(true);
+                            setNewShownDeliveryCost(selectedPackage.shownDeliveryCost !== undefined && selectedPackage.shownDeliveryCost !== null ? String(selectedPackage.shownDeliveryCost) : '0');
+                          }}
+                        >
+                          Edit
+                        </button>
+                      </span>
+                    )}
+                  </div>
                 )}
               </div>
               {/* Shop actions for rejected packages */}

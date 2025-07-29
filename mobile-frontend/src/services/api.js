@@ -154,10 +154,13 @@ export const adminService = {
     console.log('API call - assignDriverToPackage:', { packageId, driverId });
     return api.post(`/admin/packages/${packageId}/assign-driver`, { driverId });
   },
+  updatePackage: (id, data) => api.put(`/admin/packages/${id}`, data),
   
   // Pickup management
   getAllPickups: () => api.get('/pickups/admin/all'),
   markPickupAsPickedUp: (pickupId) => api.patch(`/pickups/${pickupId}/pickup`),
+  assignDriverToPickup: (pickupId, driverId) => api.patch(`/pickups/admin/pickups/${pickupId}/assign-driver`, { driverId }),
+  updatePickupStatus: (pickupId, status) => api.patch(`/pickups/admin/pickups/${pickupId}/status`, { status }),
   // Financial management
   settleShopPayments: (shopId, data) => api.post(`/admin/shops/${shopId}/settle-payments`, data),
   updatePackagePayment: (packageId, data) => api.patch(`/admin/packages/${packageId}/payment`, data),
@@ -169,6 +172,38 @@ export const adminService = {
 export const pickupService = {
   getDriverPickups: () => api.get('/pickups/driver'),
   markPickupAsPickedUp: (pickupId) => api.patch(`/pickups/driver/${pickupId}/pickup`),
+};
+
+// Add notification API methods
+export const notificationService = {
+  getNotifications: (userId, userType) =>
+    api.get('/notifications', {
+      headers: {
+        'x-user-id': userId,
+        'x-user-type': userType,
+      },
+    }),
+  markAllRead: (userId, userType) =>
+    api.post('/notifications/mark-all-read', {}, {
+      headers: {
+        'x-user-id': userId,
+        'x-user-type': userType,
+      },
+    }),
+  deleteNotification: (id, userId, userType) =>
+    api.delete(`/notifications/${id}`, {
+      headers: {
+        'x-user-id': userId,
+        'x-user-type': userType,
+      },
+    }),
+  deleteAll: (userId, userType) =>
+    api.delete('/notifications', {
+      headers: {
+        'x-user-id': userId,
+        'x-user-type': userType,
+      },
+    }),
 };
 
 export default api;
