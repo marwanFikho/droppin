@@ -141,6 +141,7 @@ export const adminService = {
   getShops: (filters = {}) => api.get('/admin/shops', { params: filters }),
   getShopById: (id) => api.get(`/admin/shops/${id}`),
   approveShop: (id, approved) => api.patch(`/admin/shops/${id}/approve`, { approved }),
+  updateShop: (id, data) => api.patch(`/admin/shops/${id}`, data),
   adjustShopTotalCollected: (shopId, data) => api.post(`/admin/shops/${shopId}/adjust-total-collected`, data),
   
   // Driver management

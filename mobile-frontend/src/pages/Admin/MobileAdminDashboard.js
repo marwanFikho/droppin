@@ -101,6 +101,12 @@ const MobileAdminDashboard = () => {
   const [newDeliveryCost, setNewDeliveryCost] = useState('');
   const [savingDeliveryCost, setSavingDeliveryCost] = useState(false);
 
+  // Add state for editing shipping fees in shop details modal
+  const [editingShippingFees, setEditingShippingFees] = useState(false);
+  const [newShippingFees, setNewShippingFees] = useState('');
+  const [savingShippingFees, setSavingShippingFees] = useState(false);
+  const [shippingFeesError, setShippingFeesError] = useState('');
+
   const handleLanguageChange = () => {
     const newLang = lang === 'en' ? 'ar' : 'en';
     i18n.changeLanguage(newLang);
@@ -1527,6 +1533,94 @@ const MobileAdminDashboard = () => {
                     <div className="mobile-modal-detail-item full-width"><span className="label">To Collect</span><span>${parseFloat(selectedUser.ToCollect || 0).toFixed(2)}</span></div>
                     <div className="mobile-modal-detail-item full-width"><span className="label">Total Collected</span><span>${parseFloat(selectedUser.TotalCollected || 0).toFixed(2)}</span></div>
                     <div className="mobile-modal-detail-item full-width"><span className="label">Delivered Packages</span><span>{selectedUser.financialData?.packageCount || 0}</span></div>
+                    
+                    {/* Shipping Fees Section */}
+                    <div className="mobile-modal-detail-item full-width" style={{ borderTop: '1px solid #eee', paddingTop: 12, marginTop: 12 }}>
+                      <span className="label">Shipping Fees:</span>
+                      <div style={{ marginTop: 8 }}>
+                        <div style={{ marginBottom: 8 }}>
+                          <span style={{ fontWeight: 'bold', display: 'block', marginBottom: 4 }}>Current Shipping Fees:</span>
+                          <span>${parseFloat(selectedUser.shippingFees || 0).toFixed(2)}</span>
+                        </div>
+                        <div style={{ marginBottom: 8 }}>
+                          <span style={{ fontWeight: 'bold', display: 'block', marginBottom: 4 }}>Current Shown Shipping Fees:</span>
+                          <span>${parseFloat(selectedUser.shownShippingFees || 0).toFixed(2)}</span>
+                        </div>
+                        {editingShippingFees ? (
+                          <div>
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              placeholder="New shipping fees amount"
+                              value={newShippingFees}
+                              onChange={e => setNewShippingFees(e.target.value)}
+                              style={{ padding: '6px 8px', borderRadius: '4px', border: '1px solid #ccc', width: '100%', marginBottom: 6 }}
+                            />
+                            <div style={{ display: 'flex', gap: 8 }}>
+                              <button
+                                className="mobile-admin-dashboard-settle-btn"
+                                style={{ flex: 1, background: '#28a745', color: '#fff' }}
+                                disabled={savingShippingFees || !newShippingFees || isNaN(Number(newShippingFees))}
+                                onClick={async () => {
+                                  if (!newShippingFees || isNaN(Number(newShippingFees)) || Number(newShippingFees) < 0) {
+                                    setShippingFeesError('Please enter a valid amount.');
+                                    return;
+                                  }
+                                  setSavingShippingFees(true);
+                                  setShippingFeesError('');
+                                  try {
+                                    const res = await adminService.updateShop(selectedUser.shopId || selectedUser.id, {
+                                      shippingFees: parseFloat(newShippingFees)
+                                    });
+                                    // Refresh user details
+                                    const response = await adminService.getShopById(selectedUser.shopId || selectedUser.id);
+                                    if (response && response.data) {
+                                      setSelectedUser({ ...response.data, entityType: selectedUser.entityType });
+                                    }
+                                    setEditingShippingFees(false);
+                                    setNewShippingFees('');
+                                  } catch (err) {
+                                    setShippingFeesError(err.response?.data?.message || 'Failed to update shipping fees.');
+                                  } finally {
+                                    setSavingShippingFees(false);
+                                  }
+                                }}
+                              >
+                                {savingShippingFees ? 'Saving...' : 'Save'}
+                              </button>
+                              <button
+                                className="mobile-admin-dashboard-settle-btn"
+                                style={{ flex: 1, background: '#6c757d', color: '#fff' }}
+                                onClick={() => {
+                                  setEditingShippingFees(false);
+                                  setNewShippingFees('');
+                                  setShippingFeesError('');
+                                }}
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                            {shippingFeesError && (
+                              <div style={{ marginTop: 6, color: '#d32f2f', fontWeight: 500 }}>
+                                {shippingFeesError}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <button
+                            className="mobile-admin-dashboard-settle-btn"
+                            style={{ background: '#007bff', color: '#fff' }}
+                            onClick={() => {
+                              setEditingShippingFees(true);
+                              setNewShippingFees(selectedUser.shippingFees?.toString() || '');
+                            }}
+                          >
+                            Edit Shipping Fees
+                          </button>
+                        )}
+                      </div>
+                    </div>
                     {/* Manual Total Collected adjustment by admin */}
                     <div className="mobile-modal-detail-item full-width" style={{ borderTop: '1px solid #eee', paddingTop: 12, marginTop: 12 }}>
                       <span className="label">Adjust Total Collected (Admin Only):</span>
