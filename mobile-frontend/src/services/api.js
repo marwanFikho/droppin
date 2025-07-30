@@ -148,6 +148,7 @@ export const adminService = {
   getDrivers: (filters = {}) => api.get('/admin/drivers', { params: filters }),
   approveDriver: (id, approved) => api.patch(`/admin/drivers/${id}/approve`, { approved }),
   updateDriverWorkingArea: (driverId, workingArea) => api.patch(`/drivers/${driverId}/working-area`, { workingArea }),
+  giveMoneyToDriver: (driverId, data) => api.post(`/admin/drivers/${driverId}/give-money`, data),
   
   // Package management
   getPackages: (filters = {}) => api.get('/admin/packages', { params: filters }),
