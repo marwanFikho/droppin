@@ -304,7 +304,7 @@ const MobileAdminDashboard = () => {
         notesArr = [];
       }
     }
-    setSelectedAdminPackage({ ...pkg, notes: notesArr });
+    setSelectedPackage({ ...pkg, notes: notesArr });
     setShowDetailsModal(true);
   };
 
@@ -1274,6 +1274,9 @@ const MobileAdminDashboard = () => {
                 <div className="mobile-modal-detail-item"><span className="label">Tracking #</span><span>{selectedPackage.trackingNumber}</span></div>
                 <div className="mobile-modal-detail-item"><span className="label">Status</span><span>{selectedPackage.status}</span></div>
                 <div className="mobile-modal-detail-item"><span className="label">Created</span><span>{new Date(selectedPackage.createdAt).toLocaleString()}</span></div>
+                {selectedPackage.actualDeliveryTime && (
+                  <div className="mobile-modal-detail-item"><span className="label">Delivered</span><span>{new Date(selectedPackage.actualDeliveryTime).toLocaleString()}</span></div>
+                )}
                 <div className="mobile-modal-detail-item full-width"><span className="label">Description</span><span>{selectedPackage.packageDescription || 'No description'}</span></div>
                 <div className="mobile-modal-detail-item"><span className="label">Sender</span><span>{selectedPackage.sender?.name || 'N/A'}</span></div>
                 <div className="mobile-modal-detail-item"><span className="label">Recipient</span><span>{selectedPackage.recipient?.name || 'N/A'}</span></div>
