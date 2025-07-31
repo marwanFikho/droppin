@@ -304,7 +304,7 @@ const MobileAdminDashboard = () => {
         notesArr = [];
       }
     }
-    setSelectedPackage({ ...pkg, notes: notesArr });
+    setSelectedAdminPackage({ ...pkg, notes: notesArr });
     setShowDetailsModal(true);
   };
 
@@ -1275,7 +1275,7 @@ const MobileAdminDashboard = () => {
                 <div className="mobile-modal-detail-item"><span className="label">Status</span><span>{selectedPackage.status}</span></div>
                 <div className="mobile-modal-detail-item"><span className="label">Created</span><span>{new Date(selectedPackage.createdAt).toLocaleString()}</span></div>
                 {selectedPackage.actualDeliveryTime && (
-                  <div className="mobile-modal-detail-item"><span className="label">Delivered</span><span>{new Date(selectedPackage.actualDeliveryTime).toLocaleString()}</span></div>
+                  <div className="mobile-modal-detail-item"><span className="label">Delivery Time</span><span>{new Date(selectedPackage.actualDeliveryTime).toLocaleString()}</span></div>
                 )}
                 <div className="mobile-modal-detail-item full-width"><span className="label">Description</span><span>{selectedPackage.packageDescription || 'No description'}</span></div>
                 <div className="mobile-modal-detail-item"><span className="label">Sender</span><span>{selectedPackage.sender?.name || 'N/A'}</span></div>
@@ -1356,7 +1356,7 @@ const MobileAdminDashboard = () => {
                 {selectedPackage.shopNotes && (
                   <div className="mobile-modal-detail-item full-width"><span className="label">Shop Notes</span><span>{selectedPackage.shopNotes}</span></div>
                 )}
-                <div className="mobile-modal-detail-item"><span className="label">Number of Items</span><span>{selectedAdminPackage?.itemsNo ?? '-'}</span></div>
+                <div className="mobile-modal-detail-item"><span className="label">Number of Items</span><span>{selectedPackage?.itemsNo ?? '-'}</span></div>
               </div>
               <div className="mobile-modal-actions">
                 <button className="mobile-modal-close-btn" onClick={closeDetailsModal}>Close</button>
@@ -1838,6 +1838,9 @@ const MobileAdminDashboard = () => {
                 <div className="mobile-modal-detail-item"><span className="label">Tracking #</span><span>{selectedAdminPackage.trackingNumber}</span></div>
                 <div className="mobile-modal-detail-item"><span className="label">Status</span><span>{selectedAdminPackage.status}</span></div>
                 <div className="mobile-modal-detail-item"><span className="label">Created</span><span>{selectedAdminPackage.createdAt ? new Date(selectedAdminPackage.createdAt).toLocaleString() : ''}</span></div>
+                {selectedAdminPackage.actualDeliveryTime && (
+                  <div className="mobile-modal-detail-item"><span className="label">Delivery Time</span><span>{new Date(selectedAdminPackage.actualDeliveryTime).toLocaleString()}</span></div>
+                )}
                 <div className="mobile-modal-detail-item full-width"><span className="label">Description</span><span>{selectedAdminPackage.packageDescription || 'No description'}</span></div>
                 <div className="mobile-modal-detail-item"><span className="label">Sender</span><span>{selectedAdminPackage.shop?.businessName || 'N/A'}</span></div>
                 <div className="mobile-modal-detail-item"><span className="label">Recipient</span><span>{selectedAdminPackage.deliveryContactName || 'N/A'}</span></div>
@@ -1908,6 +1911,7 @@ const MobileAdminDashboard = () => {
                 {selectedAdminPackage.dimensions && (
                   <div className="mobile-modal-detail-item"><span className="label">Dimensions</span><span>{selectedAdminPackage.dimensions}</span></div>
                 )}
+                <div className="mobile-modal-detail-item"><span className="label">Number of Items</span><span>{selectedAdminPackage?.itemsNo ?? '-'}</span></div>
                 {/* Shop Notes Section */}
                 {selectedAdminPackage.shopNotes && (
                   <div className="mobile-modal-detail-item full-width">

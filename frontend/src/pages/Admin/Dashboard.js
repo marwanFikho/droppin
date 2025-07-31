@@ -1627,13 +1627,13 @@ const AdminDashboard = () => {
                   </>
                 )}
                 {pickup.status !== 'scheduled' && (
-                  <button
-                    className="action-btn view-btn"
-                    onClick={() => handlePickupClick(pickup)}
-                    title="View Packages"
-                  >
-                    <FontAwesomeIcon icon={faEye} />
-                  </button>
+                <button
+                  className="action-btn view-btn"
+                  onClick={() => handlePickupClick(pickup)}
+                  title="View Packages"
+                >
+                  <FontAwesomeIcon icon={faEye} />
+                </button>
                 )}
               </td>
             </tr>
