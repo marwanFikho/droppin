@@ -151,6 +151,14 @@ const MobileAdminDashboard = () => {
         } else if (packageSubTab === 'in-transit') {
           const inTransitStatuses = ['pickedup', 'in-transit'];
           filteredPackages = filteredPackages.filter(pkg => inTransitStatuses.includes(pkg.status));
+        } else if (packageSubTab === 'delivered') {
+          filteredPackages = filteredPackages.filter(pkg => pkg.status === 'delivered');
+          // Sort by actualDeliveryTime descending (most recent first)
+          filteredPackages = filteredPackages.slice().sort((a, b) => {
+            const aTime = a.actualDeliveryTime ? new Date(a.actualDeliveryTime).getTime() : 0;
+            const bTime = b.actualDeliveryTime ? new Date(b.actualDeliveryTime).getTime() : 0;
+            return bTime - aTime;
+          });
         } else {
           filteredPackages = filteredPackages.filter(pkg => pkg.status === packageSubTab);
         }
