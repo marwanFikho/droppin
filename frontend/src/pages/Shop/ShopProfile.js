@@ -165,7 +165,7 @@ const ShopProfile = () => {
   }, []);
 
   return (
-    <div className="shop-profile-page" style={{ width: '500px', marginLeft: '900px', padding: '2rem' }}>
+    <div className="shop-profile-page" style={{ maxWidth: '800px', margin: '0 auto', padding: '2rem' }}>
       <h2>Shop Profile</h2>
       {/* API Key Section */}
       <div className="api-key-section" style={{ marginBottom: '2rem', background: '#f8f9fa', padding: '1rem', borderRadius: '8px' }}>

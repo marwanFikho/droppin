@@ -240,6 +240,16 @@ const MobileShopProfile = () => {
                 setShownShippingFees(shownShippingFeesDraft);
                 try {
                   await packageService.updateShopProfile({ shownShippingFees: parseFloat(shownShippingFeesDraft) });
+                  // Refetch the shop profile from the backend
+                  const res = await packageService.getShopProfile();
+                  const shop = res.data;
+                  setShopName(shop.businessName || shop.name || '');
+                  setContactName(shop.contactPersonName || shop.contactPerson?.name || '');
+                  setContactPhone(shop.contactPersonPhone || shop.contactPerson?.phone || '');
+                  setPickupAddress(parseAddress(shop.address));
+                  setShippingFees(shop.shippingFees !== undefined && shop.shippingFees !== null ? shop.shippingFees : '');
+                  setShownShippingFees(shop.shownShippingFees !== undefined && shop.shownShippingFees !== null ? shop.shownShippingFees : '');
+                  setShownShippingFeesDraft(shop.shownShippingFees !== undefined && shop.shownShippingFees !== null ? shop.shownShippingFees : '');
                 } catch (e) {
                   setShownShippingFeesError('Failed to update Shown Shipping Fees.');
                 }

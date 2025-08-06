@@ -172,64 +172,64 @@ const MobileAdminDashboard = () => {
     }
   }, [activeTab, packageSubTab]);
 
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        setLoading(true);
-        const statsResponse = await adminService.getDashboardStats();
-        if (statsResponse.data) {
-          setDashboardStats(statsResponse.data);
-        }
-        // Fetch real recent activities
-        const activitiesRes = await adminService.getRecentActivities();
-        setRecentActivities(activitiesRes.data || []);
-      } catch (err) {
-        setError('Failed to fetch dashboard data.');
-        console.error(err);
-      } finally {
-        setLoading(false);
+  // Add these at the top of the component, after useState declarations
+  const fetchDashboardData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const statsResponse = await adminService.getDashboardStats();
+      if (statsResponse.data) {
+        setDashboardStats(statsResponse.data);
       }
-    };
-
-    fetchDashboardData();
+      // Fetch real recent activities
+      const activitiesRes = await adminService.getRecentActivities();
+      setRecentActivities(activitiesRes.data || []);
+    } catch (err) {
+      setError('Failed to fetch dashboard data.');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  useEffect(() => {
-    const fetchUsers = async () => {
-      if (activeTab !== 'users') return;
-
-      try {
-        setLoading(true);
-        let response;
-        switch (userSubTab) {
-          case 'pending':
-            response = await adminService.getPendingApprovals();
-            break;
-          case 'shops':
-            response = await adminService.getShops();
-            break;
-          case 'drivers':
-            response = await adminService.getDrivers();
-            break;
-          default:
-            // Fetch all users (you might need to implement this endpoint in your backend)
-            const shops = await adminService.getShops();
-            const drivers = await adminService.getDrivers();
-            const pending = await adminService.getPendingApprovals();
-            response = { data: [...(shops.data || []), ...(drivers.data || []), ...(pending.data || [])] };
-            break;
-        }
-        setUsers(response.data || []);
-      } catch (err) {
-        setError('Failed to fetch users.');
-        console.error(err);
-      } finally {
-        setLoading(false);
+  const fetchUsers = useCallback(async () => {
+    if (activeTab !== 'users') return;
+    try {
+      setLoading(true);
+      let response;
+      switch (userSubTab) {
+        case 'pending':
+          response = await adminService.getPendingApprovals();
+          break;
+        case 'shops':
+          response = await adminService.getShops();
+          break;
+        case 'drivers':
+          response = await adminService.getDrivers();
+          break;
+        default:
+          // Fetch all users (you might need to implement this endpoint in your backend)
+          const shops = await adminService.getShops();
+          const drivers = await adminService.getDrivers();
+          const pending = await adminService.getPendingApprovals();
+          response = { data: [...(shops.data || []), ...(drivers.data || []), ...(pending.data || [])] };
+          break;
       }
-    };
-
-    fetchUsers();
+      setUsers(response.data || []);
+    } catch (err) {
+      setError('Failed to fetch users.');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   }, [activeTab, userSubTab]);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [fetchDashboardData]);
+
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
 
   useEffect(() => {
     fetchPackages();
@@ -1302,8 +1302,16 @@ const MobileAdminDashboard = () => {
                         setSavingDeliveryCost(true);
                         try {
                           await adminService.updatePackage(selectedPackage.id, { deliveryCost: parseFloat(newDeliveryCost) });
-                          setSelectedPackage(prev => ({ ...prev, deliveryCost: parseFloat(newDeliveryCost) }));
+                          // Refetch the updated package from the backend
+                          const refreshed = await adminService.getPackages({ id: selectedPackage.id });
+                          if (refreshed.data && Array.isArray(refreshed.data) && refreshed.data.length > 0) {
+                            setSelectedPackage(refreshed.data[0]);
+                          } else if (refreshed.data && refreshed.data.id) {
+                            setSelectedPackage(refreshed.data);
+                          }
                           setEditingDeliveryCost(false);
+                          fetchPackages();
+                          fetchDashboardData();
                         } catch (err) {
                           alert('Failed to update delivery cost');
                         } finally {
@@ -1591,6 +1599,9 @@ const MobileAdminDashboard = () => {
                                     }
                                     setEditingShippingFees(false);
                                     setNewShippingFees('');
+                                    // Refetch users and dashboard data
+                                    fetchUsers && fetchUsers();
+                                    fetchDashboardData && fetchDashboardData();
                                   } catch (err) {
                                     setShippingFeesError(err.response?.data?.message || 'Failed to update shipping fees.');
                                   } finally {
@@ -1859,12 +1870,19 @@ const MobileAdminDashboard = () => {
                     />
                     <button
                       onClick={async () => {
-                        console.log('Save clicked', newDeliveryCost, selectedAdminPackage.id);
                         setSavingDeliveryCost(true);
                         try {
                           await adminService.updatePackage(selectedAdminPackage.id, { deliveryCost: parseFloat(newDeliveryCost) });
-                          setSelectedAdminPackage(prev => ({ ...prev, deliveryCost: parseFloat(newDeliveryCost) }));
+                          // Refetch the updated package from the backend
+                          const refreshed = await adminService.getPackages({ id: selectedAdminPackage.id });
+                          if (refreshed.data && Array.isArray(refreshed.data) && refreshed.data.length > 0) {
+                            setSelectedAdminPackage(refreshed.data[0]);
+                          } else if (refreshed.data && refreshed.data.id) {
+                            setSelectedAdminPackage(refreshed.data);
+                          }
                           setEditingDeliveryCost(false);
+                          fetchPackages();
+                          fetchDashboardData();
                         } catch (err) {
                           alert('Failed to update delivery cost');
                         } finally {
@@ -2017,7 +2035,8 @@ const MobileAdminDashboard = () => {
                       onClick={async () => {
                         await packageService.updatePackageStatus(selectedAdminPackage.id, { status: nextStatus });
                         setSelectedAdminPackage(null);
-                        fetchPackages();
+                        fetchPackages && fetchPackages();
+                        fetchDashboardData && fetchDashboardData();
                       }}
                     >
                       {nextLabel}

@@ -301,6 +301,21 @@ const AdminDashboard = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
+        
+        // Check if we need to switch to a specific tab and reopen modal after refresh
+        const reopenTab = localStorage.getItem('reopenAdminTab');
+        const reopenEntityId = localStorage.getItem('reopenAdminModal');
+        const reopenPackagesTab = localStorage.getItem('reopenAdminPackagesTab');
+        if (reopenTab && reopenEntityId) {
+          setActiveTab(reopenTab);
+          if (reopenPackagesTab) {
+            setPackagesTab(reopenPackagesTab);
+          }
+          localStorage.removeItem('reopenAdminTab');
+          localStorage.removeItem('reopenAdminModal');
+          localStorage.removeItem('reopenAdminPackagesTab');
+        }
+        
         console.log('Fetching data for tab:', activeTab);
         
         // Load dashboard statistics
@@ -367,6 +382,15 @@ const AdminDashboard = () => {
             // Fetch all drivers for lookup
             const driversResponse = await adminService.getDrivers();
             setDrivers(driversResponse.data || []);
+            
+            // Check if we need to reopen a package modal after refresh
+            if (reopenEntityId) {
+              const entityToReopen = (packagesResponse.data || []).find(pkg => pkg.id == reopenEntityId);
+              if (entityToReopen) {
+                setSelectedEntity(entityToReopen);
+                setShowDetailsModal(true);
+              }
+            }
             break;
           case 'money':
             const res = await adminService.getMoneyTransactions();
@@ -2298,8 +2322,12 @@ const AdminDashboard = () => {
                         setSavingDeliveryCost(true);
                         try {
                           await adminService.updatePackage(selectedEntity.id, { deliveryCost: parseFloat(newDeliveryCost) });
-                          setSelectedEntity(prev => ({ ...prev, deliveryCost: parseFloat(newDeliveryCost) }));
-                          setEditingDeliveryCost(false);
+                          // Store the entity ID and tab to reopen modal after refresh
+                          localStorage.setItem('reopenAdminModal', selectedEntity.id);
+                          localStorage.setItem('reopenAdminTab', 'packages');
+                          localStorage.setItem('reopenAdminPackagesTab', packagesTab);
+                          // Refresh the entire page to get fresh data
+                          window.location.reload();
                         } catch (err) {
                           alert('Failed to update delivery cost');
                         } finally {
@@ -3479,6 +3507,17 @@ const AdminDashboard = () => {
       } else {
         // For 'all' tab, show all packages
         setPackages(response.data || []);
+      }
+      
+      // Check if we need to reopen a package modal after refresh
+      const reopenEntityId = localStorage.getItem('reopenAdminModal');
+      if (reopenEntityId) {
+        const entityToReopen = (response.data || []).find(pkg => pkg.id == reopenEntityId);
+        if (entityToReopen) {
+          setSelectedEntity(entityToReopen);
+          setShowDetailsModal(true);
+        }
+        localStorage.removeItem('reopenAdminModal');
       }
     } catch (error) {
       console.error('Error fetching packages:', error);

@@ -95,6 +95,17 @@ const ShopPackages = () => {
       try {
         const res = await packageService.getPackages({ limit: 10000 });
         setPackages(res.data.packages || res.data || []);
+        
+        // Check if we need to reopen a package modal after refresh
+        const reopenPackageId = localStorage.getItem('reopenPackageModal');
+        if (reopenPackageId) {
+          const packageToReopen = (res.data.packages || res.data || []).find(pkg => pkg.id == reopenPackageId);
+          if (packageToReopen) {
+            setSelectedPackage(packageToReopen);
+            setShowPackageDetailsModal(true);
+          }
+          localStorage.removeItem('reopenPackageModal');
+        }
       } catch (err) {
         setError('Failed to load packages.');
       } finally {
@@ -751,9 +762,10 @@ const ShopPackages = () => {
                             setSavingShownDeliveryCost(true);
                             try {
                               await packageService.updatePackage(selectedPackage.id, { shownDeliveryCost: parseFloat(newShownDeliveryCost) });
-                              setSelectedPackage(prev => ({ ...prev, shownDeliveryCost: parseFloat(newShownDeliveryCost) }));
-                              setEditingShownDeliveryCost(false);
-                              setShownDeliveryCostError('');
+                              // Store the package ID to reopen modal after refresh
+                              localStorage.setItem('reopenPackageModal', selectedPackage.id);
+                              // Refresh the entire page to get fresh data
+                              window.location.reload();
                             } catch (err) {
                               alert('Failed to update shown delivery cost');
                             } finally {

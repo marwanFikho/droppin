@@ -48,6 +48,17 @@ const MobileShopPackages = () => {
       try {
         const res = await packageService.getPackages({ limit: 10000 });
         setPackages(res.data.packages || res.data || []);
+        
+        // Check if we need to reopen a package modal after refresh
+        const reopenPackageId = localStorage.getItem('reopenPackageModal');
+        if (reopenPackageId) {
+          const packageToReopen = (res.data.packages || res.data || []).find(pkg => pkg.id == reopenPackageId);
+          if (packageToReopen) {
+            setSelectedPackage(packageToReopen);
+            setShowDetailsModal(true);
+          }
+          localStorage.removeItem('reopenPackageModal');
+        }
       } catch (err) {
         setError('Failed to load packages.');
       } finally {
@@ -87,6 +98,16 @@ const MobileShopPackages = () => {
       return filtered;
     } else if (activeTab === 'in-transit') {
       return filtered.filter(pkg => inTransitStatuses.includes(pkg.status));
+    } else if (activeTab === 'delivered') {
+      // Sort delivered packages by actualDeliveryTime descending
+      return filtered
+        .filter(pkg => pkg.status === 'delivered')
+        .slice()
+        .sort((a, b) => {
+          const aTime = a.actualDeliveryTime ? new Date(a.actualDeliveryTime).getTime() : 0;
+          const bTime = b.actualDeliveryTime ? new Date(b.actualDeliveryTime).getTime() : 0;
+          return bTime - aTime;
+        });
     } else if (activeTab === 'return-to-shop') {
       return filtered.filter(pkg => returnToShopStatuses.includes(pkg.status));
     } else if (activeTab === 'cancelled') {
@@ -345,6 +366,9 @@ const MobileShopPackages = () => {
                 <div className="mobile-modal-detail-item"><span className="label">Tracking #</span><span>{selectedPackage.trackingNumber}</span></div>
                 <div className="mobile-modal-detail-item"><span className="label">Status</span><span>{selectedPackage.status}</span></div>
                 <div className="mobile-modal-detail-item"><span className="label">Created</span><span>{new Date(selectedPackage.createdAt).toLocaleString()}</span></div>
+                {selectedPackage.actualDeliveryTime && (
+                  <div className="mobile-modal-detail-item"><span className="label">Delivery Time</span><span>{new Date(selectedPackage.actualDeliveryTime).toLocaleString()}</span></div>
+                )}
                 <div className="mobile-modal-detail-item full-width"><span className="label">Description</span><span>{selectedPackage.packageDescription || 'No description'}</span></div>
                 <div className="mobile-modal-detail-item"><span className="label">Recipient</span><span>{selectedPackage.deliveryContactName || '-'}</span></div>
                 {selectedPackage.deliveryContactPhone && (
@@ -423,16 +447,17 @@ const MobileShopPackages = () => {
                               return;
                             }
                             setSavingShownDeliveryCost(true);
-                            try {
-                              await packageService.updatePackage(selectedPackage.id, { shownDeliveryCost: parseFloat(newShownDeliveryCost) });
-                              setSelectedPackage(prev => ({ ...prev, shownDeliveryCost: parseFloat(newShownDeliveryCost) }));
-                              setEditingShownDeliveryCost(false);
-                              setShownDeliveryCostError('');
-                            } catch (err) {
-                              alert('Failed to update shown delivery cost');
-                            } finally {
-                              setSavingShownDeliveryCost(false);
-                            }
+                                                      try {
+                            await packageService.updatePackage(selectedPackage.id, { shownDeliveryCost: parseFloat(newShownDeliveryCost) });
+                            // Store the package ID to reopen modal after refresh
+                            localStorage.setItem('reopenPackageModal', selectedPackage.id);
+                            // Refresh the entire page to get fresh data
+                            window.location.reload();
+                          } catch (err) {
+                            alert('Failed to update shown delivery cost');
+                          } finally {
+                            setSavingShownDeliveryCost(false);
+                          }
                           }}
                           disabled={savingShownDeliveryCost || newShownDeliveryCost === '' || shownDeliveryCostError}
                           style={{ background: '#28a745', color: 'white', border: 'none', borderRadius: 4, padding: '6px 16px', fontWeight: 'bold', cursor: savingShownDeliveryCost ? 'not-allowed' : 'pointer', marginRight: 4 }}
