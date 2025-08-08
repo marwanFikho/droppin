@@ -32,9 +32,7 @@ const MobileShopPackages = () => {
   const [editingNotes, setEditingNotes] = useState('');
   const [notesSaving, setNotesSaving] = useState(false);
   const [notesError, setNotesError] = useState(null);
-  const [showMarkPendingModal, setShowMarkPendingModal] = useState(false);
-  const [showMarkCancelledAwaitingReturnModal, setShowMarkCancelledAwaitingReturnModal] = useState(false);
-  const [packageToMark, setPackageToMark] = useState(null);
+
   const [shopFees, setShopFees] = useState({ shippingFees: 0, shownShippingFees: 0 });
   const [editingShownDeliveryCost, setEditingShownDeliveryCost] = useState(false);
   const [newShownDeliveryCost, setNewShownDeliveryCost] = useState('');
@@ -350,15 +348,8 @@ const MobileShopPackages = () => {
                 {pkg.status !== 'delivered' && pkg.status !== 'rejected-returned' && pkg.status !== 'cancelled-returned' && (
                   <button onClick={() => handlePrintAWB(pkg)} className="mobile-shop-package-details-btn" style={{background:'#007bff',color:'#fff'}}>Print AWB</button>
                 )}
-                {pkg.status === 'rejected' ? (
-                  <>
-                    <button className="btn btn-primary" style={{marginBottom:8}} onClick={() => { setPackageToMark(pkg); setShowMarkPendingModal(true); }}>Mark as Pending</button>
-                    <button className="btn btn-danger" onClick={() => { setPackageToMark(pkg); setShowMarkCancelledAwaitingReturnModal(true); }}>Mark as Cancelled Awaiting Return</button>
-                  </>
-                ) : (
-                  pkg.status !== 'delivered' && pkg.status !== 'cancelled' && pkg.status !== 'cancelled-awaiting-return' && pkg.status !== 'cancelled-returned' && pkg.status !== 'rejected-awaiting-return' && pkg.status !== 'rejected-returned' && (
-                    <button onClick={() => { setPackageToCancel(pkg); setShowCancelModal(true); }} className="mobile-shop-package-cancel-btn">Cancel</button>
-                  )
+                {pkg.status !== 'delivered' && pkg.status !== 'cancelled' && pkg.status !== 'cancelled-awaiting-return' && pkg.status !== 'cancelled-returned' && pkg.status !== 'rejected' && pkg.status !== 'rejected-awaiting-return' && pkg.status !== 'rejected-returned' && (
+                  <button onClick={() => { setPackageToCancel(pkg); setShowCancelModal(true); }} className="mobile-shop-package-cancel-btn">Cancel</button>
                 )}
               </div>
             </div>
@@ -544,21 +535,7 @@ const MobileShopPackages = () => {
                   </div>
                 )}
               </div>
-              {/* Shop actions for rejected packages */}
-              {selectedPackage.status === 'rejected' && (
-                <div className="mobile-modal-actions" style={{flexDirection:'column',gap:8}}>
-                  <button className="btn btn-primary" style={{marginBottom:8}} onClick={async () => {
-                    await packageService.updatePackageStatus(selectedPackage.id, { status: 'pending' });
-                    setShowDetailsModal(false);
-                    setPackages(prev => prev.map(p => p.id === selectedPackage.id ? { ...p, status: 'pending' } : p));
-                  }}>Mark as Pending</button>
-                  <button className="btn btn-danger" onClick={async () => {
-                    await packageService.updatePackageStatus(selectedPackage.id, { status: 'cancelled-awaiting-return' });
-                    setShowDetailsModal(false);
-                    setPackages(prev => prev.map(p => p.id === selectedPackage.id ? { ...p, status: 'cancelled-awaiting-return' } : p));
-                  }}>Mark as Cancelled Awaiting Return</button>
-                </div>
-              )}
+
               <div className="mobile-modal-actions">
                 <button className="mobile-modal-close-btn" onClick={closeDetailsModal}>Close</button>
               </div>
@@ -587,53 +564,7 @@ const MobileShopPackages = () => {
         </div>
       )}
 
-      {/* Confirmation Modal for Mark as Pending */}
-      {showMarkPendingModal && packageToMark && (
-        <div className="mobile-modal-overlay" onClick={() => { setShowMarkPendingModal(false); setPackageToMark(null); }}>
-          <div className="mobile-modal-content" onClick={e => e.stopPropagation()}>
-            <div className="mobile-modal-header">
-              <h3>Mark as Pending</h3>
-              <button className="mobile-modal-close" onClick={() => { setShowMarkPendingModal(false); setPackageToMark(null); }}>&times;</button>
-            </div>
-            <div className="mobile-modal-body">
-              <p>Are you sure you want to mark this package as Pending?</p>
-              <div className="mobile-modal-actions">
-                <button className="mobile-modal-close-btn" onClick={() => { setShowMarkPendingModal(false); setPackageToMark(null); }}>No</button>
-                <button className="btn btn-primary" onClick={async () => {
-                  await packageService.updatePackageStatus(packageToMark.id, { status: 'pending' });
-                  setShowMarkPendingModal(false);
-                  setPackages(prev => prev.map(p => p.id === packageToMark.id ? { ...p, status: 'pending' } : p));
-                  setPackageToMark(null);
-                }}>Yes, Mark as Pending</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
-      {/* Confirmation Modal for Mark as Cancelled Awaiting Return */}
-      {showMarkCancelledAwaitingReturnModal && packageToMark && (
-        <div className="mobile-modal-overlay" onClick={() => { setShowMarkCancelledAwaitingReturnModal(false); setPackageToMark(null); }}>
-          <div className="mobile-modal-content" onClick={e => e.stopPropagation()}>
-            <div className="mobile-modal-header">
-              <h3>Mark as Cancelled Awaiting Return</h3>
-              <button className="mobile-modal-close" onClick={() => { setShowMarkCancelledAwaitingReturnModal(false); setPackageToMark(null); }}>&times;</button>
-            </div>
-            <div className="mobile-modal-body">
-              <p>Are you sure you want to mark this package as Cancelled Awaiting Return?</p>
-              <div className="mobile-modal-actions">
-                <button className="mobile-modal-close-btn" onClick={() => { setShowMarkCancelledAwaitingReturnModal(false); setPackageToMark(null); }}>No</button>
-                <button className="btn btn-danger" onClick={async () => {
-                  await packageService.updatePackageStatus(packageToMark.id, { status: 'cancelled-awaiting-return' });
-                  setShowMarkCancelledAwaitingReturnModal(false);
-                  setPackages(prev => prev.map(p => p.id === packageToMark.id ? { ...p, status: 'cancelled-awaiting-return' } : p));
-                  setPackageToMark(null);
-                }}>Yes, Mark as Cancelled Awaiting Return</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
