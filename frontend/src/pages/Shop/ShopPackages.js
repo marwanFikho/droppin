@@ -330,20 +330,32 @@ const ShopPackages = () => {
               </table>
             </div>
             <div class="awb-section">
-              <table class="awb-table">
-                <thead>
-                  <tr><th>Item</th><th>Qty</th><th>Price</th><th>Total</th></tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>${pkg.packageDescription || '-'}</td>
-                    <td>${pkg.itemsNo ?? 1}</td>
-                    <td>${cod.toFixed(2)} EGP</td>
-                    <td>${cod.toFixed(2)} EGP</td>
-                  </tr>
-                </tbody>
-              </table>
+              <b>Description:</b> ${pkg.packageDescription || '-'}
             </div>
+            <table class="awb-table">
+              <thead>
+                <tr><th>Item</th><th>Qty</th><th>COD Per Unit</th><th>Total COD</th></tr>
+              </thead>
+              <tbody>
+                ${
+                  pkg.Items && pkg.Items.length > 0
+                    ? pkg.Items.map(item => `
+                      <tr>
+                        <td>${item.description || '-'}</td>
+                        <td>${item.quantity}</td>
+                        <td>${item.codAmount && item.quantity ? (item.codAmount / item.quantity).toFixed(2) : '0.00'} EGP</td>
+                        <td>${parseFloat(item.codAmount || 0).toFixed(2)} EGP</td>
+                      </tr>
+                    `).join('')
+                    : `<tr>
+                        <td>${pkg.packageDescription || '-'}</td>
+                        <td>${pkg.itemsNo ?? 1}</td>
+                        <td>${cod.toFixed(2)} EGP</td>
+                        <td>${cod.toFixed(2)} EGP</td>
+                      </tr>`
+                }
+              </tbody>
+            </table>
             <div class="awb-section">
               <b>Payment Method:</b> COD
             </div>
@@ -423,20 +435,32 @@ const ShopPackages = () => {
             </table>
           </div>
           <div class="awb-section">
-            <table class="awb-table">
-              <thead>
-                <tr><th>Item</th><th>Qty</th><th>Price</th><th>Total</th></tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>${pkg.packageDescription || '-'}</td>
-                  <td>${pkg.itemsNo ?? 1}</td>
-                  <td>${cod.toFixed(2)} EGP</td>
-                  <td>${cod.toFixed(2)} EGP</td>
-                </tr>
-              </tbody>
-            </table>
+            <b>Description:</b> ${pkg.packageDescription || '-'}
           </div>
+          <table class="awb-table">
+            <thead>
+              <tr><th>Item</th><th>Qty</th><th>COD Per Unit</th><th>Total COD</th></tr>
+            </thead>
+            <tbody>
+              ${
+                pkg.Items && pkg.Items.length > 0
+                  ? pkg.Items.map(item => `
+                    <tr>
+                      <td>${item.description || '-'}</td>
+                      <td>${item.quantity}</td>
+                      <td>${item.codAmount && item.quantity ? (item.codAmount / item.quantity).toFixed(2) : '0.00'} EGP</td>
+                      <td>${parseFloat(item.codAmount || 0).toFixed(2)} EGP</td>
+                    </tr>
+                  `).join('')
+                  : `<tr>
+                      <td>${pkg.packageDescription || '-'}</td>
+                      <td>${pkg.itemsNo ?? 1}</td>
+                      <td>${cod.toFixed(2)} EGP</td>
+                      <td>${cod.toFixed(2)} EGP</td>
+                    </tr>`
+              }
+            </tbody>
+          </table>
           <div class="awb-section">
             <b>Payment Method:</b> COD
           </div>
@@ -816,6 +840,46 @@ const ShopPackages = () => {
                   <span className="label">Number of Items</span>
                   <span>{selectedPackage.itemsNo ?? '-'}</span>
                 </div>
+                
+                {/* Items Section */}
+                {selectedPackage.Items && selectedPackage.Items.length > 0 && (
+                  <div className="detail-item full-width">
+                    <span className="label">Items</span>
+                    <div style={{ 
+                      backgroundColor: '#f8f9fa', 
+                      padding: '1rem', 
+                      borderRadius: '8px',
+                      border: '1px solid #e0e0e0',
+                      marginTop: '0.5rem'
+                    }}>
+                      {selectedPackage.Items.map((item, index) => (
+                        <div key={item.id} style={{ 
+                          border: '1px solid #ddd', 
+                          padding: '0.75rem', 
+                          marginBottom: '0.5rem', 
+                          borderRadius: '4px',
+                          backgroundColor: 'white'
+                        }}>
+                          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: '1rem', alignItems: 'center' }}>
+                            <div>
+                              <strong>Description:</strong> {item.description}
+                            </div>
+                            <div>
+                              <strong>Quantity:</strong> {item.quantity}
+                            </div>
+                            <div>
+                              <strong>COD Per Unit:</strong> ${item.codAmount && item.quantity ? (parseFloat(item.codAmount) / parseInt(item.quantity)).toFixed(2) : '0.00'}
+                            </div>
+                            <div>
+                              <strong>Total COD:</strong> ${parseFloat(item.codAmount || 0).toFixed(2)}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
                 {selectedPackage.shopNotes && (
                   <div className="detail-item full-width">
                     <span className="label">Shop Notes</span>

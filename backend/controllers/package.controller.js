@@ -1,4 +1,4 @@
-const { Package, Shop, Driver, User, PickupPackages } = require('../models');
+const { Package, Shop, Driver, User, PickupPackages, Item } = require('../models');
 const { Op } = require('sequelize');
 const { sequelize } = require('../config/db.config');
 const { getCairoDateTime, formatDateTimeToDDMMYYYY } = require('../utils/dateUtils');
@@ -22,7 +22,8 @@ exports.createPackage = async (req, res) => {
       paymentMethod,
       paymentNotes,
       shopNotes,
-      itemsNo
+      itemsNo,
+      items
     } = req.body;
 
     // Verify that user is a shop
@@ -48,6 +49,18 @@ exports.createPackage = async (req, res) => {
       dimensionsStr = `${dimensions.length}x${dimensions.width}x${dimensions.height}`;
     }
 
+    // Calculate COD amount from items if provided, otherwise use the provided codAmount
+    let calculatedCodAmount = 0;
+    if (items && Array.isArray(items) && items.length > 0) {
+      calculatedCodAmount = items.reduce((total, item) => {
+        const codPerUnit = parseFloat(item.codPerUnit) || 0;
+        const quantity = parseInt(item.quantity) || 1;
+        return total + (codPerUnit * quantity);
+      }, 0);
+    } else {
+      calculatedCodAmount = parseFloat(codAmount) || 0;
+    }
+
     // Create package with proper handling of COD amount and contact information
     const package = await Package.create({
       shopId: shop.id,
@@ -67,8 +80,8 @@ exports.createPackage = async (req, res) => {
       deliveryAddress: `${deliveryAddress.street}, ${deliveryAddress.city}, ${deliveryAddress.state} ${deliveryAddress.zipCode}, ${deliveryAddress.country}`,
       schedulePickupTime: formatDateTimeToDDMMYYYY(getCairoDateTime(schedulePickupTime)),
       priority: priority || 'normal',
-      // Financial information - COD amount and payment status
-      codAmount: parseFloat(codAmount) || 0,
+      // Financial information - COD amount calculated from items
+      codAmount: calculatedCodAmount,
       deliveryCost: shop.shippingFees != null ? parseFloat(shop.shippingFees) : (parseFloat(deliveryCost) || 0),
       shownDeliveryCost: shop.shownShippingFees != null ? parseFloat(shop.shownShippingFees) : 0,
       paymentMethod: paymentMethod || null,
@@ -80,8 +93,8 @@ exports.createPackage = async (req, res) => {
     });
     
     console.log(`Created package with ID ${package.id}, tracking number ${trackingNumber}`);
-    if (codAmount && parseFloat(codAmount) > 0) {
-      console.log(`Package has COD amount of ${codAmount}`);
+    if (calculatedCodAmount > 0) {
+      console.log(`Package has COD amount of ${calculatedCodAmount} (calculated from ${items ? items.length : 0} items)`);
     }
 
     // Notify admin of new package
@@ -98,6 +111,25 @@ exports.createPackage = async (req, res) => {
       }
     } catch (notifyErr) {
       console.error('Failed to notify admin of new package:', notifyErr);
+    }
+
+    // Create items if provided
+    if (items && Array.isArray(items) && items.length > 0) {
+      const itemsToCreate = items.map(item => {
+        const codPerUnit = parseFloat(item.codPerUnit) || 0;
+        const quantity = parseInt(item.quantity) || 1;
+        const codAmount = codPerUnit * quantity;
+        
+        return {
+          packageId: package.id,
+          description: item.description,
+          quantity: quantity,
+          codAmount: codAmount
+        };
+      });
+
+      await Item.bulkCreate(itemsToCreate);
+      console.log(`Created ${itemsToCreate.length} items for package ${package.id}`);
     }
 
     res.status(201).json(package);
@@ -195,6 +227,10 @@ exports.getPackages = async (req, res) => {
         {
           model: Driver,
           attributes: ['id']
+        },
+        {
+          model: Item,
+          attributes: ['id', 'description', 'quantity', 'codAmount', 'createdAt', 'updatedAt']
         }
       ]
     });
@@ -246,6 +282,10 @@ exports.getPackageById = async (req, res) => {
         {
           model: User,
           attributes: ['name', 'email', 'phone']
+        },
+        {
+          model: Item,
+          attributes: ['id', 'description', 'quantity', 'codAmount', 'createdAt', 'updatedAt']
         }
       ]
     });
@@ -307,6 +347,10 @@ exports.getPackageByTracking = async (req, res) => {
         {
           model: Shop,
           attributes: ['businessName']
+        },
+        {
+          model: Item,
+          attributes: ['description', 'quantity', 'codAmount']
         }
       ]
     });

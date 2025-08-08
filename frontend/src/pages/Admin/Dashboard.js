@@ -1123,7 +1123,34 @@ const AdminDashboard = () => {
       return;
     }
 
-    setSelectedEntity(type === 'package' ? { ...entity, notes: notesArr } : entity);
+    // For packages, fetch complete package data including Items
+    if (type === 'package') {
+      try {
+        const response = await packageService.getPackageById(entity.id);
+        if (response && response.data) {
+          // Parse notes from the fetched data
+          let fetchedNotesArr = [];
+          if (Array.isArray(response.data.notes)) {
+            fetchedNotesArr = response.data.notes;
+          } else if (typeof response.data.notes === 'string') {
+            try {
+              fetchedNotesArr = JSON.parse(response.data.notes);
+            } catch {
+              fetchedNotesArr = [];
+            }
+          }
+          setSelectedEntity({ ...response.data, notes: fetchedNotesArr, entityType: type });
+        } else {
+          setSelectedEntity({ ...entity, notes: notesArr });
+        }
+      } catch (err) {
+        console.error('Error fetching package details:', err);
+        setSelectedEntity({ ...entity, notes: notesArr });
+      }
+    } else {
+      setSelectedEntity(entity);
+    }
+    
     setShowDetailsModal(true);
     setShopPackages([]);
     setShopPackagesWithUnpaidMoney([]);
@@ -2406,6 +2433,24 @@ const AdminDashboard = () => {
                   </div>
                 </div>
               </div>
+              {/* Items Section */}
+              {selectedEntity.Items && selectedEntity.Items.length > 0 && (
+                <div className="detail-item full-width" style={{ marginTop: 16 }}>
+                  <span className="label">Items</span>
+                  <div style={{ backgroundColor: '#f9f9fa', padding: '1rem', borderRadius: '8px', border: '1px solid #e0e0e0', marginTop: '0.5rem' }}>
+                    {selectedEntity.Items.map((item, index) => (
+                      <div key={item.id} style={{ border: '1px solid #ddd', padding: '0.75rem', marginBottom: '0.5rem', borderRadius: '4px', backgroundColor: 'white' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: '1rem', alignItems: 'center' }}>
+                          <div><strong>Description:</strong> {item.description}</div>
+                          <div><strong>Quantity:</strong> {item.quantity}</div>
+                          <div><strong>COD Per Unit:</strong> ${item.codAmount && item.quantity ? (item.codAmount / item.quantity).toFixed(2) : '0.00'}</div>
+                          <div><strong>Total COD:</strong> ${parseFloat(item.codAmount || 0).toFixed(2)}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               {/* Delivery address */}
               <div className="detail-item full-width">
                 <span className="label">Delivery Details:</span>

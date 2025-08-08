@@ -140,9 +140,22 @@ const MobileShopPackages = () => {
     }
   };
 
-  const openDetailsModal = (pkg) => {
+  const openDetailsModal = async (pkg) => {
     setSelectedPackage(pkg);
     setShowDetailsModal(true);
+    try {
+      // Fetch complete package details including items
+      const response = await packageService.getPackageById(pkg.id);
+      console.log('Shop - Fetched package details:', response.data);
+      console.log('Shop - Items data:', response.data.Items);
+      if (response.data.Items && response.data.Items.length > 0) {
+        console.log('Shop - First item details:', response.data.Items[0]);
+      }
+      setSelectedPackage(response.data);
+    } catch (err) {
+      console.error('Failed to fetch complete package details:', err);
+      // Keep the original package data if fetch fails
+    }
   };
 
   const closeDetailsModal = () => {
@@ -334,7 +347,7 @@ const MobileShopPackages = () => {
               </div>
               <div className="mobile-shop-package-actions">
                 <button onClick={() => openDetailsModal(pkg)} className="mobile-shop-package-details-btn">View Details</button>
-                {pkg.status !== 'delivered' && (
+                {pkg.status !== 'delivered' && pkg.status !== 'rejected-returned' && pkg.status !== 'cancelled-returned' && (
                   <button onClick={() => handlePrintAWB(pkg)} className="mobile-shop-package-details-btn" style={{background:'#007bff',color:'#fff'}}>Print AWB</button>
                 )}
                 {pkg.status === 'rejected' ? (
@@ -343,7 +356,7 @@ const MobileShopPackages = () => {
                     <button className="btn btn-danger" onClick={() => { setPackageToMark(pkg); setShowMarkCancelledAwaitingReturnModal(true); }}>Mark as Cancelled Awaiting Return</button>
                   </>
                 ) : (
-                  pkg.status !== 'delivered' && pkg.status !== 'cancelled' && pkg.status !== 'cancelled-awaiting-return' && pkg.status !== 'cancelled-returned' && (
+                  pkg.status !== 'delivered' && pkg.status !== 'cancelled' && pkg.status !== 'cancelled-awaiting-return' && pkg.status !== 'cancelled-returned' && pkg.status !== 'rejected-awaiting-return' && pkg.status !== 'rejected-returned' && (
                     <button onClick={() => { setPackageToCancel(pkg); setShowCancelModal(true); }} className="mobile-shop-package-cancel-btn">Cancel</button>
                   )
                 )}
@@ -386,6 +399,49 @@ const MobileShopPackages = () => {
                   <div className="mobile-modal-detail-item"><span className="label">Dimensions</span><span>{selectedPackage.dimensions}</span></div>
                 )}
                 <div className="mobile-modal-detail-item"><span className="label">Number of Items</span><span>{selectedPackage.itemsNo ?? '-'}</span></div>
+                
+                {/* Items Section */}
+                {selectedPackage.Items && selectedPackage.Items.length > 0 && (
+                  <div className="mobile-modal-detail-item full-width">
+                    <span className="label">Items Details ({selectedPackage.Items.length} items)</span>
+                    <div style={{ 
+                      backgroundColor: '#f9f9f9', 
+                      padding: '0.5rem', 
+                      borderRadius: '4px',
+                      border: '1px solid #e0e0e0',
+                      marginTop: '0.5rem'
+                    }}>
+                      {selectedPackage.Items.map((item, index) => (
+                        <div key={index} style={{ 
+                          border: '1px solid #ddd', 
+                          padding: '0.75rem', 
+                          marginBottom: '0.5rem', 
+                          borderRadius: '4px',
+                          backgroundColor: 'white'
+                        }}>
+                          <div style={{ fontWeight: 'bold', marginBottom: '0.5rem', color: '#333' }}>
+                            Item {index + 1}
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.9rem' }}>
+                            <div>
+                              <strong>Description:</strong> {item.description || 'No description'}
+                            </div>
+                            <div>
+                              <strong>Quantity:</strong> {item.quantity || 1}
+                            </div>
+                            <div>
+                              <strong>COD Per Unit:</strong> ${item.codAmount && item.quantity ? (parseFloat(item.codAmount) / parseInt(item.quantity)).toFixed(2) : '0.00'}
+                            </div>
+                            <div>
+                              <strong>Total COD:</strong> ${parseFloat(item.codAmount || 0).toFixed(2)}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
                 <div className="mobile-modal-detail-item full-width">
                   <span className="label">Notes Log</span>
                   <div className="notes-log-list">

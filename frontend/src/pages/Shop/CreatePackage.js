@@ -61,11 +61,13 @@ const CreatePackage = () => {
     },
     schedulePickupTime: '',
     shopNotes: '',
-    codAmount: '',
     deliveryCost: '',
     paymentMethod: '',
     paymentNotes: ''
   });
+
+  // New state for items
+  const [items, setItems] = useState([]);
 
   // Fetch shop address on mount
   useEffect(() => {
@@ -84,6 +86,22 @@ const CreatePackage = () => {
     };
     fetchShopProfile();
   }, []);
+
+  // Update items when itemsNo changes
+  useEffect(() => {
+    const itemsNo = parseInt(formData.itemsNo) || 0;
+    if (itemsNo > 0) {
+      const newItems = Array.from({ length: itemsNo }, (_, index) => ({
+        id: index,
+        description: items[index]?.description || '',
+        quantity: items[index]?.quantity || 1,
+        codPerUnit: items[index]?.codPerUnit || ''
+      }));
+      setItems(newItems);
+    } else {
+      setItems([]);
+    }
+  }, [formData.itemsNo]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -120,6 +138,48 @@ const CreatePackage = () => {
     setError('');
   };
 
+  // Handle item changes
+  const handleItemChange = (index, field, value) => {
+    const updatedItems = [...items];
+    let newValue;
+    
+    if (field === 'quantity') {
+      newValue = parseInt(value) || 1;
+    } else if (field === 'codPerUnit') {
+      // Handle empty string for COD per unit
+      if (value === '' || value === null || value === undefined) {
+        newValue = '';
+      } else {
+        newValue = parseFloat(value) || 0;
+      }
+    } else {
+      newValue = value;
+    }
+    
+    updatedItems[index] = {
+      ...updatedItems[index],
+      [field]: newValue
+    };
+    setItems(updatedItems);
+  };
+
+  // Calculate total COD amount from items
+  const calculateTotalCOD = () => {
+    return items.reduce((total, item) => {
+      const codPerUnit = item.codPerUnit;
+      const quantity = item.quantity;
+      
+      if (codPerUnit === '' || codPerUnit === null || codPerUnit === undefined) {
+        return total;
+      }
+      
+      const quantityValue = parseInt(quantity) || 1;
+      const codPerUnitValue = parseFloat(codPerUnit) || 0;
+      
+      return total + (codPerUnitValue * quantityValue);
+    }, 0);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -141,23 +201,52 @@ const CreatePackage = () => {
       if (!/^01\d{9}$/.test(formData.deliveryAddress.contactPhone)) {
         throw new Error('Phone number must be in format: 01xxxxxxxxx (11 digits starting with 01)');
       }
+
+      // Validate items
+      if (!formData.itemsNo || parseInt(formData.itemsNo) <= 0) {
+        throw new Error('Please specify the number of items');
+      }
+
+      if (items.length !== parseInt(formData.itemsNo)) {
+        throw new Error('Please fill in all item details');
+      }
+
+      // Validate each item
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (!item.description || item.description.trim() === '') {
+          throw new Error(`Please enter description for item ${i + 1}`);
+        }
+        if (!item.quantity || item.quantity <= 0) {
+          throw new Error(`Please enter a valid quantity for item ${i + 1}`);
+        }
+        if (item.codPerUnit < 0) {
+          throw new Error(`COD per unit for item ${i + 1} cannot be negative`);
+        }
+      }
       
       // Format data for API
       const packageData = {
         ...formData,
         weight: parseFloat(formData.weight),
-        itemsNo: formData.itemsNo ? parseInt(formData.itemsNo, 10) : 1,
+        itemsNo: parseInt(formData.itemsNo, 10),
         dimensions: {
           length: formData.dimensions.length ? parseFloat(formData.dimensions.length) : 0,
           width: formData.dimensions.width ? parseFloat(formData.dimensions.width) : 0,
           height: formData.dimensions.height ? parseFloat(formData.dimensions.height) : 0
         },
-        // Format financial fields as numbers
-        codAmount: formData.codAmount ? parseFloat(formData.codAmount) : 0,
+        // Calculate COD amount from items
+        codAmount: calculateTotalCOD(),
         deliveryCost: formData.deliveryCost ? parseFloat(formData.deliveryCost) : 0,
         paymentMethod: formData.paymentMethod || null,
         paymentNotes: formData.paymentNotes || null,
-        shopNotes: formData.shopNotes
+        shopNotes: formData.shopNotes,
+        // Include items in the request
+        items: items.map(item => ({
+          description: item.description.trim(),
+          quantity: parseInt(item.quantity),
+          codPerUnit: item.codPerUnit === '' || item.codPerUnit === null || item.codPerUnit === undefined ? 0 : parseFloat(item.codPerUnit) || 0
+        }))
       };
       
       // Submit to API
@@ -202,11 +291,11 @@ const CreatePackage = () => {
         },
         schedulePickupTime: '',
         shopNotes: '',
-        codAmount: '',
         deliveryCost: '',
         paymentMethod: '',
         paymentNotes: ''
       });
+      setItems([]);
       
       // Redirect after modal is shown
       setTimeout(() => {
@@ -375,20 +464,120 @@ const CreatePackage = () => {
                   style={{ padding: '0.5rem' }}
                 />
               </div>
+            </div>
+
+            <div className="form-group" style={{ marginTop: '1rem' }}>
+              <label htmlFor="itemsNo">Number of Items in Package*</label>
+              <input
+                type="number"
+                id="itemsNo"
+                name="itemsNo"
+                value={formData.itemsNo}
+                onChange={handleChange}
+                placeholder="Enter number of items"
+                min="1"
+                required
+                style={{ padding: '0.5rem', width: '100%' }}
+              />
+            </div>
+          </div>
+
+          {/* Items Section */}
+          {items.length > 0 && (
+            <div className="form-section" style={{ marginBottom: '1rem' }}>
+              <h2 style={{ fontSize: '1.2rem', marginBottom: '0.5rem', color: '#ff8c00' }}>
+                Items Details ({items.length} items)
+              </h2>
+              <div style={{ 
+                backgroundColor: '#f9f9f9', 
+                padding: '1rem', 
+                borderRadius: '8px',
+                border: '1px solid #e0e0e0'
+              }}>
+                {items.map((item, index) => (
+                  <div key={item.id} style={{ 
+                    border: '1px solid #ddd', 
+                    padding: '1rem', 
+                    marginBottom: '1rem', 
+                    borderRadius: '4px',
+                    backgroundColor: 'white'
+                  }}>
+                    <h3 style={{ margin: '0 0 1rem 0', color: '#333', fontSize: '1rem' }}>
+                      Item {index + 1}
+                    </h3>
+                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: '1rem' }}>
+                      <div className="form-group">
+                        <label htmlFor={`item-description-${index}`}>Description*</label>
+                        <input
+                          type="text"
+                          id={`item-description-${index}`}
+                          value={item.description}
+                          onChange={(e) => handleItemChange(index, 'description', e.target.value)}
+                          placeholder="Item description"
+                          required
+                          style={{ padding: '0.5rem' }}
+                        />
+                      </div>
+                      
+                      <div className="form-group">
+                        <label htmlFor={`item-quantity-${index}`}>Quantity*</label>
+                        <input
+                          type="number"
+                          id={`item-quantity-${index}`}
+                          value={item.quantity}
+                          onChange={(e) => handleItemChange(index, 'quantity', e.target.value)}
+                          placeholder="Qty"
+                          min="1"
+                          required
+                          style={{ padding: '0.5rem' }}
+                        />
+                      </div>
+                      
+                      <div className="form-group">
+                        <label htmlFor={`item-cod-${index}`}>COD Per Unit</label>
+                        <input
+                          type="number"
+                          id={`item-cod-${index}`}
+                          value={item.codPerUnit === 0 ? '' : item.codPerUnit}
+                          onChange={(e) => handleItemChange(index, 'codPerUnit', e.target.value)}
+                          placeholder="0.00"
+                          min="0"
+                          step="0.01"
+                          style={{ padding: '0.5rem' }}
+                        />
+                      </div>
+                      
+                      <div className="form-group">
+                        <label>Total COD</label>
+                        <div style={{ 
+                          padding: '0.5rem', 
+                          backgroundColor: '#f8f9fa', 
+                          border: '1px solid #dee2e6', 
+                          borderRadius: '4px',
+                          minHeight: '38px',
+                          display: 'flex',
+                          alignItems: 'center'
+                        }}>
+                          ${((parseFloat(item.codPerUnit) || 0) * (parseInt(item.quantity) || 1)).toFixed(2)}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                
+                {/* Total COD Display */}
+                <div style={{ 
+                  marginTop: '1rem', 
+                  padding: '1rem', 
+                  backgroundColor: '#e8f5e8', 
+                  borderRadius: '4px',
+                  border: '1px solid #4CAF50'
+                }}>
+                  <strong>Total COD Amount: ${calculateTotalCOD().toFixed(2)}</strong>
+                </div>
               </div>
-                <label htmlFor="itemsNo">Number of Items in Package</label>
-                <input
-                  type="number"
-                  id="itemsNo"
-                  name="itemsNo"
-                  value={formData.itemsNo}
-                  onChange={handleChange}
-                  placeholder="Enter number of items"
-                  min="1"
-                  required
-                  style={{marginTop: '0.5rem', width: '100%' }}
-                  />
-        </div>
+            </div>
+          )}
           
           <div className="form-section">
             <h2 style={{ fontSize: '1.2rem', color: '#ff8c00' }}>Delivery Information</h2>
@@ -503,34 +692,17 @@ const CreatePackage = () => {
           <div className="form-section" style={{ marginBottom: '1rem' }}>
             <h2 style={{ fontSize: '1.2rem', color: '#ff8c00' }}>Additional Information</h2>
             
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-              <div className="form-group">
-                <label htmlFor="shopNotes">Shop Notes</label>
-                <textarea
-                  id="shopNotes"
-                  name="shopNotes"
-                  value={formData.shopNotes}
-                  onChange={handleChange}
-                  placeholder="Additional notes from the shop"
-                  rows="2"
-                  style={{ padding: '0.5rem', width: '100%' }}
-                ></textarea>
-              </div>
-              
-              <div className="form-group">
-                <label htmlFor="codAmount">COD Amount (Cash on Delivery)</label>
-                <input
-                  type="number"
-                  id="codAmount"
-                  name="codAmount"
-                  value={formData.codAmount}
-                  onChange={handleChange}
-                  placeholder="Leave blank if COD is not required"
-                  min="0"
-                  step="0.01"
-                  style={{ padding: '0.5rem' }}
-                />
-              </div>
+            <div className="form-group">
+              <label htmlFor="shopNotes">Shop Notes</label>
+              <textarea
+                id="shopNotes"
+                name="shopNotes"
+                value={formData.shopNotes}
+                onChange={handleChange}
+                placeholder="Additional notes from the shop"
+                rows="2"
+                style={{ padding: '0.5rem', width: '100%' }}
+              ></textarea>
             </div>
           </div>
           

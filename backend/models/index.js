@@ -8,6 +8,7 @@ const Package = require('./package.model');
 const Pickup = require('./pickup.model');
 const MoneyTransaction = require('./moneytransaction.model');
 const Notification = require('./notification.model');
+const Item = require('./item.model');
 
 // Define relationships
 User.hasOne(Shop, { foreignKey: 'userId' });
@@ -24,6 +25,10 @@ Package.belongsTo(Driver, { foreignKey: 'driverId' });
 
 User.hasMany(Package, { foreignKey: 'userId' });
 Package.belongsTo(User, { foreignKey: 'userId' });
+
+// Package-Item relationship
+Package.hasMany(Item, { foreignKey: 'packageId' });
+Item.belongsTo(Package, { foreignKey: 'packageId' });
 
 Shop.hasMany(Pickup, { foreignKey: 'shopId' });
 Pickup.belongsTo(Shop, { foreignKey: 'shopId' });
@@ -47,5 +52,6 @@ module.exports = {
   Pickup,
   MoneyTransaction,
   PickupPackages,
-  Notification
+  Notification,
+  Item
 };

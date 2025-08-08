@@ -229,6 +229,11 @@ const MobileDriverDashboard = () => {
     setEditingNotes('');
     try {
       const response = await packageService.getPackageById(pkg.id);
+      console.log('Driver - Fetched package details:', response.data);
+      console.log('Driver - Items data:', response.data.Items);
+      if (response.data.Items && response.data.Items.length > 0) {
+        console.log('Driver - First item details:', response.data.Items[0]);
+      }
       setSelectedPackage(response.data);
       setEditingNotes('');
     } catch (err) {
@@ -533,6 +538,49 @@ const MobileDriverDashboard = () => {
                   <div className="mobile-modal-detail-item"><span className="label">{t('driver.dashboard.recipientName')}</span><span>{selectedPackage.deliveryContactName}</span></div>
                   <div className="mobile-modal-detail-item"><span className="label">{t('driver.dashboard.recipientPhone')}</span><span>{selectedPackage.deliveryContactPhone}</span></div>
                   <div className="mobile-modal-detail-item"><span className="label">{t('driver.dashboard.itemsNo')}</span><span>{selectedPackage.itemsNo ?? '-'}</span></div>
+                  
+                  {/* Items Section */}
+                  {selectedPackage.Items && selectedPackage.Items.length > 0 && (
+                    <div className="mobile-modal-detail-item full-width">
+                      <span className="label">Items Details ({selectedPackage.Items.length} items)</span>
+                      <div style={{ 
+                        backgroundColor: '#f9f9f9', 
+                        padding: '0.5rem', 
+                        borderRadius: '4px',
+                        border: '1px solid #e0e0e0',
+                        marginTop: '0.5rem'
+                      }}>
+                        {selectedPackage.Items.map((item, index) => (
+                          <div key={index} style={{ 
+                            border: '1px solid #ddd', 
+                            padding: '0.75rem', 
+                            marginBottom: '0.5rem', 
+                            borderRadius: '4px',
+                            backgroundColor: 'white'
+                          }}>
+                            <div style={{ fontWeight: 'bold', marginBottom: '0.5rem', color: '#333' }}>
+                              Item {index + 1}
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.9rem' }}>
+                              <div>
+                                <strong>Description:</strong> {item.description || 'No description'}
+                              </div>
+                              <div>
+                                <strong>Quantity:</strong> {item.quantity || 1}
+                              </div>
+                                                          <div>
+                              <strong>COD Per Unit:</strong> ${item.codAmount && item.quantity ? (parseFloat(item.codAmount) / parseInt(item.quantity)).toFixed(2) : '0.00'}
+                            </div>
+                            <div>
+                              <strong>Total COD:</strong> ${parseFloat(item.codAmount || 0).toFixed(2)}
+                            </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
                   <div className="mobile-modal-detail-item full-width">
                     <span className="label">{t('driver.dashboard.notesLog')}</span>
                     <div className="notes-log-list">

@@ -293,7 +293,7 @@ const MobileAdminDashboard = () => {
     }
   };
 
-  const openDetailsModal = (pkg) => {
+  const openDetailsModal = async (pkg) => {
     let notesArr = [];
     if (Array.isArray(pkg.notes)) {
       notesArr = pkg.notes;
@@ -306,6 +306,21 @@ const MobileAdminDashboard = () => {
     }
     setSelectedAdminPackage({ ...pkg, notes: notesArr });
     setShowDetailsModal(true);
+    try {
+      // Fetch complete package details including items
+      const response = await packageService.getPackageById(pkg.id);
+      const completePackage = response.data;
+      console.log('Admin - Fetched package details:', completePackage);
+      console.log('Admin - Items data:', completePackage.Items);
+      if (completePackage.Items && completePackage.Items.length > 0) {
+        console.log('Admin - First item details:', completePackage.Items[0]);
+      }
+      // Preserve the notes array we already processed
+      setSelectedAdminPackage({ ...completePackage, notes: notesArr });
+    } catch (err) {
+      console.error('Failed to fetch complete package details:', err);
+      // Keep the original package data if fetch fails
+    }
   };
 
   const closeDetailsModal = () => {
@@ -1365,6 +1380,48 @@ const MobileAdminDashboard = () => {
                   <div className="mobile-modal-detail-item full-width"><span className="label">Shop Notes</span><span>{selectedPackage.shopNotes}</span></div>
                 )}
                 <div className="mobile-modal-detail-item"><span className="label">Number of Items</span><span>{selectedPackage?.itemsNo ?? '-'}</span></div>
+                
+                {/* Items Section */}
+                {selectedPackage.Items && selectedPackage.Items.length > 0 && (
+                  <div className="mobile-modal-detail-item full-width">
+                    <span className="label">Items Details ({selectedPackage.Items.length} items)</span>
+                    <div style={{ 
+                      backgroundColor: '#f9f9f9', 
+                      padding: '0.5rem', 
+                      borderRadius: '4px',
+                      border: '1px solid #e0e0e0',
+                      marginTop: '0.5rem'
+                    }}>
+                      {selectedPackage.Items.map((item, index) => (
+                        <div key={index} style={{ 
+                          border: '1px solid #ddd', 
+                          padding: '0.75rem', 
+                          marginBottom: '0.5rem', 
+                          borderRadius: '4px',
+                          backgroundColor: 'white'
+                        }}>
+                          <div style={{ fontWeight: 'bold', marginBottom: '0.5rem', color: '#333' }}>
+                            Item {index + 1}
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.9rem' }}>
+                            <div>
+                              <strong>Description:</strong> {item.description || 'No description'}
+                            </div>
+                            <div>
+                              <strong>Quantity:</strong> {item.quantity || 1}
+                            </div>
+                            <div>
+                              <strong>COD Per Unit:</strong> ${item.codAmount && item.quantity ? (parseFloat(item.codAmount) / parseInt(item.quantity)).toFixed(2) : '0.00'}
+                            </div>
+                            <div>
+                              <strong>Total COD:</strong> ${parseFloat(item.codAmount || 0).toFixed(2)}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="mobile-modal-actions">
                 <button className="mobile-modal-close-btn" onClick={closeDetailsModal}>Close</button>
@@ -1930,6 +1987,49 @@ const MobileAdminDashboard = () => {
                   <div className="mobile-modal-detail-item"><span className="label">Dimensions</span><span>{selectedAdminPackage.dimensions}</span></div>
                 )}
                 <div className="mobile-modal-detail-item"><span className="label">Number of Items</span><span>{selectedAdminPackage?.itemsNo ?? '-'}</span></div>
+                
+                {/* Items Section */}
+                {selectedAdminPackage.Items && selectedAdminPackage.Items.length > 0 && (
+                  <div className="mobile-modal-detail-item full-width">
+                    <span className="label">Items Details ({selectedAdminPackage.Items.length} items)</span>
+                    <div style={{ 
+                      backgroundColor: '#f9f9f9', 
+                      padding: '0.5rem', 
+                      borderRadius: '4px',
+                      border: '1px solid #e0e0e0',
+                      marginTop: '0.5rem'
+                    }}>
+                      {selectedAdminPackage.Items.map((item, index) => (
+                        <div key={index} style={{ 
+                          border: '1px solid #ddd', 
+                          padding: '0.75rem', 
+                          marginBottom: '0.5rem', 
+                          borderRadius: '4px',
+                          backgroundColor: 'white'
+                        }}>
+                          <div style={{ fontWeight: 'bold', marginBottom: '0.5rem', color: '#333' }}>
+                            Item {index + 1}
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.9rem' }}>
+                            <div>
+                              <strong>Description:</strong> {item.description || 'No description'}
+                            </div>
+                            <div>
+                              <strong>Quantity:</strong> {item.quantity || 1}
+                            </div>
+                            <div>
+                              <strong>COD Per Unit:</strong> ${item.codAmount && item.quantity ? (parseFloat(item.codAmount) / parseInt(item.quantity)).toFixed(2) : '0.00'}
+                            </div>
+                            <div>
+                              <strong>Total COD:</strong> ${parseFloat(item.codAmount || 0).toFixed(2)}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
                 {/* Shop Notes Section */}
                 {selectedAdminPackage.shopNotes && (
                   <div className="mobile-modal-detail-item full-width">

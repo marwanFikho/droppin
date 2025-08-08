@@ -4,7 +4,7 @@ const router = express.Router();
 const packageController = require('../controllers/package.controller');
 const { authenticate, authorize } = require('../middleware/auth.middleware');
 const apiKeyAuth = require('../middleware/apiKeyAuth');
-const { Package } = require('../models');
+const { Package, Item } = require('../models');
 const { formatDateTimeToDDMMYYYY, getCairoDateTime } = require('../utils/dateUtils');
 
 // Public tracking route (no authentication required)
@@ -58,6 +58,20 @@ router.post('/shopify', apiKeyAuth, async (req, res) => {
         paymentStatus: 'pending',
         shopifyOrderId: pkg.shopifyOrderId // Only set shopifyOrderId, not isShopifySent
       });
+
+      // Create items if provided
+      if (pkg.items && Array.isArray(pkg.items) && pkg.items.length > 0) {
+        const itemsToCreate = pkg.items.map(item => ({
+          packageId: newPackage.id,
+          description: item.description,
+          quantity: parseInt(item.quantity) || 1,
+          codAmount: parseFloat(item.codAmount) || 0
+        }));
+
+        await Item.bulkCreate(itemsToCreate);
+        console.log(`Created ${itemsToCreate.length} items for Shopify package ${newPackage.id}`);
+      }
+
       createdPackages.push(newPackage);
     } else {
       // Multiple packages, use bulkCreate with individualHooks
@@ -87,6 +101,23 @@ router.post('/shopify', apiKeyAuth, async (req, res) => {
         shopifyOrderId: pkg.shopifyOrderId // Only set shopifyOrderId, not isShopifySent
       }));
       const newPackages = await Package.bulkCreate(pkgsToCreate, { individualHooks: true });
+      
+      // Create items for each package if provided
+      for (let i = 0; i < newPackages.length; i++) {
+        const pkg = packages[i];
+        if (pkg.items && Array.isArray(pkg.items) && pkg.items.length > 0) {
+          const itemsToCreate = pkg.items.map(item => ({
+            packageId: newPackages[i].id,
+            description: item.description,
+            quantity: parseInt(item.quantity) || 1,
+            codAmount: parseFloat(item.codAmount) || 0
+          }));
+
+          await Item.bulkCreate(itemsToCreate);
+          console.log(`Created ${itemsToCreate.length} items for Shopify package ${newPackages[i].id}`);
+        }
+      }
+      
       createdPackages.push(...newPackages);
     }
 
