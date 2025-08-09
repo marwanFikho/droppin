@@ -54,6 +54,8 @@ router.post('/shopify', apiKeyAuth, async (req, res) => {
         paymentMethod: pkg.paymentMethod || null,
         paymentNotes: pkg.paymentNotes || null,
         shopNotes: pkg.shopNotes || null,
+        // Number of items
+        itemsNo: Number.isInteger(pkg.itemsNo) ? pkg.itemsNo : (Array.isArray(pkg.items) ? pkg.items.length : null),
         isPaid: false,
         paymentStatus: 'pending',
         shopifyOrderId: pkg.shopifyOrderId // Only set shopifyOrderId, not isShopifySent
@@ -96,6 +98,8 @@ router.post('/shopify', apiKeyAuth, async (req, res) => {
         paymentMethod: pkg.paymentMethod || null,
         paymentNotes: pkg.paymentNotes || null,
         shopNotes: pkg.shopNotes || null,
+        // Number of items
+        itemsNo: Number.isInteger(pkg.itemsNo) ? pkg.itemsNo : (Array.isArray(pkg.items) ? pkg.items.length : null),
         isPaid: false,
         paymentStatus: 'pending',
         shopifyOrderId: pkg.shopifyOrderId // Only set shopifyOrderId, not isShopifySent

@@ -189,6 +189,10 @@ export default function Index() {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(15);
   const [expandedItems, setExpandedItems] = useState({});
+  // New: description per order
+  const [descriptions, setDescriptions] = useState({});
+  const [descDialogOrderId, setDescDialogOrderId] = useState(null);
+  const [descDraft, setDescDraft] = useState("");
 
   // Pagination logic
   const filteredOrders = orders.filter(o => {
@@ -230,8 +234,8 @@ export default function Index() {
     const selectedOrders = orders.filter((o) => selected.includes(o.id));
     // Map to Droppin package fields
     const packages = selectedOrders.map((o) => ({
-      shopifyOrderId: o.id, // Add the Shopify order ID
-      packageDescription: "coming from Shopify",
+      shopifyOrderId: o.id, // Shopify order ID
+      packageDescription: (descriptions[o.id] && descriptions[o.id].trim()) ? descriptions[o.id].trim() : "coming from Shopify",
       items: o.items.map(item => ({ description: item.title, quantity: item.quantity, codAmount: item.price })),
       itemsNo: o.items.length,
       weight: o.weight,
@@ -440,6 +444,7 @@ export default function Index() {
               <th>Total</th>
               <th>Status</th>
               <th>Shop Note</th>
+              <th>Description</th>
             </tr>
           </thead>
           <tbody>
@@ -550,6 +555,18 @@ export default function Index() {
                     Shop Note
                   </Button>
                 </td>
+                <td>
+                  <Button
+                    size="slim"
+                    onClick={() => {
+                      setDescDialogOrderId(o.id);
+                      setDescDraft(descriptions[o.id] || "");
+                    }}
+                    disabled={sentOrders.includes(o.id)}
+                  >
+                    Add Description
+                  </Button>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -577,6 +594,36 @@ export default function Index() {
                   onClick={() => {
                     setShopNotes({ ...shopNotes, [noteDialogOrderId]: noteDraft });
                     setNoteDialogOrderId(null);
+                  }}
+                >
+                  Save
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+        {/* Description Dialog */}
+        {descDialogOrderId && (
+          <div style={{
+            position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+            background: 'rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
+          }}>
+            <div style={{ background: '#fff', padding: 24, borderRadius: 8, minWidth: 320, maxWidth: 400 }}>
+              <h3>Add Description</h3>
+              <textarea
+                value={descDraft}
+                onChange={e => setDescDraft(e.target.value)}
+                rows={4}
+                style={{ width: '100%' }}
+                placeholder="e.g., Handle with care"
+              />
+              <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                <Button onClick={() => setDescDialogOrderId(null)}>Cancel</Button>
+                <Button
+                  primary
+                  onClick={() => {
+                    setDescriptions({ ...descriptions, [descDialogOrderId]: descDraft });
+                    setDescDialogOrderId(null);
                   }}
                 >
                   Save
