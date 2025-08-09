@@ -42,11 +42,11 @@ const DriverRegister = () => {
       newValue = sanitizeNameInput(value);
       if (!validateName(newValue) && newValue !== '') return; // block invalid
     }
-    // Phone field: restrict to numbers and length
+    // Phone field: restrict to numbers and length, allow leading 0 then 01...
     if (name === 'phone') {
       newValue = newValue.replace(/[^0-9]/g, '');
       if (newValue.length > 11) newValue = newValue.slice(0, 11);
-      if (newValue && !/^01\d{0,9}$/.test(newValue)) return; // block if not starting with 01
+      if (newValue && !/^0$|^01\d{0,9}$/.test(newValue)) return;
     }
     if (name.includes('.')) {
       const [parent, child] = name.split('.');
@@ -74,6 +74,12 @@ const DriverRegister = () => {
     
     if (formData.password.length < 6) {
       setFormError('Password must be at least 6 characters');
+      return;
+    }
+
+    // Phone must match 01xxxxxxxxx
+    if (!validatePhone(formData.phone)) {
+      setFormError('Please enter a valid phone number (01xxxxxxxxx)');
       return;
     }
     

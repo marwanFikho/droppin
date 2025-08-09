@@ -52,6 +52,7 @@ export const loader = async ({ request }) => {
                 node {
                   title
                   quantity
+                  originalUnitPriceSet { shopMoney { amount } }
                 }
               }
             }
@@ -66,9 +67,12 @@ export const loader = async ({ request }) => {
     const shipping = node.shippingAddress || {};
     const billing = node.billingAddress || {};
     const customer = node.customer || {};
-    const items = node.lineItems.edges
-      .map(e => `${e.node.quantity}x ${e.node.title}`)
-      .join(", ");
+    const items = node.lineItems.edges.map(e => ({
+      title: e.node.title,
+      quantity: e.node.quantity,
+      price: Number(e.node.originalUnitPriceSet.shopMoney.amount)
+    }));
+    const itemsString = items.map(item => `${item.quantity}x ${item.title}`).join(", ");
     const weight = (node.totalWeight || 0) / 1000; // grams to kg
     // DEMO: random delivery fee between 20 and 60, and random delivered status
     const deliveryFee = Math.floor(Math.random() * 41) + 20;
@@ -83,6 +87,7 @@ export const loader = async ({ request }) => {
       zip: shipping.zip || "",
       country: shipping.country || "",
       items,
+      itemsString,
       weight,
       phone: shipping.phone || billing.phone || customer.phone || "",
       total: Number(node.totalPriceSet.shopMoney.amount),
@@ -183,6 +188,7 @@ export default function Index() {
   const [sentFilter, setSentFilter] = useState('all'); // 'all', 'sent', 'not_sent'
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(15);
+  const [expandedItems, setExpandedItems] = useState({});
 
   // Pagination logic
   const filteredOrders = orders.filter(o => {
@@ -225,7 +231,9 @@ export default function Index() {
     // Map to Droppin package fields
     const packages = selectedOrders.map((o) => ({
       shopifyOrderId: o.id, // Add the Shopify order ID
-      packageDescription: o.items,
+      packageDescription: "coming from Shopify",
+      items: o.items.map(item => ({ description: item.title, quantity: item.quantity, codAmount: item.price })),
+      itemsNo: o.items.length,
       weight: o.weight,
       deliveryAddress: [o.address, o.city, o.province, o.zip, o.country].filter(Boolean).join(', '),
       deliveryContactName: o.customer,
@@ -313,6 +321,7 @@ export default function Index() {
           border-bottom: 1px solid #f0f0f0;
           padding: 12px 10px;
           text-align: left;
+          vertical-align: top;
         }
         .droppin-orders-table th {
           background: #fafbfc;
@@ -326,6 +335,19 @@ export default function Index() {
         }
         .droppin-orders-table tbody tr:hover {
           background: #f6f8fa;
+        }
+        .droppin-item-card {
+          transition: all 0.2s ease;
+        }
+        .droppin-item-card:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .droppin-toggle-btn {
+          transition: color 0.2s ease;
+        }
+        .droppin-toggle-btn:hover {
+          color: #0056b3 !important;
         }
         .droppin-filter-bar {
           display: flex;
@@ -374,6 +396,10 @@ export default function Index() {
           .droppin-orders-table th, .droppin-orders-table td {
             padding: 8px 4px;
             font-size: 13px;
+          }
+          .droppin-item-card {
+            padding: 3px 6px !important;
+            font-size: 12px !important;
           }
         }
       `}</style>
@@ -428,7 +454,82 @@ export default function Index() {
                 </td>
                 <td>{o.name}</td>
                 <td>{o.customer}</td>
-                <td>{o.items}</td>
+                <td>
+                  <div style={{ 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    gap: '4px',
+                    maxWidth: '200px'
+                  }}>
+                    <div style={{
+                      fontSize: '11px',
+                      color: '#6c757d',
+                      fontWeight: '500',
+                      marginBottom: '2px',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center'
+                    }}>
+                      <span>{o.items.length} item{o.items.length !== 1 ? 's' : ''}</span>
+                      <button
+                        className="droppin-toggle-btn"
+                        onClick={() => setExpandedItems(prev => ({ ...prev, [o.id]: !prev[o.id] }))}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#007bff',
+                          fontSize: '10px',
+                          cursor: 'pointer',
+                          textDecoration: 'underline'
+                        }}
+                      >
+                        {expandedItems[o.id] ? 'Hide items' : 'Show items'}
+                      </button>
+                    </div>
+                    {expandedItems[o.id] && (
+                      <div>
+                        {o.items.map((item, index) => (
+                          <div key={index} className="droppin-item-card" style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            padding: '4px 8px',
+                            backgroundColor: '#f8f9fa',
+                            borderRadius: '4px',
+                            fontSize: '13px',
+                            border: '1px solid #e9ecef'
+                          }}>
+                            <span 
+                              title={item.title}
+                              style={{ 
+                                fontWeight: '500',
+                                color: '#495057',
+                                flex: 1,
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap'
+                              }}
+                            >
+                              {item.title}
+                            </span>
+                            <span style={{
+                              backgroundColor: '#007bff',
+                              color: 'white',
+                              padding: '2px 6px',
+                              borderRadius: '12px',
+                              fontSize: '11px',
+                              fontWeight: '600',
+                              minWidth: '20px',
+                              textAlign: 'center'
+                            }}>
+                              {item.quantity}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </td>
                 <td>${o.total}</td>
                 <td>
                   {sentOrders.includes(o.id) ? (

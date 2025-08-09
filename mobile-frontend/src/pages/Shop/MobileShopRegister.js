@@ -40,11 +40,11 @@ const MobileShopRegister = () => {
       newValue = sanitizeNameInput(value);
       if (!validateName(newValue) && newValue !== '') return;
     }
-    // Phone field: restrict to numbers and length
+    // Phone field: restrict to numbers, length, and 01 prefix
     if (name === 'phone') {
       newValue = newValue.replace(/[^0-9]/g, '');
       if (newValue.length > 11) newValue = newValue.slice(0, 11);
-      if (newValue && !/^01\d{0,9}$/.test(newValue)) return;
+      if (newValue && !/^0$|^01\d{0,9}$/.test(newValue)) return;
     }
     setFormData(prev => ({
       ...prev,
@@ -79,8 +79,8 @@ const MobileShopRegister = () => {
     
     if (!formData.phone.trim()) {
       newErrors.phone = 'Phone number is required';
-    } else if (!/^\d{11}$/.test(formData.phone.trim())) {
-      newErrors.phone = 'Please enter a valid phone number';
+    } else if (!validatePhone(formData.phone.trim())) {
+      newErrors.phone = 'Please enter a valid phone number (01xxxxxxxxx)';
     }
     
     if (!formData.address.trim()) {
@@ -255,9 +255,9 @@ const MobileShopRegister = () => {
               className={`form-control ${errors.phone ? 'error' : ''}`}
               placeholder="Enter phone number"
               required
-              pattern="01[0-9]{9}"
               inputMode="numeric"
               maxLength={11}
+              pattern="01[0-9]{9}"
               autoComplete="tel"
             />
             {errors.phone && <div className="error-message">{errors.phone}</div>}

@@ -40,13 +40,16 @@ const ShopRegister = () => {
       newValue = sanitizeNameInput(value);
       if (!validateName(newValue) && newValue !== '') return;
     }
-    // Phone fields: restrict to numbers and length
-    if (name === 'phone' || name === 'contactPerson.phone') {
+    // Phone fields
+    if (name === 'phone') {
       newValue = newValue.replace(/[^0-9]/g, '');
       if (newValue.length > 11) newValue = newValue.slice(0, 11);
-      if (newValue && !/^01\d{0,9}$/.test(newValue)) return;
+      if (newValue && !/^0$|^01\d{0,9}$/.test(newValue)) return;
     }
-    
+    if (name === 'contactPerson.phone') {
+      newValue = newValue.replace(/[^0-9]/g, '');
+      if (newValue.length > 11) newValue = newValue.slice(0, 11);
+    }
     if (name.includes('.')) {
       // Handle nested fields
       const [parent, child] = name.split('.');
@@ -60,7 +63,6 @@ const ShopRegister = () => {
     } else {
       setFormData({ ...formData, [name]: newValue });
     }
-    
     setFormError(''); // Clear error when user types
   };
 
@@ -75,6 +77,12 @@ const ShopRegister = () => {
     
     if (formData.password.length < 6) {
       setFormError('Password must be at least 6 characters');
+      return;
+    }
+
+    // Business phone must match 01xxxxxxxxx
+    if (!validatePhone(formData.phone)) {
+      setFormError('Please enter a valid business phone number (01xxxxxxxxx)');
       return;
     }
     
@@ -156,9 +164,9 @@ const ShopRegister = () => {
                 onChange={handleChange}
                 placeholder="Enter business phone number"
                 required
-                pattern="01[0-9]{9}"
                 inputMode="numeric"
                 maxLength={11}
+                pattern="01[0-9]{9}"
                 autoComplete="tel"
               />
             </div>
@@ -230,11 +238,9 @@ const ShopRegister = () => {
                 type="tel"
                 id="contactPerson.phone"
                 name="contactPerson.phone"
-                value={formData.contactPerson.phone}
                 onChange={handleChange}
                 placeholder="Contact person phone"
                 required
-                pattern="01[0-9]{9}"
                 inputMode="numeric"
                 maxLength={11}
                 autoComplete="tel"
