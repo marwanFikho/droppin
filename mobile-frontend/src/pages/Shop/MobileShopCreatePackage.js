@@ -17,6 +17,7 @@ function parseAddress(addressStr) {
 
 const initialForm = {
   packageDescription: '',
+  type: 'new',
   category: '',
   weight: '',
   dimensions: { length: '', width: '', height: '' },
@@ -30,7 +31,8 @@ const initialForm = {
   schedulePickupTime: '',
   deliveryCost: '',
   paymentMethod: '',
-  paymentNotes: ''
+  paymentNotes: '',
+  shownDeliveryCost: ''
 };
 
 const MobileShopCreatePackage = () => {
@@ -193,6 +195,7 @@ const MobileShopCreatePackage = () => {
 
       const packageData = {
         packageDescription: formData.packageDescription,
+        type: formData.type || 'new',
         category: formData.category,
         weight: parseFloat(formData.weight),
         dimensions: {
@@ -218,6 +221,7 @@ const MobileShopCreatePackage = () => {
         // Hidden fields sent as null/empty
         schedulePickupTime: '',
         deliveryCost: '',
+        shownDeliveryCost: (formData.shownDeliveryCost === '' || formData.shownDeliveryCost === null || formData.shownDeliveryCost === undefined) ? null : (parseFloat(formData.shownDeliveryCost) || 0),
         paymentMethod: '',
         paymentNotes: '',
         // Include items in the request
@@ -243,6 +247,12 @@ const MobileShopCreatePackage = () => {
       <form className="mobile-shop-create-form" onSubmit={handleSubmit}>
         <label>Description*</label>
         <input name="packageDescription" value={formData.packageDescription} onChange={handleChange} required />
+        <label>Type</label>
+        <select name="type" value={formData.type} onChange={handleChange}>
+          <option value="new">New Package</option>
+          <option value="return">Return</option>
+          <option value="exchange">Exchange</option>
+        </select>
         <label>Category*</label>
         <select name="category" value={formData.category} onChange={handleChange} required>
           <option value="">Select category</option>
@@ -353,6 +363,12 @@ const MobileShopCreatePackage = () => {
                 border: '1px solid #4CAF50'
               }}>
                 <strong>Total COD Amount: ${calculateTotalCOD().toFixed(2)}</strong>
+              </div>
+
+              {/* Shown Shipping Fees input under items list */}
+              <div style={{ marginTop: '1rem' }}>
+                <label>Shown Shipping Fees</label>
+                <input name="shownDeliveryCost" type="number" min="0" step="0.01" placeholder="Leave blank for default Shown Shipping fees" value={formData.shownDeliveryCost} onChange={handleChange} />
               </div>
             </div>
           </div>

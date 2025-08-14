@@ -33,6 +33,7 @@ const CreatePackage = () => {
   
   const [formData, setFormData] = useState({
     packageDescription: '',
+    type: 'new',
     category: '',
     weight: '',
     dimensions: {
@@ -63,7 +64,8 @@ const CreatePackage = () => {
     shopNotes: '',
     deliveryCost: '',
     paymentMethod: '',
-    paymentNotes: ''
+    paymentNotes: '',
+    shownDeliveryCost: ''
   });
 
   // New state for items
@@ -235,9 +237,11 @@ const CreatePackage = () => {
           width: formData.dimensions.width ? parseFloat(formData.dimensions.width) : 0,
           height: formData.dimensions.height ? parseFloat(formData.dimensions.height) : 0
         },
+        type: formData.type || 'new',
         // Calculate COD amount from items
         codAmount: calculateTotalCOD(),
         deliveryCost: formData.deliveryCost ? parseFloat(formData.deliveryCost) : 0,
+        shownDeliveryCost: (formData.shownDeliveryCost === '' || formData.shownDeliveryCost === null || formData.shownDeliveryCost === undefined) ? null : (parseFloat(formData.shownDeliveryCost) || 0),
         paymentMethod: formData.paymentMethod || null,
         paymentNotes: formData.paymentNotes || null,
         shopNotes: formData.shopNotes,
@@ -263,6 +267,7 @@ const CreatePackage = () => {
       // Reset form
       setFormData({
         packageDescription: '',
+        type: 'new',
         category: '',
         weight: '',
         dimensions: {
@@ -293,7 +298,8 @@ const CreatePackage = () => {
         shopNotes: '',
         deliveryCost: '',
         paymentMethod: '',
-        paymentNotes: ''
+        paymentNotes: '',
+        shownDeliveryCost: ''
       });
       setItems([]);
       
@@ -384,6 +390,19 @@ const CreatePackage = () => {
                   placeholder="Describe contents"
                   required
                 />
+              </div>
+              <div className="form-group">
+                <label htmlFor="type">Type</label>
+                <select
+                  id="type"
+                  name="type"
+                  value={formData.type}
+                  onChange={handleChange}
+                >
+                  <option value="new">New Package</option>
+                  <option value="return">Return</option>
+                  <option value="exchange">Exchange</option>
+                </select>
               </div>
               
               <div className="form-group">
@@ -574,6 +593,22 @@ const CreatePackage = () => {
                   border: '1px solid #4CAF50'
                 }}>
                   <strong>Total COD Amount: ${calculateTotalCOD().toFixed(2)}</strong>
+                </div>
+
+                {/* Shown Shipping Fees input under items list */}
+                <div className="form-group" style={{ marginTop: '1rem' }}>
+                  <label htmlFor="shownDeliveryCost">Shown Shipping Fees</label>
+                  <input
+                    type="number"
+                    id="shownDeliveryCost"
+                    name="shownDeliveryCost"
+                    value={formData.shownDeliveryCost}
+                    onChange={handleChange}
+                    placeholder="Leave blank for default Shown Shipping fees"
+                    min="0"
+                    step="0.01"
+                    style={{ padding: '0.5rem', width: '100%' }}
+                  />
                 </div>
               </div>
             </div>

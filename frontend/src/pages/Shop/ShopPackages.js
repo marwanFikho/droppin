@@ -89,6 +89,122 @@ const ShopPackages = () => {
   const location = useLocation();
   const { currentUser } = useAuth();
 
+  // Editing package details (pre-pending only)
+  const [isEditingDetails, setIsEditingDetails] = useState(false);
+  const [editDescription, setEditDescription] = useState('');
+  const [editRecipientName, setEditRecipientName] = useState('');
+  const [editRecipientPhone, setEditRecipientPhone] = useState('');
+  const [editStreet, setEditStreet] = useState('');
+  const [editCity, setEditCity] = useState('');
+  const [editState, setEditState] = useState('');
+  const [editZip, setEditZip] = useState('');
+  const [editCountry, setEditCountry] = useState('');
+  const [editWeight, setEditWeight] = useState('');
+  const [editLen, setEditLen] = useState('');
+  const [editWid, setEditWid] = useState('');
+  const [editHei, setEditHei] = useState('');
+  const [editPriority, setEditPriority] = useState('normal');
+  const [editType, setEditType] = useState('new');
+  const [editSchedulePickupTime, setEditSchedulePickupTime] = useState('');
+  const [saveDetailsError, setSaveDetailsError] = useState('');
+  const [savingDetails, setSavingDetails] = useState(false);
+  const [editItems, setEditItems] = useState([]);
+  const [editShopNotes, setEditShopNotes] = useState('');
+
+  const prePendingStatuses = ['awaiting_schedule', 'scheduled_for_pickup'];
+  const canEditThisPackage = (pkg) => prePendingStatuses.includes((pkg?.status || '').toLowerCase());
+
+  function parseAddressToFields(addr) {
+    if (!addr || typeof addr !== 'string') {
+      return { street: '', city: '', state: '', zipCode: '', country: '' };
+    }
+    // Expected format: "street, city, state zipCode, country" (best-effort)
+    const parts = addr.split(',').map(s => s.trim());
+    const street = parts[0] || '';
+    const cityAndState = parts[1] || '';
+    const stateZip = cityAndState.includes(' ') ? cityAndState.split(' ') : [];
+    let city = cityAndState;
+    let state = '';
+    let zipCode = '';
+    if (parts.length >= 3) {
+      // If format actually was street, city, state zip, country
+      city = parts[1] || '';
+      const stateZipStr = parts[2] || '';
+      const sz = stateZipStr.split(' ').filter(Boolean);
+      state = sz[0] || '';
+      zipCode = sz[1] || '';
+    }
+    const country = parts[3] || parts[2] || '';
+    return { street, city, state, zipCode, country };
+  }
+
+  function openEditDetails(pkg) {
+    setSaveDetailsError('');
+    setIsEditingDetails(true);
+    setEditDescription(pkg.packageDescription || '');
+    setEditRecipientName(pkg.deliveryContactName || '');
+    setEditRecipientPhone(pkg.deliveryContactPhone || '');
+    const a = parseAddressToFields(pkg.deliveryAddress);
+    setEditStreet(a.street);
+    setEditCity(a.city);
+    setEditState(a.state);
+    setEditZip(a.zipCode);
+    setEditCountry(a.country);
+    setEditWeight(pkg.weight != null ? String(pkg.weight) : '');
+    setEditPriority(pkg.priority || 'normal');
+    setEditType(pkg.type || 'new');
+    setEditLen(''); setEditWid(''); setEditHei('');
+    setEditSchedulePickupTime('');
+    setEditItems(Array.isArray(pkg.Items) ? pkg.Items.map(it => ({ description: it.description || '', quantity: it.quantity || 1, codPerUnit: it.codAmount && it.quantity ? (parseFloat(it.codAmount)/parseInt(it.quantity)).toFixed(2) : '0' })) : []);
+    setEditShopNotes(pkg.shopNotes || '');
+  }
+
+  async function saveEditedDetails() {
+    if (!selectedPackage) return;
+    setSavingDetails(true);
+    setSaveDetailsError('');
+    try {
+      const payload = {};
+      if (editDescription !== '') payload.packageDescription = editDescription;
+      if (editWeight !== '') payload.weight = parseFloat(editWeight);
+      if (editLen && editWid && editHei) {
+        payload.dimensions = { length: editLen, width: editWid, height: editHei };
+      }
+      // Delivery address and contacts
+      payload.deliveryAddress = {
+        street: editStreet,
+        city: editCity,
+        state: editState,
+        zipCode: editZip,
+        country: editCountry,
+        contactName: editRecipientName,
+        contactPhone: editRecipientPhone
+      };
+      if (editPriority) payload.priority = editPriority;
+      if (editType) payload.type = editType;
+      if (editSchedulePickupTime) payload.schedulePickupTime = editSchedulePickupTime;
+      // Items
+      if (Array.isArray(editItems)) {
+        payload.items = editItems.map(it => ({
+          description: it.description,
+          quantity: parseInt(it.quantity) || 1,
+          codPerUnit: parseFloat(it.codPerUnit) || 0
+        }));
+      }
+      // Shop notes
+      if (editShopNotes !== '') payload.shopNotes = editShopNotes;
+
+      await packageService.updatePackage(selectedPackage.id, payload);
+      // Refresh to reflect changes simply
+      localStorage.setItem('reopenPackageModal', selectedPackage.id);
+      window.location.reload();
+    } catch (e) {
+      setSaveDetailsError(e.response?.data?.message || e.message || 'Failed to save changes.');
+    } finally {
+      setSavingDetails(false);
+    }
+  }
+
   useEffect(() => {
     const fetchPackages = async () => {
       setLoading(true);
@@ -263,19 +379,47 @@ const ShopPackages = () => {
   };
 
   const handlePrintAWB = async (pkg) => {
+    // Fetch full package with Items if not present
+    let packageForAwb = pkg;
+    try {
+      if (!pkg?.Items || !Array.isArray(pkg.Items)) {
+        const resp = await packageService.getPackageById(pkg.id);
+        if (resp && resp.data) {
+          packageForAwb = resp.data;
+        }
+      }
+    } catch (e) {
+      // If fetch fails, fall back to passed pkg
+    }
+
     // Generate QR code as data URL
-    const qrDataUrl = await QRCode.toDataURL(pkg.trackingNumber || '');
+    const qrDataUrl = await QRCode.toDataURL((packageForAwb.trackingNumber || pkg.trackingNumber) || '');
     // Logo path (now in public directory)
     const logoUrl = window.location.origin + '/assets/images/logo.jpg';
+    console.log('DEBUG: logoUrl', logoUrl);
+    const awbPkg = packageForAwb || pkg;
     // Calculate values
-    const cod = parseFloat(pkg.codAmount || 0);
-    let shipping = (pkg.shownDeliveryCost !== undefined && pkg.shownDeliveryCost !== null && pkg.shownDeliveryCost !== '')
-      ? Number(pkg.shownDeliveryCost)
+    const cod = parseFloat((awbPkg.codAmount != null ? awbPkg.codAmount : pkg.codAmount) || 0);
+    const isShopify = (awbPkg.shopifyOrderId !== undefined && awbPkg.shopifyOrderId !== null && awbPkg.shopifyOrderId !== '');
+    const itemsSum = (Array.isArray(awbPkg.Items) && awbPkg.Items.length > 0)
+      ? awbPkg.Items.reduce((s, it) => s + (parseFloat(it.codAmount || 0) || 0), 0)
+      : cod;
+    let shippingValue = (awbPkg.shownDeliveryCost !== undefined && awbPkg.shownDeliveryCost !== null && awbPkg.shownDeliveryCost !== '')
+      ? Number(awbPkg.shownDeliveryCost)
       : ((shopFees.shownShippingFees !== undefined && shopFees.shownShippingFees !== null && shopFees.shownShippingFees !== '')
         ? Number(shopFees.shownShippingFees)
         : Number(shopFees.shippingFees));
-    if (!Number.isFinite(shipping) || shipping < 0) shipping = 0;
-    const total = cod + shipping;
+    if (!Number.isFinite(shippingValue) || shippingValue < 0) shippingValue = 0;
+    const subTotal = isShopify ? itemsSum : cod;
+    const shippingTaxes = isShopify ? Math.max(0, cod - itemsSum) : shippingValue;
+    const total = isShopify ? cod : (cod + shippingValue);
+    const totalsRows = isShopify
+      ? `<tr><td>Sub Total:</td><td>${subTotal.toFixed(2)} EGP</td></tr>`
+        + `<tr><td>Shipping & Taxes:</td><td>${shippingTaxes.toFixed(2)} EGP</td></tr>`
+        + `<tr><td><b>Total:</b></td><td><b>${total.toFixed(2)} EGP</b></td></tr>`
+      : `<tr><td>Sub Total:</td><td>${subTotal.toFixed(2)} EGP</td></tr>`
+        + `<tr><td>Shipping:</td><td>${shippingValue.toFixed(2)} EGP</td></tr>`
+        + `<tr><td><b>Total:</b></td><td><b>${total.toFixed(2)} EGP</b></td></tr>`;
     const shopName = shopFees.businessName || '-';
     // Build AWB HTML
     const awbHtml = `
@@ -315,22 +459,22 @@ const ShopPackages = () => {
             <div class="awb-section">
               <table class="awb-info-table">
                 <tr>
-                  <td><span class="awb-row"><b class="awb-tracking">Tracking #:</b><span class="awb-tracking awb-data">${pkg.trackingNumber || '-'}</span></span>
+                  <td><span class="awb-row"><b class="awb-tracking">Tracking #:</b><span class="awb-tracking awb-data">${awbPkg.trackingNumber || '-'}</span></span>
                   <div class="awb-shop-name">Shop Name: ${shopName}</div>
                 </td>
-                  <td><b>Date:</b> ${pkg.createdAt ? new Date(pkg.createdAt).toLocaleDateString() : '-'}</td>
+                  <td><b>Date:</b> ${awbPkg.createdAt ? new Date(awbPkg.createdAt).toLocaleDateString() : '-'}</td>
                 </tr>
                 <tr>
                   <td colspan="2">
-                    <span class="awb-row"><b class="awb-recipient">Recipient: ${pkg.deliveryContactName || '-'}</b></span><br/>
-                    <span class="awb-row"><b class="awb-phone">Phone: ${pkg.deliveryContactPhone || '-'}</b></span><br/>
-                    <span class="awb-row"><b class="awb-address">Address: ${pkg.deliveryAddress || '-'}</b></span>
+                    <span class="awb-row"><b class="awb-recipient">Recipient: ${awbPkg.deliveryContactName || '-'}</b></span><br/>
+                    <span class="awb-row"><b class="awb-phone">Phone: ${awbPkg.deliveryContactPhone || '-'}</b></span><br/>
+                    <span class="awb-row"><b class="awb-address">Address: ${awbPkg.deliveryAddress || '-'}</b></span>
                   </td>
                 </tr>
               </table>
             </div>
             <div class="awb-section">
-              <b>Description:</b> ${pkg.packageDescription || '-'}
+              <b>Description:</b> ${awbPkg.packageDescription || '-'}
             </div>
             <table class="awb-table">
               <thead>
@@ -338,8 +482,8 @@ const ShopPackages = () => {
               </thead>
               <tbody>
                 ${
-                  pkg.Items && pkg.Items.length > 0
-                    ? pkg.Items.map(item => `
+                  awbPkg.Items && awbPkg.Items.length > 0
+                    ? awbPkg.Items.map(item => `
                       <tr>
                         <td>${item.description || '-'}</td>
                         <td>${item.quantity}</td>
@@ -348,8 +492,8 @@ const ShopPackages = () => {
                       </tr>
                     `).join('')
                     : `<tr>
-                        <td>${pkg.packageDescription || '-'}</td>
-                        <td>${pkg.itemsNo ?? 1}</td>
+                        <td>${awbPkg.packageDescription || '-'}</td>
+                        <td>${awbPkg.itemsNo ?? 1}</td>
                         <td>${cod.toFixed(2)} EGP</td>
                         <td>${cod.toFixed(2)} EGP</td>
                       </tr>`
@@ -361,9 +505,7 @@ const ShopPackages = () => {
             </div>
             <div class="awb-section" style="display:flex;justify-content:flex-end;">
               <table class="awb-info-table" style="width:300px;">
-                <tr><td>Sub Total:</td><td>${cod.toFixed(2)} EGP</td></tr>
-                <tr><td>Shipping:</td><td>${shipping.toFixed(2)} EGP</td></tr>
-                <tr><td><b>Total:</b></td><td><b>${total.toFixed(2)} EGP</b></td></tr>
+                ${totalsRows}
               </table>
             </div>
             <div class="awb-footer">Thank you for your order!</div>
@@ -467,7 +609,6 @@ const ShopPackages = () => {
           <div class="awb-section" style="display:flex;justify-content:flex-end;">
             <table class="awb-info-table" style="width:300px;">
               <tr><td>Sub Total:</td><td>${cod.toFixed(2)} EGP</td></tr>
-              <tr><td>Shipping:</td><td>${shipping.toFixed(2)} EGP</td></tr>
               <tr><td><b>Total:</b></td><td><b>${total.toFixed(2)} EGP</b></td></tr>
             </table>
           </div>
@@ -648,16 +789,7 @@ const ShopPackages = () => {
                             >
                               Cancel
                             </button>
-                            <button
-                              className="action-button print-awb-btn"
-                              style={{marginLeft:'0.5rem'}}
-                              onClick={async (e) => {
-                                e.stopPropagation();
-                                await handlePrintAWB(pkg);
-                              }}
-                            >
-                              Print AWB
-                            </button>
+
                           </>
                         )}
                       </td>
@@ -711,9 +843,134 @@ const ShopPackages = () => {
           <div className="modal-content" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h2>Package Details</h2>
+              {canEditThisPackage(selectedPackage) && !isEditingDetails && (
+                <button className="btn" style={{ background: '#007bff', color: '#fff', marginRight: 8 }} onClick={() => openEditDetails(selectedPackage)}>
+                  Edit
+                </button>
+              )}
+              <button className="btn" style={{ background: '#6c757d', color: '#fff', marginRight: 8 }} onClick={() => handlePrintAWB(selectedPackage)}>
+                Print AWB
+              </button>
               <button className="btn close-btn" onClick={() => setShowPackageDetailsModal(false)}>&times;</button>
             </div>
             <div className="modal-body">
+              
+              {isEditingDetails && (
+                <div className="edit-details-panel" style={{ border: '1px solid #eaeaea', borderRadius: 12, padding: '1rem', marginBottom: '1rem', background: '#ffffff', boxShadow: '0 1px 2px rgba(16,24,40,0.06)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                    <h4 style={{ margin: 0, fontSize: '1.1rem' }}>Edit Package (pre-pickup)</h4>
+                    <span style={{ fontSize: 12, background: '#eef2ff', color: '#3949ab', padding: '4px 8px', borderRadius: 999 }}>Awaiting pickup</span>
+                  </div>
+                  {saveDetailsError && <div style={{ color: '#dc3545', marginBottom: 10, background:'#fdecea', border: '1px solid #f5c2c7', padding: '8px 10px', borderRadius: 8 }}>{saveDetailsError}</div>}
+
+                  {/* General */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', background:'#fafafa', border:'1px solid #f1f1f1', borderRadius: 10, padding: 12, marginBottom: 12 }}>
+                    <div>
+                      <label style={{ display:'block', fontSize:12, color:'#555', marginBottom:4 }}>Description</label>
+                      <input type="text" value={editDescription} onChange={e => setEditDescription(e.target.value)} style={{ width:'100%' }} />
+                    </div>
+                    <div>
+                      <label style={{ display:'block', fontSize:12, color:'#555', marginBottom:4 }}>Priority</label>
+                      <select value={editPriority} onChange={e => setEditPriority(e.target.value)} style={{ width:'100%' }}>
+                        <option value="normal">Normal</option>
+                        <option value="express">Express</option>
+                        <option value="same-day">Same Day</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ display:'block', fontSize:12, color:'#555', marginBottom:4 }}>Type</label>
+                      <select value={editType} onChange={e => setEditType(e.target.value)} style={{ width:'100%' }}>
+                        <option value="new">New Package</option>
+                        <option value="return">Return</option>
+                        <option value="exchange">Exchange</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Recipient & Address */}
+                  <div style={{ background:'#fafafa', border:'1px solid #f1f1f1', borderRadius: 10, padding: 12, marginBottom: 12 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                      <div>
+                        <label style={{ display:'block', fontSize:12, color:'#555', marginBottom:4 }}>Recipient Name</label>
+                        <input type="text" value={editRecipientName} onChange={e => setEditRecipientName(e.target.value)} style={{ width:'100%' }} />
+                      </div>
+                      <div>
+                        <label style={{ display:'block', fontSize:12, color:'#555', marginBottom:4 }}>Recipient Phone</label>
+                        <input type="tel" value={editRecipientPhone} onChange={e => setEditRecipientPhone(e.target.value.replace(/[^0-9]/g, ''))} style={{ width:'100%' }} />
+                      </div>
+                      <div>
+                        <label style={{ display:'block', fontSize:12, color:'#555', marginBottom:4 }}>Street</label>
+                        <input type="text" value={editStreet} onChange={e => setEditStreet(e.target.value)} style={{ width:'100%' }} />
+                      </div>
+                      <div>
+                        <label style={{ display:'block', fontSize:12, color:'#555', marginBottom:4 }}>City</label>
+                        <input type="text" value={editCity} onChange={e => setEditCity(e.target.value)} style={{ width:'100%' }} />
+                      </div>
+                      <div>
+                        <label style={{ display:'block', fontSize:12, color:'#555', marginBottom:4 }}>State</label>
+                        <input type="text" value={editState} onChange={e => setEditState(e.target.value)} style={{ width:'100%' }} />
+                      </div>
+                      <div>
+                        <label style={{ display:'block', fontSize:12, color:'#555', marginBottom:4 }}>Zip Code</label>
+                        <input type="text" value={editZip} onChange={e => setEditZip(e.target.value)} style={{ width:'100%' }} />
+                      </div>
+                      <div>
+                        <label style={{ display:'block', fontSize:12, color:'#555', marginBottom:4 }}>Country</label>
+                        <input type="text" value={editCountry} onChange={e => setEditCountry(e.target.value)} style={{ width:'100%' }} />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Dimensions & Weight + Schedule */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: 12 }}>
+                    <div style={{ background:'#fafafa', border:'1px solid #f1f1f1', borderRadius: 10, padding: 12 }}>
+                      <label style={{ display:'block', fontSize:12, color:'#555', marginBottom:6 }}>Weight (kg)</label>
+                      <input type="number" step="0.01" value={editWeight} onChange={e => setEditWeight(e.target.value)} style={{ width:'100%', marginBottom: 8 }} />
+                      <label style={{ display:'block', fontSize:12, color:'#555', marginBottom:6 }}>Dimensions (L × W × H)</label>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <input type="number" placeholder="L" value={editLen} onChange={e => setEditLen(e.target.value)} style={{ width: '33%' }} />
+                        <input type="number" placeholder="W" value={editWid} onChange={e => setEditWid(e.target.value)} style={{ width: '33%' }} />
+                        <input type="number" placeholder="H" value={editHei} onChange={e => setEditHei(e.target.value)} style={{ width: '33%' }} />
+                      </div>
+                    </div>
+                    <div style={{ background:'#fafafa', border:'1px solid #f1f1f1', borderRadius: 10, padding: 12 }}>
+                      <label style={{ display:'block', fontSize:12, color:'#555', marginBottom:6 }}>Schedule Pickup Time</label>
+                      <input type="datetime-local" value={editSchedulePickupTime} onChange={e => setEditSchedulePickupTime(e.target.value)} style={{ width:'100%' }} />
+                    </div>
+                  </div>
+
+                  {/* Items */}
+                  <div style={{ background:'#fafafa', border:'1px solid #f1f1f1', borderRadius: 10, padding: 12, marginBottom: 12 }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
+                      <h5 style={{ margin: 0 }}>Items</h5>
+                      <button className="btn" style={{ background: '#17a2b8', color: '#fff' }} onClick={() => setEditItems(prev => [...prev, { description: '', quantity: 1, codPerUnit: '0' }])}>Add Item</button>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      {editItems.map((it, idx) => (
+                        <div key={idx} style={{ border:'1px solid #eaeaea', borderRadius: 10, padding: 10, background:'#fff', boxShadow:'0 1px 1px rgba(16,24,40,0.04)' }}>
+                          <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr 1fr auto', gap: 8, alignItems:'center' }}>
+                            <input type="text" placeholder="Description" value={it.description} onChange={e => setEditItems(prev => prev.map((p,i)=> i===idx?{...p, description: e.target.value}:p))} />
+                            <input type="number" placeholder="Qty" min="1" value={it.quantity} onChange={e => setEditItems(prev => prev.map((p,i)=> i===idx?{...p, quantity: e.target.value}:p))} />
+                            <input type="number" placeholder="COD / unit" step="0.01" value={it.codPerUnit} onChange={e => setEditItems(prev => prev.map((p,i)=> i===idx?{...p, codPerUnit: e.target.value}:p))} />
+                            <button className="btn" style={{ background: '#dc3545', color: '#fff' }} onClick={() => setEditItems(prev => prev.filter((_,i)=> i!==idx))}>Remove</button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Shop Notes */}
+                  <div style={{ background:'#fafafa', border:'1px solid #f1f1f1', borderRadius: 10, padding: 12 }}>
+                    <label style={{ display:'block', fontSize:12, color:'#555', marginBottom:6 }}>Shop Notes</label>
+                    <textarea rows={3} value={editShopNotes} onChange={e => setEditShopNotes(e.target.value)} style={{ width: '100%' }} />
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: 12 }}>
+                    <button className="btn" style={{ background: '#6c757d', color: '#fff' }} onClick={() => setIsEditingDetails(false)} disabled={savingDetails}>Cancel</button>
+                    <button className="btn" style={{ background: '#28a745', color: '#fff' }} onClick={saveEditedDetails} disabled={savingDetails}>{savingDetails ? 'Saving...' : 'Save'}</button>
+                  </div>
+                </div>
+              )}
               <div className="details-grid">
                 <div className="detail-item">
                   <span className="label">Tracking #</span>
@@ -752,6 +1009,10 @@ const ShopPackages = () => {
                   <span>${parseFloat(selectedPackage.codAmount || 0).toFixed(2)} {getCodBadge(selectedPackage.isPaid)}</span>
                 </div>
                 <div className="detail-item">
+                  <span className="label">Type</span>
+                  <span>{selectedPackage.type || 'new'}</span>
+                </div>
+                <div className="detail-item">
                   <span className="label">Delivery Cost</span>
                   <span>${parseFloat(selectedPackage.deliveryCost || 0).toFixed(2)}</span>
                 </div>
@@ -785,7 +1046,7 @@ const ShopPackages = () => {
                             }
                             setSavingShownDeliveryCost(true);
                             try {
-                              await packageService.updatePackage(selectedPackage.id, { shownDeliveryCost: parseFloat(newShownDeliveryCost) });
+                              await packageService.updatePackage(selectedPackage.id, { shownDeliveryCost: newShownDeliveryCost === '' ? null : parseFloat(newShownDeliveryCost) });
                               // Store the package ID to reopen modal after refresh
                               localStorage.setItem('reopenPackageModal', selectedPackage.id);
                               // Refresh the entire page to get fresh data
@@ -811,15 +1072,17 @@ const ShopPackages = () => {
                     ) : (
                       <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <span style={{ fontWeight: 500 }}>${parseFloat(selectedPackage.shownDeliveryCost).toFixed(2)}</span>
-                        <button
-                          style={{ background: '#fff', border: '1px solid #007bff', color: '#007bff', borderRadius: 4, padding: '4px 12px', marginLeft: 4, cursor: 'pointer', fontWeight: 'bold' }}
-                          onClick={() => {
-                            setEditingShownDeliveryCost(true);
-                            setNewShownDeliveryCost(selectedPackage.shownDeliveryCost !== undefined && selectedPackage.shownDeliveryCost !== null ? String(selectedPackage.shownDeliveryCost) : '0');
-                          }}
-                        >
-                          Edit
-                        </button>
+                        {(['awaiting_schedule','scheduled_for_pickup'].includes((selectedPackage.status || '').toLowerCase())) && (
+                          <button
+                            style={{ background: '#fff', border: '1px solid #007bff', color: '#007bff', borderRadius: 4, padding: '4px 12px', marginLeft: 4, cursor: 'pointer', fontWeight: 'bold' }}
+                            onClick={() => {
+                              setEditingShownDeliveryCost(true);
+                              setNewShownDeliveryCost(selectedPackage.shownDeliveryCost !== undefined && selectedPackage.shownDeliveryCost !== null ? String(selectedPackage.shownDeliveryCost) : '');
+                            }}
+                          >
+                            Edit
+                          </button>
+                        )}
                       </span>
                     )}
                   </div>

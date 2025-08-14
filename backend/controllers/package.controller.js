@@ -23,7 +23,8 @@ exports.createPackage = async (req, res) => {
       paymentNotes,
       shopNotes,
       itemsNo,
-      items
+      items,
+      shownDeliveryCost
     } = req.body;
 
     // Verify that user is a shop
@@ -61,8 +62,23 @@ exports.createPackage = async (req, res) => {
       calculatedCodAmount = parseFloat(codAmount) || 0;
     }
 
+    // Resolve shown delivery cost using precedence: provided -> shop.shownShippingFees -> shop.shippingFees -> 0
+    const resolvedShownDeliveryCost = (shownDeliveryCost !== undefined && shownDeliveryCost !== null && shownDeliveryCost !== '')
+      ? (parseFloat(shownDeliveryCost) || 0)
+      : (
+          (shop.shownShippingFees !== undefined && shop.shownShippingFees !== null && shop.shownShippingFees !== '')
+            ? (parseFloat(shop.shownShippingFees) || 0)
+            : ((shop.shippingFees !== undefined && shop.shippingFees !== null && shop.shippingFees !== '') ? (parseFloat(shop.shippingFees) || 0) : 0)
+        );
+
+    // Determine if this is a Shopify package
+    const isShopify = (req.body.shopifyOrderId !== undefined && req.body.shopifyOrderId !== null && req.body.shopifyOrderId !== '');
+
+    // For non-Shopify: COD should include items total + shown delivery cost
+    const codToSave = isShopify ? calculatedCodAmount : (calculatedCodAmount + resolvedShownDeliveryCost);
+
     // Create package with proper handling of COD amount and contact information
-    const package = await Package.create({
+    const pkg = await Package.create({
       shopId: shop.id,
       userId: req.user.id,
       trackingNumber,
@@ -80,10 +96,11 @@ exports.createPackage = async (req, res) => {
       deliveryAddress: `${deliveryAddress.street}, ${deliveryAddress.city}, ${deliveryAddress.state} ${deliveryAddress.zipCode}, ${deliveryAddress.country}`,
       schedulePickupTime: formatDateTimeToDDMMYYYY(getCairoDateTime(schedulePickupTime)),
       priority: priority || 'normal',
-      // Financial information - COD amount calculated from items
-      codAmount: calculatedCodAmount,
+      // Financial information - COD amount calculated from items (+ shownDeliveryCost for non-Shopify)
+      type: (req.body.type === 'return' || req.body.type === 'exchange') ? req.body.type : 'new',
+      codAmount: codToSave,
       deliveryCost: shop.shippingFees != null ? parseFloat(shop.shippingFees) : (parseFloat(deliveryCost) || 0),
-      shownDeliveryCost: shop.shownShippingFees != null ? parseFloat(shop.shownShippingFees) : 0,
+      shownDeliveryCost: resolvedShownDeliveryCost,
       paymentMethod: paymentMethod || null,
       paymentNotes: paymentNotes || null,
       shopNotes: shopNotes || null,
@@ -91,8 +108,8 @@ exports.createPackage = async (req, res) => {
       isPaid: false,
       paymentStatus: 'pending'
     });
-    
-    console.log(`Created package with ID ${package.id}, tracking number ${trackingNumber}`);
+
+    console.log(`Created package with ID ${pkg.id}, tracking number ${trackingNumber}`);
     if (calculatedCodAmount > 0) {
       console.log(`Package has COD amount of ${calculatedCodAmount} (calculated from ${items ? items.length : 0} items)`);
     }
@@ -105,8 +122,8 @@ exports.createPackage = async (req, res) => {
           userId: adminUser.id,
           userType: 'admin',
           title: 'New Package Created',
-          message: `A new package (Tracking: ${package.trackingNumber}) was created by shop ${shop.businessName}.`,
-          data: { packageId: package.id, shopId: shop.id, shopName: shop.businessName }
+          message: `A new package (Tracking: ${pkg.trackingNumber}) was created by shop ${shop.businessName}.`,
+          data: { packageId: pkg.id, shopId: shop.id, shopName: shop.businessName }
         });
       }
     } catch (notifyErr) {
@@ -121,7 +138,7 @@ exports.createPackage = async (req, res) => {
         const codAmount = codPerUnit * quantity;
         
         return {
-          packageId: package.id,
+          packageId: pkg.id,
           description: item.description,
           quantity: quantity,
           codAmount: codAmount
@@ -129,10 +146,10 @@ exports.createPackage = async (req, res) => {
       });
 
       await Item.bulkCreate(itemsToCreate);
-      console.log(`Created ${itemsToCreate.length} items for package ${package.id}`);
+      console.log(`Created ${itemsToCreate.length} items for package ${pkg.id}`);
     }
 
-    res.status(201).json(package);
+    res.status(201).json(pkg);
   } catch (error) {
     console.error('Error creating package:', error);
     res.status(500).json({ message: error.message });
@@ -144,8 +161,10 @@ exports.getPackages = async (req, res) => {
   try {
     const { 
       status, priority, search, fromDate, toDate, 
-      page = 1, limit = 10, sort = 'createdAt' 
+      page = 1, limit: rawLimit = 10, sort = 'createdAt', assignedToMe 
     } = req.query;
+    // If the requester is a driver and did not pass an explicit limit, increase default to show all
+    const limit = (req.user.role === 'driver' && (rawLimit === undefined || rawLimit === null)) ? 10000 : rawLimit;
     
     // Build filter object
     const where = {};
@@ -206,6 +225,7 @@ exports.getPackages = async (req, res) => {
     const { count, rows: packages } = await Package.findAndCountAll({
       attributes: [
         'id', 'trackingNumber', 'packageDescription', 'weight', 'dimensions',
+        'type',
         'status', 'shopId', 'userId', 'driverId',
         'pickupContactName', 'pickupContactPhone', 'pickupAddress',
         'deliveryContactName', 'deliveryContactPhone', 'deliveryAddress',
@@ -213,7 +233,7 @@ exports.getPackages = async (req, res) => {
         'actualPickupTime', 'actualDeliveryTime',
         'priority', 'paymentStatus', 'createdAt', 'updatedAt',
         'codAmount', 'deliveryCost', 'shownDeliveryCost', 'isPaid', 'paymentDate', 'notes', 'shopNotes',
-        'itemsNo'
+        'itemsNo', 'shopifyOrderId'
       ],
       where,
       limit: parseInt(limit),
@@ -255,7 +275,8 @@ exports.getPackageById = async (req, res) => {
     const package = await Package.findByPk(req.params.id, {
       attributes: [
         'id', 'trackingNumber', 'packageDescription', 'weight', 'dimensions',
-        'status', 'shopId', 'userId', 'driverId',
+        'type',
+        'status', 'shopId', 'userId', 'driverId', 'shopifyOrderId',
         'pickupContactName', 'pickupContactPhone', 'pickupAddress',
         'deliveryContactName', 'deliveryContactPhone', 'deliveryAddress',
         'schedulePickupTime', 'estimatedDeliveryTime',
@@ -557,13 +578,43 @@ exports.updatePackageStatus = async (req, res) => {
           }
         );
         
-        // Log revenue transaction for the shop
+        // Log revenue under admin shop (not visible to the shop)
+        let adminShop = await Shop.findOne({ where: { businessName: 'ADMIN_SYSTEM' }, transaction: t });
+        if (!adminShop) {
+          adminShop = await Shop.create({
+            userId: 1,
+            businessName: 'ADMIN_SYSTEM',
+            businessType: 'System',
+            address: 'System Address',
+            ToCollect: 0,
+            TotalCollected: 0,
+            settelled: 0
+          }, { transaction: t });
+        }
         await logMoneyTransaction(
-          shop.id, 
-          deliveryCost, 
-          'Revenue', 
-          'increase', 
-          `Package ${package.trackingNumber} delivered (delivery cost revenue)`, 
+          adminShop.id,
+          deliveryCost,
+          'Revenue',
+          'increase',
+          `Package ${package.trackingNumber} delivered (delivery cost revenue)`,
+          t
+        );
+
+        // NEW: Deduct delivery cost from shop's TotalCollected and log it
+        await sequelize.query(
+          'UPDATE Shops SET TotalCollected = CASE WHEN TotalCollected - :amount < 0 THEN 0 ELSE TotalCollected - :amount END WHERE id = :shopId',
+          {
+            replacements: { amount: deliveryCost, shopId: shop.id },
+            type: sequelize.QueryTypes.UPDATE,
+            transaction: t
+          }
+        );
+        await logMoneyTransaction(
+          shop.id,
+          deliveryCost,
+          'TotalCollected',
+          'decrease',
+          `Package ${package.trackingNumber} delivered (delivery cost deducted)`,
           t
         );
       }
@@ -738,7 +789,7 @@ exports.updatePackage = async (req, res) => {
       'packageDescription', 'weight', 'dimensions', 
       'pickupAddress', 'deliveryAddress', 'schedulePickupTime',
       'priority', 'notes', 'deliveryFee',
-      'shownDeliveryCost'
+      'shownDeliveryCost', 'shopNotes', 'items', 'type'
     ];
     
     // Filter out fields that are not allowed to be updated
@@ -761,10 +812,11 @@ exports.updatePackage = async (req, res) => {
       if (!shop || package.shopId !== shop.id) {
         return res.status(403).json({ message: 'Unauthorized access' });
       }
-      // Shops can only update shownDeliveryCost for any status, other fields only if pending
-      const onlyShownDeliveryCost = Object.keys(filteredUpdateData).every(key => key === 'shownDeliveryCost');
-      if (!onlyShownDeliveryCost && package.status !== 'pending') {
-        return res.status(403).json({ message: 'Can only update packages with pending status, except shownDeliveryCost' });
+      // Shops can edit package details ONLY before pending (i.e., before pickup)
+      const prePendingStatuses = ['awaiting_schedule', 'scheduled_for_pickup'];
+      const isPrePending = prePendingStatuses.includes((package.status || '').toLowerCase());
+      if (!isPrePending) {
+        return res.status(403).json({ message: 'Shops can only update package details before pending status.' });
       }
       // Prevent shownDeliveryCost > deliveryCost
       if (
@@ -799,9 +851,58 @@ exports.updatePackage = async (req, res) => {
       filteredUpdateData.deliveryContactName = da.contactName;
       filteredUpdateData.deliveryContactPhone = da.contactPhone;
     }
+
+    const isShopify = (package.shopifyOrderId !== undefined && package.shopifyOrderId !== null && package.shopifyOrderId !== '');
     
     // Update package
-    await package.update(filteredUpdateData);
+    // If items are provided, we need a transaction to replace items and recalc COD
+    if (Array.isArray(updateData.items)) {
+      // Shops can only edit items pre-pending due to earlier guard
+      const t = await sequelize.transaction();
+      try {
+        // Replace items
+        await Item.destroy({ where: { packageId: package.id }, transaction: t });
+        const itemsToCreate = updateData.items.map((it) => {
+          const quantity = parseInt(it.quantity) || 1;
+          const codPerUnit = parseFloat(it.codPerUnit) || 0;
+          return {
+            packageId: package.id,
+            description: it.description,
+            quantity,
+            codAmount: codPerUnit * quantity
+          };
+        });
+        await Item.bulkCreate(itemsToCreate, { transaction: t });
+        // Recalculate totals
+        const itemsCodSum = itemsToCreate.reduce((sum, it) => sum + (parseFloat(it.codAmount) || 0), 0);
+        const newItemsNo = itemsToCreate.reduce((sum, it) => sum + (parseInt(it.quantity) || 0), 0);
+        filteredUpdateData.itemsNo = newItemsNo;
+        // Determine shown delivery cost to use (new value if provided, else existing)
+        const newShown = ('shownDeliveryCost' in filteredUpdateData)
+          ? (filteredUpdateData.shownDeliveryCost === null || filteredUpdateData.shownDeliveryCost === '' ? 0 : (parseFloat(filteredUpdateData.shownDeliveryCost) || 0))
+          : (parseFloat(package.shownDeliveryCost) || 0);
+        filteredUpdateData.codAmount = isShopify ? itemsCodSum : (itemsCodSum + newShown);
+        await package.update(filteredUpdateData, { transaction: t });
+        await t.commit();
+      } catch (err) {
+        await t.rollback();
+        return res.status(400).json({ message: err.message || 'Failed to update items.' });
+      }
+    } else {
+      // If shownDeliveryCost changes for non-Shopify, recalc codAmount as items total + shown
+      const changingShown = ('shownDeliveryCost' in filteredUpdateData);
+      await package.update(filteredUpdateData);
+      if (changingShown && !isShopify) {
+        // Sum items COD from Items table
+        const itemsRows = await Item.findAll({ where: { packageId: package.id } });
+        const itemsCodSum = itemsRows.reduce((sum, it) => sum + (parseFloat(it.codAmount) || 0), 0);
+        const newShown = (package.shownDeliveryCost === null || package.shownDeliveryCost === undefined || package.shownDeliveryCost === '')
+          ? 0
+          : (parseFloat(package.shownDeliveryCost) || 0);
+        const newCod = itemsCodSum + newShown;
+        await package.update({ codAmount: newCod });
+      }
+    }
     
     // Fetch the updated package with associations
     const updatedPackage = await Package.findByPk(id, {

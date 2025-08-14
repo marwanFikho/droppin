@@ -5,6 +5,7 @@ import { adminService, packageService, notificationService } from '../../service
 import './MobileAdminDashboard.css';
 import { useTranslation } from 'react-i18next';
 import { FaTrashAlt } from 'react-icons/fa';
+import QRCode from 'qrcode';
 
 const MobileAdminDashboard = () => {
   const { currentUser } = useAuth();
@@ -157,6 +158,15 @@ const MobileAdminDashboard = () => {
           filteredPackages = filteredPackages.slice().sort((a, b) => {
             const aTime = a.actualDeliveryTime ? new Date(a.actualDeliveryTime).getTime() : 0;
             const bTime = b.actualDeliveryTime ? new Date(b.actualDeliveryTime).getTime() : 0;
+            return bTime - aTime;
+          });
+        } else if (packageSubTab === 'cancelled') {
+          // Show cancelled and rejected only
+          filteredPackages = filteredPackages.filter(pkg => ['cancelled', 'rejected'].includes(pkg.status));
+          // Sort by last update time (fallback to createdAt)
+          filteredPackages = filteredPackages.slice().sort((a, b) => {
+            const aTime = a.updatedAt ? new Date(a.updatedAt).getTime() : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+            const bTime = b.updatedAt ? new Date(b.updatedAt).getTime() : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
             return bTime - aTime;
           });
         } else {
@@ -720,6 +730,135 @@ const MobileAdminDashboard = () => {
     }
   }, [statusMessage]);
 
+  // Print AWB (admin mobile)
+  const handlePrintAWB = async (pkg) => {
+    try {
+      // Ensure we have Items for AWB
+      let packageForAwb = pkg;
+      if (!pkg?.Items || !Array.isArray(pkg.Items)) {
+        try {
+          const resp = await packageService.getPackageById(pkg.id);
+          if (resp && resp.data) packageForAwb = resp.data;
+        } catch (e) {}
+      }
+
+      const qrDataUrl = await QRCode.toDataURL(packageForAwb.trackingNumber || '');
+      const logoUrl = window.location.origin + '/logo.jpg';
+      const cod = parseFloat((packageForAwb.codAmount != null ? packageForAwb.codAmount : pkg.codAmount) || 0);
+      const isShopify = (packageForAwb.shopifyOrderId !== undefined && packageForAwb.shopifyOrderId !== null && packageForAwb.shopifyOrderId !== '');
+      const itemsSum = (Array.isArray(packageForAwb.Items) && packageForAwb.Items.length > 0)
+        ? packageForAwb.Items.reduce((sum, it) => sum + (parseFloat(it.codAmount || 0) || 0), 0)
+        : cod;
+      const shippingValue = Number(packageForAwb.shownDeliveryCost ?? packageForAwb.deliveryCost ?? pkg.shownDeliveryCost ?? pkg.deliveryCost ?? 0) || 0;
+      const subTotal = isShopify ? itemsSum : cod;
+      const shippingTaxes = isShopify ? Math.max(0, cod - itemsSum) : shippingValue;
+      const total = isShopify ? cod : (cod + shippingValue);
+      const shopName = packageForAwb.Shop?.businessName || packageForAwb.shop?.businessName || '-';
+      const awbPkg = packageForAwb;
+      const totalsRows = isShopify
+        ? `<tr><td>Sub Total:</td><td>${subTotal.toFixed(2)} EGP</td></tr>`
+          + `<tr><td>Shipping & Taxes:</td><td>${shippingTaxes.toFixed(2)} EGP</td></tr>`
+          + `<tr><td><b>Total:</b></td><td><b>${total.toFixed(2)} EGP</b></td></tr>`
+        : `<tr><td>Sub Total:</td><td>${subTotal.toFixed(2)} EGP</td></tr>`
+          + `<tr><td>Shipping:</td><td>${shippingValue.toFixed(2)} EGP</td></tr>`
+          + `<tr><td><b>Total:</b></td><td><b>${total.toFixed(2)} EGP</b></td></tr>`;
+      const awbHtml = `
+        <html>
+          <head>
+            <title>Droppin Air Waybill</title>
+            <style>
+              body { font-family: Arial, sans-serif; background: #fff; color: #111; margin: 0; padding: 0; }
+              .awb-container { width: 800px; margin: 0 auto; padding: 32px; background: #fff; }
+              .awb-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #111; padding-bottom: 16px; }
+              .awb-logo { height: 80px; width: auto; }
+              .awb-title { font-size: 2rem; font-weight: bold; }
+              .awb-shop-name { font-size: 1.2rem; font-weight: bold; color: #004b6f; margin-top: 4px; }
+              .awb-section { margin-top: 24px; }
+              .awb-table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+              .awb-table th, .awb-table td { border: 1px solid #111; padding: 8px; text-align: left; }
+              .awb-table th { background: #f5f5f5; }
+              .awb-info-table { width: 100%; margin-top: 16px; }
+              .awb-info-table td { padding: 4px 8px; }
+              .awb-footer { margin-top: 32px; text-align: center; font-size: 1.1rem; font-weight: bold; }
+              .awb-tracking { font-size: 22px; font-weight: bold; }
+              .awb-recipient { font-size: 18px; font-weight: bold; }
+              .awb-phone { font-size: 18px; font-weight: bold; }
+              .awb-address { font-size: 18px; font-weight: bold; }
+              .awb-data { margin-left: 0; }
+              .awb-row { display: block; }
+            </style>
+          </head>
+          <body onload="window.print()">
+            <div class="awb-container">
+              <div class="awb-header">
+                <img src="${logoUrl}" class="awb-logo" alt="Droppin Logo" />
+                <div>
+                  <img src="${qrDataUrl}" alt="QR Code" style="height:140px;width:140px;" />
+                </div>
+              </div>
+              <div class="awb-section">
+                <table class="awb-info-table">
+                  <tr>
+                    <td><span class="awb-row"><b class="awb-tracking">Tracking #:</b><span class="awb-tracking awb-data">${awbPkg.trackingNumber || '-'}</span></span>
+                    <div class="awb-shop-name">Shop Name: ${shopName}</div>
+                    </td>
+                    <td><b>Date:</b> ${awbPkg.createdAt ? new Date(awbPkg.createdAt).toLocaleDateString() : '-'}</td>
+                  </tr>
+                  <tr>
+                    <td colspan="2">
+                      <span class="awb-row"><b class="awb-recipient">Recipient:</b><span class="awb-recipient awb-data">${awbPkg.deliveryContactName || '-'}</span></span><br/>
+                      <span class="awb-row"><b class="awb-phone">Phone:</b><span class="awb-phone awb-data">${awbPkg.deliveryContactPhone || '-'}</span></span><br/>
+                      <span class="awb-row"><b class="awb-address">Address:</b><span class="awb-address awb-data">${awbPkg.deliveryAddress || '-'}</span></span>
+                    </td>
+                  </tr>
+                </table>
+              </div>
+              <div class="awb-section">
+                <b>Description:</b> ${awbPkg.packageDescription || '-'}
+              </div>
+              <table class="awb-table">
+                <thead>
+                  <tr><th>Item</th><th>Qty</th><th>COD Per Unit</th><th>Total COD</th></tr>
+                </thead>
+                <tbody>
+                  ${
+                    awbPkg.Items && awbPkg.Items.length > 0
+                      ? awbPkg.Items.map(item => `
+                        <tr>
+                          <td>${item.description || '-'}</td>
+                          <td>${item.quantity}</td>
+                          <td>${item.codAmount && item.quantity ? (item.codAmount / item.quantity).toFixed(2) : '0.00'} EGP</td>
+                          <td>${parseFloat(item.codAmount || 0).toFixed(2)} EGP</td>
+                        </tr>
+                      `).join('')
+                      : `<tr>
+                          <td>${awbPkg.packageDescription || '-'}</td>
+                          <td>${awbPkg.itemsNo ?? 1}</td>
+                          <td>${cod.toFixed(2)} EGP</td>
+                          <td>${cod.toFixed(2)} EGP</td>
+                        </tr>`
+                  }
+                </tbody>
+              </table>
+              <div class="awb-section" style="display:flex;justify-content:flex-end;">
+                <table class="awb-info-table" style="width:300px;">
+                  ${totalsRows}
+                </table>
+              </div>
+              <div class="awb-footer">Thank you for your order!</div>
+            </div>
+          </body>
+        </html>
+      `;
+      const w = window.open('', '_blank');
+      w.document.open();
+      w.document.write(awbHtml);
+      w.document.close();
+    } catch (e) {
+      alert('Failed to generate AWB');
+    }
+  };
+
   if (loading) {
     return <div className="loading-container">Loading...</div>;
   }
@@ -1070,6 +1209,12 @@ const MobileAdminDashboard = () => {
                 Delivered
               </button>
               <button
+                className={`mobile-admin-dashboard-sub-tab ${packageSubTab === 'cancelled' ? 'active' : ''}`}
+                onClick={() => setPackageSubTab('cancelled')}
+              >
+                Cancelled
+              </button>
+              <button
                 className={`mobile-admin-dashboard-sub-tab ${packageSubTab === 'return-to-shop' ? 'active' : ''}`}
                 onClick={() => setPackageSubTab('return-to-shop')}
               >
@@ -1115,25 +1260,31 @@ const MobileAdminDashboard = () => {
                       const statusFlow = ['assigned', 'pickedup', 'in-transit', 'delivered'];
                       const currentIndex = statusFlow.indexOf(pkg.status);
                       const canForward = currentIndex !== -1 && currentIndex < statusFlow.length - 1;
-                      if (!canForward) return null;
-                      const nextStatus = statusFlow[currentIndex + 1];
-                      const nextLabel = {
-                        'pickedup': 'Mark as Picked Up',
-                        'in-transit': 'Mark In Transit',
-                        'delivered': 'Mark as Delivered'
-                      }[nextStatus] || 'Forward Status';
                       return (
-                        <button
-                          className="mobile-admin-dashboard-forward-btn"
-                          style={{ background: '#007bff', color: '#fff', border: 'none', borderRadius: '6px', padding: '0.5rem 1.2rem', fontWeight: 'bold', marginRight: '0.5rem', marginBottom: '0.5rem', fontSize: '1em', boxShadow: '0 1px 2px rgba(0,0,0,0.04)', cursor: 'pointer' }}
-                          onClick={async (e) => {
-                            e.stopPropagation();
-                            await packageService.updatePackageStatus(pkg.id, { status: nextStatus });
-                            fetchPackages();
-                          }}
-                        >
-                          {nextLabel}
-                        </button>
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+
+                          {canForward && (
+                            <button
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                try {
+                                  const flow = ['assigned', 'pickedup', 'in-transit', 'delivered'];
+                                  const idx = flow.indexOf(pkg.status);
+                                  const next = idx !== -1 && idx < flow.length - 1 ? flow[idx + 1] : null;
+                                  if (!next) return;
+                                  await packageService.updatePackageStatus(pkg.id, { status: next });
+                                  fetchPackages();
+                                } catch (err) {
+                                  alert('Failed to forward status');
+                                }
+                              }}
+                              className="mobile-admin-dashboard-pickup-details-btn"
+                              style={{ backgroundColor: '#007bff', color: 'white', border: 'none', padding: '6px 10px', borderRadius: '4px' }}
+                            >
+                              Forward Status
+                            </button>
+                          )}
+                        </div>
                       );
                     })()}
                     {(() => {
@@ -1282,6 +1433,15 @@ const MobileAdminDashboard = () => {
           <div className="mobile-modal-content" onClick={e => e.stopPropagation()}>
             <div className="mobile-modal-header">
               <h3>Package Details</h3>
+              <div style={{ display:'flex', justifyContent:'flex-end', marginBottom: 12 }}>
+                <button
+                  className="mobile-shop-package-details-btn"
+                  onClick={(e) => { e.stopPropagation(); handlePrintAWB(selectedPackage); }}
+                  style={{ background: '#6c757d', color: '#fff' }}
+                >
+                  Print AWB
+                </button>
+              </div>
               <button className="mobile-modal-close" onClick={closeDetailsModal}>&times;</button>
             </div>
             <div className="mobile-modal-body">
@@ -1620,7 +1780,7 @@ const MobileAdminDashboard = () => {
                         </div>
                         <div style={{ marginBottom: 8 }}>
                           <span style={{ fontWeight: 'bold', display: 'block', marginBottom: 4 }}>Current Shown Shipping Fees:</span>
-                          <span>${parseFloat(selectedUser.shownShippingFees || 0).toFixed(2)}</span>
+                          <span>{selectedUser.shownShippingFees !== null && selectedUser.shownShippingFees !== undefined ? `${parseFloat(selectedUser.shownShippingFees).toFixed(2)}` : '-'}</span>
                         </div>
                         {editingShippingFees ? (
                           <div>
@@ -1897,9 +2057,18 @@ const MobileAdminDashboard = () => {
       {selectedAdminPackage && (
         <div className="mobile-modal-overlay" onClick={() => setSelectedAdminPackage(null)}>
           <div className="mobile-modal-content" onClick={e => e.stopPropagation()}>
-            <div className="mobile-modal-header">
-              <h3>Package #{selectedAdminPackage.trackingNumber}</h3>
-              <button className="mobile-modal-close" onClick={() => setSelectedAdminPackage(null)}>&times;</button>
+            <div className="mobile-modal-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <h3 style={{ margin: 0 }}>Package #{selectedAdminPackage.trackingNumber}</h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <button
+                  className="mobile-shop-package-details-btn"
+                  onClick={(e) => { e.stopPropagation(); handlePrintAWB(selectedAdminPackage); }}
+                  style={{ background: '#007bff', color: '#fff' }}
+                >
+                  Print AWB
+                </button>
+                <button className="mobile-modal-close" onClick={() => setSelectedAdminPackage(null)}>&times;</button>
+              </div>
             </div>
             <div className="mobile-modal-body">
               <div className="mobile-modal-details-grid">
@@ -2029,91 +2198,6 @@ const MobileAdminDashboard = () => {
                     </div>
                   </div>
                 )}
-                
-                {/* Shop Notes Section */}
-                {selectedAdminPackage.shopNotes && (
-                  <div className="mobile-modal-detail-item full-width">
-                    <span className="label">Shop Notes</span>
-                    <span>{selectedAdminPackage.shopNotes}</span>
-                  </div>
-                )}
-                {/* Notes Log Section */}
-                <div className="mobile-modal-detail-item full-width">
-                  <span className="label">Notes Log</span>
-                  <div className="notes-log-list">
-                    {(() => {
-                      let notesArr = [];
-                      
-                      // Handle different types of notes data
-                      if (selectedAdminPackage?.notes) {
-                        if (Array.isArray(selectedAdminPackage.notes)) {
-                          notesArr = selectedAdminPackage.notes;
-                        } else if (typeof selectedAdminPackage.notes === 'string') {
-                          try {
-                            const parsed = JSON.parse(selectedAdminPackage.notes);
-                            notesArr = Array.isArray(parsed) ? parsed : [];
-                          } catch {
-                            notesArr = [];
-                          }
-                        } else if (typeof selectedAdminPackage.notes === 'object') {
-                          // If it's an object, try to convert to array
-                          notesArr = Object.values(selectedAdminPackage.notes).filter(item => 
-                            item && typeof item === 'object' && item.text
-                          );
-                        }
-                      }
-                      
-                      // Ensure notesArr is always an array
-                      if (!Array.isArray(notesArr)) {
-                        notesArr = [];
-                      }
-                      
-                      return (notesArr.length > 0) ? (
-                        notesArr.map((n, idx) => (
-                          <div key={idx} className="notes-log-entry">
-                            <div className="notes-log-meta">
-                              <span className="notes-log-date">
-                                {n.createdAt ? new Date(n.createdAt).toLocaleString() : 'No date'}
-                              </span>
-                            </div>
-                            <div className="notes-log-text">{n.text || n.note || 'No text'}</div>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="notes-log-empty">No notes yet.</div>
-                      );
-                    })()}
-                  </div>
-                  <textarea
-                    value={editingNotes}
-                    onChange={e => setEditingNotes(e.target.value)}
-                    placeholder="Add a note for this package..."
-                    rows={2}
-                    style={{ width: '100%', marginTop: 4 }}
-                  />
-                  <button
-                    className="mobile-modal-save-notes-btn"
-                    onClick={async () => {
-                      if (!editingNotes.trim()) return;
-                      setNotesSaving(true);
-                      setNotesError(null);
-                      try {
-                        const res = await packageService.updatePackageNotes(selectedAdminPackage.id, editingNotes);
-                        setSelectedAdminPackage(prev => ({ ...prev, notes: res.data.notes }));
-                        setEditingNotes('');
-                      } catch (err) {
-                        setNotesError('Failed to save note.');
-                      } finally {
-                        setNotesSaving(false);
-                      }
-                    }}
-                    disabled={notesSaving || !editingNotes.trim()}
-                    style={{ marginTop: 8 }}
-                  >
-                    {notesSaving ? 'Saving...' : 'Add Note'}
-                  </button>
-                  {notesError && <div className="mobile-error-message">{notesError}</div>}
-                </div>
               </div>
               <div className="mobile-modal-actions">
                 {/* Forward Status Button */}

@@ -146,7 +146,7 @@ exports.registerShop = async (req, res) => {
       contactPersonEmail: contactPerson?.email,
       isVerified: false,
       shippingFees: req.body.shippingFees || 0,
-      shownShippingFees: req.body.shippingFees || 0
+      shownShippingFees: (req.body.shownShippingFees !== undefined ? req.body.shownShippingFees : null)
     }, { transaction });
 
     // Commit the transaction if successful

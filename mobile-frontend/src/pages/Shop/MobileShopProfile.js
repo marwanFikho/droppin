@@ -204,7 +204,6 @@ const MobileShopProfile = () => {
           onChange={e => {
             let val = e.target.value.replace(/[^0-9]/g, '');
             if (val.length > 11) val = val.slice(0, 11);
-            if (val && !/^01\d{0,9}$/.test(val)) return;
             setContactPhone(val);
           }}
           required
@@ -239,7 +238,7 @@ const MobileShopProfile = () => {
                 setEditingShownShippingFees(false);
                 setShownShippingFees(shownShippingFeesDraft);
                 try {
-                  await packageService.updateShopProfile({ shownShippingFees: parseFloat(shownShippingFeesDraft) });
+                  await packageService.updateShopProfile({ shownShippingFees: shownShippingFeesDraft === '' ? null : parseFloat(shownShippingFeesDraft) });
                   // Refetch the shop profile from the backend
                   const res = await packageService.getShopProfile();
                   const shop = res.data;

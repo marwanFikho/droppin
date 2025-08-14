@@ -146,6 +146,11 @@ const MobileShopNewPickup = () => {
                       <div style={{ flex: 1 }}>
                         <span style={{ color: '#ff8c00' }}>{pkg.trackingNumber}</span> - {pkg.packageDescription}
                         <div style={{ fontSize: 12, color: '#666' }}>{pkg.deliveryAddress}</div>
+                        {(pkg.deliveryContactName || pkg.deliveryContactPhone) && (
+                          <div style={{ fontSize: 12, color: '#444' }}>
+                            Recipient: {pkg.deliveryContactName || 'N/A'}{pkg.deliveryContactPhone ? ` · ${pkg.deliveryContactPhone}` : ''}
+                          </div>
+                        )}
                         <div style={{ fontSize: 12, color: '#666' }}>COD: ${pkg.codAmount}</div>
                         {pkg.shopNotes && (
                           <div style={{ fontSize: 12, color: '#666' }}><span className="label">Shop Notes: </span><span>{pkg.shopNotes}</span></div>

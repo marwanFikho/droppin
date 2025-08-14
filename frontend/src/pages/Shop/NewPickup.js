@@ -146,6 +146,11 @@ const NewPickup = () => {
                   <div style={{ display: 'flex', flexDirection: 'column', overflow: 'visible', width: '100%' }}>
                     <span style={{ fontWeight: 'bold', color: '#ff8c00' }}>{pkg.trackingNumber}</span>
                     <span>{pkg.packageDescription}</span>
+                    {(pkg.deliveryContactName || pkg.deliveryContactPhone) && (
+                      <span style={{ fontSize: 13, color: '#444' }}>
+                        Recipient: {pkg.deliveryContactName || 'N/A'}{pkg.deliveryContactPhone ? ` · ${pkg.deliveryContactPhone}` : ''}
+                      </span>
+                    )}
                     <span className="package-cod">{pkg.deliveryAddress}</span>
                     <span className="package-cod" style={{ color: '#666' }}>COD: ${pkg.codAmount}</span>
                   </div>

@@ -18,6 +18,7 @@ import {
   Legend
 } from 'chart.js';
 import { Card, Statistic, Flex, Row, Col, Spin } from 'antd';
+import QRCode from 'qrcode';
 
 ChartJS.register(
   CategoryScale,
@@ -82,6 +83,7 @@ const AdminDashboard = () => {
   const [drivers, setDrivers] = useState([]);
   const [showDriverPackages, setShowDriverPackages] = useState(false);
   const [driverPackages, setDriverPackages] = useState([]);
+  const [driverPackagesFilter, setDriverPackagesFilter] = useState({ preset: 'today', start: '', end: '' });
   const [selectedDriverForPackages, setSelectedDriverForPackages] = useState(null);
   const [forwardingPackageId, setForwardingPackageId] = useState(null);
   const [settleAmountInput, setSettleAmountInput] = useState('');
@@ -169,13 +171,17 @@ const AdminDashboard = () => {
     { label: 'Ready to Assign', value: 'ready-to-assign' },
     { label: 'In Transit', value: 'in-transit' },
     { label: 'Delivered', value: 'delivered' },
+    { label: 'Cancelled', value: 'cancelled' },
     { label: 'Return to Shop', value: 'return-to-shop' }
   ];
 
   // Function to fetch packages for a driver
-  const fetchDriverPackages = async (driverId) => {
+  const fetchDriverPackages = async (driverId, opts = {}) => {
     try {
-      const res = await adminService.getPackages({ driverId });
+      const params = { driverId };
+      if (opts.createdAfter) params.createdAfter = opts.createdAfter;
+      if (opts.createdBefore) params.createdBefore = opts.createdBefore;
+      const res = await adminService.getPackages(params);
       setDriverPackages((res.data || []).filter(pkg => pkg.driverId === driverId));
     } catch (err) {
       setDriverPackages([]);
@@ -1543,6 +1549,7 @@ const AdminDashboard = () => {
                   <FontAwesomeIcon icon={faEye} />
                 </button>
 
+
                 {packagesTab === 'return-to-shop' && pkg.status === 'cancelled-awaiting-return' && (
                   <button
                     className="action-btn return-btn"
@@ -1789,14 +1796,26 @@ const AdminDashboard = () => {
                 </>
               )}
             </h2>
-            <button
-              className="modal-close"
-              onClick={() => setShowDetailsModal(false)}
-              style={{ background: 'none', border: 'none', fontSize: 28, cursor: 'pointer', color: '#888', marginLeft: 16 }}
-              title="Close"
-            >
-              &times;
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {isPackage && (
+                <button
+                  className="btn"
+                  onClick={(e) => { e.stopPropagation(); handlePrintAWB(selectedEntity); }}
+                  style={{ background: '#6c757d', color: '#fff' }}
+                  title="Print AWB"
+                >
+                  Print AWB
+                </button>
+              )}
+              <button
+                className="modal-close"
+                onClick={() => setShowDetailsModal(false)}
+                style={{ background: 'none', border: 'none', fontSize: 28, cursor: 'pointer', color: '#888', marginLeft: 16 }}
+                title="Close"
+              >
+                &times;
+              </button>
+            </div>
           </div>
 
           {/* User, Shop, or Driver details */}
@@ -2334,6 +2353,30 @@ const AdminDashboard = () => {
                 <span>{selectedEntity.codAmount ? `${selectedEntity.codAmount} EGP` : 'N/A'}</span>
               </div>
               <div className="detail-item">
+                <span className="label">Type:</span>
+                <span>{selectedEntity.type || 'new'}</span>
+                <button
+                  style={{
+                    background: '#fff', border: '1px solid #007bff', color: '#007bff', borderRadius: 4, padding: '4px 12px', marginLeft: 8, cursor: 'pointer', fontWeight: 'bold'
+                  }}
+                  onClick={async () => {
+                    const next = prompt('Enter type (new, return, exchange):', selectedEntity.type || 'new');
+                    if (!next) return;
+                    const val = next.toLowerCase().trim();
+                    if (!['new','return','exchange'].includes(val)) { alert('Invalid type'); return; }
+                    try {
+                      await adminService.updatePackage(selectedEntity.id, { type: val });
+                      localStorage.setItem('reopenAdminModal', selectedEntity.id);
+                      localStorage.setItem('reopenAdminTab', 'packages');
+                      localStorage.setItem('reopenAdminPackagesTab', packagesTab);
+                      window.location.reload();
+                    } catch (e) {
+                      alert('Failed to update type');
+                    }
+                  }}
+                >Edit</button>
+              </div>
+              <div className="detail-item">
                 <span className="label">Delivery Cost:</span>
                 {editingDeliveryCost ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -2642,6 +2685,7 @@ const AdminDashboard = () => {
                     Reject Package
                   </button>
                 )}
+
               </div>
             </>
           )}
@@ -3544,6 +3588,15 @@ const AdminDashboard = () => {
       } else if (packagesTab === 'delivered') {
         const deliveredPackages = (response.data || []).filter(pkg => pkg.status === 'delivered');
         setPackages(deliveredPackages);
+      } else if (packagesTab === 'cancelled') {
+        const cancelledPackages = (response.data || []).filter(pkg => ['cancelled', 'rejected'].includes(pkg.status));
+        // Sort by updatedAt desc (fallback createdAt)
+        const sorted = cancelledPackages.slice().sort((a, b) => {
+          const aTime = a.updatedAt ? new Date(a.updatedAt).getTime() : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+          const bTime = b.updatedAt ? new Date(b.updatedAt).getTime() : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
+          return bTime - aTime;
+        });
+        setPackages(sorted);
       } else if (packagesTab === 'return-to-shop') {
         const returnPackages = (response.data || []).filter(pkg => 
           ['cancelled-awaiting-return', 'cancelled-returned', 'rejected-awaiting-return', 'rejected-returned'].includes(pkg.status)
@@ -4126,6 +4179,14 @@ const AdminDashboard = () => {
       });
     } else if (packagesTab === 'return-to-shop') {
       filtered = filtered.filter(pkg => ['cancelled-awaiting-return', 'cancelled-returned', 'rejected-awaiting-return', 'rejected-returned'].includes(pkg.status));
+    } else if (packagesTab === 'cancelled') {
+      filtered = filtered.filter(pkg => ['cancelled', 'rejected'].includes(pkg.status));
+      // Sort by updatedAt desc (fallback createdAt)
+      filtered = filtered.slice().sort((a, b) => {
+        const aTime = a.updatedAt ? new Date(a.updatedAt).getTime() : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+        const bTime = b.updatedAt ? new Date(b.updatedAt).getTime() : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
+        return bTime - aTime;
+      });
     }
     // Apply status filter
     if (packageStatusFilter) {
@@ -4156,6 +4217,133 @@ const AdminDashboard = () => {
   const [editingDeliveryCost, setEditingDeliveryCost] = useState(false);
   const [newDeliveryCost, setNewDeliveryCost] = useState('');
   const [savingDeliveryCost, setSavingDeliveryCost] = useState(false);
+
+  // Print AWB (admin)
+  const handlePrintAWB = async (pkg) => {
+    try {
+      // Ensure we have Items for AWB
+      let packageForAwb = pkg;
+      if (!pkg?.Items || !Array.isArray(pkg.Items)) {
+        try {
+          const resp = await packageService.getPackageById(pkg.id);
+          if (resp && resp.data) packageForAwb = resp.data;
+        } catch (err) {
+          // ignore and fallback
+        }
+      }
+
+      const qrDataUrl = await QRCode.toDataURL((packageForAwb.trackingNumber || pkg.trackingNumber || ''));
+      const logoUrl = window.location.origin + '/assets/images/logo.jpg';
+      const awbPkg = packageForAwb;
+      const cod = parseFloat((awbPkg.codAmount != null ? awbPkg.codAmount : pkg.codAmount) || 0);
+      const isShopify = (awbPkg.shopifyOrderId !== undefined && awbPkg.shopifyOrderId !== null && awbPkg.shopifyOrderId !== '');
+      const itemsSum = (Array.isArray(awbPkg.Items) && awbPkg.Items.length > 0)
+        ? awbPkg.Items.reduce((sum, it) => sum + (parseFloat(it.codAmount || 0) || 0), 0)
+        : cod;
+      const shippingValue = Number(awbPkg.shownDeliveryCost ?? awbPkg.deliveryCost ?? pkg.shownDeliveryCost ?? pkg.deliveryCost ?? 0) || 0;
+      const subTotal = isShopify ? itemsSum : cod;
+      const shippingTaxes = isShopify ? Math.max(0, cod - itemsSum) : shippingValue;
+      const total = isShopify ? cod : (cod + shippingValue);
+      const totalsRows = isShopify
+        ? `<tr><td>Sub Total:</td><td>${subTotal.toFixed(2)} EGP</td></tr>`
+          + `<tr><td>Shipping & Taxes:</td><td>${shippingTaxes.toFixed(2)} EGP</td></tr>`
+          + `<tr><td><b>Total:</b></td><td><b>${total.toFixed(2)} EGP</b></td></tr>`
+        : `<tr><td>Sub Total:</td><td>${subTotal.toFixed(2)} EGP</td></tr>`
+          + `<tr><td>Shipping:</td><td>${shippingValue.toFixed(2)} EGP</td></tr>`
+          + `<tr><td><b>Total:</b></td><td><b>${total.toFixed(2)} EGP</b></td></tr>`;
+      const shopName = awbPkg.Shop?.businessName || awbPkg.shop?.businessName || pkg.Shop?.businessName || pkg.shop?.businessName || '-';
+      const awbHtml = `
+        <html>
+          <head>
+            <title>Droppin Air Waybill</title>
+            <style>
+              body { font-family: Arial, sans-serif; background: #fff; color: #111; margin: 0; padding: 0; }
+              .awb-container { width: 800px; margin: 0 auto; padding: 32px; background: #fff; }
+              .awb-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #111; padding-bottom: 16px; }
+              .awb-logo { height: 80px; width: auto; }
+              .awb-shop-name { font-size: 1.2rem; font-weight: bold; color: #004b6f; margin-top: 4px; }
+              .awb-section { margin-top: 24px; }
+              .awb-table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+              .awb-table th, .awb-table td { border: 1px solid #111; padding: 8px; text-align: left; }
+              .awb-table th { background: #f5f5f5; }
+              .awb-info-table { width: 100%; margin-top: 16px; }
+              .awb-info-table td { padding: 4px 8px; }
+              .awb-footer { margin-top: 32px; text-align: center; font-size: 1.1rem; font-weight: bold; }
+              .awb-tracking { font-size: 22px; font-weight: bold; }
+            </style>
+          </head>
+          <body onload="window.print()">
+            <div class="awb-container">
+              <div class="awb-header">
+                <img src="${logoUrl}" class="awb-logo" alt="Droppin Logo" />
+                <div>
+                  <img src="${qrDataUrl}" alt="QR Code" style="height:140px;width:140px;" />
+                </div>
+              </div>
+              <div class="awb-section">
+                <table class="awb-info-table">
+                  <tr>
+                    <td>
+                      <div class="awb-tracking">Tracking #: ${awbPkg.trackingNumber || '-'}</div>
+                      <div class="awb-shop-name">Shop Name: ${shopName}</div>
+                    </td>
+                    <td><b>Date:</b> ${awbPkg.createdAt ? new Date(awbPkg.createdAt).toLocaleDateString() : '-'}</td>
+                  </tr>
+                  <tr>
+                    <td colspan="2">
+                      <div><b>Recipient:</b> ${awbPkg.deliveryContactName || '-'}</div>
+                      <div><b>Phone:</b> ${awbPkg.deliveryContactPhone || '-'}</div>
+                      <div><b>Address:</b> ${awbPkg.deliveryAddress || '-'}</div>
+                    </td>
+                  </tr>
+                </table>
+              </div>
+              <div class="awb-section">
+                <b>Description:</b> ${awbPkg.packageDescription || '-'}
+              </div>
+              <table class="awb-table">
+                <thead>
+                  <tr><th>Item</th><th>Qty</th><th>COD Per Unit</th><th>Total COD</th></tr>
+                </thead>
+                <tbody>
+                  ${
+                    awbPkg.Items && awbPkg.Items.length > 0
+                      ? awbPkg.Items.map(item => `
+                        <tr>
+                          <td>${item.description || '-'}</td>
+                          <td>${item.quantity}</td>
+                          <td>${item.codAmount && item.quantity ? (item.codAmount / item.quantity).toFixed(2) : '0.00'} EGP</td>
+                          <td>${parseFloat(item.codAmount || 0).toFixed(2)} EGP</td>
+                        </tr>
+                      `).join('')
+                      : `<tr>
+                          <td>${awbPkg.packageDescription || '-'}</td>
+                          <td>${awbPkg.itemsNo ?? 1}</td>
+                          <td>${cod.toFixed(2)} EGP</td>
+                          <td>${cod.toFixed(2)} EGP</td>
+                        </tr>`
+                  }
+                </tbody>
+              </table>
+              <div class="awb-section" style="display:flex;justify-content:flex-end;">
+                <table class="awb-info-table" style="width:300px;">
+                  ${totalsRows}
+                </table>
+              </div>
+              <div class="awb-footer">Thank you for your order!</div>
+            </div>
+          </body>
+        </html>
+      `;
+      const printWindow = window.open('', '_blank');
+      printWindow.document.open();
+      printWindow.document.write(awbHtml);
+      printWindow.document.close();
+    } catch (e) {
+      console.error('AWB print error:', e);
+      alert('Failed to generate AWB.');
+    }
+  };
 
   return (
     <div className="admin-dashboard">
@@ -4234,7 +4422,8 @@ const AdminDashboard = () => {
             {activeTab === 'dashboard' ? renderDashboardHome() :
              activeTab === 'pickups' ? <>{renderPickupsSubTabs()}{renderPickupsTable()}</> : 
              activeTab === 'packages' ? <> {renderPackagesSubTabs()} {renderPackagesTable()} </> :
-             activeTab === 'money' ? renderMoneyTable() : 
+             activeTab === 'money' ? renderMoneyTable() :
+             activeTab === 'driver-packages' ? null :
              renderUsersTable()}
           </>
         )}
@@ -4251,15 +4440,80 @@ const AdminDashboard = () => {
           <button className="btn btn-secondary" onClick={() => setActiveTab('drivers')} style={{marginBottom: 16}}>
             &larr; Back to Drivers
           </button>
-          <h2>Package History for {selectedDriverForPackages.name}</h2>
+          <h2 style={{ marginBottom: 12 }}>Packages for {selectedDriverForPackages.name}</h2>
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
+            <div>
+              <label style={{ display:'block', fontSize: 12, color: '#666', marginBottom: 4 }}>Quick Filter</label>
+              <select
+                value={driverPackagesFilter.preset}
+                onChange={(e) => {
+                  const preset = e.target.value;
+                  const today = new Date();
+                  const startOfDay = (d) => { const x = new Date(d); x.setHours(0,0,0,0); return x; };
+                  const endOfDay = (d) => { const x = new Date(d); x.setHours(23,59,59,999); return x; };
+                  let start = '', end = '';
+                  if (preset === 'today') {
+                    start = startOfDay(today).toISOString();
+                    end = endOfDay(today).toISOString();
+                  } else if (preset === 'yesterday') {
+                    const y = new Date(today); y.setDate(today.getDate() - 1);
+                    start = startOfDay(y).toISOString();
+                    end = endOfDay(y).toISOString();
+                  } else if (preset === 'last7') {
+                    const s = new Date(today); s.setDate(today.getDate() - 6);
+                    start = startOfDay(s).toISOString();
+                    end = endOfDay(today).toISOString();
+                  }
+                  setDriverPackagesFilter({ preset, start, end });
+                  fetchDriverPackages(selectedDriverForPackages.driverId || selectedDriverForPackages.id, { createdAfter: start, createdBefore: end });
+                }}
+              >
+                <option value="today">Today</option>
+                <option value="yesterday">Yesterday</option>
+                <option value="last7">Last 7 days</option>
+                <option value="custom">Custom range</option>
+              </select>
+            </div>
+            <div>
+              <label style={{ display:'block', fontSize: 12, color: '#666', marginBottom: 4 }}>From</label>
+              <input
+                type="date"
+                value={driverPackagesFilter.start ? driverPackagesFilter.start.slice(0,10) : ''}
+                onChange={(e) => {
+                  const start = e.target.value ? new Date(e.target.value + 'T00:00:00').toISOString() : '';
+                  const end = driverPackagesFilter.end;
+                  setDriverPackagesFilter(prev => ({ ...prev, preset: 'custom', start }));
+                }}
+              />
+            </div>
+            <div>
+              <label style={{ display:'block', fontSize: 12, color: '#666', marginBottom: 4 }}>To</label>
+              <input
+                type="date"
+                value={driverPackagesFilter.end ? driverPackagesFilter.end.slice(0,10) : ''}
+                onChange={(e) => {
+                  const end = e.target.value ? new Date(e.target.value + 'T23:59:59').toISOString() : '';
+                  setDriverPackagesFilter(prev => ({ ...prev, preset: 'custom', end }));
+                }}
+              />
+            </div>
+            <button
+              className="btn btn-primary"
+              onClick={() => fetchDriverPackages(selectedDriverForPackages.driverId || selectedDriverForPackages.id, { createdAfter: driverPackagesFilter.start, createdBefore: driverPackagesFilter.end })}
+              disabled={!driverPackagesFilter.start && !driverPackagesFilter.end}
+            >
+              Apply
+            </button>
+          </div>
           {driverPackages.length === 0 ? (
             <div>No packages found for this driver.</div>
           ) : (
-            <table className="admin-table">
+            <table className="admin-table" style={{ borderRadius: 8, overflow: 'hidden' }}>
               <thead>
                 <tr>
                   <th>Tracking #</th>
                   <th>Description</th>
+                  <th>Date</th>
                   <th>Status</th>
                   <th>Recipient</th>
                   <th>Actions</th>
@@ -4270,6 +4524,7 @@ const AdminDashboard = () => {
                   <tr key={pkg.id}>
                     <td>{pkg.trackingNumber}</td>
                     <td>{pkg.packageDescription}</td>
+                    <td>{pkg.createdAt ? new Date(pkg.createdAt).toLocaleDateString() : '-'}</td>
                     <td><span className={`status-badge status-${pkg.status}`}>{pkg.status}</span></td>
                     <td>{pkg.deliveryContactName}</td>
                     <td>

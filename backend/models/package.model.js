@@ -39,6 +39,11 @@ const Package = sequelize.define('Package', {
     unique: true,
     allowNull: false
   },
+  type: {
+    type: DataTypes.ENUM('new', 'return', 'exchange'),
+    allowNull: false,
+    defaultValue: 'new'
+  },
   packageDescription: {
     type: DataTypes.STRING,
     allowNull: false
@@ -128,7 +133,7 @@ const Package = sequelize.define('Package', {
   },
   shownDeliveryCost: {
     type: DataTypes.FLOAT,
-    defaultValue: 0
+    defaultValue: null
   },
   paymentMethod: {
     type: DataTypes.STRING,

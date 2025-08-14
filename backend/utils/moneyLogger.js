@@ -21,24 +21,40 @@ const logMoneyTransaction = async (shopId, amount, attribute, changeType, descri
       description
     }, transaction ? { transaction } : {});
 
-    // Notify the shop user
-    const shop = await Shop.findByPk(shopId);
-    if (shop && shop.userId) {
-      const shopUser = await User.findByPk(shop.userId);
-      if (shopUser) {
-        let title = 'Financial Update';
-        let changeWord = changeType === 'increase' ? 'increased' : 'decreased';
-        let attrLabel = attribute === 'ToCollect' ? 'To Collect' : (attribute === 'TotalCollected' ? 'Total Collected' : (attribute === 'Revenue' ? 'Revenue' : attribute));
-        let msg = `Your shop's ${attrLabel} has ${changeWord} by $${parseFloat(amount).toFixed(2)}.`;
-        if (description) msg += ` Reason: ${description}`;
-        await createNotification({
-          userId: shopUser.id,
-          userType: 'shop',
-          title,
-          message: msg,
-          data: { shopId, amount, attribute, changeType, description }
-        });
+    // Skip notifications for Revenue to avoid exposing admin-only revenue to shops
+    if (attribute === 'Revenue') {
+      return;
+    }
+
+    const sendNotification = async () => {
+      const shop = await Shop.findByPk(shopId);
+      if (shop && shop.userId) {
+        const shopUser = await User.findByPk(shop.userId);
+        if (shopUser) {
+          let title = 'Financial Update';
+          let changeWord = changeType === 'increase' ? 'increased' : 'decreased';
+          let attrLabel = attribute === 'ToCollect' ? 'To Collect' : (attribute === 'TotalCollected' ? 'Total Collected' : (attribute === 'Revenue' ? 'Revenue' : attribute));
+          let msg = `Your shop's ${attrLabel} has ${changeWord} by $${parseFloat(amount).toFixed(2)}.`;
+          if (description) msg += ` Reason: ${description}`;
+          await createNotification({
+            userId: shopUser.id,
+            userType: 'shop',
+            title,
+            message: msg,
+            data: { shopId, amount, attribute, changeType, description }
+          });
+        }
       }
+    };
+
+    // If we're inside a DB transaction, delay notification until after commit to avoid SQLITE_BUSY
+    if (transaction && typeof transaction.afterCommit === 'function') {
+      transaction.afterCommit(() => {
+        // Fire and forget; do not await inside hook
+        sendNotification().catch(() => {});
+      });
+    } else {
+      await sendNotification();
     }
   } catch (err) {
     console.error('Failed to log money transaction or send notification:', err);

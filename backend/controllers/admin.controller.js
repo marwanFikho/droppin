@@ -1817,7 +1817,7 @@ exports.giveMoneyToDriver = async (req, res) => {
 exports.updatePackage = async (req, res) => {
   try {
     const { id } = req.params;
-    const { deliveryCost, shownDeliveryCost } = req.body;
+    const { deliveryCost, shownDeliveryCost, type } = req.body;
     const pkg = await Package.findByPk(id);
     if (!pkg) {
       return res.status(404).json({ message: 'Package not found' });
@@ -1827,6 +1827,12 @@ exports.updatePackage = async (req, res) => {
     }
     if (shownDeliveryCost !== undefined) {
       pkg.shownDeliveryCost = shownDeliveryCost;
+    }
+    if (type !== undefined) {
+      if (!['new', 'return', 'exchange'].includes(type)) {
+        return res.status(400).json({ message: 'Invalid package type' });
+      }
+      pkg.type = type;
     }
     await pkg.save();
     res.json({ success: true, package: pkg });

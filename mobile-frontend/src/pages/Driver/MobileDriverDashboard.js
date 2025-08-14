@@ -113,7 +113,7 @@ const MobileDriverDashboard = () => {
           setLang('en');
           localStorage.setItem('selectedLanguage', 'en');
         }
-        const packagesRes = await packageService.getPackages({ assignedToMe: true });
+        const packagesRes = await packageService.getPackages({ assignedToMe: true, page: 1, limit: 10000 });
         setPackages(packagesRes.data.packages || packagesRes.data || []);
       } catch (err) {
         setError('Failed to load driver data.');
@@ -196,7 +196,7 @@ const MobileDriverDashboard = () => {
     try {
       await packageService.updatePackageStatus(pkg.id, { status: nextStatus });
       // Refresh packages
-      const packagesRes = await packageService.getPackages({ assignedToMe: true });
+      const packagesRes = await packageService.getPackages({ assignedToMe: true, page: 1, limit: 10000 });
       setPackages(packagesRes.data.packages || packagesRes.data || []);
     } catch (err) {
       setError('Failed to update package status.');
@@ -211,7 +211,7 @@ const MobileDriverDashboard = () => {
     try {
       await packageService.updatePackageStatus(pkg.id, { status: 'rejected' });
       // Refresh packages
-      const packagesRes = await packageService.getPackages({ assignedToMe: true });
+      const packagesRes = await packageService.getPackages({ assignedToMe: true, page: 1, limit: 10000 });
       setPackages(packagesRes.data.packages || packagesRes.data || []);
     } catch (err) {
       setError('Failed to cancel package.');

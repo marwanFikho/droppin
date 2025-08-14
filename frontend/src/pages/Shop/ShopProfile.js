@@ -211,7 +211,6 @@ const ShopProfile = () => {
             onChange={e => {
               let val = e.target.value.replace(/[^0-9]/g, '');
               if (val.length > 11) val = val.slice(0, 11);
-              if (val && !/^01\d{0,9}$/.test(val)) return;
               setContactPhone(val);
             }}
             required
