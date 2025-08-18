@@ -159,7 +159,14 @@ const MyPackagesPage = ({ openPackageDetailsModal }) => {
                   <td data-label="Tracking #">{pkg.trackingNumber}</td>
                   <td data-label="Description">{pkg.packageDescription}</td>
                   <td data-label="Status">{getStatusBadge(pkg.status)}</td>
-                  <td data-label="Delivery Address">{pkg.deliveryAddress}</td>
+                  <td data-label="Delivery Address">
+                    <div>{pkg.deliveryAddress}</div>
+                    {(pkg.deliveryContactName || pkg.deliveryContactPhone) && (
+                      <div style={{ fontSize: 12, color: '#555', marginTop: 4 }}>
+                        {pkg.deliveryContactName || 'N/A'}{pkg.deliveryContactPhone ? ` · ${pkg.deliveryContactPhone}` : ''}
+                      </div>
+                    )}
+                  </td>
                   <td data-label="COD Amount">${parseFloat(pkg.codAmount || 0).toFixed(2)}</td>
                   <td data-label="Actions">
                     <button 
@@ -575,7 +582,14 @@ const DriverDashboard = () => {
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{pkg.trackingNumber}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{pkg.packageDescription}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{getStatusBadge(pkg.status)}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{pkg.deliveryAddress}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                  <div>{pkg.deliveryAddress}</div>
+                  {(pkg.deliveryContactName || pkg.deliveryContactPhone) && (
+                    <div style={{ fontSize: 12, color: '#555', marginTop: 4 }}>
+                      {pkg.deliveryContactName || 'N/A'}{pkg.deliveryContactPhone ? ` · ${pkg.deliveryContactPhone}` : ''}
+                    </div>
+                  )}
+                </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">${parseFloat(pkg.codAmount || 0).toFixed(2)}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     {nextStatus ? (

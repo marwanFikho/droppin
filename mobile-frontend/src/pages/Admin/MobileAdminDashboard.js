@@ -850,10 +850,38 @@ const MobileAdminDashboard = () => {
           </body>
         </html>
       `;
-      const w = window.open('', '_blank');
-      w.document.open();
-      w.document.write(awbHtml);
-      w.document.close();
+      // Safari-friendly print: use a hidden iframe with srcdoc
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'fixed';
+      iframe.style.right = '0';
+      iframe.style.bottom = '0';
+      iframe.style.width = '0';
+      iframe.style.height = '0';
+      iframe.style.border = '0';
+      iframe.setAttribute('aria-hidden', 'true');
+      document.body.appendChild(iframe);
+      const onLoad = () => {
+        try {
+          iframe.contentWindow?.focus();
+          iframe.contentWindow?.print();
+        } finally {
+          setTimeout(() => {
+            document.body.removeChild(iframe);
+          }, 1000);
+        }
+      };
+      if ('srcdoc' in iframe) {
+        iframe.onload = onLoad;
+        iframe.srcdoc = awbHtml;
+      } else {
+        const doc = iframe.contentWindow?.document;
+        if (doc) {
+          doc.open();
+          doc.write(awbHtml);
+          doc.close();
+          iframe.onload = onLoad;
+        }
+      }
     } catch (e) {
       alert('Failed to generate AWB');
     }

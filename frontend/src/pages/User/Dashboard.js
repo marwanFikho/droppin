@@ -124,6 +124,11 @@ const UserDashboard = () => {
                     <div className="package-info">
                       <div className="tracking-number">{pkg.trackingNumber}</div>
                       <div className="package-description">{pkg.description}</div>
+                      {(pkg.deliveryContactName || pkg.deliveryContactPhone) && (
+                        <div style={{ fontSize: 12, color: '#555', marginTop: 2 }}>
+                          {pkg.deliveryContactName || 'N/A'}{pkg.deliveryContactPhone ? ` · ${pkg.deliveryContactPhone}` : ''}
+                        </div>
+                      )}
                     </div>
                     <div className="package-details">
                       <div className={`package-status status-${pkg.status}`}>

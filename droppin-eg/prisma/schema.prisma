@@ -30,3 +30,9 @@ model Session {
   collaborator  Boolean?  @default(false)
   emailVerified Boolean?  @default(false)
 }
+
+model DroppinShopConfig {
+  id     String @id @default(cuid())
+  shop   String @unique
+  apiKey String
+}

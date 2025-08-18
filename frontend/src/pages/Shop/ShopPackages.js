@@ -770,7 +770,15 @@ const ShopPackages = () => {
                       />
                     </td>
                     <td data-label="Tracking #">{pkg.trackingNumber}</td>
-                    <td data-label="Description">{pkg.packageDescription}</td>
+                    <td data-label="Description">
+                      <div>{pkg.packageDescription}</div>
+                      <div style={{ color: '#666', marginTop: 4 }}>{pkg.deliveryAddress}</div>
+                      {(pkg.deliveryContactName || pkg.deliveryContactPhone) && (
+                        <div style={{ fontSize: 12, color: '#555', marginTop: 2 }}>
+                          {pkg.deliveryContactName || 'N/A'}{pkg.deliveryContactPhone ? ` · ${pkg.deliveryContactPhone}` : ''}
+                        </div>
+                      )}
+                    </td>
                     <td data-label="Recipient">{pkg.deliveryContactName}</td>
                     <td data-label="Status">{getStatusBadge(pkg.status)}</td>
                     <td data-label="COD">${parseFloat(pkg.codAmount || 0).toFixed(2)} {getCodBadge(pkg.isPaid)}</td>

@@ -1534,7 +1534,14 @@ const AdminDashboard = () => {
                 </span>
               </td>
               <td data-label="From">{pkg.shop?.businessName || 'N/A'}</td>
-              <td data-label="To">{pkg.deliveryAddress}</td>
+              <td data-label="To">
+                <div>{pkg.deliveryAddress}</div>
+                {(pkg.deliveryContactName || pkg.deliveryContactPhone) && (
+                  <div style={{ fontSize: 12, color: '#555', marginTop: 4 }}>
+                    {pkg.deliveryContactName || 'N/A'}{pkg.deliveryContactPhone ? ` · ${pkg.deliveryContactPhone}` : ''}
+                  </div>
+                )}
+              </td>
               <td data-label="COD Amount">${parseFloat(pkg.codAmount || 0).toFixed(2)}</td>
               <td data-label="Driver">{(() => {
                 const driver = drivers.find(d => d.driverId === pkg.driverId || d.id === pkg.driverId);

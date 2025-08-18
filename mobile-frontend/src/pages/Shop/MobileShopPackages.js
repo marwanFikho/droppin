@@ -419,11 +419,38 @@ const MobileShopPackages = () => {
       </html>
     `;
 
-    const w = window.open('', '_blank');
-    const doc = w.document;
-    doc.open();
-    doc.write(awbHtml);
-    doc.close();
+    // Safari-friendly print: use a hidden iframe with srcdoc
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    iframe.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(iframe);
+    const onLoad = () => {
+      try {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+      } finally {
+        setTimeout(() => {
+          document.body.removeChild(iframe);
+        }, 1000);
+      }
+    };
+    if ('srcdoc' in iframe) {
+      iframe.onload = onLoad;
+      iframe.srcdoc = awbHtml;
+    } else {
+      const idoc = iframe.contentWindow?.document;
+      if (idoc) {
+        idoc.open();
+        idoc.write(awbHtml);
+        idoc.close();
+        iframe.onload = onLoad;
+      }
+    }
   };
 
   return (
@@ -477,6 +504,12 @@ const MobileShopPackages = () => {
               <div className="mobile-shop-package-info">
                 <div><span className="mobile-shop-package-label">Descreption:</span> {pkg.packageDescription || '-'}</div>
                 <div><span className="mobile-shop-package-label">Date:</span> {pkg.createdAt ? new Date(pkg.createdAt).toLocaleDateString() : '-'}</div>
+                <div><span className="mobile-shop-package-label">Address:</span> {(pkg.deliveryAddress) || '-'}</div>
+                {(pkg.deliveryContactName || pkg.deliveryContactPhone) && (
+                  <div style={{ fontSize: 12, color: '#222', marginTop: 2 }}>
+                    {pkg.deliveryContactName || 'N/A'}{pkg.deliveryContactPhone ? ` · ${pkg.deliveryContactPhone}` : ''}
+                  </div>
+                )}
                 <div>
                   <span className="mobile-shop-package-label">COD:</span> ${parseFloat(pkg.codAmount || 0).toFixed(2)}
                   {pkg.isPaid ? (

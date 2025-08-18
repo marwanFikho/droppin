@@ -18,10 +18,11 @@ import {
 import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import { Link as RemixLink } from "@remix-run/react";
-import { apiKeyStore } from "../utils/apiKeyStore";
+// import { apiKeyStore } from "../utils/apiKeyStore";
+import prisma from "../db.server";
 
 export const loader = async ({ request }) => {
-  const { admin } = await authenticate.admin(request);
+  const { admin, session } = await authenticate.admin(request);
   // Fetch orders from Shopify using GraphQL
   const response = await admin.graphql(`#graphql
     query {
@@ -95,7 +96,9 @@ export const loader = async ({ request }) => {
       delivered,
     };
   });
-  const apiKey = apiKeyStore.key;
+  const shopDomain = session.shop;
+  const config = await prisma.droppinShopConfig.findUnique({ where: { shop: shopDomain } });
+  const apiKey = config?.apiKey || "";
   return { orders, apiKey };
 };
 

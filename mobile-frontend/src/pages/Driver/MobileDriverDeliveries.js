@@ -147,6 +147,11 @@ const MobileDriverDeliveries = () => {
                       <div className="mobile-driver-dashboard-delivery-details">
                         <div><strong>Description:</strong> {pkg.packageDescription || '-'}</div>
                         <div><strong>Address:</strong> {pkg.deliveryAddress || '-'}</div>
+                        {(pkg.deliveryContactName || pkg.deliveryContactPhone) && (
+                          <div style={{ fontSize: 12, color: '#222', marginTop: 2 }}>
+                            {pkg.deliveryContactName || 'N/A'}{pkg.deliveryContactPhone ? ` · ${pkg.deliveryContactPhone}` : ''}
+                          </div>
+                        )}
                         <div><strong>COD:</strong> ${parseFloat(pkg.codAmount || 0).toFixed(2)}</div>
                       </div>
                       <div className="mobile-driver-dashboard-delivery-actions">

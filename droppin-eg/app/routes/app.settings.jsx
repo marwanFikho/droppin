@@ -2,18 +2,26 @@ import { useState } from "react";
 import { Page, Card, TextField, Button, BlockStack, Text } from "@shopify/polaris";
 import { json, redirect } from "@remix-run/node";
 import { useLoaderData, Form, useActionData } from "@remix-run/react";
-import { apiKeyStore } from "../utils/apiKeyStore";
+import { authenticate } from "../shopify.server";
+import prisma from "../db.server";
 
-export const loader = async () => {
-  // In real app, fetch from DB by shop
-  return json({ apiKey: apiKeyStore.key });
+export const loader = async ({ request }) => {
+  const { admin, session } = await authenticate.admin(request);
+  const shopDomain = session.shop;
+  const config = await prisma.droppinShopConfig.findUnique({ where: { shop: shopDomain } });
+  return json({ apiKey: config?.apiKey || "" });
 };
 
 export const action = async ({ request }) => {
+  const { session } = await authenticate.admin(request);
+  const shopDomain = session.shop;
   const formData = await request.formData();
-  const apiKey = formData.get("apiKey");
-  // In real app, save to DB by shop
-  apiKeyStore.key = apiKey;
+  const apiKey = (formData.get("apiKey") || "").toString();
+  await prisma.droppinShopConfig.upsert({
+    where: { shop: shopDomain },
+    update: { apiKey },
+    create: { shop: shopDomain, apiKey },
+  });
   return redirect("/app/settings");
 };
 
