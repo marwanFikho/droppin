@@ -91,6 +91,8 @@ const MyPackagesPage = ({ openPackageDetailsModal }) => {
     if (!packages) return [];
     
     return packages.filter(pkg => {
+      // Exclude pending return packages from driver view
+      if (pkg.status === 'return-pending') return false;
       // First check if the package matches the active tab
       if (activeTab === 'current' && !['assigned', 'pickedup', 'in-transit'].includes(pkg.status)) return false;
       if (activeTab === 'past' && !['delivered', 'cancelled', 'returned'].includes(pkg.status)) return false;
@@ -167,7 +169,7 @@ const MyPackagesPage = ({ openPackageDetailsModal }) => {
                       </div>
                     )}
                   </td>
-                  <td data-label="COD Amount">${parseFloat(pkg.codAmount || 0).toFixed(2)}</td>
+                  <td data-label="COD Amount">EGP {parseFloat(pkg.codAmount || 0).toFixed(2)}</td>
                   <td data-label="Actions">
                     <button 
                       className="action-btn view-btn"
@@ -524,16 +526,23 @@ const DriverDashboard = () => {
     );
 
   // Helper to get next status for a package
-  const getNextStatus = (status) => {
+  const getNextStatus = (status, type) => {
+    if (type === 'return' || (status && status.startsWith('return-'))) {
+      switch (status) {
+        case 'assigned':
+        case 'return-requested':
+          return { next: 'return-in-transit', label: 'Mark Return Picked Up' };
+        case 'return-in-transit':
+          return { next: 'return-pending', label: 'Mark Return Picked Up' };
+        default:
+          return null;
+      }
+    }
     switch (status) {
-      case 'assigned':
-        return { next: 'pickedup', label: 'Mark as Picked Up' };
-      case 'pickedup':
-        return { next: 'in-transit', label: 'Mark In Transit' };
-      case 'in-transit':
-        return { next: 'delivered', label: 'Mark as Delivered' };
-      default:
-        return null;
+      case 'assigned': return { next: 'pickedup', label: 'Mark as Picked Up' };
+      case 'pickedup': return { next: 'in-transit', label: 'Mark In Transit' };
+      case 'in-transit': return { next: 'delivered', label: 'Mark as Delivered' };
+      default: return null;
     }
   };
 
@@ -573,13 +582,13 @@ const DriverDashboard = () => {
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {getFilteredPackages().map((pkg) => {
-              const nextStatus = getNextStatus(pkg.status);
+              const nextStatus = getNextStatus(pkg.status, pkg.type);
               const currentColor = getStatusColorHex(pkg.status);
               const nextColor = nextStatus ? getStatusColorHex(nextStatus.next) : '#bdbdbd';
               const gradient = `linear-gradient(90deg, ${currentColor} 0%, ${nextColor} 100%)`;
               return (
               <tr key={pkg.id}>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{pkg.trackingNumber}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{pkg.trackingNumber}{pkg.type === 'return' && (<span style={{ marginLeft: 6, padding: '2px 6px', fontSize: 11, borderRadius: 10, background: '#ffe8cc', color: '#b45309' }}>Return</span>)}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{pkg.packageDescription}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{getStatusBadge(pkg.status)}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
@@ -589,8 +598,20 @@ const DriverDashboard = () => {
                       {pkg.deliveryContactName || 'N/A'}{pkg.deliveryContactPhone ? ` · ${pkg.deliveryContactPhone}` : ''}
                     </div>
                   )}
+                  {pkg.status === 'return-in-transit' && Array.isArray(pkg.returnDetails) && pkg.returnDetails.length > 0 && (
+                    <div style={{ marginTop: 6 }}>
+                      <div style={{ fontSize: 12, color: '#555' }}>Returned Items ({pkg.returnDetails.length})</div>
+                      <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
+                        {pkg.returnDetails.map((it, idx) => (
+                          <li key={idx} style={{ fontSize: 12, color: '#555' }}>
+                            {(it.description || '-') + ' x ' + (parseInt(it.quantity) || 0)}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">${parseFloat(pkg.codAmount || 0).toFixed(2)}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">EGP {parseFloat(pkg.codAmount || 0).toFixed(2)}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     {nextStatus ? (
                       <button
@@ -599,7 +620,7 @@ const DriverDashboard = () => {
                         onClick={() => updatePackageStatus(pkg.id, nextStatus.next)}
                         title={nextStatus.label}
                       >
-                        {nextStatus.label}
+                        {nextStatus ? nextStatus.label : 'No actions available'}
                       </button>
                     ) : (
                       <span className="text-gray-400">No actions available</span>
@@ -680,7 +701,7 @@ const DriverDashboard = () => {
                   </div>
                   <div className="detail-item">
                     <span className="label">Delivery Cost</span>
-                    <span>${parseFloat(selectedPackage.deliveryCost || 0).toFixed(2)}</span>
+                    <span>EGP {parseFloat(selectedPackage.deliveryCost || 0).toFixed(2)}</span>
                   </div>
                   <div className="detail-item">
                     <span className="label">Number of Items</span>
@@ -735,7 +756,7 @@ const DriverDashboard = () => {
                   <div className="details-grid">
                     <div className="detail-item">
                       <span className="label">COD Amount</span>
-                      <span>${parseFloat(selectedPackage.codAmount || 0).toFixed(2)}</span>
+                      <span>EGP {parseFloat(selectedPackage.codAmount || 0).toFixed(2)}</span>
                     </div>
                   </div>
                 </div>

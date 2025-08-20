@@ -152,7 +152,7 @@ const MobileDriverDeliveries = () => {
                             {pkg.deliveryContactName || 'N/A'}{pkg.deliveryContactPhone ? ` · ${pkg.deliveryContactPhone}` : ''}
                           </div>
                         )}
-                        <div><strong>COD:</strong> ${parseFloat(pkg.codAmount || 0).toFixed(2)}</div>
+                        <div><strong>COD:</strong> EGP {parseFloat(pkg.codAmount || 0).toFixed(2)}</div>
                       </div>
                       <div className="mobile-driver-dashboard-delivery-actions">
                         {nextStatus && (

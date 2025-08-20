@@ -372,12 +372,13 @@ const AdminDashboard = () => {
             console.log('Packages received:', packagesResponse.data);
             // For ready-to-assign tab, only show pending packages
             // For all-packages tab, show all packages except those that aren't picked up yet
-            if (packagesTab === 'ready-to-assign') {
-              const readyToAssignPackages = (packagesResponse.data || []).filter(pkg =>
-                pkg.status === 'pending' ||
-                pkg.status === 'cancelled-awaiting-return' ||
-                pkg.status === 'rejected-awaiting-return'
-              );
+                          if (packagesTab === 'ready-to-assign') {
+                const readyToAssignPackages = (packagesResponse.data || []).filter(pkg =>
+                  pkg.status === 'pending' ||
+                  pkg.status === 'cancelled-awaiting-return' ||
+                  pkg.status === 'rejected-awaiting-return' ||
+                  pkg.status === 'return-requested'
+                );
               console.log('Filtered ready-to-assign packages:', readyToAssignPackages);
               setPackages(readyToAssignPackages);
             } else {
@@ -1279,13 +1280,13 @@ const AdminDashboard = () => {
                   className="sortable-header"
                   onClick={() => handleSort('ToCollect')}
                 >
-                  To Collect ($) {renderSortIcon('ToCollect')}
+                  To Collect (EGP) {renderSortIcon('ToCollect')}
                 </th>
                 <th 
                   className="sortable-header"
                   onClick={() => handleSort('TotalCollected')}
                 >
-                  Collected ($) {renderSortIcon('TotalCollected')}
+                  Collected (EGP) {renderSortIcon('TotalCollected')}
                 </th>
               </>
             )}
@@ -1317,11 +1318,11 @@ const AdminDashboard = () => {
               )}
               {activeTab === 'shops' && (
                 <>
-                  <td data-label="To Collect ($)" className="financial-cell" style={{fontSize: '15px', color: parseFloat(user.ToCollect || 0) > 0 ? '#2e7d32' : '#d32f2f'}}>
-                    ${parseFloat(user.ToCollect || 0).toFixed(2)}
+                  <td data-label="To Collect (EGP)" className="financial-cell" style={{fontSize: '15px', color: parseFloat(user.ToCollect || 0) > 0 ? '#2e7d32' : '#d32f2f'}}>
+                    EGP {parseFloat(user.ToCollect || 0).toFixed(2)}
                   </td>
-                  <td data-label="Collected ($)" className="financial-cell" style={{fontSize: '15px', color: parseFloat(user.TotalCollected || 0) > 0 ? '#2e7d32' : '#d32f2f'}}>
-                    ${parseFloat(user.TotalCollected || 0).toFixed(2)}
+                  <td data-label="Collected (EGP)" className="financial-cell" style={{fontSize: '15px', color: parseFloat(user.TotalCollected || 0) > 0 ? '#2e7d32' : '#d32f2f'}}>
+                    EGP {parseFloat(user.TotalCollected || 0).toFixed(2)}
                   </td>
                 </>
               )}
@@ -1542,7 +1543,7 @@ const AdminDashboard = () => {
                   </div>
                 )}
               </td>
-              <td data-label="COD Amount">${parseFloat(pkg.codAmount || 0).toFixed(2)}</td>
+                              <td data-label="COD Amount">EGP {parseFloat(pkg.codAmount || 0).toFixed(2)}</td>
               <td data-label="Driver">{(() => {
                 const driver = drivers.find(d => d.driverId === pkg.driverId || d.id === pkg.driverId);
                 return driver ? driver.name : 'Unassigned';
@@ -1571,6 +1572,38 @@ const AdminDashboard = () => {
                     className="action-btn return-btn"
                     onClick={() => handleMarkAsReturned(pkg)}
                     title="Mark as Rejected Returned"
+                  >
+                    <FontAwesomeIcon icon={faCheck} />
+                  </button>
+                )}
+                {packagesTab === 'return-to-shop' && pkg.status === 'return-pending' && (
+                  <button
+                    className="action-btn return-btn"
+                    onClick={async () => {
+                      try {
+                        await packageService.updatePackageStatus(pkg.id, { status: 'return-completed' });
+                        await fetchPackages();
+                      } catch (err) {
+                        console.error('Failed to mark return completed:', err);
+                      }
+                    }}
+                    title="Mark Return Completed"
+                  >
+                    <FontAwesomeIcon icon={faCheck} />
+                  </button>
+                )}
+                {packagesTab === 'return-to-shop' && pkg.status === 'return-pending' && (
+                  <button
+                    className="action-btn return-btn"
+                    onClick={async () => {
+                      try {
+                        await packageService.updatePackageStatus(pkg.id, { status: 'return-completed' });
+                        await fetchPackages();
+                      } catch (err) {
+                        console.error('Failed to mark return completed:', err);
+                      }
+                    }}
+                    title="Mark Return Completed"
                   >
                     <FontAwesomeIcon icon={faCheck} />
                   </button>
@@ -1761,7 +1794,9 @@ const AdminDashboard = () => {
           await adminService.deleteUser(driverUserId);
           setShowDetailsModal(false);
           setStatusMessage({ type: 'success', text: 'Driver deleted successfully.' });
-          fetchUsers('driver');
+          // Optimistically remove driver from list
+          setUsers(prev => (Array.isArray(prev) ? prev.filter(u => u.userId !== driverUserId && u.id !== driverUserId) : prev));
+          fetchUsers('drivers');
         } catch (err) {
           setStatusMessage({ type: 'error', text: 'Failed to delete driver.' });
         } finally {
@@ -1889,7 +1924,7 @@ const AdminDashboard = () => {
                         return <>
                           <div className="nested-detail">
                             <span className="nested-label">Net Revenue (Delivered Packages):</span>
-                            <span>${netRevenue.toFixed(2)}</span>
+                            <span>EGP {netRevenue.toFixed(2)}</span>
                           </div>
                           <div className="nested-detail">
                             <span className="nested-label">Delivered Packages:</span>
@@ -1897,15 +1932,15 @@ const AdminDashboard = () => {
                           </div>
                           <div className="nested-detail">
                             <span className="nested-label">Total to Collect:</span>
-                            <span>${toCollect.toFixed(2)}</span>
+                            <span>EGP {toCollect.toFixed(2)}</span>
                           </div>
                           <div className="nested-detail">
                             <span className="nested-label">Total Collected:</span>
-                            <span>${totalCollected.toFixed(2)}</span>
+                            <span>EGP {totalCollected.toFixed(2)}</span>
                           </div>
                           <div className="nested-detail">
                             <span className="nested-label">Total Settled:</span>
-                            <span>${parseFloat(selectedEntity.settelled || 0).toFixed(2)}</span>
+                            <span>EGP {parseFloat(selectedEntity.settelled || 0).toFixed(2)}</span>
                           </div>
                         </>
                       })()}
@@ -2050,7 +2085,7 @@ const AdminDashboard = () => {
               {parseFloat(selectedEntity.TotalCollected || 0) > 0 && (
                 <div className="settlement-section" style={{marginTop: '1rem'}} ref={settlementRef}>
                   <div className="settlement-title">Settle Payments with Shop</div>
-                  <div className="settlement-amount">Total collected: ${parseFloat(selectedEntity.TotalCollected).toFixed(2)}</div>
+                  <div className="settlement-amount">Total collected: EGP {parseFloat(selectedEntity.TotalCollected).toFixed(2)}</div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem' }}>
                     <input
                       type="number"
@@ -2099,7 +2134,7 @@ const AdminDashboard = () => {
                                   {pkg.status}
                                 </span>
                               </td>
-                              <td className="financial-cell">${parseFloat(pkg.codAmount || 0).toFixed(2)}</td>
+                              <td className="financial-cell">EGP {parseFloat(pkg.codAmount || 0).toFixed(2)}</td>
                               <td>
                                 <span className={`payment-status ${pkg.isPaid ? 'paid' : 'unpaid'}`}>
                                   {pkg.isPaid ? 'Paid' : 'Unpaid'}
@@ -2123,7 +2158,7 @@ const AdminDashboard = () => {
                       {shopUnpaidTotal > 0 && (
                         <div className="settlement-section">
                           <div className="settlement-title">Settle Payments with Shop</div>
-                          <div className="settlement-amount">Total collected: ${parseFloat(shopUnpaidTotal).toFixed(2)}</div>
+                          <div className="settlement-amount">Total collected: EGP {parseFloat(shopUnpaidTotal).toFixed(2)}</div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem' }}>
                             <input
                               type="number"
@@ -2240,7 +2275,7 @@ const AdminDashboard = () => {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                     <div>
                       <label style={{ display: 'block', marginBottom: 4, fontWeight: 500, color: '#495057' }}>
-                        Amount ($):
+                        Amount (EGP):
                       </label>
                       <input
                         type="number"
@@ -2493,8 +2528,8 @@ const AdminDashboard = () => {
                         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: '1rem', alignItems: 'center' }}>
                           <div><strong>Description:</strong> {item.description}</div>
                           <div><strong>Quantity:</strong> {item.quantity}</div>
-                          <div><strong>COD Per Unit:</strong> ${item.codAmount && item.quantity ? (item.codAmount / item.quantity).toFixed(2) : '0.00'}</div>
-                          <div><strong>Total COD:</strong> ${parseFloat(item.codAmount || 0).toFixed(2)}</div>
+                          <div><strong>COD Per Unit:</strong> EGP {item.codAmount && item.quantity ? (item.codAmount / item.quantity).toFixed(2) : '0.00'}</div>
+                          <div><strong>Total COD:</strong> EGP {parseFloat(item.codAmount || 0).toFixed(2)}</div>
                         </div>
                       </div>
                     ))}
@@ -2590,6 +2625,25 @@ const AdminDashboard = () => {
                   {notesError && <div className="error-message" style={{color:'#dc3545', marginTop:'0.5rem'}}>{notesError}</div>}
                 </div>
               </div>
+              {Array.isArray(selectedEntity.returnDetails) && selectedEntity.returnDetails.length > 0 && (
+                <div className="detail-item full-width">
+                  <span className="label">Return Details:</span>
+                  <div className="nested-details">
+                    {selectedEntity.returnDetails.map((it, idx) => (
+                      <div key={idx} className="nested-detail">
+                        <span className="nested-label">{it.description || `Item ${it.itemId}`}:</span>
+                        <span>Qty: {it.quantity}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {(selectedEntity.returnRefundAmount !== null && selectedEntity.returnRefundAmount !== undefined) && (
+                <div className="detail-item">
+                  <span className="label">Return Refund:</span>
+                  <span>EGP {parseFloat(selectedEntity.returnRefundAmount || 0).toFixed(2)}</span>
+                </div>
+              )}
             </div>
           )}
           {/* Package details: Forward Status button for admin */}
@@ -2950,8 +3004,13 @@ const AdminDashboard = () => {
       // Refresh packages data
       const packagesResponse = await adminService.getPackages();
       if (packagesTab === 'ready-to-assign') {
-        const pendingPackages = (packagesResponse.data || []).filter(pkg => pkg.status === 'pending');
-        setPackages(pendingPackages);
+        const readyToAssignPackages = (packagesResponse.data || []).filter(pkg =>
+          pkg.status === 'pending' ||
+          pkg.status === 'cancelled-awaiting-return' ||
+          pkg.status === 'rejected-awaiting-return' ||
+          pkg.status === 'return-requested'
+        );
+        setPackages(readyToAssignPackages);
       } else {
         const filteredPackages = (packagesResponse.data || []).filter(pkg => 
           !['awaiting_schedule', 'awaiting_pickup', 'scheduled_for_pickup'].includes(pkg.status)
@@ -3107,8 +3166,13 @@ const AdminDashboard = () => {
       if (activeTab === 'packages') {
         const packagesResponse = await adminService.getPackages();
         if (packagesTab === 'ready-to-assign') {
-          const pendingPackages = (packagesResponse.data || []).filter(pkg => pkg.status === 'pending');
-          setPackages(pendingPackages);
+          const readyToAssignPackages = (packagesResponse.data || []).filter(pkg =>
+            pkg.status === 'pending' ||
+            pkg.status === 'cancelled-awaiting-return' ||
+            pkg.status === 'rejected-awaiting-return' ||
+            pkg.status === 'return-requested'
+          );
+          setPackages(readyToAssignPackages);
         } else {
           const filteredPackages = (packagesResponse.data || []);
           setPackages(filteredPackages);
@@ -3328,7 +3392,7 @@ const AdminDashboard = () => {
         return user;
       }));
 
-      setStatusMessage({ type: 'success', text: `Settled $${amount.toFixed(2)} with shop successfully` });
+              setStatusMessage({ type: 'success', text: `Settled EGP ${amount.toFixed(2)} with shop successfully` });
       setSettleAmountInput('');
     } catch (error) {
       console.error('Error settling amount with shop:', error);
@@ -3497,7 +3561,7 @@ const AdminDashboard = () => {
                   onClick={() => handleMoneyFilterChange('sortBy', 'amount')} 
                   className="sortable-header"
                 >
-                  Amount ($) {renderSortIcon('amount')}
+                  Amount (EGP) {renderSortIcon('amount')}
                 </th>
                 <th>Description</th>
               </tr>
@@ -3514,8 +3578,8 @@ const AdminDashboard = () => {
                       {tx.changeType}
                     </span>
                   </td>
-                  <td data-label="Amount ($)" className={`financial-cell ${tx.changeType}`}>
-                    ${parseFloat(tx.amount).toFixed(2)}
+                  <td data-label="Amount (EGP)" className={`financial-cell ${tx.changeType}`}>
+                    EGP {parseFloat(tx.amount).toFixed(2)}
                   </td>
                   <td data-label="Description">{tx.description || '-'}</td>
                 </tr>
@@ -3579,12 +3643,13 @@ const AdminDashboard = () => {
       console.log('Packages received:', response.data);
       
       // Filter packages based on the current tab
-      if (packagesTab === 'ready-to-assign') {
-        const readyToAssignPackages = (response.data || []).filter(pkg =>
-          pkg.status === 'pending' ||
-          pkg.status === 'cancelled-awaiting-return' ||
-          pkg.status === 'rejected-awaiting-return'
-        );
+              if (packagesTab === 'ready-to-assign') {
+          const readyToAssignPackages = (response.data || []).filter(pkg =>
+            pkg.status === 'pending' ||
+            pkg.status === 'cancelled-awaiting-return' ||
+            pkg.status === 'rejected-awaiting-return' ||
+            pkg.status === 'return-requested'
+          );
         console.log('Filtered ready-to-assign packages:', readyToAssignPackages);
         setPackages(readyToAssignPackages);
       } else if (packagesTab === 'in-transit') {
@@ -3604,10 +3669,10 @@ const AdminDashboard = () => {
           return bTime - aTime;
         });
         setPackages(sorted);
-      } else if (packagesTab === 'return-to-shop') {
-        const returnPackages = (response.data || []).filter(pkg => 
-          ['cancelled-awaiting-return', 'cancelled-returned', 'rejected-awaiting-return', 'rejected-returned'].includes(pkg.status)
-        );
+              } else if (packagesTab === 'return-to-shop') {
+          const returnPackages = (response.data || []).filter(pkg => 
+            ['cancelled-awaiting-return', 'cancelled-returned', 'rejected-awaiting-return', 'rejected-returned', 'return-requested', 'return-in-transit', 'return-pending', 'return-completed'].includes(pkg.status)
+          );
         setPackages(returnPackages);
       } else {
         // For 'all' tab, show all packages
@@ -3738,7 +3803,7 @@ const AdminDashboard = () => {
                       <th>Date</th>
                       <th>Shop</th>
                       <th>Type</th>
-                      <th>Amount ($)</th>
+                      <th>Amount (EGP)</th>
                       <th>Description</th>
                     </tr>
                   </thead>
@@ -3751,7 +3816,7 @@ const AdminDashboard = () => {
                           <td>{new Date(tx.createdAt).toLocaleString()}</td>
                           <td>{tx.Shop?.businessName || tx.shopId || '-'}</td>
                           <td>{tx.changeType}</td>
-                          <td>${parseFloat(tx.amount).toFixed(2)}</td>
+                          <td>EGP {parseFloat(tx.amount).toFixed(2)}</td>
                           <td>{tx.description || '-'}</td>
                         </tr>
                       ))
@@ -3768,9 +3833,9 @@ const AdminDashboard = () => {
                   <thead>
                     <tr>
                       <th onClick={() => handleShopSort('name')} style={{ cursor: 'pointer' }}>Shop Name {renderSortIcon('name')}</th>
-                      <th onClick={() => handleShopSort('shippingFees')} style={{ cursor: 'pointer' }}>Shipping Fees ($) {renderSortIcon('shippingFees')}</th>
+                      <th onClick={() => handleShopSort('shippingFees')} style={{ cursor: 'pointer' }}>Shipping Fees (EGP) {renderSortIcon('shippingFees')}</th>
                       <th onClick={() => handleShopSort('deliveredCount')} style={{ cursor: 'pointer' }}>Delivered {renderSortIcon('deliveredCount')}</th>
-                      <th onClick={() => handleShopSort('revenue')} style={{ cursor: 'pointer' }}>Revenue ($) {renderSortIcon('revenue')}</th>
+                                              <th onClick={() => handleShopSort('revenue')} style={{ cursor: 'pointer' }}>Revenue (EGP) {renderSortIcon('revenue')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -3780,9 +3845,9 @@ const AdminDashboard = () => {
                       sortedShopRows.map(row => (
                         <tr key={row.id}>
                           <td>{row.name}</td>
-                          <td>${row.shippingFees.toFixed(2)}</td>
+                          <td>EGP {row.shippingFees.toFixed(2)}</td>
                           <td>{row.deliveredCount}</td>
-                          <td>${row.revenue.toFixed(2)}</td>
+                          <td>EGP {row.revenue.toFixed(2)}</td>
                         </tr>
                       ))
                     )}
@@ -3828,10 +3893,10 @@ const AdminDashboard = () => {
       { title: 'Shops', value: stats.users.shops, icon: faStore },
       { title: 'Drivers', value: stats.users.drivers, icon: faTruck },
       { title: 'Packages', value: stats.packages.total, icon: faBox },
-      { title: 'COD Collected (All Time)', value: stats.cod?.totalCollected || 0, icon: faDollarSign, prefix: '$' },
-      { title: 'To Collect COD (All Time)', value: stats.cod?.totalToCollect || 0, icon: faDollarSign, prefix: '$' },
+      { title: 'COD Collected (All Time)', value: stats.cod?.totalCollected || 0, icon: faDollarSign, prefix: 'EGP ' },
+      { title: 'To Collect COD (All Time)', value: stats.cod?.totalToCollect || 0, icon: faDollarSign, prefix: 'EGP ' },
       // Insert Revenue card right after To Collect COD
-      { title: 'Revenue (Delivered Packages)', value: deliveredRevenue, icon: faDollarSign, prefix: '$' },
+      { title: 'Revenue (Delivered Packages)', value: deliveredRevenue, icon: faDollarSign, prefix: 'EGP ' },
     ];
 
     // --- New Analytics Graphs ---
@@ -3889,7 +3954,7 @@ const AdminDashboard = () => {
                 value={kpi.value}
                 prefix={kpi.prefix}
                 valueStyle={{ color: '#2c3e50', fontSize: '2rem' }}
-                formatter={value => (kpi.prefix === '$' ? parseFloat(value).toFixed(2) : value)}
+                formatter={value => (kpi.prefix === 'EGP ' ? parseFloat(value).toFixed(2) : value)}
               />
             </Card>
           ))}
@@ -4142,7 +4207,7 @@ const AdminDashboard = () => {
 
       setStatusMessage({ 
         type: 'success', 
-        text: `Successfully gave $${parseFloat(giveMoneyAmount).toFixed(2)} to ${response.data.driverName}. New profit: $${response.data.newProfit.toFixed(2)}.` 
+        text: `Successfully gave EGP ${parseFloat(giveMoneyAmount).toFixed(2)} to ${response.data.driverName}. New profit: EGP ${response.data.newProfit.toFixed(2)}.` 
       });
 
       // Reset form
@@ -4173,7 +4238,12 @@ const AdminDashboard = () => {
     let filtered = packages;
     // Apply tab filter
     if (packagesTab === 'ready-to-assign') {
-      filtered = filtered.filter(pkg => pkg.status === 'pending');
+      filtered = filtered.filter(pkg => (
+        pkg.status === 'pending' ||
+        pkg.status === 'cancelled-awaiting-return' ||
+        pkg.status === 'rejected-awaiting-return' ||
+        pkg.status === 'return-requested'
+      ));
     } else if (packagesTab === 'in-transit') {
       filtered = filtered.filter(pkg => ['assigned', 'pickedup', 'in-transit'].includes(pkg.status));
     } else if (packagesTab === 'delivered') {
@@ -4185,7 +4255,7 @@ const AdminDashboard = () => {
         return bTime - aTime;
       });
     } else if (packagesTab === 'return-to-shop') {
-      filtered = filtered.filter(pkg => ['cancelled-awaiting-return', 'cancelled-returned', 'rejected-awaiting-return', 'rejected-returned'].includes(pkg.status));
+      filtered = filtered.filter(pkg => ['cancelled-awaiting-return', 'cancelled-returned', 'rejected-awaiting-return', 'rejected-returned', 'return-requested', 'return-in-transit', 'return-pending', 'return-completed'].includes(pkg.status));
     } else if (packagesTab === 'cancelled') {
       filtered = filtered.filter(pkg => ['cancelled', 'rejected'].includes(pkg.status));
       // Sort by updatedAt desc (fallback createdAt)
@@ -4248,9 +4318,13 @@ const AdminDashboard = () => {
         ? awbPkg.Items.reduce((sum, it) => sum + (parseFloat(it.codAmount || 0) || 0), 0)
         : cod;
       const shippingValue = Number(awbPkg.shownDeliveryCost ?? awbPkg.deliveryCost ?? pkg.shownDeliveryCost ?? pkg.deliveryCost ?? 0) || 0;
-      const subTotal = isShopify ? itemsSum : cod;
+      
+      // For all packages, subtotal is just the itemsSum, not cod
+      const subTotal = itemsSum;
       const shippingTaxes = isShopify ? Math.max(0, cod - itemsSum) : shippingValue;
-      const total = isShopify ? cod : (cod + shippingValue);
+      // Total is itemsSum + shippingValue
+      const total = subTotal + shippingValue;
+      
       const totalsRows = isShopify
         ? `<tr><td>Sub Total:</td><td>${subTotal.toFixed(2)} EGP</td></tr>`
           + `<tr><td>Shipping & Taxes:</td><td>${shippingTaxes.toFixed(2)} EGP</td></tr>`
@@ -4258,7 +4332,7 @@ const AdminDashboard = () => {
         : `<tr><td>Sub Total:</td><td>${subTotal.toFixed(2)} EGP</td></tr>`
           + `<tr><td>Shipping:</td><td>${shippingValue.toFixed(2)} EGP</td></tr>`
           + `<tr><td><b>Total:</b></td><td><b>${total.toFixed(2)} EGP</b></td></tr>`;
-      const shopName = awbPkg.Shop?.businessName || awbPkg.shop?.businessName || pkg.Shop?.businessName || pkg.shop?.businessName || '-';
+      const shopName = awbPkg.Shop?.businessName || awbPkg.shop?.businessName;
       const awbHtml = `
         <html>
           <head>

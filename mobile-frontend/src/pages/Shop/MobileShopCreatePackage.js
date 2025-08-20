@@ -17,7 +17,7 @@ function parseAddress(addressStr) {
 
 const initialForm = {
   packageDescription: '',
-  type: 'new',
+  // type removed from form control; backend defaults to 'new'
   category: '',
   weight: '',
   dimensions: { length: '', width: '', height: '' },
@@ -195,33 +195,18 @@ const MobileShopCreatePackage = () => {
 
       const packageData = {
         packageDescription: formData.packageDescription,
-        type: formData.type || 'new',
         category: formData.category,
         weight: parseFloat(formData.weight),
-        dimensions: {
-          length: formData.dimensions.length ? parseFloat(formData.dimensions.length) : 0,
-          width: formData.dimensions.width ? parseFloat(formData.dimensions.width) : 0,
-          height: formData.dimensions.height ? parseFloat(formData.dimensions.height) : 0
-        },
-        itemsNo: parseInt(formData.itemsNo, 10),
-        pickupAddress: formData.pickupAddress, // auto-fetched
-        deliveryAddress: {
-          contactName: formData.deliveryAddress.contactName,
-          contactPhone: formData.deliveryAddress.contactPhone,
-          street: formData.deliveryAddress.street,
-          city: formData.deliveryAddress.city,
-          state: formData.deliveryAddress.state,
-          zipCode: formData.deliveryAddress.zipCode,
-          country: formData.deliveryAddress.country,
-          instructions: ''
-        },
+        dimensions: formData.dimensions.length && formData.dimensions.width && formData.dimensions.height ? { ...formData.dimensions } : null,
+        itemsNo: parseInt(formData.itemsNo) || 0,
+        pickupAddress: formData.pickupAddress,
+        deliveryAddress: formData.deliveryAddress,
+        schedulePickupTime: formData.schedulePickupTime || new Date().toISOString(),
         shopNotes: formData.shopNotes,
+        shownDeliveryCost: formData.shownDeliveryCost !== '' ? parseFloat(formData.shownDeliveryCost) : null,
         // Calculate COD amount from items
         codAmount: calculateTotalCOD(),
         // Hidden fields sent as null/empty
-        schedulePickupTime: '',
-        deliveryCost: '',
-        shownDeliveryCost: (formData.shownDeliveryCost === '' || formData.shownDeliveryCost === null || formData.shownDeliveryCost === undefined) ? null : (parseFloat(formData.shownDeliveryCost) || 0),
         paymentMethod: '',
         paymentNotes: '',
         // Include items in the request
@@ -247,12 +232,6 @@ const MobileShopCreatePackage = () => {
       <form className="mobile-shop-create-form" onSubmit={handleSubmit}>
         <label>Description*</label>
         <input name="packageDescription" value={formData.packageDescription} onChange={handleChange} required />
-        <label>Type</label>
-        <select name="type" value={formData.type} onChange={handleChange}>
-          <option value="new">New Package</option>
-          <option value="return">Return</option>
-          <option value="exchange">Exchange</option>
-        </select>
         <label>Category*</label>
         <select name="category" value={formData.category} onChange={handleChange} required>
           <option value="">Select category</option>
@@ -347,7 +326,7 @@ const MobileShopCreatePackage = () => {
                         display: 'flex',
                         alignItems: 'center'
                       }}>
-                        ${((parseFloat(item.codPerUnit) || 0) * (parseInt(item.quantity) || 1)).toFixed(2)}
+                        EGP {((parseFloat(item.codPerUnit) || 0) * (parseInt(item.quantity) || 1)).toFixed(2)}
                       </div>
                     </div>
                   </div>
@@ -362,7 +341,7 @@ const MobileShopCreatePackage = () => {
                 borderRadius: '4px',
                 border: '1px solid #4CAF50'
               }}>
-                <strong>Total COD Amount: ${calculateTotalCOD().toFixed(2)}</strong>
+                <strong>Total COD Amount: EGP {calculateTotalCOD().toFixed(2)}</strong>
               </div>
 
               {/* Shown Shipping Fees input under items list */}

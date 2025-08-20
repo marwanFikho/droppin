@@ -98,17 +98,17 @@ const MobileShopWallet = () => {
       <div style={{ display: 'flex', gap: 12, margin: '0 0 20px 0', padding: '0 20px' }}>
         <div style={{ flex: 1, background: cardColors.toCollect, color: '#fff', borderRadius: 16, padding: 18, display: 'flex', flexDirection: 'column', alignItems: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.07)' }}>
           <div style={{ fontSize: 32, marginBottom: 4 }}>💵</div>
-          <div style={{ fontSize: 22, fontWeight: 700 }}>${parseFloat(financialStats.rawToCollect || 0).toFixed(2)}</div>
+          <div style={{ fontSize: 22, fontWeight: 700 }}>EGP {parseFloat(financialStats.rawToCollect || 0).toFixed(2)}</div>
           <div style={{ fontSize: 14, marginTop: 2, opacity: 0.95 }}>To Collect</div>
         </div>
         <div style={{ flex: 1, background: cardColors.collected, color: '#fff', borderRadius: 16, padding: 18, display: 'flex', flexDirection: 'column', alignItems: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.07)' }}>
           <div style={{ fontSize: 32, marginBottom: 4 }}>🪙</div>
-          <div style={{ fontSize: 22, fontWeight: 700 }}>${parseFloat(financialStats.rawTotalCollected || 0).toFixed(2)}</div>
+          <div style={{ fontSize: 22, fontWeight: 700 }}>EGP {parseFloat(financialStats.rawTotalCollected || 0).toFixed(2)}</div>
           <div style={{ fontSize: 14, marginTop: 2, opacity: 0.95 }}>Collected COD</div>
         </div>
         <div style={{ flex: 1, background: cardColors.settelled, color: '#fff', borderRadius: 16, padding: 18, display: 'flex', flexDirection: 'column', alignItems: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.07)' }}>
           <div style={{ fontSize: 32, marginBottom: 4 }}>✅</div>
-          <div style={{ fontSize: 22, fontWeight: 700 }}>${parseFloat(financialStats.rawSettelled || 0).toFixed(2)}</div>
+          <div style={{ fontSize: 22, fontWeight: 700 }}>EGP {parseFloat(financialStats.rawSettelled || 0).toFixed(2)}</div>
           <div style={{ fontSize: 14, marginTop: 2, opacity: 0.95 }}>Settled</div>
         </div>
       </div>
@@ -185,7 +185,7 @@ const MobileShopWallet = () => {
                   <span style={{ fontSize: 13, fontWeight: 500, background: badgeColors[tx.changeType] || '#eee', color: tx.changeType === 'increase' ? '#2e7d32' : '#c62828', borderRadius: 6, padding: '2px 8px', marginLeft: 6 }}>{tx.changeType}</span>
                 </div>
                 <div style={{ fontSize: 18, fontWeight: 700, color: tx.changeType === 'increase' ? '#2e7d32' : '#c62828', marginBottom: 2 }}>
-                  {tx.changeType === 'increase' ? '+' : '-'}${parseFloat(tx.amount).toFixed(2)}
+                  {tx.changeType === 'increase' ? '+' : '-'}EGP {parseFloat(tx.amount).toFixed(2)}
                 </div>
                 <div style={{ fontSize: 13, color: '#555', marginTop: 2 }}>{tx.description || '-'}</div>
               </div>

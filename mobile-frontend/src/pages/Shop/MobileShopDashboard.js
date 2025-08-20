@@ -153,7 +153,7 @@ const MobileShopDashboard = () => {
                     💵
                   </div>
                   <div className="mobile-shop-dashboard-stat-content">
-                    <div className="mobile-shop-dashboard-stat-number">${toCollect}</div>
+                    <div className="mobile-shop-dashboard-stat-number">EGP {toCollect}</div>
                     <div className="mobile-shop-dashboard-stat-label">To Collect</div>
                   </div>
                 </div>
@@ -162,7 +162,7 @@ const MobileShopDashboard = () => {
                     🪙
                   </div>
                   <div className="mobile-shop-dashboard-stat-content">
-                    <div className="mobile-shop-dashboard-stat-number">${collectedCOD}</div>
+                    <div className="mobile-shop-dashboard-stat-number">EGP {collectedCOD}</div>
                     <div className="mobile-shop-dashboard-stat-label">Collected COD</div>
                   </div>
                 </div>

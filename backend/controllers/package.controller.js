@@ -233,6 +233,7 @@ exports.getPackages = async (req, res) => {
         'actualPickupTime', 'actualDeliveryTime',
         'priority', 'paymentStatus', 'createdAt', 'updatedAt',
         'codAmount', 'deliveryCost', 'shownDeliveryCost', 'isPaid', 'paymentDate', 'notes', 'shopNotes',
+        'returnDetails', 'returnRefundAmount',
         'itemsNo', 'shopifyOrderId'
       ],
       where,
@@ -283,6 +284,7 @@ exports.getPackageById = async (req, res) => {
         'actualPickupTime', 'actualDeliveryTime',
         'priority', 'paymentStatus', 'createdAt', 'updatedAt',
         'codAmount', 'deliveryCost', 'shownDeliveryCost', 'isPaid', 'paymentDate', 'notes', 'shopNotes',
+        'returnDetails', 'returnRefundAmount',
         'itemsNo'
       ],
       include: [
@@ -445,7 +447,7 @@ exports.updatePackageStatus = async (req, res) => {
     }
     
     // Validate status
-    const validStatuses = ['pending', 'assigned', 'pickedup', 'in-transit', 'delivered', 'cancelled', 'cancelled-awaiting-return', 'cancelled-returned', 'rejected', 'rejected-awaiting-return', 'rejected-returned'];
+    const validStatuses = ['pending', 'assigned', 'pickedup', 'in-transit', 'delivered', 'cancelled', 'cancelled-awaiting-return', 'cancelled-returned', 'rejected', 'rejected-awaiting-return', 'rejected-returned', 'return-requested', 'return-in-transit', 'return-pending', 'return-completed'];
     if (!validStatuses.includes(nextStatus)) {
       await t.rollback();
       return res.status(400).json({ message: 'Invalid status' });
@@ -485,6 +487,12 @@ exports.updatePackageStatus = async (req, res) => {
     // Save the original status and payment status values before updating
     const originalStatus = package.status;
     
+    // Enforce admin-only transition to 'return-completed'
+    if (nextStatus === 'return-completed' && req.user.role !== 'admin') {
+      await t.rollback();
+      return res.status(403).json({ message: 'Only admin can mark return as completed' });
+    }
+
     // If marking a rejected package as pending, remove assigned driver
     if (nextStatus === 'pending' && package.status === 'rejected') {
       package.driverId = null;
@@ -502,6 +510,10 @@ exports.updatePackageStatus = async (req, res) => {
     // If status is being set to 'delivered', set actualDeliveryTime
     if (nextStatus === 'delivered' && package.actualDeliveryTime == null) {
       package.actualDeliveryTime = getCairoDateTime();
+    }
+    // If setting to return-pending, set actualPickupTime if not set (driver picked it up from customer)
+    if (nextStatus === 'return-pending' && package.actualPickupTime == null) {
+      package.actualPickupTime = getCairoDateTime();
     }
     // If status is being changed from 'delivered' to something else, clear actualDeliveryTime
     if (originalStatus === 'delivered' && nextStatus !== 'delivered') {
@@ -702,6 +714,54 @@ exports.updatePackageStatus = async (req, res) => {
           }
         );
         await logMoneyTransaction(shop.id, codAmount, 'ToCollect', 'decrease', `Package ${package.trackingNumber} rejected and returned to shop`, t);
+      }
+    }
+    
+    // === Handle Return Completed: subtract deliveryCost and refund from TotalCollected ===
+    if (
+      nextStatus === 'return-completed' &&
+      shop
+    ) {
+      const deliveryCost = parseFloat(package.deliveryCost || 0);
+      const refund = parseFloat(package.returnRefundAmount || 0);
+      
+      // Get current TotalCollected
+      const currentTotalCollected = parseFloat(shop.TotalCollected || 0);
+      
+      // Calculate new TotalCollected after deducting both amounts (allow negative)
+      const newTotalCollected = currentTotalCollected - (deliveryCost + refund);
+      
+      // Update shop's TotalCollected
+      await sequelize.query(
+        'UPDATE Shops SET TotalCollected = :newTotalCollected WHERE id = :shopId',
+        {
+          replacements: { newTotalCollected, shopId: shop.id },
+          type: sequelize.QueryTypes.UPDATE,
+          transaction: t
+        }
+      );
+      
+      // Log individual transactions separately
+      if (deliveryCost > 0) {
+        await logMoneyTransaction(
+          shop.id,
+          deliveryCost,
+          'TotalCollected',
+          'decrease',
+          `Return shipping fee for package ${package.trackingNumber}`,
+          t
+        );
+      }
+      
+      if (refund > 0) {
+        await logMoneyTransaction(
+          shop.id,
+          refund,
+          'TotalCollected',
+          'decrease',
+          `Returned items COD for package ${package.trackingNumber}`,
+          t
+        );
       }
     }
     
@@ -1308,10 +1368,188 @@ exports.updatePackageNotes = async (req, res) => {
   }
 };
 
+// Request a return for a delivered package (shop only)
+exports.requestReturn = async (req, res) => {
+	const t = await sequelize.transaction();
+	try {
+		const { id } = req.params;
+		const { items, refundAmount } = req.body; // items: [{ itemId, quantity }]
+
+		// Auth: only shops
+		if (req.user.role !== 'shop') {
+			await t.rollback();
+			return res.status(403).json({ message: 'Only shops can request returns' });
+		}
+
+		// Find shop of user
+		const shop = await Shop.findOne({ where: { userId: req.user.id }, transaction: t });
+		if (!shop) {
+			await t.rollback();
+			return res.status(404).json({ message: 'Shop profile not found' });
+		}
+
+		// Load package with items
+		const pkg = await Package.findByPk(id, { include: [Item], transaction: t, lock: true });
+		if (!pkg || pkg.shopId !== shop.id) {
+			await t.rollback();
+			return res.status(404).json({ message: 'Package not found' });
+		}
+
+		// Only delivered packages can be returned
+		if (pkg.status !== 'delivered') {
+			await t.rollback();
+			return res.status(400).json({ message: 'Only delivered packages can be returned' });
+		}
+
+		// Validate items
+		let returnDetails = [];
+		if (Array.isArray(items) && items.length > 0) {
+			const itemMap = new Map(pkg.Items.map(i => [i.id, i]));
+			for (const r of items) {
+				const dbItem = itemMap.get(r.itemId);
+				if (!dbItem) {
+					await t.rollback();
+					return res.status(400).json({ message: `Invalid itemId ${r.itemId}` });
+				}
+				const qty = parseInt(r.quantity, 10);
+				if (!Number.isFinite(qty) || qty < 0 || qty > dbItem.quantity) {
+					await t.rollback();
+					return res.status(400).json({ message: `Invalid quantity for itemId ${r.itemId}` });
+				}
+				returnDetails.push({ itemId: dbItem.id, description: dbItem.description, quantity: qty });
+			}
+		}
+
+		const refund = parseFloat(refundAmount || 0) || 0;
+		if (refund < 0) {
+			await t.rollback();
+			return res.status(400).json({ message: 'Refund amount cannot be negative' });
+		}
+
+		// If the package had a driver assigned, add a system note and clear the driver assignment
+		try {
+			if (pkg.driverId) {
+				// Get driver with associated user data
+				const deliveredDriver = await Driver.findByPk(pkg.driverId, {
+					include: [{
+						model: User,
+						attributes: ['name']
+					}],
+					transaction: t
+				});
+
+				// Get driver's name from the associated user record
+				const driverName = deliveredDriver?.User?.name || '';
+				
+				// Add note about previous driver
+				let notesLog = [];
+				try {
+					if (pkg.notes) {
+						if (typeof pkg.notes === 'string') {
+							try {
+								notesLog = JSON.parse(pkg.notes);
+							} catch (e) {
+								notesLog = [pkg.notes];
+							}
+						} else if (Array.isArray(pkg.notes)) {
+							notesLog = pkg.notes;
+						} else if (typeof pkg.notes === 'object') {
+							notesLog = [pkg.notes];
+						}
+					}
+				} catch (e) {
+					notesLog = [];
+				}
+				if (!Array.isArray(notesLog)) notesLog = [];
+
+				// Add to system notes
+				const noteText = driverName ? `Previously delivered by ${driverName}.` : 'Previously delivered by assigned driver.';
+				notesLog.push({
+					text: noteText,
+					createdAt: new Date().toISOString(),
+					author: 'system'
+				});
+				pkg.notes = JSON.stringify(notesLog);
+
+				// Unassign driver for return flow
+				pkg.driverId = null;
+			}
+		} catch (e) {
+			// If anything fails when building the note, continue with the flow without blocking the request
+		}
+
+		// Update package type and status, store return details
+		pkg.type = 'return';
+		pkg.status = 'return-requested';
+		pkg.returnDetails = returnDetails;
+		pkg.returnRefundAmount = refund;
+		// Clear actualDeliveryTime as it will become a return flow
+		pkg.actualDeliveryTime = null;
+		await pkg.save({ transaction: t });
+
+		await t.commit();
+
+		// Notify admin
+		try {
+			const adminUser = await User.findOne({ where: { role: 'admin' } });
+			if (adminUser) {
+				await createNotification({
+					userId: adminUser.id,
+					userType: 'admin',
+					title: 'Return Requested',
+					message: `Shop ${shop.businessName} requested return for package ${pkg.trackingNumber}.`,
+					data: { packageId: pkg.id, trackingNumber: pkg.trackingNumber, type: 'return-requested' }
+				});
+			}
+			// Notify shop (confirmation)
+			const shopUser = await User.findByPk(shop.userId);
+			if (shopUser) {
+				await createNotification({
+					userId: shopUser.id,
+					userType: 'shop',
+					title: 'Return Requested',
+					message: `Return request submitted for package ${pkg.trackingNumber}.`,
+					data: { packageId: pkg.id }
+				});
+			}
+		} catch (e) { /* ignore */ }
+
+		return res.json({ success: true });
+	} catch (error) {
+		await t.rollback();
+		console.error('Error requesting return:', error);
+		return res.status(500).json({ message: error.message });
+	}
+};
+
 // Helper function to format package data with Cairo timezone dates
 const formatPackageForResponse = (package) => {
   const packageData = package.toJSON ? package.toJSON() : package;
   
-  // Dates are now stored as formatted strings, so no formatting needed
+  // Normalize JSON-like fields that may be stored as strings
+  try {
+    if (typeof packageData.notes === 'string') {
+      try { packageData.notes = JSON.parse(packageData.notes); } catch { /* keep as string if invalid */ }
+    }
+  } catch { /* ignore */ }
+  try {
+    if (typeof packageData.statusHistory === 'string') {
+      try { packageData.statusHistory = JSON.parse(packageData.statusHistory); } catch { /* ignore */ }
+    }
+  } catch { /* ignore */ }
+  try {
+    if (typeof packageData.returnDetails === 'string') {
+      try { packageData.returnDetails = JSON.parse(packageData.returnDetails); } catch { /* ignore */ }
+    }
+  } catch { /* ignore */ }
+  if (!Array.isArray(packageData.returnDetails)) {
+    // Ensure it's an array when not present
+    if (packageData.returnDetails == null) packageData.returnDetails = [];
+  }
+  if (packageData.returnRefundAmount != null) {
+    const num = parseFloat(packageData.returnRefundAmount);
+    packageData.returnRefundAmount = Number.isFinite(num) ? num : 0;
+  }
+  
   return packageData;
 };

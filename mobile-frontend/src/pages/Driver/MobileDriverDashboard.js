@@ -9,11 +9,11 @@ import { useTranslation } from 'react-i18next';
 ChartJS.register(ArcElement, Tooltip, Legend);
 
 const packageCategories = {
-  current: ['assigned', 'pickedup', 'in-transit'],
-  past: ['delivered', 'cancelled', 'returned'],
+  current: ['assigned', 'pickedup', 'in-transit', 'return-in-transit', 'return-pending'],
+  past: ['delivered', 'cancelled', 'returned', 'return-completed'],
   delivered: ['delivered'],
   cancelled: ['cancelled'],
-  all: ['assigned', 'pickedup', 'in-transit', 'delivered', 'cancelled', 'returned']
+  all: ['assigned', 'pickedup', 'in-transit', 'return-in-transit', 'return-pending', 'delivered', 'cancelled', 'returned', 'return-completed']
 };
 
 const pickupCategories = {
@@ -37,7 +37,19 @@ const getStatusColorHex = (status) => {
   }
 };
 
-const getNextStatus = (status) => {
+// Updated to support return flow as well
+const getNextStatus = (status, type) => {
+  if (type === 'return' || (status && status.startsWith('return-'))) {
+    switch (status) {
+      case 'assigned':
+      case 'return-requested':
+        return { next: 'return-in-transit', label: 'Mark Return Picked Up' };
+      case 'return-in-transit':
+        return { next: 'return-pending', label: 'Mark Return Picked Up' };
+      default:
+        return null;
+    }
+  }
   switch (status) {
     case 'assigned': return { next: 'pickedup', label: 'Mark as Picked Up' };
     case 'pickedup': return { next: 'in-transit', label: 'Mark In Transit' };
@@ -114,7 +126,9 @@ const MobileDriverDashboard = () => {
           localStorage.setItem('selectedLanguage', 'en');
         }
         const packagesRes = await packageService.getPackages({ assignedToMe: true, page: 1, limit: 10000 });
-        setPackages(packagesRes.data.packages || packagesRes.data || []);
+        const fetched = packagesRes.data.packages || packagesRes.data || [];
+        const filtered = Array.isArray(fetched) ? fetched.filter(p => p.status !== 'return-pending') : [];
+        setPackages(filtered);
       } catch (err) {
         setError('Failed to load driver data.');
       } finally {
@@ -197,7 +211,9 @@ const MobileDriverDashboard = () => {
       await packageService.updatePackageStatus(pkg.id, { status: nextStatus });
       // Refresh packages
       const packagesRes = await packageService.getPackages({ assignedToMe: true, page: 1, limit: 10000 });
-      setPackages(packagesRes.data.packages || packagesRes.data || []);
+      const fetched = packagesRes.data.packages || packagesRes.data || [];
+      const filtered = Array.isArray(fetched) ? fetched.filter(p => p.status !== 'return-pending') : [];
+      setPackages(filtered);
     } catch (err) {
       setError('Failed to update package status.');
     } finally {
@@ -212,7 +228,9 @@ const MobileDriverDashboard = () => {
       await packageService.updatePackageStatus(pkg.id, { status: 'rejected' });
       // Refresh packages
       const packagesRes = await packageService.getPackages({ assignedToMe: true, page: 1, limit: 10000 });
-      setPackages(packagesRes.data.packages || packagesRes.data || []);
+      const fetched = packagesRes.data.packages || packagesRes.data || [];
+      const filtered = Array.isArray(fetched) ? fetched.filter(p => p.status !== 'return-pending') : [];
+      setPackages(filtered);
     } catch (err) {
       setError('Failed to cancel package.');
     } finally {
@@ -444,14 +462,14 @@ const MobileDriverDashboard = () => {
               <div style={{ color: '#888', textAlign: 'center', padding: '1rem' }}>{t('driver.dashboard.noPackages')}</div>
             ) : (
               getFilteredPackages().map(pkg => {
-                const nextStatus = getNextStatus(pkg.status);
+                const nextStatus = getNextStatus(pkg.status, pkg.type);
                 const currentColor = getStatusColorHex(pkg.status);
                 const nextColor = nextStatus ? getStatusColorHex(nextStatus.next) : '#bdbdbd';
                 const gradient = `linear-gradient(90deg, ${currentColor} 0%, ${nextColor} 100%)`;
                 return (
                   <div key={pkg.id} className="mobile-driver-dashboard-delivery">
                     <div className="mobile-driver-dashboard-delivery-header">
-                      <div className="mobile-driver-dashboard-delivery-id">{pkg.trackingNumber}</div>
+                      <div className="mobile-driver-dashboard-delivery-id">{pkg.trackingNumber}{pkg.type === 'return' && (<span style={{ marginLeft: 6, padding: '2px 6px', fontSize: 10, borderRadius: 10, background: '#ffe8cc', color: '#b45309' }}>Return</span>)}</div>
                       <div className="mobile-driver-dashboard-delivery-status" style={{ background: currentColor, color: '#fff' }}>
                         {pkg.status.charAt(0).toUpperCase() + pkg.status.slice(1).replace('_', ' ')}
                       </div>
@@ -463,27 +481,57 @@ const MobileDriverDashboard = () => {
                       <div className="mobile-driver-dashboard-delivery-address">
                         <strong>{t('driver.dashboard.address')}:</strong> {pkg.deliveryAddress || '-'}
                       </div>
+                      {pkg.status === 'return-in-transit' && Array.isArray(pkg.returnDetails) && pkg.returnDetails.length > 0 && (
+                        <div className="mobile-driver-dashboard-return-details" style={{ marginTop: 6 }}>
+                          <div style={{ fontSize: 12, color: '#555' }}>
+                            Returned Items ({pkg.returnDetails.length})
+                          </div>
+                          <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
+                            {pkg.returnDetails.map((it, idx) => (
+                              <li key={idx} style={{ fontSize: 12, color: '#555' }}>
+                                {(it.description || '-') + ' x ' + (parseInt(it.quantity) || 0)}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
                       <div className="mobile-driver-dashboard-delivery-time">
-                        <strong>{t('driver.dashboard.cod')}:</strong> ${parseFloat(pkg.codAmount || 0).toFixed(2)}
+                        {(pkg.status === 'return-in-transit' || pkg.status === 'return-pending') ? (
+                          <>
+                            <strong>{t('driver.dashboard.returnRefundAmount')}:</strong> EGP {parseFloat(pkg.returnRefundAmount || 0).toFixed(2)}
+                          </>
+                        ) : (
+                          <>
+                            <strong>{t('driver.dashboard.cod')}:</strong> EGP {parseFloat(pkg.codAmount || 0).toFixed(2)}
+                          </>
+                        )}
                       </div>
                     </div>
                     <div className="mobile-driver-dashboard-delivery-actions">
                       {nextStatus ? (
                         <button
                           className="mobile-driver-dashboard-delivery-start-btn"
-                          style={{ background: gradient, color: pkg.status === 'pickedup' ? '#333' : '#fff', border: 'none' }}
+                          style={{
+                            background: (getNextStatus(pkg.status, pkg.type)?.next === 'return-pending') ? '#2e7d32' : gradient,
+                            color: pkg.status === 'pickedup' ? '#333' : '#fff',
+                            border: 'none'
+                          }}
                           onClick={() => handleStatusAction(pkg, nextStatus.next)}
                           disabled={statusUpdating[pkg.id]}
                         >
                           {statusUpdating[pkg.id] ? t('driver.dashboard.updating') :
                             t(
-                              getNextStatus(pkg.status)?.next === 'pickedup'
+                              getNextStatus(pkg.status, pkg.type)?.next === 'pickedup'
                                 ? 'driver.dashboard.markAsPickedUp'
-                                : getNextStatus(pkg.status)?.next === 'in-transit'
+                                : getNextStatus(pkg.status, pkg.type)?.next === 'in-transit'
                                   ? 'driver.dashboard.markInTransit'
-                                  : getNextStatus(pkg.status)?.next === 'delivered'
+                                  : getNextStatus(pkg.status, pkg.type)?.next === 'delivered'
                                     ? 'driver.dashboard.markAsDelivered'
-                                    : 'driver.dashboard.noActions'
+                                    : getNextStatus(pkg.status, pkg.type)?.next === 'return-in-transit'
+                                      ? 'driver.dashboard.markReturnPickedUp'
+                                      : getNextStatus(pkg.status, pkg.type)?.next === 'return-pending'
+                                        ? 'driver.dashboard.markReturnPickedUp'
+                                        : 'driver.dashboard.noActions'
                             )}
                         </button>
                       ) : (
@@ -533,11 +581,27 @@ const MobileDriverDashboard = () => {
                   <div className="mobile-modal-detail-item"><span className="label">{t('driver.dashboard.description')}</span><span>{selectedPackage.packageDescription}</span></div>
                   <div className="mobile-modal-detail-item"><span className="label">{t('driver.dashboard.pickupAddress')}</span><span>{selectedPackage.pickupAddress}</span></div>
                   <div className="mobile-modal-detail-item"><span className="label">{t('driver.dashboard.deliveryAddress')}</span><span>{selectedPackage.deliveryAddress}</span></div>
-                  <div className="mobile-modal-detail-item"><span className="label">{t('driver.dashboard.codAmount')}</span><span>${parseFloat(selectedPackage.codAmount || 0).toFixed(2)}</span></div>
-                  <div className="mobile-modal-detail-item"><span className="label">Delivery Cost</span><span>${parseFloat(selectedPackage.deliveryCost || 0).toFixed(2)}</span></div>
+                  <div className="mobile-modal-detail-item"><span className="label">{t('driver.dashboard.codAmount')}</span><span>EGP {parseFloat(selectedPackage.codAmount || 0).toFixed(2)}</span></div>
+                  <div className="mobile-modal-detail-item"><span className="label">{t('driver.dashboard.deliveryCost')}</span><span>EGP {parseFloat(selectedPackage.deliveryCost || 0).toFixed(2)}</span></div>
                   <div className="mobile-modal-detail-item"><span className="label">{t('driver.dashboard.recipientName')}</span><span>{selectedPackage.deliveryContactName}</span></div>
                   <div className="mobile-modal-detail-item"><span className="label">{t('driver.dashboard.recipientPhone')}</span><span>{selectedPackage.deliveryContactPhone}</span></div>
                   <div className="mobile-modal-detail-item"><span className="label">{t('driver.dashboard.itemsNo')}</span><span>{selectedPackage.itemsNo ?? '-'}</span></div>
+                  {Array.isArray(selectedPackage.returnDetails) && selectedPackage.returnDetails.length > 0 && (
+                    <div className="mobile-modal-detail-item full-width">
+                      <span className="label">{t('driver.dashboard.returnDetails')}</span>
+                      <div style={{ backgroundColor: '#f9f9f9', padding: '0.5rem', borderRadius: '4px', border: '1px solid #e0e0e0', marginTop: '0.5rem' }}>
+                        {selectedPackage.returnDetails.map((it, idx) => (
+                          <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 8px', background: '#fff', border: '1px solid #eaeaea', borderRadius: 6, marginBottom: 6 }}>
+                            <span>{it.description || `Item ${it.itemId}`}</span>
+                            <span>Qty: {it.quantity}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {(selectedPackage.returnRefundAmount !== null && selectedPackage.returnRefundAmount !== undefined) && (
+                    <div className="mobile-modal-detail-item"><span className="label">{t('driver.dashboard.returnRefundAmount')}</span><span>EGP {parseFloat(selectedPackage.returnRefundAmount || 0).toFixed(2)}</span></div>
+                  )}
                   
                   {/* Items Section */}
                   {selectedPackage.Items && selectedPackage.Items.length > 0 && (
@@ -569,16 +633,34 @@ const MobileDriverDashboard = () => {
                                 <strong>Quantity:</strong> {item.quantity || 1}
                               </div>
                                                           <div>
-                              <strong>COD Per Unit:</strong> ${item.codAmount && item.quantity ? (parseFloat(item.codAmount) / parseInt(item.quantity)).toFixed(2) : '0.00'}
+                              <strong>COD Per Unit:</strong> EGP {item.codAmount && item.quantity ? (parseFloat(item.codAmount) / parseInt(item.quantity)).toFixed(2) : '0.00'}
                             </div>
                             <div>
-                              <strong>Total COD:</strong> ${parseFloat(item.codAmount || 0).toFixed(2)}
+                              <strong>Total COD:</strong> EGP {parseFloat(item.codAmount || 0).toFixed(2)}
                             </div>
                             </div>
                           </div>
                         ))}
                       </div>
                     </div>
+                  )}
+                  
+                  {/* Returned Items Section */}
+                  {Array.isArray(selectedPackage.returnDetails) && selectedPackage.returnDetails.length > 0 && (
+                    <div className="mobile-modal-detail-item full-width">
+                      <span className="label">{t('driver.dashboard.returnedItems')} ({selectedPackage.returnDetails.length})</span>
+                      <div style={{ backgroundColor: '#f9f9f9', padding: '0.5rem', borderRadius: '4px', border: '1px solid #e0e0e0', marginTop: '0.5rem' }}>
+                        {selectedPackage.returnDetails.map((it, idx) => (
+                          <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 8px', background: '#fff', border: '1px solid #eaeaea', borderRadius: 6, marginBottom: 6 }}>
+                            <span>{it.description || `Item ${it.itemId}`}</span>
+                            <span>Qty: {it.quantity}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {(selectedPackage.returnRefundAmount !== null && selectedPackage.returnRefundAmount !== undefined) && (
+                    <div className="mobile-modal-detail-item"><span className="label">{t('driver.dashboard.returnRefundAmount')}</span><span>EGP {parseFloat(selectedPackage.returnRefundAmount || 0).toFixed(2)}</span></div>
                   )}
                   
                   <div className="mobile-modal-detail-item full-width">
@@ -702,7 +784,11 @@ const MobileDriverDashboard = () => {
                           ? t('driver.dashboard.markInTransit')
                           : confirmAction.nextStatus === 'delivered'
                             ? t('driver.dashboard.markAsDelivered')
-                            : t('driver.dashboard.noActions')
+                            : confirmAction.nextStatus === 'return-in-transit'
+                              ? t('driver.dashboard.markReturnPickedUp')
+                              : confirmAction.nextStatus === 'return-pending'
+                                ? t('driver.dashboard.markReturnPickedUp')
+                                : t('driver.dashboard.noActions')
                   }) }} />
                   <button className="btn btn-primary" style={{marginRight: 10}} onClick={() => doStatusAction(confirmAction.pkg, confirmAction.nextStatus)}>{t('driver.dashboard.yesConfirm')}</button>
                 </>

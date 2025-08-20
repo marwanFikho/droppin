@@ -18,6 +18,7 @@ async function up() {
     allowNull: true,
     defaultValue: null
   });
+  return true;
 }
 
 async function down() {
@@ -32,6 +33,7 @@ async function down() {
     allowNull: true,
     defaultValue: null
   });
+  return true;
 }
 
-module.exports = { up, down }; 
+module.exports = { up, down };

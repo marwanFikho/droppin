@@ -161,5 +161,7 @@ router.post('/:id/photos', authorize('driver', 'admin'), packageController.addDe
 router.post('/:id/signature', authorize('driver', 'admin'), packageController.addDeliverySignature);
 router.patch('/:id/cancel', authorize('shop'), packageController.cancelPackage);
 router.patch('/:id/notes', authorize('driver', 'shop', 'admin'), packageController.updatePackageNotes);
+// New: shop requests a return on a delivered package
+router.post('/:id/request-return', authorize('shop'), packageController.requestReturn);
 
 module.exports = router;

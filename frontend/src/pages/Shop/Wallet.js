@@ -112,19 +112,19 @@ const Wallet = () => {
       <div className="dashboard-stats financial-stats">
         <div className="stat-card">
           <div className="stat-value">
-            ${(parseFloat(financialStats.rawToCollect || 0)).toFixed(2)}
+            EGP {(parseFloat(financialStats.rawToCollect || 0)).toFixed(2)}
           </div>
           <div className="stat-label">To Collect</div>
         </div>
         <div className="stat-card">
           <div className="stat-value">
-            ${(parseFloat(financialStats.rawTotalCollected || 0)).toFixed(2)}
+            EGP {(parseFloat(financialStats.rawTotalCollected || 0)).toFixed(2)}
           </div>
           <div className="stat-label">Collected (Waiting Withdraw)</div>
         </div>
         <div className="stat-card">
           <div className="stat-value">
-            ${(parseFloat(financialStats.rawSettelled || 0)).toFixed(2)}
+            EGP {(parseFloat(financialStats.rawSettelled || 0)).toFixed(2)}
           </div>
           <div className="stat-label">Settled</div>
         </div>
@@ -210,7 +210,7 @@ const Wallet = () => {
                     onClick={() => handleMoneyFilterChange('sortBy', 'amount')} 
                     className="sortable-header"
                   >
-                    Amount ($) {renderSortIcon('amount')}
+                    Amount (EGP) {renderSortIcon('amount')}
                   </th>
                   <th>Description</th>
                 </tr>
@@ -226,7 +226,7 @@ const Wallet = () => {
                       </span>
                     </td>
                     <td className={`financial-cell ${tx.changeType}`}>
-                      ${parseFloat(tx.amount).toFixed(2)}
+            EGP {parseFloat(tx.amount).toFixed(2)}
                     </td>
                     <td>{tx.description || '-'}</td>
                   </tr>

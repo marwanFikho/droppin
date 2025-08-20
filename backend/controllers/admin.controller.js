@@ -585,107 +585,54 @@ exports.approveShop = async (req, res) => {
 exports.getDrivers = async (req, res) => {
   try {
     const { isApproved, search } = req.query;
-    
-    // First, get all users with role 'driver'
-    const whereClause = { role: 'driver' };
-    
-    // Add approval status filter if provided
+
+    // Build user-level filters (e.g., approval)
+    const whereUser = {};
     if (isApproved !== undefined) {
-      whereClause.isApproved = isApproved === 'true';
+      whereUser.isApproved = isApproved === 'true';
     }
-    
-    const driverUsers = await User.findAll({
-      where: whereClause,
-      attributes: { exclude: ['password'] },
+
+    // Fetch drivers by Driver table joined with User to avoid listing users without a Driver row
+    const driverRows = await Driver.findAll({
+      include: [{
+        model: User,
+        attributes: { exclude: ['password'] },
+        where: whereUser
+      }],
       order: [['createdAt', 'DESC']]
     });
-    
-    // Get driver details for each user
-    const drivers = await Promise.all(driverUsers.map(async (user) => {
-      const userData = user.toJSON();
-      const driver = await Driver.findOne({ where: { userId: user.id } });
-      
-      if (driver) {
-        // Count assigned packages for this driver
-        const assignedPackagesCount = await Package.count({
-          where: {
-            driverId: driver.id
-          }
-        });
-        // Count all-time delivered packages
-        const deliveredPackagesCount = await Package.count({
-          where: {
-            driverId: driver.id,
-            status: 'delivered'
-          }
-        });
-        // Count packages assigned today (using statusHistory)
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const tomorrow = new Date(today);
-        tomorrow.setDate(today.getDate() + 1);
-        // Fetch all packages for this driver
-        const assignedPkgs = await Package.findAll({
-          where: {
-            driverId: driver.id
-          },
-          attributes: ['statusHistory']
-        });
-        let assignedTodayCount = 0;
-        for (const pkg of assignedPkgs) {
-          let history = pkg.statusHistory;
-          if (typeof history === 'string') {
-            try { history = JSON.parse(history); } catch { history = []; }
-          }
-          if (Array.isArray(history)) {
-            // Find the most recent 'assigned' entry
-            const assignedEntries = history.filter(h => h.status === 'assigned' && h.timestamp);
-            if (assignedEntries.length > 0) {
-              // Use the latest assigned entry
-              const latest = assignedEntries[assignedEntries.length - 1];
-              const ts = new Date(latest.timestamp);
-              if (ts >= today && ts < tomorrow) assignedTodayCount++;
-            }
-          }
-        }
-        return {
-          ...userData,
-          driverId: driver.id,
-          vehicleType: driver.vehicleType,
-          licensePlate: driver.licensePlate,
-          model: driver.model,
-          color: driver.color,
-          driverLicense: driver.driverLicense,
-          isAvailable: driver.isAvailable,
-          workingArea: driver.workingArea,
-          totalDeliveries: driver.totalDeliveries,
-          totalAssigned: driver.totalAssigned,
-          activeAssign: driver.activeAssign,
-          assignedToday: driver.assignedToday,
-          assignedTodayCount,
-          stats: {
-            assignedPackages: assignedPackagesCount,
-            deliveredPackages: deliveredPackagesCount,
-            totalPackages: assignedPackagesCount + deliveredPackagesCount
-          }
-        };
-      }
-      
-      return userData;
-    }));
-    
+
+    // Map to response objects combining user and driver info
+    let drivers = driverRows.map(row => {
+      const user = row.User ? row.User.toJSON() : {};
+      return {
+        ...user,
+        driverId: row.id,
+        vehicleType: row.vehicleType,
+        licensePlate: row.licensePlate,
+        model: row.model,
+        color: row.color,
+        driverLicense: row.driverLicense,
+        isAvailable: row.isAvailable,
+        workingArea: row.workingArea,
+        totalDeliveries: row.totalDeliveries,
+        totalAssigned: row.totalAssigned,
+        activeAssign: row.activeAssign,
+        assignedToday: row.assignedToday
+      };
+    });
+
     // Apply search filter if provided
-    let result = drivers;
     if (search) {
-      const searchTerm = search.toLowerCase();
-      result = drivers.filter(driver => 
-        driver.name?.toLowerCase().includes(searchTerm) ||
-        driver.email?.toLowerCase().includes(searchTerm) ||
-        driver.licensePlate?.toLowerCase().includes(searchTerm)
+      const term = String(search).toLowerCase();
+      drivers = drivers.filter(d =>
+        (d.name && d.name.toLowerCase().includes(term)) ||
+        (d.email && d.email.toLowerCase().includes(term)) ||
+        (d.licensePlate && String(d.licensePlate).toLowerCase().includes(term))
       );
     }
-    
-    res.json(result);
+
+    res.json(drivers);
   } catch (error) {
     console.error('Error getting drivers:', error);
     res.status(500).json({ message: error.message });
@@ -958,16 +905,17 @@ exports.assignDriverToPackage = async (req, res) => {
         statusHistory = [];
       }
       
+      const statusForAssignment = (package.status === 'return-requested') ? 'return-in-transit' : 'assigned';
       if (previousDriverId && previousDriverId !== driverId) {
         statusHistory.push({
-          status: 'assigned',
+          status: statusForAssignment,
           timestamp: new Date(),
           note: `Driver changed from ID: ${previousDriverId} to ID: ${driverId}`,
           updatedBy: req.user.id
         });
       } else {
       statusHistory.push({
-        status: 'assigned',
+        status: statusForAssignment,
         timestamp: new Date(),
         note: `Assigned to driver ID: ${driverId}`,
         updatedBy: req.user.id
@@ -976,7 +924,7 @@ exports.assignDriverToPackage = async (req, res) => {
 
       await package.update({
         driverId: driverId,
-        status: 'assigned',
+        status: statusForAssignment,
         statusHistory: JSON.stringify(statusHistory)
       }, { transaction });
 
@@ -1354,8 +1302,8 @@ exports.settleShopPayments = async (req, res) => {
     
     // Log detailed information about the settlement
     console.log(`Settlement processed for shop ${shop.id} (userId: ${shop.userId})`);
-    console.log(`Total settled: $${totalSettled}`);
-    console.log(`TotalCollected reset from $${currentTotalCollected} to $0`);
+    console.log(`Total settled: EGP ${totalSettled}`);
+    console.log(`TotalCollected reset from EGP ${currentTotalCollected} to EGP 0`);
     console.log(`Packages: ${packageIds.join(', ')}`);
   } catch (error) {
     console.error('Error settling shop payments:', error);
@@ -1376,16 +1324,28 @@ exports.deleteUser = async (req, res) => {
     if (user.role === 'shop') {
       const shop = await Shop.findOne({ where: { userId: id }, transaction });
       if (shop) {
-        // Delete related Packages, Pickups, MoneyTransactions
+        // Delete all packages belonging to this shop
         await Package.destroy({ where: { shopId: shop.id }, transaction });
+        // Delete related pickups; keep money transactions for audit
         await Pickup.destroy({ where: { shopId: shop.id }, transaction });
-        await MoneyTransaction.destroy({ where: { shopId: shop.id }, transaction });
         await Shop.destroy({ where: { id: shop.id }, transaction });
       }
     } else if (user.role === 'driver') {
       const driver = await Driver.findOne({ where: { userId: id }, transaction });
       if (driver) {
-        await Package.destroy({ where: { driverId: driver.id }, transaction });
+        const driverUser = await User.findByPk(driver.userId, { transaction });
+        const driverName = driverUser?.name || 'Unknown Driver';
+        // Add a note to all driver packages and unassign the driver
+        const driverPackages = await Package.findAll({ where: { driverId: driver.id }, transaction });
+        for (const pkg of driverPackages) {
+          let notesArr = [];
+          try {
+            if (Array.isArray(pkg.notes)) notesArr = pkg.notes;
+            else if (typeof pkg.notes === 'string' && pkg.notes.trim()) notesArr = JSON.parse(pkg.notes);
+          } catch { notesArr = []; }
+          notesArr.push({ text: `This package was delivered by ${driverName}. Driver account has been deleted.`, createdAt: new Date().toISOString(), author: 'system' });
+          await pkg.update({ driverId: null, notes: notesArr }, { transaction });
+        }
         await Driver.destroy({ where: { id: driver.id }, transaction });
       }
     }

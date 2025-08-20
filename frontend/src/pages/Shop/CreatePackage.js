@@ -31,10 +31,9 @@ const CreatePackage = () => {
   // Get access to the dashboard refresh function
   const { refreshDashboard } = useContext(ShopDashboardContext);
   
-  const [formData, setFormData] = useState({
-    packageDescription: '',
-    type: 'new',
-    category: '',
+      const [formData, setFormData] = useState({
+      packageDescription: '',
+      category: '',
     weight: '',
     dimensions: {
       length: '',
@@ -391,20 +390,7 @@ const CreatePackage = () => {
                   required
                 />
               </div>
-              <div className="form-group">
-                <label htmlFor="type">Type</label>
-                <select
-                  id="type"
-                  name="type"
-                  value={formData.type}
-                  onChange={handleChange}
-                >
-                  <option value="new">New Package</option>
-                  <option value="return">Return</option>
-                  <option value="exchange">Exchange</option>
-                </select>
-              </div>
-              
+
               <div className="form-group">
                 <label htmlFor="category">Category*</label>
                 <select
@@ -577,7 +563,7 @@ const CreatePackage = () => {
                           display: 'flex',
                           alignItems: 'center'
                         }}>
-                          ${((parseFloat(item.codPerUnit) || 0) * (parseInt(item.quantity) || 1)).toFixed(2)}
+                          EGP {((parseFloat(item.codPerUnit) || 0) * (parseInt(item.quantity) || 1)).toFixed(2)}
                         </div>
                       </div>
                     </div>
@@ -592,7 +578,7 @@ const CreatePackage = () => {
                   borderRadius: '4px',
                   border: '1px solid #4CAF50'
                 }}>
-                  <strong>Total COD Amount: ${calculateTotalCOD().toFixed(2)}</strong>
+                  <strong>Total COD Amount: EGP {calculateTotalCOD().toFixed(2)}</strong>
                 </div>
 
                 {/* Shown Shipping Fees input under items list */}

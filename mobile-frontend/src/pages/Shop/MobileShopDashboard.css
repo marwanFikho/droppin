@@ -876,3 +876,5 @@
 .mobile-change-password-form button[type="submit"]:hover:not(:disabled) {
   background: #e55a1f;
 } 
+
+/* Return Modal Styles - Using existing mobile-modal-* classes */ 

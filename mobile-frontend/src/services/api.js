@@ -1,8 +1,8 @@
 import axios from 'axios';
 import { getToken } from '../utils/auth';
 
-// const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
-const API_URL = process.env.REACT_APP_API_URL || 'https://api.droppin-eg.com/api';
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+// const API_URL = process.env.REACT_APP_API_URL || 'https://api.droppin-eg.com/api';
 
 // Create axios instance
 const api = axios.create({
@@ -99,6 +99,10 @@ export const packageService = {
   getMoneyTransactions: (params = {}) => api.get('/shops/money-transactions', { params }),
   updatePackageNotes: (id, note) => {
     return api.patch(`/packages/${id}/notes`, { note });
+  },
+  // Request return for a delivered package
+  requestReturn: (id, data) => {
+    return api.post(`/packages/${id}/request-return`, data);
   },
   generateShopApiKey: () => api.post('/shops/generate-api-key'),
 };

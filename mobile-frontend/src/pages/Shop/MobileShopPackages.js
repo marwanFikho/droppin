@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { packageService } from '../../services/api';
 import './MobileShopDashboard.css';
 import QRCode from 'qrcode';
+import { notification } from 'antd';
 
 const TABS = [
   { label: 'All', value: 'all' },
@@ -16,7 +17,7 @@ const TABS = [
   { label: 'Rejected', value: 'rejected' },
 ];
 const inTransitStatuses = ['assigned', 'pickedup', 'in-transit'];
-const returnToShopStatuses = ['cancelled-awaiting-return'];
+const returnToShopStatuses = ['cancelled-awaiting-return', 'cancelled-returned', 'rejected-awaiting-return', 'rejected-returned', 'return-requested', 'return-in-transit', 'return-pending', 'return-completed'];
 
 const MobileShopPackages = () => {
   const [packages, setPackages] = useState([]);
@@ -60,6 +61,12 @@ const MobileShopPackages = () => {
   const [savingDetails, setSavingDetails] = useState(false);
   const [editItems, setEditItems] = useState([]);
   const [editShopNotes, setEditShopNotes] = useState('');
+
+  const [showReturnModal, setShowReturnModal] = useState(false);
+  const [returnItems, setReturnItems] = useState({});
+  const [returnRefund, setReturnRefund] = useState('');
+  const [returnError, setReturnError] = useState('');
+  const [requestingReturn, setRequestingReturn] = useState(false);
 
   const prePendingStatuses = ['awaiting_schedule', 'scheduled_for_pickup'];
   const canEditThisPackage = (pkg) => prePendingStatuses.includes((pkg?.status || '').toLowerCase());
@@ -313,9 +320,12 @@ const MobileShopPackages = () => {
         ? Number(shopFees.shownShippingFees)
         : Number(shopFees.shippingFees));
     if (!Number.isFinite(shippingValue) || shippingValue < 0) shippingValue = 0;
-    const subTotal = isShopify ? itemsSum : cod;
+    
+    // For manually created packages, subtotal is just the itemsSum, not cod
+    const subTotal = itemsSum;
     const shippingTaxes = isShopify ? Math.max(0, cod - itemsSum) : shippingValue;
-    const total = isShopify ? cod : (cod + shippingValue);
+    // Total for manually created packages is itemsSum + shippingValue
+    const total = subTotal + shippingValue;
 
     const awbPkg = packageForAwb;
     const totalsRows = isShopify
@@ -453,6 +463,83 @@ const MobileShopPackages = () => {
     }
   };
 
+  const submitReturnRequest = async () => {
+    if (!selectedPackage) {
+      console.error("No package selected");
+      return;
+    }
+    
+    setRequestingReturn(true);
+    setReturnError('');
+    
+    // Validate that at least one item is selected for return
+    const selectedItems = Object.entries(returnItems).filter(([_, details]) => details.quantity > 0);
+    if (selectedItems.length === 0) {
+      setReturnError('Please select at least one item to return');
+      setRequestingReturn(false);
+      notification.error({ 
+        message: 'Return request failed', 
+        description: 'Please select at least one item to return', 
+        placement: 'topRight', 
+        duration: 4 
+      });
+      return;
+    }
+    
+    try {
+      const payload = {
+        items: selectedItems.map(([itemId, details]) => ({
+          itemId: Number(itemId),
+          quantity: details.quantity
+        })),
+        refundAmount: parseFloat(returnRefund) || 0
+      };
+      
+      console.log("Submitting return request:", payload);
+      console.log("Package ID:", selectedPackage.id);
+      
+      await packageService.requestReturn(selectedPackage.id, payload);
+      
+      setShowReturnModal(false);
+      setShowDetailsModal(false);
+      setSelectedPackage(null);
+      setReturnItems({});
+      setReturnRefund('');
+      setReturnError('');
+      
+      notification.success({ 
+        message: 'Return requested', 
+        description: 'Return request submitted successfully!', 
+        placement: 'topRight', 
+        duration: 3 
+      });
+      
+      // Refresh list without full page reload
+      try {
+        const res = await packageService.getPackages({ limit: 10000 });
+        setPackages(res.data.packages || res.data || []);
+      } catch (e) {
+        console.error("Failed to refresh packages:", e);
+      }
+      
+      // Ensure UI reflects latest state; fallback to a hard refresh shortly after
+      setTimeout(() => {
+        try { window.location.reload(); } catch (_) {}
+      }, 800);
+    } catch (err) {
+      console.error("Return request failed:", err);
+      setReturnError(err.response?.data?.message || 'Failed to submit return request.');
+      notification.error({ 
+        message: 'Return request failed', 
+        description: err.response?.data?.message || 'Failed to submit return request.', 
+        placement: 'topRight', 
+        duration: 4 
+      });
+    } finally {
+      setRequestingReturn(false);
+    }
+  };
+
   return (
     <div className="mobile-shop-packages" style={{marginLeft: '1rem', marginRight: '1rem', marginTop: '6rem'}}>
       <h2 className="mobile-shop-packages-title">All Packages</h2>
@@ -498,7 +585,7 @@ const MobileShopPackages = () => {
           {filterPackages().map(pkg => (
             <div key={pkg.id} className="mobile-shop-package-card">
               <div className="mobile-shop-package-header">
-                <span className="mobile-shop-package-tracking">{pkg.trackingNumber}</span>
+                <span className="mobile-shop-package-tracking">{pkg.trackingNumber}{pkg.type === 'return' && (<span style={{ marginLeft: 6, padding: '2px 6px', fontSize: 10, borderRadius: 10, background: '#ffe8cc', color: '#b45309' }}>Return</span>)}</span>
                 <span className={`mobile-shop-package-status-badge status-${pkg.status?.toLowerCase()}`}>{pkg.status}</span>
               </div>
               <div className="mobile-shop-package-info">
@@ -511,7 +598,7 @@ const MobileShopPackages = () => {
                   </div>
                 )}
                 <div>
-                  <span className="mobile-shop-package-label">COD:</span> ${parseFloat(pkg.codAmount || 0).toFixed(2)}
+                  <span className="mobile-shop-package-label">COD:</span> EGP {parseFloat(pkg.codAmount || 0).toFixed(2)}
                   {pkg.isPaid ? (
                     <span className="mobile-cod-badge paid">Paid</span>
                   ) : (
@@ -522,8 +609,47 @@ const MobileShopPackages = () => {
               <div className="mobile-shop-package-actions">
                 <button onClick={() => openDetailsModal(pkg)} className="mobile-shop-package-details-btn">View Details</button>
 
-                {pkg.status !== 'delivered' && pkg.status !== 'cancelled' && pkg.status !== 'cancelled-awaiting-return' && pkg.status !== 'cancelled-returned' && pkg.status !== 'rejected' && pkg.status !== 'rejected-awaiting-return' && pkg.status !== 'rejected-returned' && (
+                {pkg.status !== 'delivered' && 
+                  pkg.status !== 'cancelled' && 
+                  pkg.status !== 'cancelled-awaiting-return' && 
+                  pkg.status !== 'cancelled-returned' && 
+                  pkg.status !== 'rejected' && 
+                  pkg.status !== 'rejected-awaiting-return' && 
+                  pkg.status !== 'rejected-returned' && 
+                  pkg.status !== 'return-requested' && 
+                  pkg.status !== 'return-in-transit' && 
+                  pkg.status !== 'return-pending' && 
+                  pkg.status !== 'return-completed' && (
                   <button onClick={() => { setPackageToCancel(pkg); setShowCancelModal(true); }} className="mobile-shop-package-cancel-btn">Cancel</button>
+                )}
+                {pkg.status === 'delivered' && (
+                  <button
+                    className="mobile-shop-package-details-btn"
+                    style={{ background: '#ff8c00', color: '#fff' }}
+                    onClick={async (e) => {
+                      e.stopPropagation(); // Prevent opening the details modal
+                      try {
+                        // Fetch full package details to ensure we have items
+                        const response = await packageService.getPackageById(pkg.id);
+                        const fullPackage = response.data;
+                        setSelectedPackage(fullPackage);
+                        setShowReturnModal(true);
+                        setReturnItems({});
+                        setReturnRefund('');
+                        setReturnError('');
+                      } catch (err) {
+                        console.error("Failed to fetch package details:", err);
+                        notification.error({
+                          message: 'Error',
+                          description: 'Failed to load package details. Please try again.',
+                          placement: 'topRight',
+                          duration: 4
+                        });
+                      }
+                    }}
+                  >
+                    Request Return
+                  </button>
                 )}
               </div>
             </div>
@@ -668,9 +794,9 @@ const MobileShopPackages = () => {
                 {selectedPackage.deliveryAddress && (
                   <div className="mobile-modal-detail-item full-width"><span className="label">Delivery Address</span><span>{selectedPackage.deliveryAddress?.address || selectedPackage.deliveryAddress}</span></div>
                 )}
-                <div className="mobile-modal-detail-item"><span className="label">COD</span><span>${parseFloat(selectedPackage.codAmount || 0).toFixed(2)} {selectedPackage.isPaid ? 'Paid' : 'Unpaid'}</span></div>
+                <div className="mobile-modal-detail-item"><span className="label">COD</span><span>EGP {parseFloat(selectedPackage.codAmount || 0).toFixed(2)} {selectedPackage.isPaid ? 'Paid' : 'Unpaid'}</span></div>
                 <div className="mobile-modal-detail-item"><span className="label">Type</span><span>{selectedPackage.type || 'new'}</span></div>
-                <div className="mobile-modal-detail-item"><span className="label">Delivery Cost</span><span>${parseFloat(selectedPackage.deliveryCost || 0).toFixed(2)}</span></div>
+                <div className="mobile-modal-detail-item"><span className="label">Delivery Cost</span><span>EGP {parseFloat(selectedPackage.deliveryCost || 0).toFixed(2)}</span></div>
                 {selectedPackage.weight && (
                   <div className="mobile-modal-detail-item"><span className="label">Weight</span><span>{selectedPackage.weight} kg</span></div>
                 )}
@@ -709,10 +835,10 @@ const MobileShopPackages = () => {
                               <strong>Quantity:</strong> {item.quantity || 1}
                             </div>
                             <div>
-                              <strong>COD Per Unit:</strong> ${item.codAmount && item.quantity ? (parseFloat(item.codAmount) / parseInt(item.quantity)).toFixed(2) : '0.00'}
+                              <strong>COD Per Unit:</strong> EGP {item.codAmount && item.quantity ? (parseFloat(item.codAmount) / parseInt(item.quantity)).toFixed(2) : '0.00'}
                             </div>
                             <div>
-                              <strong>Total COD:</strong> ${parseFloat(item.codAmount || 0).toFixed(2)}
+                              <strong>Total COD:</strong> EGP {parseFloat(item.codAmount || 0).toFixed(2)}
                             </div>
                           </div>
                         </div>
@@ -808,7 +934,7 @@ const MobileShopPackages = () => {
                       </span>
                     ) : (
                       <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ fontWeight: 500 }}>${parseFloat(selectedPackage.shownDeliveryCost).toFixed(2)}</span>
+                        <span style={{ fontWeight: 500 }}>EGP {parseFloat(selectedPackage.shownDeliveryCost).toFixed(2)}</span>
                         <button
                           style={{ background: '#fff', border: '1px solid #007bff', color: '#007bff', borderRadius: 4, padding: '4px 12px', marginLeft: 4, cursor: 'pointer', fontWeight: 'bold' }}
                           onClick={() => {
@@ -846,6 +972,49 @@ const MobileShopPackages = () => {
               <div className="mobile-modal-actions">
                 <button className="mobile-modal-close-btn" onClick={() => { setShowCancelModal(false); setCancelError(null); }}>No</button>
                 <button className="mobile-shop-package-cancel-btn confirm" onClick={handleCancel}>Yes, Cancel</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showReturnModal && selectedPackage && (
+        <div className="mobile-modal-overlay" onClick={() => setShowReturnModal(false)}>
+          <div className="mobile-modal-content" onClick={e => e.stopPropagation()}>
+            <div className="mobile-modal-header">
+              <h3>Request Return</h3>
+              <button className="mobile-modal-close" onClick={() => setShowReturnModal(false)}>&times;</button>
+            </div>
+            <div className="mobile-modal-body">
+              <p>Select items to return and enter the refund to give to the customer (can be 0).</p>
+              <div style={{ maxHeight: 300, overflowY: 'auto', border: '1px solid #eee', borderRadius: 8, padding: 8, marginBottom: 8 }}>
+                {(selectedPackage.Items || []).map((it) => (
+                  <div key={it.id} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+                    <div><b>{it.description}</b></div>
+                    <div>Qty: {it.quantity}</div>
+                    <div>
+                      <input
+                        type="number"
+                        min="0"
+                        max={it.quantity}
+                        value={(returnItems[it.id]?.quantity ?? 0)}
+                        onChange={e => setReturnItems(prev => ({ ...prev, [it.id]: { quantity: Math.min(Math.max(0, parseInt(e.target.value || '0', 10)), it.quantity) } }))}
+                        placeholder="Return qty"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ marginTop: 8 }}>
+                <label>Returned items COD to customer (EGP)</label>
+                <input type="number" min="0" step="0.01" value={returnRefund} onChange={e => setReturnRefund(e.target.value)} />
+              </div>
+              {returnError && <div style={{ color: '#dc3545', marginTop: 8 }}>{returnError}</div>}
+              <div className="mobile-modal-actions">
+                <button className="mobile-modal-close-btn" onClick={() => setShowReturnModal(false)}>Cancel</button>
+                <button className="mobile-shop-package-details-btn" style={{ background: '#28a745', color: '#fff' }} disabled={requestingReturn} onClick={submitReturnRequest}>
+                  {requestingReturn ? 'Submitting...' : 'Submit'}
+                </button>
               </div>
             </div>
           </div>

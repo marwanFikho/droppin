@@ -126,7 +126,7 @@ const MobileUserDashboard = () => {
               💰
             </div>
             <div className="mobile-user-dashboard-stat-content">
-              <div className="mobile-user-dashboard-stat-number">${dashboardStats.totalSpent}</div>
+              <div className="mobile-user-dashboard-stat-number">EGP {dashboardStats.totalSpent}</div>
               <div className="mobile-user-dashboard-stat-label">Total Spent</div>
             </div>
           </div>
@@ -191,7 +191,7 @@ const MobileUserDashboard = () => {
                     <strong>Date:</strong> {order.date}
                   </div>
                   <div className="mobile-user-dashboard-order-amount">
-                    <strong>Amount:</strong> ${order.amount}
+                    <strong>Amount:</strong> EGP {order.amount}
                   </div>
                 </div>
                 

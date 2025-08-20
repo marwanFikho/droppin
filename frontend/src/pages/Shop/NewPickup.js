@@ -152,7 +152,7 @@ const NewPickup = () => {
                         {pkg.deliveryContactName || 'N/A'}{pkg.deliveryContactPhone ? ` · ${pkg.deliveryContactPhone}` : ''}
                       </span>
                     )}
-                    <span className="package-cod" style={{ color: '#666' }}>COD: ${pkg.codAmount}</span>
+                    <span className="package-cod" style={{ color: '#666' }}>COD: EGP {pkg.codAmount}</span>
                   </div>
                 </label>
               ))

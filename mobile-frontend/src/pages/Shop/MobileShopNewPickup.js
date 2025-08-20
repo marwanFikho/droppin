@@ -151,7 +151,7 @@ const MobileShopNewPickup = () => {
                             Recipient: {pkg.deliveryContactName || 'N/A'}{pkg.deliveryContactPhone ? ` · ${pkg.deliveryContactPhone}` : ''}
                           </div>
                         )}
-                        <div style={{ fontSize: 12, color: '#666' }}>COD: ${pkg.codAmount}</div>
+                        <div style={{ fontSize: 12, color: '#666' }}>COD: EGP {pkg.codAmount}</div>
                         {pkg.shopNotes && (
                           <div style={{ fontSize: 12, color: '#666' }}><span className="label">Shop Notes: </span><span>{pkg.shopNotes}</span></div>
                         )}

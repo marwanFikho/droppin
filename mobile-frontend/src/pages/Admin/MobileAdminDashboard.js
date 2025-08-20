@@ -142,12 +142,12 @@ const MobileAdminDashboard = () => {
       setDrivers(driversResponse.data || []);
       let filteredPackages = packagesResponse.data || [];
       if (packageSubTab !== 'all') {
-        if (packageSubTab === 'ready-to-assign') {
-          filteredPackages = filteredPackages.filter(pkg => pkg.status === 'pending');
+                  if (packageSubTab === 'ready-to-assign') {
+            filteredPackages = filteredPackages.filter(pkg => pkg.status === 'pending' || pkg.status === 'return-requested');
         } else if (packageSubTab === 'assigned') {
           filteredPackages = filteredPackages.filter(pkg => pkg.status === 'assigned');
         } else if (packageSubTab === 'return-to-shop') {
-          const returnToShopStatuses = ['cancelled-awaiting-return', 'cancelled-returned', 'rejected-awaiting-return', 'rejected-returned'];
+          const returnToShopStatuses = ['cancelled-awaiting-return', 'cancelled-returned', 'rejected-awaiting-return', 'rejected-returned', 'return-requested', 'return-in-transit', 'return-pending', 'return-completed'];
           filteredPackages = filteredPackages.filter(pkg => returnToShopStatuses.includes(pkg.status));
         } else if (packageSubTab === 'in-transit') {
           const inTransitStatuses = ['pickedup', 'in-transit'];
@@ -473,7 +473,7 @@ const MobileAdminDashboard = () => {
       });
 
       // Show success message
-      setStatusMessage({ type: 'success', text: `Successfully gave $${parseFloat(giveMoneyAmount).toFixed(2)} to ${selectedDriver.name}` });
+              setStatusMessage({ type: 'success', text: `Successfully gave EGP ${parseFloat(giveMoneyAmount).toFixed(2)} to ${selectedDriver.name}` });
       // Reset form
       setGiveMoneyAmount('');
       setGiveMoneyReason('');
@@ -750,9 +750,13 @@ const MobileAdminDashboard = () => {
         ? packageForAwb.Items.reduce((sum, it) => sum + (parseFloat(it.codAmount || 0) || 0), 0)
         : cod;
       const shippingValue = Number(packageForAwb.shownDeliveryCost ?? packageForAwb.deliveryCost ?? pkg.shownDeliveryCost ?? pkg.deliveryCost ?? 0) || 0;
-      const subTotal = isShopify ? itemsSum : cod;
+      
+      // For all packages, subtotal is just the itemsSum, not cod
+      const subTotal = itemsSum;
       const shippingTaxes = isShopify ? Math.max(0, cod - itemsSum) : shippingValue;
-      const total = isShopify ? cod : (cod + shippingValue);
+      // Total is itemsSum + shippingValue
+      const total = subTotal + shippingValue;
+      
       const shopName = packageForAwb.Shop?.businessName || packageForAwb.shop?.businessName || '-';
       const awbPkg = packageForAwb;
       const totalsRows = isShopify
@@ -1085,7 +1089,7 @@ const MobileAdminDashboard = () => {
               💰
             </div>
             <div className="mobile-admin-dashboard-stat-content">
-                  <div className="mobile-admin-dashboard-stat-number">${dashboardStats.profit ?? 0}</div>
+                  <div className="mobile-admin-dashboard-stat-number">EGP {dashboardStats.profit ?? 0}</div>
               <div className="mobile-admin-dashboard-stat-label">System Revenue</div>
             </div>
           </div>
@@ -1177,8 +1181,8 @@ const MobileAdminDashboard = () => {
                     {user.status && <p><strong>Status:</strong> {user.status}</p>}
                     {userSubTab === 'shops' && user.role === 'shop' && (
                       <div className="mobile-admin-dashboard-shop-financials">
-                        <p><strong>To Collect:</strong> ${parseFloat(user.ToCollect || 0).toFixed(2)}</p>
-                        <p><strong>Total Collected:</strong> ${parseFloat(user.TotalCollected || 0).toFixed(2)}</p>
+                        <p><strong>To Collect:</strong> EGP {parseFloat(user.ToCollect || 0).toFixed(2)}</p>
+                        <p><strong>Total Collected:</strong> EGP {parseFloat(user.TotalCollected || 0).toFixed(2)}</p>
                         <p><strong>Delivered Packages:</strong> {user.financialData?.packageCount || 0}</p>
                         {parseFloat(user.TotalCollected || 0) > 0 && (
                           <button
@@ -1443,7 +1447,7 @@ const MobileAdminDashboard = () => {
                         <td>{tx.attribute}</td>
                         <td>{tx.changeType}</td>
                         <td style={{ color: tx.changeType === 'increase' ? '#28a745' : '#d32f2f', fontWeight: 600 }}>
-                          ${parseFloat(tx.amount).toFixed(2)}
+                          EGP {parseFloat(tx.amount).toFixed(2)}
                         </td>
                         <td>{tx.description || '-'}</td>
                       </tr>
@@ -1489,7 +1493,7 @@ const MobileAdminDashboard = () => {
                 {selectedPackage.recipient?.address && (
                   <div className="mobile-modal-detail-item full-width"><span className="label">Delivery Address</span><span>{selectedPackage.recipient.address}</span></div>
                 )}
-                <div className="mobile-modal-detail-item"><span className="label">COD</span><span>${parseFloat(selectedPackage.codAmount || 0).toFixed(2)} {selectedPackage.isPaid ? 'Paid' : 'Unpaid'}</span></div>
+                <div className="mobile-modal-detail-item"><span className="label">COD</span><span>EGP {parseFloat(selectedPackage.codAmount || 0).toFixed(2)} {selectedPackage.isPaid ? 'Paid' : 'Unpaid'}</span></div>
                 <div className="mobile-modal-detail-item"><span className="label">Delivery Cost</span>
                 {editingDeliveryCost ? (
                   <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -1535,7 +1539,7 @@ const MobileAdminDashboard = () => {
                   </span>
                 ) : (
                   <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontWeight: 500 }}>${parseFloat(selectedPackage.deliveryCost || 0).toFixed(2)}</span>
+                    <span style={{ fontWeight: 500 }}>EGP {parseFloat(selectedPackage.deliveryCost || 0).toFixed(2)}</span>
                     <button
                       style={{ background: '#fff', border: '1px solid #007bff', color: '#007bff', borderRadius: 4, padding: '4px 12px', marginLeft: 4, cursor: 'pointer', fontWeight: 'bold' }}
                       onClick={() => {
@@ -1553,7 +1557,7 @@ const MobileAdminDashboard = () => {
                 )}
                 </div>
                 {selectedPackage.shownDeliveryCost !== undefined && selectedPackage.shownDeliveryCost !== null && (
-                  <div className="mobile-modal-detail-item"><span className="label">Shown Delivery Cost</span><span>${parseFloat(selectedPackage.shownDeliveryCost).toFixed(2)}</span></div>
+                  <div className="mobile-modal-detail-item"><span className="label">Shown Delivery Cost</span><span>EGP {parseFloat(selectedPackage.shownDeliveryCost).toFixed(2)}</span></div>
                 )}
                 {selectedPackage.weight && (
                   <div className="mobile-modal-detail-item"><span className="label">Weight</span><span>{selectedPackage.weight} kg</span></div>
@@ -1599,10 +1603,10 @@ const MobileAdminDashboard = () => {
                               <strong>Quantity:</strong> {item.quantity || 1}
                             </div>
                             <div>
-                              <strong>COD Per Unit:</strong> ${item.codAmount && item.quantity ? (parseFloat(item.codAmount) / parseInt(item.quantity)).toFixed(2) : '0.00'}
+                              <strong>COD Per Unit:</strong> EGP {item.codAmount && item.quantity ? (parseFloat(item.codAmount) / parseInt(item.quantity)).toFixed(2) : '0.00'}
                             </div>
                             <div>
-                              <strong>Total COD:</strong> ${parseFloat(item.codAmount || 0).toFixed(2)}
+                              <strong>Total COD:</strong> EGP {parseFloat(item.codAmount || 0).toFixed(2)}
                             </div>
                           </div>
                         </div>
@@ -1709,8 +1713,8 @@ const MobileAdminDashboard = () => {
                           <p><strong>Description:</strong> {pkg.packageDescription || 'No description'}</p>
                           <p><strong>Recipient:</strong> {pkg.deliveryContactName || 'N/A'}</p>
                           <p><strong>Address:</strong> {pkg.deliveryAddress || 'N/A'}</p>
-                          <p><strong>COD Amount:</strong> ${parseFloat(pkg.codAmount || 0).toFixed(2)}</p>
-                          {pkg.deliveryCost && <p><strong>Delivery Cost:</strong> ${parseFloat(pkg.deliveryCost || 0).toFixed(2)}</p>}
+                          <p><strong>COD Amount:</strong> EGP {parseFloat(pkg.codAmount || 0).toFixed(2)}</p>
+                          {pkg.deliveryCost && <p><strong>Delivery Cost:</strong> EGP {parseFloat(pkg.deliveryCost || 0).toFixed(2)}</p>}
                         </div>
                       </div>
                     ))}
@@ -1735,7 +1739,7 @@ const MobileAdminDashboard = () => {
               <button className="mobile-modal-close" onClick={() => setSettleShop(null)}>&times;</button>
             </div>
             <div className="mobile-modal-body">
-              <p>Total Collected: <strong>${parseFloat(settleShop.shop.TotalCollected || 0).toFixed(2)}</strong></p>
+                              <p>Total Collected: <strong>EGP {parseFloat(settleShop.shop.TotalCollected || 0).toFixed(2)}</strong></p>
               <input
                 type="number"
                 min="0"
@@ -1794,8 +1798,8 @@ const MobileAdminDashboard = () => {
                 {selectedUser.role === 'shop' && (
                   <>
                     <div className="mobile-modal-detail-item full-width"><span className="label">Business Type</span><span>{selectedUser.businessType || 'N/A'}</span></div>
-                    <div className="mobile-modal-detail-item full-width"><span className="label">To Collect</span><span>${parseFloat(selectedUser.ToCollect || 0).toFixed(2)}</span></div>
-                    <div className="mobile-modal-detail-item full-width"><span className="label">Total Collected</span><span>${parseFloat(selectedUser.TotalCollected || 0).toFixed(2)}</span></div>
+                    <div className="mobile-modal-detail-item full-width"><span className="label">To Collect</span><span>EGP {parseFloat(selectedUser.ToCollect || 0).toFixed(2)}</span></div>
+                    <div className="mobile-modal-detail-item full-width"><span className="label">Total Collected</span><span>EGP {parseFloat(selectedUser.TotalCollected || 0).toFixed(2)}</span></div>
                     <div className="mobile-modal-detail-item full-width"><span className="label">Delivered Packages</span><span>{selectedUser.financialData?.packageCount || 0}</span></div>
                     
                     {/* Shipping Fees Section */}
@@ -1804,11 +1808,11 @@ const MobileAdminDashboard = () => {
                       <div style={{ marginTop: 8 }}>
                         <div style={{ marginBottom: 8 }}>
                           <span style={{ fontWeight: 'bold', display: 'block', marginBottom: 4 }}>Current Shipping Fees:</span>
-                          <span>${parseFloat(selectedUser.shippingFees || 0).toFixed(2)}</span>
+                          <span>EGP {parseFloat(selectedUser.shippingFees || 0).toFixed(2)}</span>
                         </div>
                         <div style={{ marginBottom: 8 }}>
                           <span style={{ fontWeight: 'bold', display: 'block', marginBottom: 4 }}>Current Shown Shipping Fees:</span>
-                          <span>{selectedUser.shownShippingFees !== null && selectedUser.shownShippingFees !== undefined ? `${parseFloat(selectedUser.shownShippingFees).toFixed(2)}` : '-'}</span>
+                          <span>{selectedUser.shownShippingFees !== null && selectedUser.shownShippingFees !== undefined ? `EGP {parseFloat(selectedUser.shownShippingFees).toFixed(2)}` : '-'}</span>
                         </div>
                         {editingShippingFees ? (
                           <div>
@@ -2023,7 +2027,7 @@ const MobileAdminDashboard = () => {
                           <ul style={{ maxHeight: '120px', overflowY: 'auto', margin: 0, padding: 0 }}>
                             {shopPackages.slice(0, 5).map(pkg => (
                               <li key={pkg.id} style={{ fontSize: '14px', marginBottom: '4px', listStyle: 'none' }}>
-                                #{pkg.trackingNumber} - {pkg.status} - ${parseFloat(pkg.codAmount || 0).toFixed(2)}
+                                #{pkg.trackingNumber} - {pkg.status} - EGP {parseFloat(pkg.codAmount || 0).toFixed(2)}
                               </li>
                             ))}
                           </ul>
@@ -2111,7 +2115,7 @@ const MobileAdminDashboard = () => {
                 <div className="mobile-modal-detail-item"><span className="label">Recipient</span><span>{selectedAdminPackage.deliveryContactName || 'N/A'}</span></div>
                 <div className="mobile-modal-detail-item"><span className="label">Recipient Phone</span><span>{selectedAdminPackage.deliveryContactPhone || 'N/A'}</span></div>
                 <div className="mobile-modal-detail-item full-width"><span className="label">Delivery Address</span><span>{selectedAdminPackage.deliveryAddress || 'N/A'}</span></div>
-                <div className="mobile-modal-detail-item"><span className="label">COD</span><span>${parseFloat(selectedAdminPackage.codAmount || 0).toFixed(2)} {selectedAdminPackage.isPaid ? 'Paid' : 'Unpaid'}</span></div>
+                <div className="mobile-modal-detail-item"><span className="label">COD</span><span>EGP {parseFloat(selectedAdminPackage.codAmount || 0).toFixed(2)} {selectedAdminPackage.isPaid ? 'Paid' : 'Unpaid'}</span></div>
                 <div className="mobile-modal-detail-item"><span className="label">Delivery Cost</span>
                 {editingDeliveryCost ? (
                   <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -2157,7 +2161,7 @@ const MobileAdminDashboard = () => {
                   </span>
                 ) : (
                   <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontWeight: 500 }}>${parseFloat(selectedAdminPackage.deliveryCost || 0).toFixed(2)}</span>
+                    <span style={{ fontWeight: 500 }}>EGP {parseFloat(selectedAdminPackage.deliveryCost || 0).toFixed(2)}</span>
                     <button
                       style={{ background: '#fff', border: '1px solid #007bff', color: '#007bff', borderRadius: 4, padding: '4px 12px', marginLeft: 4, cursor: 'pointer', fontWeight: 'bold' }}
                       onClick={() => {
@@ -2175,7 +2179,7 @@ const MobileAdminDashboard = () => {
                 )}
                 </div>
                 {selectedAdminPackage.shownDeliveryCost !== undefined && selectedAdminPackage.shownDeliveryCost !== null && (
-                  <div className="mobile-modal-detail-item"><span className="label">Shown Delivery Cost</span><span>${parseFloat(selectedAdminPackage.shownDeliveryCost).toFixed(2)}</span></div>
+                  <div className="mobile-modal-detail-item"><span className="label">Shown Delivery Cost</span><span>EGP {parseFloat(selectedAdminPackage.shownDeliveryCost).toFixed(2)}</span></div>
                 )}
                 {selectedAdminPackage.weight && (
                   <div className="mobile-modal-detail-item"><span className="label">Weight</span><span>{selectedAdminPackage.weight} kg</span></div>
@@ -2215,10 +2219,10 @@ const MobileAdminDashboard = () => {
                               <strong>Quantity:</strong> {item.quantity || 1}
                             </div>
                             <div>
-                              <strong>COD Per Unit:</strong> ${item.codAmount && item.quantity ? (parseFloat(item.codAmount) / parseInt(item.quantity)).toFixed(2) : '0.00'}
+                              <strong>COD Per Unit:</strong> EGP {item.codAmount && item.quantity ? (parseFloat(item.codAmount) / parseInt(item.quantity)).toFixed(2) : '0.00'}
                             </div>
                             <div>
-                              <strong>Total COD:</strong> ${parseFloat(item.codAmount || 0).toFixed(2)}
+                              <strong>Total COD:</strong> EGP {parseFloat(item.codAmount || 0).toFixed(2)}
                             </div>
                           </div>
                         </div>
@@ -2284,15 +2288,36 @@ const MobileAdminDashboard = () => {
 
                 {/* Mark as Returned action */}
                 {selectedAdminPackage.status === 'cancelled-awaiting-return' && (
-                  <button
-                    className="mobile-admin-dashboard-settle-btn"
-                    onClick={async () => {
-                      await handleMarkAsReturned(selectedAdminPackage);
-                      setSelectedAdminPackage(null);
-                    }}
-                  >
-                    Mark as Returned
-                  </button>
+                  <div className="mobile-modal-actions-row">
+                    <button
+                      className="mobile-admin-dashboard-primary-btn"
+                      onClick={async () => {
+                        try {
+                          await handleMarkAsReturned(selectedAdminPackage);
+                          setSelectedAdminPackage(null);
+                        } catch (e) {}
+                      }}
+                    >
+                      Mark as Returned
+                    </button>
+                  </div>
+                )}
+
+                {/* Mark Return Completed for return-in-transit */}
+                {selectedAdminPackage.status === 'return-pending' && (
+                  <div className="mobile-modal-actions-row">
+                    <button
+                      className="mobile-admin-dashboard-primary-btn"
+                      onClick={async () => {
+                        try {
+                          await packageService.updatePackageStatus(selectedAdminPackage.id, { status: 'return-completed' });
+                          setSelectedAdminPackage(null);
+                        } catch (e) {}
+                      }}
+                    >
+                      Mark Return Completed
+                    </button>
+                  </div>
                 )}
 
                 <button className="mobile-modal-close-btn" onClick={() => setSelectedAdminPackage(null)}>Close</button>
@@ -2434,7 +2459,7 @@ const MobileAdminDashboard = () => {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     <div>
                       <label style={{ display: 'block', marginBottom: 4, fontWeight: 500, color: '#495057', fontSize: '14px' }}>
-                        Amount ($):
+                        Amount (EGP):
                       </label>
                       <input
                         type="number"

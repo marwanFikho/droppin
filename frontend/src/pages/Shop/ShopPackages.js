@@ -4,6 +4,7 @@ import { useLocation } from 'react-router-dom';
 import './ShopDashboard.css';
 import QRCode from 'qrcode';
 import { useAuth } from '../../context/AuthContext';
+import { notification } from 'antd';
 
 const TABS = [
   { label: 'All', value: 'all' },
@@ -21,7 +22,11 @@ const returnToShopStatuses = [
   'cancelled-awaiting-return',
   'cancelled-returned',
   'rejected-awaiting-return',
-  'rejected-returned'
+  'rejected-returned',
+  'return-requested',
+	'return-in-transit',
+	'return-pending',
+	'return-completed'
 ];
 
 export function getStatusBadge(status) {
@@ -410,9 +415,13 @@ const ShopPackages = () => {
         ? Number(shopFees.shownShippingFees)
         : Number(shopFees.shippingFees));
     if (!Number.isFinite(shippingValue) || shippingValue < 0) shippingValue = 0;
-    const subTotal = isShopify ? itemsSum : cod;
+    
+    // For manually created packages, subtotal is just the itemsSum, not cod
+    const subTotal = itemsSum;
     const shippingTaxes = isShopify ? Math.max(0, cod - itemsSum) : shippingValue;
-    const total = isShopify ? cod : (cod + shippingValue);
+    // Total for manually created packages is itemsSum + shippingValue
+    const total = subTotal + shippingValue;
+    
     const totalsRows = isShopify
       ? `<tr><td>Sub Total:</td><td>${subTotal.toFixed(2)} EGP</td></tr>`
         + `<tr><td>Shipping & Taxes:</td><td>${shippingTaxes.toFixed(2)} EGP</td></tr>`
@@ -542,36 +551,59 @@ const ShopPackages = () => {
     for (const pkg of pkgsToPrint) {
       const qrDataUrl = await QRCode.toDataURL(pkg.trackingNumber || '');
       const logoUrl = window.location.origin + '/assets/images/logo.jpg';
-      const cod = parseFloat(pkg.codAmount || 0);
-      let shipping = (pkg.shownDeliveryCost !== undefined && pkg.shownDeliveryCost !== null && pkg.shownDeliveryCost !== '')
-        ? Number(pkg.shownDeliveryCost)
+      
+      // Ensure we have Items data
+      let packageData = pkg;
+      try {
+        if (!pkg?.Items || !Array.isArray(pkg.Items)) {
+          const resp = await packageService.getPackageById(pkg.id);
+          if (resp && resp.data) packageData = resp.data;
+        }
+      } catch (e) {
+        // If fetch fails, fall back to passed pkg
+      }
+      
+      const cod = parseFloat(packageData.codAmount || 0);
+      const isShopify = (packageData.shopifyOrderId !== undefined && packageData.shopifyOrderId !== null && packageData.shopifyOrderId !== '');
+      const itemsSum = (Array.isArray(packageData.Items) && packageData.Items.length > 0)
+        ? packageData.Items.reduce((s, it) => s + (parseFloat(it.codAmount || 0) || 0), 0)
+        : cod;
+      let shipping = (packageData.shownDeliveryCost !== undefined && packageData.shownDeliveryCost !== null && packageData.shownDeliveryCost !== '')
+        ? Number(packageData.shownDeliveryCost)
         : ((shopFees.shownShippingFees !== undefined && shopFees.shownShippingFees !== null && shopFees.shownShippingFees !== '')
           ? Number(shopFees.shownShippingFees)
           : Number(shopFees.shippingFees));
       if (!Number.isFinite(shipping) || shipping < 0) shipping = 0;
-      const total = cod + shipping;
+      
+      // For manually created packages, subtotal is just the itemsSum, not cod
+      const subTotal = itemsSum;
+      const shippingValue = shipping;
+      // Total for manually created packages is itemsSum + shippingValue
+      const total = subTotal + shippingValue;
+      
       const shopName = shopFees.businessName || '-';
       allAwbHtml += `
         <div class="awb-container" style="page-break-after: always;">
           <div class="awb-header">
-            <img src="${logoUrl}" class="awb-logo" alt="Droppin Logo" style="height:80px;width:auto;" />
+            <img src="${logoUrl}" class="awb-logo" alt="Droppin Logo" />
             <div>
+              <div class="awb-title">AIR WAYBILL</div>
               <img src="${qrDataUrl}" alt="QR Code" style="height:140px;width:140px;" />
             </div>
           </div>
           <div class="awb-section">
             <table class="awb-info-table">
               <tr>
-                <td><span class="awb-row"><b class="awb-tracking">Tracking #:</b><span class="awb-tracking awb-data">${pkg.trackingNumber || '-'}</span></span>
-                <div class="awb-shop-name">${shopName}</div>
+                <td><span class="awb-row"><b>Tracking #:</b><span class="awb-data">${pkg.trackingNumber || '-'}</span></span>
+                <div class="awb-shop-name">Shop Name: ${shopName}</div>
               </td>
                 <td><b>Date:</b> ${pkg.createdAt ? new Date(pkg.createdAt).toLocaleDateString() : '-'}</td>
               </tr>
               <tr>
                 <td colspan="2">
-                  <span class="awb-row"><b class="awb-recipient">Recipient:</b><span class="awb-recipient awb-data">${pkg.deliveryContactName || '-'}</span></span><br/>
-                  <span class="awb-row"><b class="awb-phone">Phone:</b><span class="awb-phone awb-data">${pkg.deliveryContactPhone || '-'}</span></span><br/>
-                  <span class="awb-row"><b class="awb-address">Address:</b><span class="awb-address awb-data">${pkg.deliveryAddress || '-'}</span></span>
+                  <span class="awb-row"><b>Recipient:</b><span class="awb-data">${pkg.deliveryContactName || '-'}</span></span><br/>
+                  <span class="awb-row"><b>Phone:</b><span class="awb-data">${pkg.deliveryContactPhone || '-'}</span></span><br/>
+                  <span class="awb-row"><b>Address:</b><span class="awb-data">${pkg.deliveryAddress || '-'}</span></span>
                 </td>
               </tr>
             </table>
@@ -581,38 +613,48 @@ const ShopPackages = () => {
           </div>
           <table class="awb-table">
             <thead>
-              <tr><th>Item</th><th>Qty</th><th>COD Per Unit</th><th>Total COD</th></tr>
+              <tr>
+                <th>Item</th>
+                <th>Quantity</th>
+                <th>Price</th>
+                <th>Total</th>
+              </tr>
             </thead>
             <tbody>
-              ${
-                pkg.Items && pkg.Items.length > 0
-                  ? pkg.Items.map(item => `
-                    <tr>
-                      <td>${item.description || '-'}</td>
-                      <td>${item.quantity}</td>
-                      <td>${item.codAmount && item.quantity ? (item.codAmount / item.quantity).toFixed(2) : '0.00'} EGP</td>
-                      <td>${parseFloat(item.codAmount || 0).toFixed(2)} EGP</td>
-                    </tr>
-                  `).join('')
-                  : `<tr>
-                      <td>${pkg.packageDescription || '-'}</td>
-                      <td>${pkg.itemsNo ?? 1}</td>
-                      <td>${cod.toFixed(2)} EGP</td>
-                      <td>${cod.toFixed(2)} EGP</td>
-                    </tr>`
+              ${Array.isArray(packageData.Items) && packageData.Items.length > 0
+                ? packageData.Items.map((item, idx) => {
+                  const quantity = parseInt(item.quantity) || 1;
+                  const price = parseFloat(item.codPerUnit) || 0;
+                  const total = quantity * price;
+                  return `<tr>
+                    <td>${item.description || `Item ${idx+1}`}</td>
+                    <td>${quantity}</td>
+                    <td>${price.toFixed(2)} EGP</td>
+                    <td>${total.toFixed(2)} EGP</td>
+                  </tr>`;
+                }).join('')
+                : `<tr><td colspan="4">No items specified</td></tr>`
               }
+              <tr>
+                <td colspan="2"></td>
+                <td>Sub Total:</td>
+                <td>${subTotal.toFixed(2)} EGP</td>
+              </tr>
+              <tr>
+                <td colspan="2"></td>
+                <td>Shipping:</td>
+                <td>${shippingValue.toFixed(2)} EGP</td>
+              </tr>
+              <tr>
+                <td colspan="2"></td>
+                <td><b>Total:</b></td>
+                <td><b>${total.toFixed(2)} EGP</b></td>
+              </tr>
             </tbody>
           </table>
-          <div class="awb-section">
-            <b>Payment Method:</b> COD
+          <div class="awb-footer">
+            Droppin Delivery Service - Thank You!
           </div>
-          <div class="awb-section" style="display:flex;justify-content:flex-end;">
-            <table class="awb-info-table" style="width:300px;">
-              <tr><td>Sub Total:</td><td>${cod.toFixed(2)} EGP</td></tr>
-              <tr><td><b>Total:</b></td><td><b>${total.toFixed(2)} EGP</b></td></tr>
-            </table>
-          </div>
-          <div class="awb-footer">Thank you for your order!</div>
         </div>
       `;
     }
@@ -646,6 +688,52 @@ const ShopPackages = () => {
       printWindow.document.open();
       printWindow.document.write(fullHtml);
       printWindow.document.close();
+    }
+  };
+
+  const [showReturnModal, setShowReturnModal] = useState(false);
+  const [returnItems, setReturnItems] = useState({});
+  const [returnRefund, setReturnRefund] = useState('');
+  const [returnError, setReturnError] = useState('');
+  const [requestingReturn, setRequestingReturn] = useState(false);
+
+  const submitReturnRequest = async () => {
+    if (!selectedPackage) return;
+    setRequestingReturn(true);
+    setReturnError('');
+    try {
+      const payload = {
+        items: Object.entries(returnItems).map(([itemId, details]) => ({
+          itemId: Number(itemId),
+          quantity: details.quantity
+        })),
+        refundAmount: parseFloat(returnRefund) || 0
+      };
+      await packageService.requestReturn(selectedPackage.id, payload);
+      setShowReturnModal(false);
+      setShowPackageDetailsModal(false);
+      setSelectedPackage(null);
+      setReturnItems({});
+      setReturnRefund('');
+      setReturnError('');
+      notification.success({ message: 'Return requested', description: 'Return request submitted successfully!', placement: 'topRight', duration: 3 });
+      // Refresh list without full page reload
+      // Prefer staying on the same tab
+      try {
+        const res = await packageService.getPackages({ limit: 10000 });
+        setPackages(res.data.packages || res.data || []);
+      } catch (e) {
+        // Silent fallback
+      }
+      // Ensure UI reflects latest state; fallback to a hard refresh shortly after
+      setTimeout(() => {
+        try { window.location.reload(); } catch (_) {}
+      }, 800);
+    } catch (err) {
+      setReturnError(err.response?.data?.message || 'Failed to submit return request.');
+      notification.error({ message: 'Return request failed', description: err.response?.data?.message || 'Failed to submit return request.', placement: 'topRight', duration: 4 });
+    } finally {
+      setRequestingReturn(false);
     }
   };
 
@@ -781,11 +869,11 @@ const ShopPackages = () => {
                     </td>
                     <td data-label="Recipient">{pkg.deliveryContactName}</td>
                     <td data-label="Status">{getStatusBadge(pkg.status)}</td>
-                    <td data-label="COD">${parseFloat(pkg.codAmount || 0).toFixed(2)} {getCodBadge(pkg.isPaid)}</td>
+                    <td data-label="COD">EGP {parseFloat(pkg.codAmount || 0).toFixed(2)} {getCodBadge(pkg.isPaid)}</td>
                     <td data-label="Date">{new Date(pkg.createdAt).toLocaleDateString()}</td>
                     {activeTab !== 'cancelled' && (
                       <td data-label="Actions" className="actions-cell">
-                        {pkg.status !== 'cancelled' && pkg.status !== 'delivered' && pkg.status !== 'cancelled-returned' && pkg.status !== 'cancelled-awaiting-return' && pkg.status !== 'rejected' && pkg.status !== 'rejected-awaiting-return' && pkg.status !== 'rejected-returned' &&(
+                        {pkg.status !== 'cancelled' && pkg.status !== 'delivered' && pkg.status !== 'cancelled-returned' && pkg.status !== 'cancelled-awaiting-return' && pkg.status !== 'rejected' && pkg.status !== 'rejected-awaiting-return' && pkg.status !== 'rejected-returned' && pkg.status !== 'return-requested' && pkg.status !== 'return-in-transit' && pkg.status !== 'return-pending' && pkg.status !== 'return-completed' &&(
                           <>
                             <button
                               className="action-button cancel-btn"
@@ -949,7 +1037,7 @@ const ShopPackages = () => {
 
                   {/* Items */}
                   <div style={{ background:'#fafafa', border:'1px solid #f1f1f1', borderRadius: 10, padding: 12, marginBottom: 12 }}>
-                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
+                    <div style={{ display: 'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
                       <h5 style={{ margin: 0 }}>Items</h5>
                       <button className="btn" style={{ background: '#17a2b8', color: '#fff' }} onClick={() => setEditItems(prev => [...prev, { description: '', quantity: 1, codPerUnit: '0' }])}>Add Item</button>
                     </div>
@@ -966,6 +1054,28 @@ const ShopPackages = () => {
                       ))}
                     </div>
                   </div>
+                  {/* Returned Items (view only) */}
+                  {Array.isArray(selectedPackage.returnDetails) && selectedPackage.returnDetails.length > 0 && (
+                    <div style={{ background:'#fafafa', border:'1px solid #f1f1f1', borderRadius: 10, padding: 12, marginBottom: 12 }}>
+                      <h5 style={{ margin: 0 }}>Returned Items ({selectedPackage.returnDetails.length})</h5>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
+                        {selectedPackage.returnDetails.map((it, idx) => (
+                          <div key={idx} style={{ display:'flex', justifyContent:'space-between', background:'#fff', border:'1px solid #eaeaea', borderRadius: 8, padding: '8px 10px' }}>
+                            <span>{it.description || `Item ${it.itemId}`}</span>
+                            <span>Qty: {it.quantity}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {(selectedPackage.returnRefundAmount !== null && selectedPackage.returnRefundAmount !== undefined) && (
+                    <div style={{ background:'#fafafa', border:'1px solid #f1f1f1', borderRadius: 10, padding: 12, marginBottom: 12 }}>
+                      <div style={{ display:'flex', justifyContent:'space-between' }}>
+                        <span style={{ fontWeight: 600 }}>Return Refund Amount</span>
+                        <span>EGP {parseFloat(selectedPackage.returnRefundAmount || 0).toFixed(2)}</span>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Shop Notes */}
                   <div style={{ background:'#fafafa', border:'1px solid #f1f1f1', borderRadius: 10, padding: 12 }}>
@@ -1014,16 +1124,35 @@ const ShopPackages = () => {
                 )}
                 <div className="detail-item">
                   <span className="label">COD</span>
-                  <span>${parseFloat(selectedPackage.codAmount || 0).toFixed(2)} {getCodBadge(selectedPackage.isPaid)}</span>
+                  <span>EGP {parseFloat(selectedPackage.codAmount || 0).toFixed(2)} {getCodBadge(selectedPackage.isPaid)}</span>
                 </div>
                 <div className="detail-item">
                   <span className="label">Type</span>
-                  <span>{selectedPackage.type || 'new'}</span>
+                  <span>{selectedPackage.type === 'return' ? 'Return' : (selectedPackage.type || 'new')}</span>
                 </div>
                 <div className="detail-item">
                   <span className="label">Delivery Cost</span>
-                  <span>${parseFloat(selectedPackage.deliveryCost || 0).toFixed(2)}</span>
+                  <span>EGP {parseFloat(selectedPackage.deliveryCost || 0).toFixed(2)}</span>
                 </div>
+                {Array.isArray(selectedPackage.returnDetails) && selectedPackage.returnDetails.length > 0 && (
+                  <div className="detail-item full-width">
+                    <span className="label">Return Details</span>
+                    <div className="nested-details">
+                      {selectedPackage.returnDetails.map((it, idx) => (
+                        <div key={idx} className="nested-detail">
+                          <span className="nested-label">{it.description || `Item ${it.itemId}`}:</span>
+                          <span>Qty: {it.quantity}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {(selectedPackage.returnRefundAmount !== null && selectedPackage.returnRefundAmount !== undefined) && (
+                  <div className="detail-item">
+                    <span className="label">Return Refund</span>
+                    <span>EGP {parseFloat(selectedPackage.returnRefundAmount || 0).toFixed(2)}</span>
+                  </div>
+                )}
                 {selectedPackage.shownDeliveryCost !== undefined && selectedPackage.shownDeliveryCost !== null && (
                   <div className="detail-item">
                     <span className="label">Shown Delivery Cost</span>
@@ -1079,7 +1208,7 @@ const ShopPackages = () => {
                       </span>
                     ) : (
                       <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ fontWeight: 500 }}>${parseFloat(selectedPackage.shownDeliveryCost).toFixed(2)}</span>
+                        <span style={{ fontWeight: 500 }}>EGP {parseFloat(selectedPackage.shownDeliveryCost).toFixed(2)}</span>
                         {(['awaiting_schedule','scheduled_for_pickup'].includes((selectedPackage.status || '').toLowerCase())) && (
                           <button
                             style={{ background: '#fff', border: '1px solid #007bff', color: '#007bff', borderRadius: 4, padding: '4px 12px', marginLeft: 4, cursor: 'pointer', fontWeight: 'bold' }}
@@ -1139,10 +1268,10 @@ const ShopPackages = () => {
                               <strong>Quantity:</strong> {item.quantity}
                             </div>
                             <div>
-                              <strong>COD Per Unit:</strong> ${item.codAmount && item.quantity ? (parseFloat(item.codAmount) / parseInt(item.quantity)).toFixed(2) : '0.00'}
+                              <strong>COD Per Unit:</strong> EGP {item.codAmount && item.quantity ? (parseFloat(item.codAmount) / parseInt(item.quantity)).toFixed(2) : '0.00'}
                             </div>
                             <div>
-                              <strong>Total COD:</strong> ${parseFloat(item.codAmount || 0).toFixed(2)}
+                              <strong>Total COD:</strong> EGP {parseFloat(item.codAmount || 0).toFixed(2)}
                             </div>
                           </div>
                         </div>
@@ -1195,8 +1324,55 @@ const ShopPackages = () => {
                 </div>
               </div>
               <div className="modal-actions">
+                {selectedPackage.status === 'delivered' && (
+                  <button
+                    className="btn"
+                    style={{ background: '#ff8c00', color: '#fff', marginRight: 8 }}
+                    onClick={() => setShowReturnModal(true)}
+                  >
+                    Request Return
+                  </button>
+                )}
                 <button className="btn close-btn" onClick={() => setShowPackageDetailsModal(false)}>Close</button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showReturnModal && selectedPackage && (
+        <div className="confirmation-overlay" onClick={() => setShowReturnModal(false)}>
+          <div className="confirmation-dialog" onClick={e => e.stopPropagation()}>
+            <h3>Request Return</h3>
+            <p>Select items to return and enter the refund to give to the customer (can be 0).</p>
+            <div style={{ maxHeight: 300, overflowY: 'auto', border: '1px solid #eee', borderRadius: 8, padding: 8, marginBottom: 8 }}>
+              {(selectedPackage.Items || []).map((it, idx) => (
+                <div key={it.id} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+                  <div><b>{it.description}</b></div>
+                  <div>Qty: {it.quantity}</div>
+                  <div>
+                    <input
+                      type="number"
+                      min="0"
+                      max={it.quantity}
+                      value={(returnItems[it.id]?.quantity ?? 0)}
+                      onChange={e => setReturnItems(prev => ({ ...prev, [it.id]: { quantity: Math.min(Math.max(0, parseInt(e.target.value || '0', 10)), it.quantity) } }))}
+                      placeholder="Return qty"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div style={{ marginTop: 8 }}>
+              <label>Returned items COD to customer (EGP)</label>
+              <input type="number" min="0" step="0.01" value={returnRefund} onChange={e => setReturnRefund(e.target.value)} />
+            </div>
+            {returnError && <div style={{ color: '#dc3545', marginTop: 8 }}>{returnError}</div>}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
+              <button className="btn" onClick={() => setShowReturnModal(false)}>Cancel</button>
+              <button className="btn" style={{ background: '#28a745', color: '#fff' }} disabled={requestingReturn} onClick={submitReturnRequest}>
+                {requestingReturn ? 'Submitting...' : 'Submit'}
+              </button>
             </div>
           </div>
         </div>
