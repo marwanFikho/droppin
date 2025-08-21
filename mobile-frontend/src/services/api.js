@@ -104,6 +104,10 @@ export const packageService = {
   requestReturn: (id, data) => {
     return api.post(`/packages/${id}/request-return`, data);
   },
+  // Request exchange for a delivered package
+  requestExchange: (id, data) => {
+    return api.post(`/packages/${id}/request-exchange`, data);
+  },
   generateShopApiKey: () => api.post('/shops/generate-api-key'),
 };
 

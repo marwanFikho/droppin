@@ -377,7 +377,8 @@ const AdminDashboard = () => {
                   pkg.status === 'pending' ||
                   pkg.status === 'cancelled-awaiting-return' ||
                   pkg.status === 'rejected-awaiting-return' ||
-                  pkg.status === 'return-requested'
+                  pkg.status === 'return-requested' ||
+                  pkg.status === 'exchange-in-process'
                 );
               console.log('Filtered ready-to-assign packages:', readyToAssignPackages);
               setPackages(readyToAssignPackages);
@@ -862,7 +863,8 @@ const AdminDashboard = () => {
                   const readyToAssignPackages = (packagesResponse.data || []).filter(pkg =>
                     pkg.status === 'pending' ||
                     pkg.status === 'cancelled-awaiting-return' ||
-                    pkg.status === 'rejected-awaiting-return'
+                    pkg.status === 'exchange-awaiting-schedule' ||
+                    pkg.status === 'exchange-in-process'
                   );
                   setPackages(readyToAssignPackages);
                 } else {
@@ -954,7 +956,8 @@ const AdminDashboard = () => {
           const readyToAssignPackages = (packagesResponse.data || []).filter(pkg =>
             pkg.status === 'pending' ||
             pkg.status === 'cancelled-awaiting-return' ||
-            pkg.status === 'rejected-awaiting-return'
+            pkg.status === 'rejected-awaiting-return' ||
+            pkg.status === 'exchange-in-process'
           );
           setPackages(readyToAssignPackages);
         } else {
@@ -1592,6 +1595,22 @@ const AdminDashboard = () => {
                     <FontAwesomeIcon icon={faCheck} />
                   </button>
                 )}
+                {packagesTab === 'return-to-shop' && pkg.status === 'exchange-awaiting-return' && (
+                  <button
+                    className="action-btn return-btn"
+                    onClick={async () => {
+                      try {
+                        await packageService.updatePackageStatus(pkg.id, { status: 'exchange-returned' });
+                        await fetchPackages();
+                      } catch (err) {
+                        console.error('Failed to mark exchange completed:', err);
+                      }
+                    }}
+                    title="Mark Exchange Completed"
+                  >
+                    <FontAwesomeIcon icon={faCheck} />
+                  </button>
+                )}
                 {packagesTab === 'return-to-shop' && pkg.status === 'return-pending' && (
                   <button
                     className="action-btn return-btn"
@@ -1604,6 +1623,22 @@ const AdminDashboard = () => {
                       }
                     }}
                     title="Mark Return Completed"
+                  >
+                    <FontAwesomeIcon icon={faCheck} />
+                  </button>
+                )}
+                {packagesTab === 'return-to-shop' && pkg.status === 'exchange-in-transit' && (
+                  <button
+                    className="action-btn return-btn"
+                    onClick={async () => {
+                      try {
+                        await packageService.updatePackageStatus(pkg.id, { status: 'exchange-awaiting-return' });
+                        await fetchPackages();
+                      } catch (err) {
+                        console.error('Failed to move exchange to awaiting return:', err);
+                      }
+                    }}
+                    title="Move to Exchange Awaiting Return"
                   >
                     <FontAwesomeIcon icon={faCheck} />
                   </button>
@@ -2644,6 +2679,46 @@ const AdminDashboard = () => {
                   <span>EGP {parseFloat(selectedEntity.returnRefundAmount || 0).toFixed(2)}</span>
                 </div>
               )}
+              {/* Exchange Details */}
+              {(selectedEntity?.type === 'exchange' || (selectedEntity?.status || '').startsWith('exchange-')) && selectedEntity?.exchangeDetails && (
+                <div className="detail-item full-width">
+                  <span className="label">Exchange Details:</span>
+                  <div className="nested-details">
+                    <div className="nested-detail">
+                      <span className="nested-label">Take from customer:</span>
+                      {Array.isArray(selectedEntity.exchangeDetails.takeItems) && selectedEntity.exchangeDetails.takeItems.length > 0 ? (
+                        <ul style={{ margin: 0, paddingLeft: 18 }}>
+                          {selectedEntity.exchangeDetails.takeItems.map((it, idx) => (
+                            <li key={`adm-xtake-${idx}`}>{(it.description || '-')} x {(parseInt(it.quantity) || 0)}</li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <span style={{ color: '#666', marginLeft: 6 }}>None</span>
+                      )}
+                    </div>
+                    <div className="nested-detail">
+                      <span className="nested-label">Give to customer:</span>
+                      {Array.isArray(selectedEntity.exchangeDetails.giveItems) && selectedEntity.exchangeDetails.giveItems.length > 0 ? (
+                        <ul style={{ margin: 0, paddingLeft: 18 }}>
+                          {selectedEntity.exchangeDetails.giveItems.map((it, idx) => (
+                            <li key={`adm-xgive-${idx}`}>{(it.description || '-')} x {(parseInt(it.quantity) || 0)}</li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <span style={{ color: '#666', marginLeft: 6 }}>None</span>
+                      )}
+                    </div>
+                  </div>
+                  {selectedEntity.exchangeDetails.cashDelta && (
+                    <div className="nested-detail">
+                      <span className="nested-label">Money:</span>
+                      <span style={{ marginLeft: 6 }}>
+                        {(selectedEntity.exchangeDetails.cashDelta.type === 'take' ? 'Take from customer' : 'Give to customer')} · EGP {parseFloat(selectedEntity.exchangeDetails.cashDelta.amount || 0).toFixed(2)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
           {/* Package details: Forward Status button for admin */}
@@ -2695,7 +2770,7 @@ const AdminDashboard = () => {
                 )}
                 
                 {/* Only show Forward Status button for packages that are not cancelled, rejected, or delivered */}
-                {!['cancelled','pending', 'cancelled-awaiting-return', 'cancelled-returned', 'rejected', 'rejected-awaiting-return', 'rejected-returned', 'delivered', 'awaiting_schedule', 'awaiting_pickup', 'scheduled_for_pickup'].includes(selectedEntity.status) && (
+                {!['cancelled','pending', 'cancelled-awaiting-return', 'cancelled-returned', 'rejected', 'rejected-returned', 'delivered', 'awaiting_schedule', 'awaiting_pickup', 'scheduled_for_pickup'].includes(selectedEntity.status) && (
                   <button
                     className="btn btn-primary"
                     disabled={forwardingPackageId === selectedEntity.id}
@@ -3008,7 +3083,8 @@ const AdminDashboard = () => {
           pkg.status === 'pending' ||
           pkg.status === 'cancelled-awaiting-return' ||
           pkg.status === 'rejected-awaiting-return' ||
-          pkg.status === 'return-requested'
+          pkg.status === 'return-requested' ||
+          pkg.status === 'exchange-in-process'
         );
         setPackages(readyToAssignPackages);
       } else {
@@ -3170,7 +3246,8 @@ const AdminDashboard = () => {
             pkg.status === 'pending' ||
             pkg.status === 'cancelled-awaiting-return' ||
             pkg.status === 'rejected-awaiting-return' ||
-            pkg.status === 'return-requested'
+            pkg.status === 'return-requested' ||
+            pkg.status === 'exchange-in-process'
           );
           setPackages(readyToAssignPackages);
         } else {
@@ -3648,7 +3725,8 @@ const AdminDashboard = () => {
             pkg.status === 'pending' ||
             pkg.status === 'cancelled-awaiting-return' ||
             pkg.status === 'rejected-awaiting-return' ||
-            pkg.status === 'return-requested'
+            pkg.status === 'return-requested' ||
+            pkg.status === 'exchange-in-process'
           );
         console.log('Filtered ready-to-assign packages:', readyToAssignPackages);
         setPackages(readyToAssignPackages);
@@ -3671,7 +3749,7 @@ const AdminDashboard = () => {
         setPackages(sorted);
               } else if (packagesTab === 'return-to-shop') {
           const returnPackages = (response.data || []).filter(pkg => 
-            ['cancelled-awaiting-return', 'cancelled-returned', 'rejected-awaiting-return', 'rejected-returned', 'return-requested', 'return-in-transit', 'return-pending', 'return-completed'].includes(pkg.status)
+            ['cancelled-awaiting-return', 'cancelled-returned', 'rejected-awaiting-return', 'rejected-returned', 'return-requested', 'return-in-transit', 'return-pending', 'return-completed', 'exchange-in-transit', 'exchange-awaiting-return'].includes(pkg.status)
           );
         setPackages(returnPackages);
       } else {
@@ -4242,7 +4320,8 @@ const AdminDashboard = () => {
         pkg.status === 'pending' ||
         pkg.status === 'cancelled-awaiting-return' ||
         pkg.status === 'rejected-awaiting-return' ||
-        pkg.status === 'return-requested'
+        pkg.status === 'return-requested' ||
+        pkg.status === 'exchange-in-process'
       ));
     } else if (packagesTab === 'in-transit') {
       filtered = filtered.filter(pkg => ['assigned', 'pickedup', 'in-transit'].includes(pkg.status));
@@ -4255,7 +4334,7 @@ const AdminDashboard = () => {
         return bTime - aTime;
       });
     } else if (packagesTab === 'return-to-shop') {
-      filtered = filtered.filter(pkg => ['cancelled-awaiting-return', 'cancelled-returned', 'rejected-awaiting-return', 'rejected-returned', 'return-requested', 'return-in-transit', 'return-pending', 'return-completed'].includes(pkg.status));
+      filtered = filtered.filter(pkg => ['cancelled-awaiting-return', 'cancelled-returned', 'rejected-awaiting-return', 'rejected-returned', 'return-requested', 'return-in-transit', 'return-pending', 'return-completed', 'exchange-in-transit', 'exchange-awaiting-return'].includes(pkg.status));
     } else if (packagesTab === 'cancelled') {
       filtered = filtered.filter(pkg => ['cancelled', 'rejected'].includes(pkg.status));
       // Sort by updatedAt desc (fallback createdAt)

@@ -142,12 +142,16 @@ const MobileAdminDashboard = () => {
       setDrivers(driversResponse.data || []);
       let filteredPackages = packagesResponse.data || [];
       if (packageSubTab !== 'all') {
-                  if (packageSubTab === 'ready-to-assign') {
-            filteredPackages = filteredPackages.filter(pkg => pkg.status === 'pending' || pkg.status === 'return-requested');
+        if (packageSubTab === 'ready-to-assign') {
+          filteredPackages = filteredPackages.filter(pkg => (
+            pkg.status === 'pending' ||
+            pkg.status === 'return-requested' ||
+            pkg.status === 'exchange-in-process'
+          ));
         } else if (packageSubTab === 'assigned') {
           filteredPackages = filteredPackages.filter(pkg => pkg.status === 'assigned');
         } else if (packageSubTab === 'return-to-shop') {
-          const returnToShopStatuses = ['cancelled-awaiting-return', 'cancelled-returned', 'rejected-awaiting-return', 'rejected-returned', 'return-requested', 'return-in-transit', 'return-pending', 'return-completed'];
+          const returnToShopStatuses = ['cancelled-awaiting-return', 'cancelled-returned', 'rejected-awaiting-return', 'rejected-returned', 'return-requested', 'return-in-transit', 'return-pending', 'return-completed', 'exchange-in-transit', 'exchange-awaiting-return'];
           filteredPackages = filteredPackages.filter(pkg => returnToShopStatuses.includes(pkg.status));
         } else if (packageSubTab === 'in-transit') {
           const inTransitStatuses = ['pickedup', 'in-transit'];
@@ -2316,6 +2320,40 @@ const MobileAdminDashboard = () => {
                       }}
                     >
                       Mark Return Completed
+                    </button>
+                  </div>
+                )}
+
+                {/* Mark Exchange Awaiting Return for exchange-in-transit */}
+                {selectedAdminPackage.status === 'exchange-in-transit' && (
+                  <div className="mobile-modal-actions-row">
+                    <button
+                      className="mobile-admin-dashboard-primary-btn"
+                      onClick={async () => {
+                        try {
+                          await packageService.updatePackageStatus(selectedAdminPackage.id, { status: 'exchange-awaiting-return' });
+                          setSelectedAdminPackage(null);
+                        } catch (e) {}
+                      }}
+                    >
+                      Move to Exchange Awaiting Return
+                    </button>
+                  </div>
+                )}
+
+                {/* Mark Exchange Completed for exchange-awaiting-return */}
+                {selectedAdminPackage.status === 'exchange-awaiting-return' && (
+                  <div className="mobile-modal-actions-row">
+                    <button
+                      className="mobile-admin-dashboard-primary-btn"
+                      onClick={async () => {
+                        try {
+                          await packageService.updatePackageStatus(selectedAdminPackage.id, { status: 'exchange-returned' });
+                          setSelectedAdminPackage(null);
+                        } catch (e) {}
+                      }}
+                    >
+                      Mark Exchange Completed
                     </button>
                   </div>
                 )}

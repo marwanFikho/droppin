@@ -75,7 +75,16 @@ const Package = sequelize.define('Package', {
 			'return-requested',
 			'return-in-transit',
 			'return-pending',
-			'return-completed'
+			'return-completed',
+			// Exchange flow
+			
+			'exchange-awaiting-schedule',
+			'exchange-awaiting-pickup',
+			'exchange-in-process',
+			'exchange-in-transit',
+			'exchange-awaiting-return',
+			'exchange-returned',
+			'exchange-cancelled'
 		),
 		defaultValue: 'awaiting_schedule'
 	},
@@ -194,6 +203,12 @@ const Package = sequelize.define('Package', {
 		type: DataTypes.FLOAT,
 		allowNull: true,
 		defaultValue: 0
+	},
+	// New: exchange details (takeItems, giveItems, cashDelta)
+	exchangeDetails: {
+		type: DataTypes.JSON,
+		allowNull: true,
+		defaultValue: null
 	}
 }, {
 	hooks: {

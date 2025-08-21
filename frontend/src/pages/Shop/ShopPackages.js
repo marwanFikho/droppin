@@ -599,61 +599,7 @@ const ShopPackages = () => {
               </td>
                 <td><b>Date:</b> ${pkg.createdAt ? new Date(pkg.createdAt).toLocaleDateString() : '-'}</td>
               </tr>
-              <tr>
-                <td colspan="2">
-                  <span class="awb-row"><b>Recipient:</b><span class="awb-data">${pkg.deliveryContactName || '-'}</span></span><br/>
-                  <span class="awb-row"><b>Phone:</b><span class="awb-data">${pkg.deliveryContactPhone || '-'}</span></span><br/>
-                  <span class="awb-row"><b>Address:</b><span class="awb-data">${pkg.deliveryAddress || '-'}</span></span>
-                </td>
-              </tr>
             </table>
-          </div>
-          <div class="awb-section">
-            <b>Description:</b> ${pkg.packageDescription || '-'}
-          </div>
-          <table class="awb-table">
-            <thead>
-              <tr>
-                <th>Item</th>
-                <th>Quantity</th>
-                <th>Price</th>
-                <th>Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${Array.isArray(packageData.Items) && packageData.Items.length > 0
-                ? packageData.Items.map((item, idx) => {
-                  const quantity = parseInt(item.quantity) || 1;
-                  const price = parseFloat(item.codPerUnit) || 0;
-                  const total = quantity * price;
-                  return `<tr>
-                    <td>${item.description || `Item ${idx+1}`}</td>
-                    <td>${quantity}</td>
-                    <td>${price.toFixed(2)} EGP</td>
-                    <td>${total.toFixed(2)} EGP</td>
-                  </tr>`;
-                }).join('')
-                : `<tr><td colspan="4">No items specified</td></tr>`
-              }
-              <tr>
-                <td colspan="2"></td>
-                <td>Sub Total:</td>
-                <td>${subTotal.toFixed(2)} EGP</td>
-              </tr>
-              <tr>
-                <td colspan="2"></td>
-                <td>Shipping:</td>
-                <td>${shippingValue.toFixed(2)} EGP</td>
-              </tr>
-              <tr>
-                <td colspan="2"></td>
-                <td><b>Total:</b></td>
-                <td><b>${total.toFixed(2)} EGP</b></td>
-              </tr>
-            </tbody>
-          </table>
-          <div class="awb-footer">
-            Droppin Delivery Service - Thank You!
           </div>
         </div>
       `;
@@ -661,21 +607,13 @@ const ShopPackages = () => {
     const fullHtml = `
       <html>
         <head>
-          <title>Droppin Air Waybills</title>
+          <title>Droppin Bulk AWB</title>
           <style>
-            body { font-family: Arial, sans-serif; background: #fff; color: #111; margin: 0; padding: 0; }
-            .awb-container { width: 800px; margin: 0 auto; padding: 32px; background: #fff; }
+            .awb-container { width: 800px; margin: 0 auto; padding: 32px; }
             .awb-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #111; padding-bottom: 16px; }
-            .awb-logo { height: 80px; width: auto; }
             .awb-title { font-size: 2rem; font-weight: bold; }
-            .awb-section { margin-top: 24px; }
-            .awb-table { width: 100%; border-collapse: collapse; margin-top: 16px; }
-            .awb-table th, .awb-table td { border: 1px solid #111; padding: 8px; text-align: left; }
-            .awb-table th { background: #f5f5f5; }
             .awb-info-table { width: 100%; margin-top: 16px; }
             .awb-info-table td { padding: 4px 8px; }
-            .awb-footer { margin-top: 32px; text-align: center; font-size: 1.1rem; font-weight: bold; }
-            @media print { .awb-container { page-break-after: always; } }
           </style>
         </head>
         <body onload="window.print()">
@@ -734,6 +672,60 @@ const ShopPackages = () => {
       notification.error({ message: 'Return request failed', description: err.response?.data?.message || 'Failed to submit return request.', placement: 'topRight', duration: 4 });
     } finally {
       setRequestingReturn(false);
+    }
+  };
+
+  // Exchange modal state
+  const [showExchangeModal, setShowExchangeModal] = useState(false);
+  const [takeItems, setTakeItems] = useState([{ description: '', quantity: 1 }]);
+  const [giveItems, setGiveItems] = useState([{ description: '', quantity: 1 }]);
+  const [moneyType, setMoneyType] = useState('give'); // 'give' | 'take'
+  const [moneyAmount, setMoneyAmount] = useState('');
+  const [exchangeError, setExchangeError] = useState('');
+  const [requestingExchange, setRequestingExchange] = useState(false);
+
+  const addRow = (setter) => setter(prev => [...prev, { description: '', quantity: 1 }]);
+  const updateRow = (setter, idx, key, value) => setter(prev => prev.map((r, i) => i === idx ? { ...r, [key]: value } : r));
+  const removeRow = (setter, idx) => setter(prev => prev.filter((_, i) => i !== idx));
+
+  const canEditExchange = (pkg) => !['exchange-in-process', 'exchange-in-transit', 'exchange-awaiting-return', 'exchange-returned'].includes(pkg?.status);
+
+  // Simple validation helpers for enabling submit
+  const hasValidItems = (arr) => Array.isArray(arr) && arr.some(r => (r.description || '').trim() !== '' && (parseInt(r.quantity) || 0) > 0);
+  const canSubmitExchange = hasValidItems(takeItems) || hasValidItems(giveItems) || (moneyAmount !== '' && Number.isFinite(parseFloat(moneyAmount)) && parseFloat(moneyAmount) >= 0);
+
+  const submitExchangeRequest = async () => {
+    if (!selectedPackage) return;
+    setRequestingExchange(true);
+    setExchangeError('');
+    try {
+      const payload = {
+        takeItems: takeItems.filter(r => (r.description || '').trim() !== '' && (parseInt(r.quantity) || 0) > 0).map(r => ({ description: r.description.trim(), quantity: parseInt(r.quantity) || 1 })),
+        giveItems: giveItems.filter(r => (r.description || '').trim() !== '' && (parseInt(r.quantity) || 0) > 0).map(r => ({ description: r.description.trim(), quantity: parseInt(r.quantity) || 1 })),
+        cashDelta: parseFloat(moneyAmount || 0) || 0,
+        moneyType
+      };
+      await packageService.requestExchange(selectedPackage.id, payload);
+      setShowExchangeModal(false);
+      setShowPackageDetailsModal(false);
+      setSelectedPackage(null);
+      setTakeItems([{ description: '', quantity: 1 }]);
+      setGiveItems([{ description: '', quantity: 1 }]);
+      setMoneyAmount('');
+      setMoneyType('give');
+      notification.success({ message: 'Exchange requested', description: 'Exchange request submitted successfully!', placement: 'topRight', duration: 3 });
+      try {
+        const res = await packageService.getPackages({ limit: 10000 });
+        setPackages(res.data.packages || res.data || []);
+      } catch (e) {}
+      setTimeout(() => {
+        try { window.location.reload(); } catch (_) {}
+      }, 800);
+    } catch (err) {
+      setExchangeError(err.response?.data?.message || 'Failed to submit exchange request.');
+      notification.error({ message: 'Exchange request failed', description: err.response?.data?.message || 'Failed to submit exchange request.', placement: 'topRight', duration: 4 });
+    } finally {
+      setRequestingExchange(false);
     }
   };
 
@@ -1240,6 +1232,47 @@ const ShopPackages = () => {
                   <span className="label">Number of Items</span>
                   <span>{selectedPackage.itemsNo ?? '-'}</span>
                 </div>
+
+                {/* Exchange Details */}
+                {(selectedPackage.type === 'exchange' || (selectedPackage.status || '').startsWith('exchange-')) && selectedPackage.exchangeDetails && (
+                  <div className="detail-item full-width">
+                    <span className="label">Exchange Details</span>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                      <div>
+                        <div style={{ fontWeight: 600, marginBottom: 6 }}>Items to take from customer</div>
+                        {Array.isArray(selectedPackage.exchangeDetails.takeItems) && selectedPackage.exchangeDetails.takeItems.length > 0 ? (
+                          <ul style={{ margin: 0, paddingLeft: 18 }}>
+                            {selectedPackage.exchangeDetails.takeItems.map((it, idx) => (
+                              <li key={`shop-xtake-${idx}`}>{(it.description || '-')} x {(parseInt(it.quantity) || 0)}</li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <div style={{ color: '#666', fontSize: 12 }}>No items</div>
+                        )}
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: 600, marginBottom: 6 }}>Items to give to customer</div>
+                        {Array.isArray(selectedPackage.exchangeDetails.giveItems) && selectedPackage.exchangeDetails.giveItems.length > 0 ? (
+                          <ul style={{ margin: 0, paddingLeft: 18 }}>
+                            {selectedPackage.exchangeDetails.giveItems.map((it, idx) => (
+                              <li key={`shop-xgive-${idx}`}>{(it.description || '-')} x {(parseInt(it.quantity) || 0)}</li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <div style={{ color: '#666', fontSize: 12 }}>No items</div>
+                        )}
+                      </div>
+                    </div>
+                    {selectedPackage.exchangeDetails.cashDelta && (
+                      <div style={{ marginTop: 8 }}>
+                        <span style={{ fontWeight: 600 }}>Money: </span>
+                        <span>
+                          {(selectedPackage.exchangeDetails.cashDelta.type === 'take' ? 'Take from customer' : 'Give to customer')} · EGP {parseFloat(selectedPackage.exchangeDetails.cashDelta.amount || 0).toFixed(2)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
                 
                 {/* Items Section */}
                 {selectedPackage.Items && selectedPackage.Items.length > 0 && (
@@ -1277,13 +1310,6 @@ const ShopPackages = () => {
                         </div>
                       ))}
                     </div>
-                  </div>
-                )}
-                
-                {selectedPackage.shopNotes && (
-                  <div className="detail-item full-width">
-                    <span className="label">Shop Notes</span>
-                    <span>{selectedPackage.shopNotes}</span>
                   </div>
                 )}
               </div>
@@ -1325,13 +1351,22 @@ const ShopPackages = () => {
               </div>
               <div className="modal-actions">
                 {selectedPackage.status === 'delivered' && (
-                  <button
-                    className="btn"
-                    style={{ background: '#ff8c00', color: '#fff', marginRight: 8 }}
-                    onClick={() => setShowReturnModal(true)}
-                  >
-                    Request Return
-                  </button>
+                  <>
+                    <button
+                      className="btn"
+                      style={{ background: '#ff8c00', color: '#fff', marginRight: 8 }}
+                      onClick={() => setShowReturnModal(true)}
+                    >
+                      Request Return
+                    </button>
+                    <button
+                      className="btn"
+                      style={{ background: '#0d6efd', color: '#fff', marginRight: 8 }}
+                      onClick={() => setShowExchangeModal(true)}
+                    >
+                      Request Exchange
+                    </button>
+                  </>
                 )}
                 <button className="btn close-btn" onClick={() => setShowPackageDetailsModal(false)}>Close</button>
               </div>
@@ -1372,6 +1407,103 @@ const ShopPackages = () => {
               <button className="btn" onClick={() => setShowReturnModal(false)}>Cancel</button>
               <button className="btn" style={{ background: '#28a745', color: '#fff' }} disabled={requestingReturn} onClick={submitReturnRequest}>
                 {requestingReturn ? 'Submitting...' : 'Submit'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showExchangeModal && selectedPackage && (
+        <div className="confirmation-overlay" onClick={() => setShowExchangeModal(false)}>
+          <div className="confirmation-dialog" onClick={e => e.stopPropagation()} style={{ maxWidth: 900, width: '95vw', padding: 16 }}>
+            <h3 style={{ marginBottom: 12 }}>Request Exchange</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, alignItems: 'start' }}>
+              <div style={{ background: '#fafafa', border: '1px solid #e9ecef', borderRadius: 8, padding: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                  <h4 style={{ margin: 0, fontSize: 16 }}>Items to take from customer</h4>
+                  <button className="btn" onClick={() => addRow(setTakeItems)} style={{ padding: '4px 10px' }}>Add Item</button>
+                </div>
+                <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 220, overflowY: 'auto' }}>
+                  {takeItems.map((row, idx) => (
+                    <div key={`take-${idx}`} style={{ display: 'grid', gridTemplateColumns: '1fr 90px auto', gap: 8, alignItems: 'center' }}>
+                      <input
+                        type="text"
+                        placeholder="Item description"
+                        value={row.description}
+                        onChange={e => updateRow(setTakeItems, idx, 'description', e.target.value)}
+                        style={{ padding: '8px 10px', border: '1px solid #ced4da', borderRadius: 6 }}
+                      />
+                      <input
+                        type="number"
+                        min="1"
+                        value={row.quantity}
+                        onChange={e => updateRow(setTakeItems, idx, 'quantity', parseInt(e.target.value || '1', 10))}
+                        style={{ padding: '8px 10px', border: '1px solid #ced4da', borderRadius: 6 }}
+                      />
+                      <button className="btn" onClick={() => removeRow(setTakeItems, idx)} style={{ padding: '6px 10px', background: '#fff', border: '1px solid #dc3545', color: '#dc3545' }}>Remove</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ background: '#fafafa', border: '1px solid #e9ecef', borderRadius: 8, padding: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                  <h4 style={{ margin: 0, fontSize: 16 }}>Items to give to customer</h4>
+                  <button className="btn" onClick={() => addRow(setGiveItems)} style={{ padding: '4px 10px' }}>Add Item</button>
+                </div>
+                <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 220, overflowY: 'auto' }}>
+                  {giveItems.map((row, idx) => (
+                    <div key={`give-${idx}`} style={{ display: 'grid', gridTemplateColumns: '1fr 90px auto', gap: 8, alignItems: 'center' }}>
+                      <input
+                        type="text"
+                        placeholder="Item description"
+                        value={row.description}
+                        onChange={e => updateRow(setGiveItems, idx, 'description', e.target.value)}
+                        style={{ padding: '8px 10px', border: '1px solid #ced4da', borderRadius: 6 }}
+                      />
+                      <input
+                        type="number"
+                        min="1"
+                        value={row.quantity}
+                        onChange={e => updateRow(setGiveItems, idx, 'quantity', parseInt(e.target.value || '1', 10))}
+                        style={{ padding: '8px 10px', border: '1px solid #ced4da', borderRadius: 6 }}
+                      />
+                      <button className="btn" onClick={() => removeRow(setGiveItems, idx)} style={{ padding: '6px 10px', background: '#fff', border: '1px solid #dc3545', color: '#dc3545' }}>Remove</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div style={{ marginTop: 16, background: '#f8f9fa', border: '1px solid #e9ecef', borderRadius: 8, padding: 12 }}>
+              <h4 style={{ margin: '0 0 8px 0', fontSize: 16 }}>Money</h4>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <input type="radio" name="moneyType" value="give" checked={moneyType === 'give'} onChange={() => setMoneyType('give')} />
+                  Money to give to customer
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <input type="radio" name="moneyType" value="take" checked={moneyType === 'take'} onChange={() => setMoneyType('take')} />
+                  Money to take from customer
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="Amount (EGP)"
+                  value={moneyAmount}
+                  onChange={e => setMoneyAmount(e.target.value)}
+                  style={{ padding: '8px 10px', border: '1px solid #ced4da', borderRadius: 6, width: 200 }}
+                />
+              </div>
+              <div style={{ marginTop: 6, color: '#666', fontSize: 12 }}>This will adjust your Total Collected accordingly when the exchange is completed.</div>
+            </div>
+
+            {exchangeError && <div style={{ color: '#dc3545', marginTop: 8 }}>{exchangeError}</div>}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 14 }}>
+              <button className="btn" onClick={() => setShowExchangeModal(false)} style={{ background: '#f1f3f5' }}>Cancel</button>
+              <button className="btn" style={{ background: canSubmitExchange ? '#0d6efd' : '#9bbcf5', color: '#fff' }} disabled={requestingExchange || !canSubmitExchange} onClick={submitExchangeRequest}>
+                {requestingExchange ? 'Submitting...' : 'Submit'}
               </button>
             </div>
           </div>

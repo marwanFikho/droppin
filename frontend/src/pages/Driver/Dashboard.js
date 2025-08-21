@@ -538,6 +538,18 @@ const DriverDashboard = () => {
           return null;
       }
     }
+    if (type === 'exchange' || (status && status.startsWith('exchange-'))) {
+      switch (status) {
+        case 'exchange-awaiting-pickup':
+          return { next: 'exchange-in-transit', label: 'Mark Exchange Picked Up' };
+        case 'exchange-in-transit':
+          return { next: 'exchange-awaiting-return', label: 'Mark Exchange Awaiting Return' };
+        case 'exchange-awaiting-return':
+          return { next: 'exchange-returned', label: 'Mark Exchange Completed' };
+        default:
+          return null;
+      }
+    }
     switch (status) {
       case 'assigned': return { next: 'pickedup', label: 'Mark as Picked Up' };
       case 'pickedup': return { next: 'in-transit', label: 'Mark In Transit' };
@@ -760,6 +772,47 @@ const DriverDashboard = () => {
                     </div>
                   </div>
                 </div>
+
+                {/* Exchange Details */}
+                {(selectedPackage.type === 'exchange' || (selectedPackage.status || '').startsWith('exchange-')) && selectedPackage.exchangeDetails && (
+                  <div className="detail-item full-width">
+                    <span className="label">Exchange Details</span>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                      <div>
+                        <div style={{ fontWeight: 600, marginBottom: 6 }}>Items to take from customer</div>
+                        {Array.isArray(selectedPackage.exchangeDetails.takeItems) && selectedPackage.exchangeDetails.takeItems.length > 0 ? (
+                          <ul style={{ margin: 0, paddingLeft: 18 }}>
+                            {selectedPackage.exchangeDetails.takeItems.map((it, idx) => (
+                              <li key={`xtake-${idx}`}>{(it.description || '-')} x {(parseInt(it.quantity) || 0)}</li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <div style={{ color: '#666', fontSize: 12 }}>No items</div>
+                        )}
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: 600, marginBottom: 6 }}>Items to give to customer</div>
+                        {Array.isArray(selectedPackage.exchangeDetails.giveItems) && selectedPackage.exchangeDetails.giveItems.length > 0 ? (
+                          <ul style={{ margin: 0, paddingLeft: 18 }}>
+                            {selectedPackage.exchangeDetails.giveItems.map((it, idx) => (
+                              <li key={`xgive-${idx}`}>{(it.description || '-')} x {(parseInt(it.quantity) || 0)}</li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <div style={{ color: '#666', fontSize: 12 }}>No items</div>
+                        )}
+                      </div>
+                    </div>
+                    {selectedPackage.exchangeDetails.cashDelta && (
+                      <div style={{ marginTop: 8 }}>
+                        <span style={{ fontWeight: 600 }}>Money: </span>
+                        <span>
+                          {(selectedPackage.exchangeDetails.cashDelta.type === 'take' ? 'Take from customer' : 'Give to customer')} · EGP {parseFloat(selectedPackage.exchangeDetails.cashDelta.amount || 0).toFixed(2)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Shop Information */}
                 {selectedPackage.shop && (

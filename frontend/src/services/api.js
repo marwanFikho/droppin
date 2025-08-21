@@ -103,6 +103,10 @@ export const packageService = {
   requestReturn: (id, data) => {
     return api.post(`/packages/${id}/request-return`, data);
   },
+  // New: request exchange for a delivered package
+  requestExchange: (id, data) => {
+    return api.post(`/packages/${id}/request-exchange`, data);
+  },
 };
 
 // Shop service

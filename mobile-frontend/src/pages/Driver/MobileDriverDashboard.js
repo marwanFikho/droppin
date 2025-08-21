@@ -9,11 +9,11 @@ import { useTranslation } from 'react-i18next';
 ChartJS.register(ArcElement, Tooltip, Legend);
 
 const packageCategories = {
-  current: ['assigned', 'pickedup', 'in-transit', 'return-in-transit', 'return-pending'],
+  current: ['assigned', 'pickedup', 'in-transit', 'return-in-transit', 'return-pending', 'exchange-in-transit'],
   past: ['delivered', 'cancelled', 'returned', 'return-completed'],
   delivered: ['delivered'],
   cancelled: ['cancelled'],
-  all: ['assigned', 'pickedup', 'in-transit', 'return-in-transit', 'return-pending', 'delivered', 'cancelled', 'returned', 'return-completed']
+  all: ['assigned', 'pickedup', 'in-transit', 'return-in-transit', 'return-pending', 'delivered', 'cancelled', 'returned', 'return-completed', 'exchange-in-transit']
 };
 
 const pickupCategories = {
@@ -46,6 +46,18 @@ const getNextStatus = (status, type) => {
         return { next: 'return-in-transit', label: 'Mark Return Picked Up' };
       case 'return-in-transit':
         return { next: 'return-pending', label: 'Mark Return Picked Up' };
+      default:
+        return null;
+    }
+  }
+  if (type === 'exchange' || (status && status.startsWith('exchange-'))) {
+    switch (status) {
+      case 'exchange-awaiting-pickup':
+        return { next: 'exchange-in-transit', label: 'Mark Exchange Picked Up' };
+      case 'exchange-in-transit':
+        return { next: 'exchange-awaiting-return', label: 'Mark Exchange Awaiting Return' };
+      case 'exchange-awaiting-return':
+        return { next: 'exchange-returned', label: 'Mark Exchange Completed' };
       default:
         return null;
     }
@@ -500,43 +512,16 @@ const MobileDriverDashboard = () => {
                           <>
                             <strong>{t('driver.dashboard.returnRefundAmount')}:</strong> EGP {parseFloat(pkg.returnRefundAmount || 0).toFixed(2)}
                           </>
+                        ) : ((pkg.type === 'exchange' || (pkg.status || '').startsWith('exchange-')) ? (
+                          null
                         ) : (
                           <>
                             <strong>{t('driver.dashboard.cod')}:</strong> EGP {parseFloat(pkg.codAmount || 0).toFixed(2)}
                           </>
-                        )}
+                        ))}
                       </div>
                     </div>
                     <div className="mobile-driver-dashboard-delivery-actions">
-                      {nextStatus ? (
-                        <button
-                          className="mobile-driver-dashboard-delivery-start-btn"
-                          style={{
-                            background: (getNextStatus(pkg.status, pkg.type)?.next === 'return-pending') ? '#2e7d32' : gradient,
-                            color: pkg.status === 'pickedup' ? '#333' : '#fff',
-                            border: 'none'
-                          }}
-                          onClick={() => handleStatusAction(pkg, nextStatus.next)}
-                          disabled={statusUpdating[pkg.id]}
-                        >
-                          {statusUpdating[pkg.id] ? t('driver.dashboard.updating') :
-                            t(
-                              getNextStatus(pkg.status, pkg.type)?.next === 'pickedup'
-                                ? 'driver.dashboard.markAsPickedUp'
-                                : getNextStatus(pkg.status, pkg.type)?.next === 'in-transit'
-                                  ? 'driver.dashboard.markInTransit'
-                                  : getNextStatus(pkg.status, pkg.type)?.next === 'delivered'
-                                    ? 'driver.dashboard.markAsDelivered'
-                                    : getNextStatus(pkg.status, pkg.type)?.next === 'return-in-transit'
-                                      ? 'driver.dashboard.markReturnPickedUp'
-                                      : getNextStatus(pkg.status, pkg.type)?.next === 'return-pending'
-                                        ? 'driver.dashboard.markReturnPickedUp'
-                                        : 'driver.dashboard.noActions'
-                            )}
-                        </button>
-                      ) : (
-                        <span style={{ color: '#aaa', fontSize: 12 }}>{t('driver.dashboard.noActions')}</span>
-                      )}
                       <button
                         className="mobile-driver-dashboard-delivery-track-btn"
                         onClick={() => openPackageDetailsModal(pkg)}
@@ -606,7 +591,7 @@ const MobileDriverDashboard = () => {
                   {/* Items Section */}
                   {selectedPackage.Items && selectedPackage.Items.length > 0 && (
                     <div className="mobile-modal-detail-item full-width">
-                      <span className="label">Items Details ({selectedPackage.Items.length} items)</span>
+                      <span className="label">{t('driver.dashboard.itemsDetails')} ({selectedPackage.Items.length})</span>
                       <div style={{ 
                         backgroundColor: '#f9f9f9', 
                         padding: '0.5rem', 
@@ -623,21 +608,21 @@ const MobileDriverDashboard = () => {
                             backgroundColor: 'white'
                           }}>
                             <div style={{ fontWeight: 'bold', marginBottom: '0.5rem', color: '#333' }}>
-                              Item {index + 1}
+                              {t('driver.dashboard.itemNumber', { number: index + 1 })}
                             </div>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.9rem' }}>
                               <div>
-                                <strong>Description:</strong> {item.description || 'No description'}
+                                <strong>{t('driver.dashboard.description')}:</strong> {item.description || t('driver.dashboard.noDescription')}
                               </div>
                               <div>
-                                <strong>Quantity:</strong> {item.quantity || 1}
+                                <strong>{t('driver.dashboard.quantity')}:</strong> {item.quantity || 1}
                               </div>
-                                                          <div>
-                              <strong>COD Per Unit:</strong> EGP {item.codAmount && item.quantity ? (parseFloat(item.codAmount) / parseInt(item.quantity)).toFixed(2) : '0.00'}
-                            </div>
-                            <div>
-                              <strong>Total COD:</strong> EGP {parseFloat(item.codAmount || 0).toFixed(2)}
-                            </div>
+                              <div>
+                                <strong>{t('driver.dashboard.codPerUnit')}:</strong> EGP {item.codAmount && item.quantity ? (parseFloat(item.codAmount) / parseInt(item.quantity)).toFixed(2) : '0.00'}
+                              </div>
+                              <div>
+                                <strong>{t('driver.dashboard.totalCod')}:</strong> EGP {parseFloat(item.codAmount || 0).toFixed(2)}
+                              </div>
                             </div>
                           </div>
                         ))}
@@ -661,6 +646,77 @@ const MobileDriverDashboard = () => {
                   )}
                   {(selectedPackage.returnRefundAmount !== null && selectedPackage.returnRefundAmount !== undefined) && (
                     <div className="mobile-modal-detail-item"><span className="label">{t('driver.dashboard.returnRefundAmount')}</span><span>EGP {parseFloat(selectedPackage.returnRefundAmount || 0).toFixed(2)}</span></div>
+                  )}
+                  
+                  {/* Exchange Details Section */}
+                  {(selectedPackage?.type === 'exchange' || (selectedPackage?.status || '').startsWith('exchange-')) && selectedPackage?.exchangeDetails && (
+                    <div className="mobile-modal-detail-item full-width">
+                      <span className="label">{t('driver.dashboard.exchangeDetails')}</span>
+                      <div style={{ backgroundColor: '#f9f9f9', padding: '0.5rem', borderRadius: '4px', border: '1px solid #e0e0e0', marginTop: '0.5rem' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                          <div>
+                            <div style={{ fontWeight: 600, marginBottom: 6 }}>{t('driver.dashboard.takeFromCustomer')}</div>
+                            {Array.isArray(selectedPackage.exchangeDetails.takeItems) && selectedPackage.exchangeDetails.takeItems.length > 0 ? (
+                              <ul style={{ margin: 0, paddingLeft: 18 }}>
+                                {selectedPackage.exchangeDetails.takeItems.map((it, idx) => (
+                                  <li key={`mob-xtake-${idx}`}>{(it.description || '-') + ' x ' + (parseInt(it.quantity) || 0)}</li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <div style={{ color: '#666', fontSize: 12 }}>{t('driver.dashboard.none') || 'No items'}</div>
+                            )}
+                          </div>
+                          <div>
+                            <div style={{ fontWeight: 600, marginBottom: 6 }}>{t('driver.dashboard.giveToCustomer')}</div>
+                            {Array.isArray(selectedPackage.exchangeDetails.giveItems) && selectedPackage.exchangeDetails.giveItems.length > 0 ? (
+                              <ul style={{ margin: 0, paddingLeft: 18 }}>
+                                {selectedPackage.exchangeDetails.giveItems.map((it, idx) => (
+                                  <li key={`mob-xgive-${idx}`}>{(it.description || '-') + ' x ' + (parseInt(it.quantity) || 0)}</li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <div style={{ color: '#666', fontSize: 12 }}>{t('driver.dashboard.none') || 'No items'}</div>
+                            )}
+                          </div>
+                        </div>
+                        {selectedPackage.exchangeDetails.cashDelta && (
+                          <div style={{ marginTop: 8 }}>
+                            <strong>{t('driver.dashboard.money')}:</strong>{' '}
+                            {(selectedPackage.exchangeDetails.cashDelta.type === 'take' ? t('driver.dashboard.takeFromCustomer') : t('driver.dashboard.giveToCustomer'))}
+                            {' · EGP '}{parseFloat(selectedPackage.exchangeDetails.cashDelta.amount || 0).toFixed(2)}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Exchange Action for driver */}
+                  {(selectedPackage && (selectedPackage.type === 'exchange' || (selectedPackage.status || '').startsWith('exchange-')) && selectedPackage.status !== 'exchange-awaiting-return' && selectedPackage.status !== 'exchange-returned') && (
+                    <div className="mobile-modal-detail-item full-width">
+                      <button
+                        className="mobile-driver-dashboard-delivery-start-btn"
+                        style={{ background: '#7b1fa2', color: '#fff', border: 'none' }}
+                        onClick={async () => {
+                          const confirmed = window.confirm(t('driver.dashboard.confirmMarkExchangeDone') || 'Are you sure you want to mark the exchange as done?');
+                          if (!confirmed) return;
+                          try {
+                            await packageService.updatePackageStatus(selectedPackage.id, { status: 'exchange-awaiting-return' });
+                            // Refresh package in modal
+                            const refreshed = await packageService.getPackageById(selectedPackage.id);
+                            setSelectedPackage(refreshed.data);
+                            // Refresh list
+                            const packagesRes = await packageService.getPackages({ assignedToMe: true, page: 1, limit: 10000 });
+                            const fetched = packagesRes.data.packages || packagesRes.data || [];
+                            const filtered = Array.isArray(fetched) ? fetched.filter(p => p.status !== 'return-pending') : [];
+                            setPackages(filtered);
+                          } catch (err) {
+                            setModalError(t('driver.dashboard.failedMarkExchange') || 'Failed to mark exchange as done.');
+                          }
+                        }}
+                      >
+                        {t('driver.dashboard.markExchangeDone')}
+                      </button>
+                    </div>
                   )}
                   
                   <div className="mobile-modal-detail-item full-width">

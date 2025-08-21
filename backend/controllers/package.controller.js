@@ -233,7 +233,7 @@ exports.getPackages = async (req, res) => {
         'actualPickupTime', 'actualDeliveryTime',
         'priority', 'paymentStatus', 'createdAt', 'updatedAt',
         'codAmount', 'deliveryCost', 'shownDeliveryCost', 'isPaid', 'paymentDate', 'notes', 'shopNotes',
-        'returnDetails', 'returnRefundAmount',
+        'returnDetails', 'returnRefundAmount', 'exchangeDetails',
         'itemsNo', 'shopifyOrderId'
       ],
       where,
@@ -284,7 +284,7 @@ exports.getPackageById = async (req, res) => {
         'actualPickupTime', 'actualDeliveryTime',
         'priority', 'paymentStatus', 'createdAt', 'updatedAt',
         'codAmount', 'deliveryCost', 'shownDeliveryCost', 'isPaid', 'paymentDate', 'notes', 'shopNotes',
-        'returnDetails', 'returnRefundAmount',
+        'returnDetails', 'returnRefundAmount', 'exchangeDetails',
         'itemsNo'
       ],
       include: [
@@ -354,7 +354,7 @@ exports.getPackageByTracking = async (req, res) => {
         'deliveryContactName', 'estimatedDeliveryTime',
         'actualDeliveryTime', 'weight', 'dimensions',
         'pickupAddress', 'pickupContactName', 'priority', 'shopNotes',
-        'notes'
+        'notes', 'exchangeDetails'
       ],
       include: [
         {
@@ -447,7 +447,7 @@ exports.updatePackageStatus = async (req, res) => {
     }
     
     // Validate status
-    const validStatuses = ['pending', 'assigned', 'pickedup', 'in-transit', 'delivered', 'cancelled', 'cancelled-awaiting-return', 'cancelled-returned', 'rejected', 'rejected-awaiting-return', 'rejected-returned', 'return-requested', 'return-in-transit', 'return-pending', 'return-completed'];
+    const validStatuses = ['pending', 'assigned', 'pickedup', 'in-transit', 'delivered', 'cancelled', 'cancelled-awaiting-return', 'cancelled-returned', 'rejected', 'rejected-awaiting-return', 'rejected-returned', 'return-requested', 'return-in-transit', 'return-pending', 'return-completed', 'exchange-awaiting-schedule', 'exchange-awaiting-pickup', 'exchange-in-process', 'exchange-in-transit', 'exchange-awaiting-return', 'exchange-returned', 'exchange-cancelled'];
     if (!validStatuses.includes(nextStatus)) {
       await t.rollback();
       return res.status(400).json({ message: 'Invalid status' });
@@ -549,7 +549,8 @@ exports.updatePackageStatus = async (req, res) => {
       nextStatus === 'delivered' &&
       originalStatus !== 'delivered' &&
       shop &&
-      package.codAmount > 0
+      package.codAmount > 0 &&
+      package.type !== 'exchange'
     ) {
       const codAmount = parseFloat(package.codAmount || 0);
       const currentToCollect = parseFloat(shop.ToCollect || 0);
@@ -612,9 +613,9 @@ exports.updatePackageStatus = async (req, res) => {
           t
         );
 
-        // NEW: Deduct delivery cost from shop's TotalCollected and log it
+        // Deduct delivery cost from shop's TotalCollected (allow negative balances)
         await sequelize.query(
-          'UPDATE Shops SET TotalCollected = CASE WHEN TotalCollected - :amount < 0 THEN 0 ELSE TotalCollected - :amount END WHERE id = :shopId',
+          'UPDATE Shops SET TotalCollected = TotalCollected - :amount WHERE id = :shopId',
           {
             replacements: { amount: deliveryCost, shopId: shop.id },
             type: sequelize.QueryTypes.UPDATE,
@@ -672,7 +673,8 @@ exports.updatePackageStatus = async (req, res) => {
       nextStatus === 'cancelled-returned' &&
       req.user.role === 'admin' &&
       package.codAmount > 0 &&
-      shop
+      shop &&
+      package.type !== 'exchange'
     ) {
       const codAmount = parseFloat(package.codAmount || 0);
       const currentToCollect = parseFloat(shop.ToCollect || 0);
@@ -697,7 +699,8 @@ exports.updatePackageStatus = async (req, res) => {
       nextStatus === 'rejected-returned' &&
       req.user.role === 'admin' &&
       package.codAmount > 0 &&
-      shop
+      shop &&
+      package.type !== 'exchange'
     ) {
       const codAmount = parseFloat(package.codAmount || 0);
       const currentToCollect = parseFloat(shop.ToCollect || 0);
@@ -760,6 +763,68 @@ exports.updatePackageStatus = async (req, res) => {
           'TotalCollected',
           'decrease',
           `Returned items COD for package ${package.trackingNumber}`,
+          t
+        );
+      }
+    }
+
+    // === Handle Exchange Completed: adjust TotalCollected and reduce shipping fees ===
+    if (
+      nextStatus === 'exchange-returned' &&
+      shop
+    ) {
+      const exchangeDetails = package.exchangeDetails || {};
+      const cashDelta = exchangeDetails.cashDelta || {};
+      const amount = parseFloat(cashDelta.amount || 0) || 0;
+      const moneyType = cashDelta.type || null; // 'give' or 'take'
+      const signedDelta = moneyType === 'take' ? amount : (moneyType === 'give' ? -amount : 0);
+      const deliveryCost = parseFloat(package.deliveryCost || 0) || 0;
+
+      // Get current TotalCollected
+      const currentTotalCollected = parseFloat(shop.TotalCollected || 0);
+
+      // Calculate new TotalCollected: apply cash delta (signed by type) and subtract shipping fee
+      const newTotalCollected = currentTotalCollected + signedDelta - (deliveryCost > 0 ? deliveryCost : 0);
+
+      // Update shop's TotalCollected
+      await sequelize.query(
+        'UPDATE Shops SET TotalCollected = :newTotalCollected WHERE id = :shopId',
+        {
+          replacements: { newTotalCollected, shopId: shop.id },
+          type: sequelize.QueryTypes.UPDATE,
+          transaction: t
+        }
+      );
+
+      // Log cash movement
+      if (amount > 0 && moneyType === 'take') {
+        await logMoneyTransaction(
+          shop.id,
+          amount,
+          'TotalCollected',
+          'increase',
+          `Cash taken from customer for exchange ${package.trackingNumber}`,
+          t
+        );
+      } else if (amount > 0 && moneyType === 'give') {
+        await logMoneyTransaction(
+          shop.id,
+          amount,
+          'TotalCollected',
+          'decrease',
+          `Cash given to customer for exchange ${package.trackingNumber}`,
+          t
+        );
+      }
+
+      // Always deduct shipping fee
+      if (deliveryCost > 0) {
+        await logMoneyTransaction(
+          shop.id,
+          deliveryCost,
+          'TotalCollected',
+          'decrease',
+          `Exchange shipping fee for package ${package.trackingNumber}`,
           t
         );
       }
@@ -1522,6 +1587,104 @@ exports.requestReturn = async (req, res) => {
 	}
 };
 
+// New: Request an exchange for a delivered package (shop only)
+exports.requestExchange = async (req, res) => {
+	const t = await sequelize.transaction();
+	try {
+		const { id } = req.params;
+		const { takeItems, giveItems, cashDelta, moneyType } = req.body; // moneyType: 'give' | 'take'
+
+		if (req.user.role !== 'shop') {
+			await t.rollback();
+			return res.status(403).json({ message: 'Only shops can request exchanges' });
+		}
+
+		const shop = await Shop.findOne({ where: { userId: req.user.id }, transaction: t });
+		if (!shop) {
+			await t.rollback();
+			return res.status(404).json({ message: 'Shop profile not found' });
+		}
+
+		const pkg = await Package.findByPk(id, { transaction: t, lock: true });
+		if (!pkg || pkg.shopId !== shop.id) {
+			await t.rollback();
+			return res.status(404).json({ message: 'Package not found' });
+		}
+		if (pkg.status !== 'delivered') {
+			await t.rollback();
+			return res.status(400).json({ message: 'Only delivered packages can be exchanged' });
+		}
+
+		// Normalize lists to arrays of simple objects
+		const normList = (arr) => Array.isArray(arr) ? arr.map(it => ({
+			description: (it.description || it.name || '').toString(),
+			quantity: parseInt(it.quantity, 10) || 0,
+			sku: it.sku || null
+		})) : [];
+		const take = normList(takeItems);
+		const give = normList(giveItems);
+		const delta = parseFloat(cashDelta || 0) || 0;
+		const typeLabel = (moneyType === 'give' ? 'give' : (moneyType === 'take' ? 'take' : null));
+
+		// Add system note with previous driver and clear assignment (same as return flow)
+		try {
+			if (pkg.driverId) {
+				const deliveredDriver = await Driver.findByPk(pkg.driverId, {
+					include: [{ model: User, attributes: ['name'] }],
+					transaction: t
+				});
+				const driverName = deliveredDriver?.User?.name || '';
+				let notesLog = [];
+				try {
+					if (pkg.notes) {
+						if (typeof pkg.notes === 'string') {
+							try { notesLog = JSON.parse(pkg.notes); } catch { notesLog = [pkg.notes]; }
+						} else if (Array.isArray(pkg.notes)) {
+							notesLog = pkg.notes;
+						} else if (typeof pkg.notes === 'object') {
+							notesLog = [pkg.notes];
+						}
+					}
+				} catch { notesLog = []; }
+				if (!Array.isArray(notesLog)) notesLog = [];
+				const noteText = driverName ? `Previously delivered by ${driverName}.` : 'Previously delivered by assigned driver.';
+				notesLog.push({ text: noteText, createdAt: new Date().toISOString(), author: 'system' });
+				pkg.notes = JSON.stringify(notesLog);
+				pkg.driverId = null; // clear driver
+			}
+		} catch {}
+
+		// Switch to exchange type and starting status
+		pkg.type = 'exchange';
+		pkg.status = 'exchange-awaiting-schedule';
+		pkg.exchangeDetails = { takeItems: take, giveItems: give, cashDelta: { amount: delta, type: typeLabel } };
+		pkg.actualDeliveryTime = null; // clear since flow restarts
+		await pkg.save({ transaction: t });
+
+		await t.commit();
+
+		// Notify admin
+		try {
+			const adminUser = await User.findOne({ where: { role: 'admin' } });
+			if (adminUser) {
+				await createNotification({
+					userId: adminUser.id,
+					userType: 'admin',
+					title: 'Exchange Requested',
+					message: `Shop ${shop.businessName} requested exchange for package ${pkg.trackingNumber}.`,
+					data: { packageId: pkg.id, trackingNumber: pkg.trackingNumber, type: 'exchange-awaiting-schedule' }
+				});
+			}
+		} catch {}
+
+		return res.json({ success: true });
+	} catch (error) {
+		await t.rollback();
+		console.error('Error requesting exchange:', error);
+		return res.status(500).json({ message: error.message });
+	}
+};
+
 // Helper function to format package data with Cairo timezone dates
 const formatPackageForResponse = (package) => {
   const packageData = package.toJSON ? package.toJSON() : package;
@@ -1549,6 +1712,46 @@ const formatPackageForResponse = (package) => {
   if (packageData.returnRefundAmount != null) {
     const num = parseFloat(packageData.returnRefundAmount);
     packageData.returnRefundAmount = Number.isFinite(num) ? num : 0;
+  }
+  // Normalize exchangeDetails structure
+  try {
+    if (typeof packageData.exchangeDetails === 'string') {
+      try { packageData.exchangeDetails = JSON.parse(packageData.exchangeDetails); } catch { /* ignore */ }
+    }
+  } catch { /* ignore */ }
+  if (!packageData.exchangeDetails || typeof packageData.exchangeDetails !== 'object') {
+    packageData.exchangeDetails = { takeItems: [], giveItems: [], cashDelta: { amount: 0, type: null } };
+  } else {
+    const raw = packageData.exchangeDetails;
+    const firstArray = (arrs) => {
+      for (const a of arrs) {
+        if (Array.isArray(a) && a.length >= 0) return a;
+      }
+      return [];
+    };
+    const rawTake = firstArray([raw.takeItems, raw.take, raw.take_items, raw.toTake, raw.itemsToTake]);
+    const rawGive = firstArray([raw.giveItems, raw.give, raw.give_items, raw.toGive, raw.itemsToGive]);
+
+    const normalizeItem = (it) => {
+      if (!it || typeof it !== 'object') return { description: '-', quantity: 0 };
+      const desc = it.description || it.name || it.title || it.sku || '-';
+      const qty = (it.quantity != null ? it.quantity : (it.qty != null ? it.qty : it.count));
+      const q = parseInt(qty, 10);
+      return { description: String(desc), quantity: Number.isFinite(q) && q > 0 ? q : 0 };
+    };
+
+    packageData.exchangeDetails.takeItems = rawTake.map(normalizeItem);
+    packageData.exchangeDetails.giveItems = rawGive.map(normalizeItem);
+
+    // Normalize cashDelta variants
+    let cd = raw.cashDelta;
+    if (typeof cd === 'number' || typeof cd === 'string') {
+      cd = { amount: parseFloat(cd) || 0, type: raw.cashDeltaType || raw.moneyType || null };
+    }
+    if (!cd || typeof cd !== 'object') cd = {};
+    const amt = parseFloat(cd.amount != null ? cd.amount : (raw.moneyAmount != null ? raw.moneyAmount : 0)) || 0;
+    const tp = cd.type != null ? cd.type : (raw.moneyType != null ? raw.moneyType : null);
+    packageData.exchangeDetails.cashDelta = { amount: amt, type: tp };
   }
   
   return packageData;

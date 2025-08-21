@@ -20,7 +20,7 @@ const NewPickup = () => {
         // Fetch packages that are awaiting schedule
         const packagesResponse = await packageService.getPackages({limit: 10000});
         const packages = packagesResponse.data.packages || packagesResponse.data || [];
-        const awaitingSchedulePackages = packages.filter(pkg => pkg.status === 'awaiting_schedule');
+        const awaitingSchedulePackages = packages.filter(pkg => pkg.status === 'awaiting_schedule' || pkg.status === 'exchange-awaiting-schedule');
         setPackages(awaitingSchedulePackages);
 
         // Fetch shop profile to get address
@@ -132,7 +132,8 @@ const NewPickup = () => {
                     alignItems: 'center',
                     cursor: 'pointer',
                     transition: 'background-color 0.2s',
-                    background: selectedPackages.includes(pkg.id) ? '#fff8e1' : 'white',
+                    background: selectedPackages.includes(pkg.id) ? '#fff8e1' : ((pkg.type === 'exchange' || (pkg.status || '').startsWith('exchange-')) ? '#f3e5f5' : 'white'),
+                    borderLeft: (pkg.type === 'exchange' || (pkg.status || '').startsWith('exchange-')) ? '3px solid #7b1fa2' : '3px solid transparent',
                     fontWeight: selectedPackages.includes(pkg.id) ? 'bold' : 'normal',
                     height: 'auto',
                     overflow: 'visible',

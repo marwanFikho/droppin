@@ -67,6 +67,8 @@ const MobileShopPackages = () => {
   const [returnRefund, setReturnRefund] = useState('');
   const [returnError, setReturnError] = useState('');
   const [requestingReturn, setRequestingReturn] = useState(false);
+  // Exchange modal (mobile)
+  const [showExchangeModal, setShowExchangeModal] = useState(false);
 
   const prePendingStatuses = ['awaiting_schedule', 'scheduled_for_pickup'];
   const canEditThisPackage = (pkg) => prePendingStatuses.includes((pkg?.status || '').toLowerCase());
@@ -540,6 +542,117 @@ const MobileShopPackages = () => {
     }
   };
 
+  function MobileExchangeForm({ selectedPackage, onSubmitted }) {
+    const [takeItems, setTakeItems] = React.useState([{ description: '', quantity: 1 }]);
+    const [giveItems, setGiveItems] = React.useState([{ description: '', quantity: 1 }]);
+    const [moneyType, setMoneyType] = React.useState('give');
+    const [moneyAmount, setMoneyAmount] = React.useState('');
+    const [submitting, setSubmitting] = React.useState(false);
+    const [error, setError] = React.useState('');
+
+    const addRow = (setter) => setter(prev => [...prev, { description: '', quantity: 1 }]);
+    const updateRow = (setter, idx, key, value) => setter(prev => prev.map((r, i) => i === idx ? { ...r, [key]: value } : r));
+    const removeRow = (setter, idx) => setter(prev => prev.filter((_, i) => i !== idx));
+
+    const hasValidItems = (arr) => Array.isArray(arr) && arr.some(r => (r.description || '').trim() !== '' && (parseInt(r.quantity) || 0) > 0);
+    const canSubmit = hasValidItems(takeItems) || hasValidItems(giveItems) || (moneyAmount !== '' && Number.isFinite(parseFloat(moneyAmount)) && parseFloat(moneyAmount) >= 0);
+
+    const submit = async () => {
+      if (!canSubmit || submitting || !selectedPackage) return;
+      setSubmitting(true);
+      setError('');
+      try {
+        const payload = {
+          takeItems: takeItems.filter(r => (r.description || '').trim() !== '' && (parseInt(r.quantity) || 0) > 0).map(r => ({ description: r.description.trim(), quantity: parseInt(r.quantity) || 1 })),
+          giveItems: giveItems.filter(r => (r.description || '').trim() !== '' && (parseInt(r.quantity) || 0) > 0).map(r => ({ description: r.description.trim(), quantity: parseInt(r.quantity) || 1 })),
+          cashDelta: parseFloat(moneyAmount || 0) || 0,
+          moneyType
+        };
+        await packageService.requestExchange(selectedPackage.id, payload);
+        onSubmitted && onSubmitted();
+      } catch (err) {
+        setError(err?.response?.data?.message || 'Failed to submit exchange request.');
+      } finally {
+        setSubmitting(false);
+      }
+    };
+
+    return (
+      <div style={{ background: '#fff', border: '1px solid #eee', borderRadius: 10, padding: 12, boxShadow: '0 1px 6px rgba(0,0,0,0.06)', overflowX: 'hidden' }}>
+        {error && <div style={{ background: '#ffebee', color: '#c62828', border: '1px solid #ffcdd2', borderRadius: 6, padding: 8, marginBottom: 10 }}>{error}</div>}
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {/* Take from customer */}
+          <div style={{ background: '#fafafa', border: '1px solid #eee', borderRadius: 8, padding: 10 }}>
+            <div style={{ fontWeight: 700, color: '#333', marginBottom: 8 }}>Take from customer</div>
+            {takeItems.map((row, idx) => (
+              <div key={`t-${idx}`} style={{ display: 'grid', gridTemplateColumns: '1fr 90px 70px', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, color: '#555', marginBottom: 4 }}>Description</label>
+                  <input placeholder="Item name" value={row.description} onChange={e => updateRow(setTakeItems, idx, 'description', e.target.value)} style={{ width: '100%', padding: '8px 10px', border: '1px solid #ddd', borderRadius: 6 }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, color: '#555', marginBottom: 4 }}>Qty</label>
+                  <input type="number" min="1" value={row.quantity} onChange={e => updateRow(setTakeItems, idx, 'quantity', e.target.value)} style={{ width: '100%', padding: '8px 10px', border: '1px solid #ddd', borderRadius: 6 }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, color: 'transparent', marginBottom: 4 }}>Remove</label>
+                  <button onClick={() => removeRow(setTakeItems, idx)} style={{ width: '100%', padding: '8px 10px', background: '#ffeaea', color: '#c62828', border: '1px solid #f5b5b5', borderRadius: 6 }}>Remove</button>
+                </div>
+              </div>
+            ))}
+            <button onClick={() => addRow(setTakeItems)} style={{ padding: '8px 12px', background: '#f5f5f5', border: '1px solid #ddd', borderRadius: 6, fontWeight: 600 }}>+ Add item</button>
+          </div>
+
+          {/* Give to customer */}
+          <div style={{ background: '#fafafa', border: '1px solid #eee', borderRadius: 8, padding: 10 }}>
+            <div style={{ fontWeight: 700, color: '#333', marginBottom: 8 }}>Give to customer</div>
+            {giveItems.map((row, idx) => (
+              <div key={`g-${idx}`} style={{ display: 'grid', gridTemplateColumns: '1fr 90px 70px', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, color: '#555', marginBottom: 4 }}>Description</label>
+                  <input placeholder="Item name" value={row.description} onChange={e => updateRow(setGiveItems, idx, 'description', e.target.value)} style={{ width: '100%', padding: '8px 10px', border: '1px solid #ddd', borderRadius: 6 }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, color: '#555', marginBottom: 4 }}>Qty</label>
+                  <input type="number" min="1" value={row.quantity} onChange={e => updateRow(setGiveItems, idx, 'quantity', e.target.value)} style={{ width: '100%', padding: '8px 10px', border: '1px solid #ddd', borderRadius: 6 }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, color: 'transparent', marginBottom: 4 }}>Remove</label>
+                  <button onClick={() => removeRow(setGiveItems, idx)} style={{ width: '100%', padding: '8px 10px', background: '#ffeaea', color: '#c62828', border: '1px solid #f5b5b5', borderRadius: 6 }}>Remove</button>
+                </div>
+              </div>
+            ))}
+            <button onClick={() => addRow(setGiveItems)} style={{ padding: '8px 12px', background: '#f5f5f5', border: '1px solid #ddd', borderRadius: 6, fontWeight: 600 }}>+ Add item</button>
+          </div>
+
+          {/* Money section */}
+          <div style={{ background: '#fafafa', border: '1px solid #eee', borderRadius: 8, padding: 10 }}>
+            <div style={{ fontWeight: 700, color: '#333', marginBottom: 8 }}>Money</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <div>
+                <label style={{ display: 'block', fontSize: 12, color: '#555', marginBottom: 4 }}>Type</label>
+                <select value={moneyType} onChange={e => setMoneyType(e.target.value)} style={{ width: '100%', padding: '8px 10px', border: '1px solid #ddd', borderRadius: 6 }}>
+                  <option value="give">Give to customer</option>
+                  <option value="take">Take from customer</option>
+                </select>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: 12, color: '#555', marginBottom: 4 }}>Amount</label>
+                <input type="number" min="0" step="0.01" value={moneyAmount} onChange={e => setMoneyAmount(e.target.value)} style={{ width: '100%', padding: '8px 10px', border: '1px solid #ddd', borderRadius: 6 }} />
+              </div>
+            </div>
+          </div>
+
+          {/* Submit */}
+          <button onClick={submit} disabled={!canSubmit || submitting} className="mobile-shop-package-details-btn" style={{ width: '100%', background: '#7b1fa2', color: '#fff', padding: '10px 14px', borderRadius: 8, fontWeight: 700 }}>
+            {submitting ? 'Submitting...' : 'Request Exchange'}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="mobile-shop-packages" style={{marginLeft: '1rem', marginRight: '1rem', marginTop: '6rem'}}>
       <h2 className="mobile-shop-packages-title">All Packages</h2>
@@ -846,6 +959,15 @@ const MobileShopPackages = () => {
                     </div>
                   </div>
                 )}
+
+                {/* Request Exchange (mobile) */}
+                {(selectedPackage.status === 'delivered') && (
+                  <div className="mobile-modal-detail-item full-width" style={{ marginTop: 8, display:'flex', justifyContent:'flex-end' }}>
+                    <button className="mobile-shop-package-details-btn" style={{ background:'#7b1fa2', color:'#fff' }} onClick={() => setShowExchangeModal(true)}>
+                      Request Exchange
+                    </button>
+                  </div>
+                )}
                 
                 <div className="mobile-modal-detail-item full-width">
                   <span className="label">Notes Log</span>
@@ -953,6 +1075,27 @@ const MobileShopPackages = () => {
               <div className="mobile-modal-actions">
                 <button className="mobile-modal-close-btn" onClick={closeDetailsModal}>Close</button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showExchangeModal && selectedPackage && (
+        <div className="mobile-modal-overlay" onClick={() => setShowExchangeModal(false)}>
+          <div className="mobile-modal-content" onClick={e => e.stopPropagation()}>
+            <div className="mobile-modal-header">
+              <h3>Request Exchange</h3>
+              <button className="mobile-modal-close" onClick={() => setShowExchangeModal(false)}>&times;</button>
+            </div>
+            <div className="mobile-modal-body">
+              <MobileExchangeForm selectedPackage={selectedPackage} onSubmitted={async () => {
+                setShowExchangeModal(false);
+                setShowDetailsModal(false);
+                try {
+                  const res = await packageService.getPackages({ limit: 10000 });
+                  setPackages(res.data.packages || res.data || []);
+                } catch {}
+              }} />
             </div>
           </div>
         </div>

@@ -31,13 +31,15 @@ router.post('/', authenticate, async (req, res) => {
     // Associate selected packages with the pickup and update their status
     if (packageIds && packageIds.length > 0) {
       await pickup.addPackages(packageIds);
-      await Package.update(
-        { 
-          status: 'scheduled_for_pickup',
-          pickupId: pickup.id
-        },
-        { where: { id: packageIds } }
-      );
+      // Update statuses depending on current state to support exchange flow scheduling
+      const packages = await Package.findAll({ where: { id: packageIds } });
+      for (const pkg of packages) {
+        let newStatus = 'scheduled_for_pickup';
+                 if (pkg.status === 'exchange-awaiting-schedule') {
+          newStatus = 'exchange-awaiting-pickup';
+        }
+        await pkg.update({ status: newStatus, pickupId: pickup.id });
+      }
     }
 
     // Notify admin of new pickup
@@ -215,13 +217,13 @@ router.patch('/:id/pickup', authenticate, async (req, res) => {
       actualPickupTime: new Date()
     });
 
-    // Update all packages in this pickup to 'pending' status
+    // Update packages status based on type (support exchange flow)
     if (pickup.Packages && pickup.Packages.length > 0) {
-      const packageIds = pickup.Packages.map(pkg => pkg.id);
-      await Package.update(
-        { status: 'pending' },
-        { where: { id: packageIds } }
-      );
+      for (const pkg of pickup.Packages) {
+        const isExchange = (pkg.type === 'exchange') || ((pkg.status || '').startsWith('exchange-'));
+        const newStatus = isExchange ? 'exchange-in-process' : 'pending';
+        await pkg.update({ status: newStatus });
+      }
 
       // Notify shop of each package picked up
       try {
@@ -250,6 +252,9 @@ router.patch('/:id/pickup', authenticate, async (req, res) => {
       try {
         // Sum COD amounts for the packages in this pickup
         const totalCodAmount = pickup.Packages.reduce((sum, pkg) => {
+          // Exclude exchange-type packages from COD ToCollect
+          const isExchange = (pkg.type === 'exchange') || ((pkg.status || '').startsWith('exchange-'));
+          if (isExchange) return sum;
           const cod = parseFloat(pkg.codAmount || 0);
           return sum + (isNaN(cod) ? 0 : cod);
         }, 0);
@@ -376,6 +381,8 @@ router.patch('/admin/pickups/:id/status', authenticate, async (req, res) => {
           );
           // Sum COD amounts for the packages in this pickup
           const totalCodAmount = pickup.Packages.reduce((sum, pkg) => {
+            const isExchange = (pkg.type === 'exchange') || ((pkg.status || '').startsWith('exchange-'));
+            if (isExchange) return sum;
             const cod = parseFloat(pkg.codAmount || 0);
             return sum + (isNaN(cod) ? 0 : cod);
           }, 0);
@@ -428,13 +435,13 @@ router.patch('/driver/:id/pickup', authenticate, async (req, res) => {
       status: 'picked_up',
       actualPickupTime: new Date()
     });
-    // Update all packages in this pickup to 'pending' status
+    // Update packages status based on type (support exchange flow)
     if (pickup.Packages && pickup.Packages.length > 0) {
-      const packageIds = pickup.Packages.map(pkg => pkg.id);
-      await Package.update(
-        { status: 'pending' },
-        { where: { id: packageIds } }
-      );
+      for (const pkg of pickup.Packages) {
+        const isExchange = (pkg.type === 'exchange') || ((pkg.status || '').startsWith('exchange-'));
+        const newStatus = isExchange ? 'exchange-in-process' : 'pending';
+        await pkg.update({ status: newStatus });
+      }
     }
     res.json({ message: 'Pickup marked as picked up successfully', pickup });
   } catch (error) {

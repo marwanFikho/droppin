@@ -163,5 +163,7 @@ router.patch('/:id/cancel', authorize('shop'), packageController.cancelPackage);
 router.patch('/:id/notes', authorize('driver', 'shop', 'admin'), packageController.updatePackageNotes);
 // New: shop requests a return on a delivered package
 router.post('/:id/request-return', authorize('shop'), packageController.requestReturn);
+// New: shop requests an exchange on a delivered package
+router.post('/:id/request-exchange', authorize('shop'), packageController.requestExchange);
 
 module.exports = router;

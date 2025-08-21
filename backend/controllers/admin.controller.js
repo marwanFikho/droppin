@@ -905,7 +905,10 @@ exports.assignDriverToPackage = async (req, res) => {
         statusHistory = [];
       }
       
-      const statusForAssignment = (package.status === 'return-requested') ? 'return-in-transit' : 'assigned';
+      // Determine status for assignment including return and exchange flows
+      const statusForAssignment = (package.status === 'return-requested')
+        ? 'return-in-transit'
+        : ((package.status || '').startsWith('exchange-') ? 'exchange-in-transit' : 'assigned');
       if (previousDriverId && previousDriverId !== driverId) {
         statusHistory.push({
           status: statusForAssignment,
@@ -1040,6 +1043,7 @@ exports.getPackages = async (req, res) => {
     const packages = await Package.findAll({
       attributes: [
         'id', 'trackingNumber', 'packageDescription', 'weight', 'dimensions',
+        'type',
         'status', 'shopId', 'userId', 'driverId',
         'pickupContactName', 'pickupContactPhone', 'pickupAddress',
         'deliveryContactName', 'deliveryContactPhone', 'deliveryAddress',
@@ -1047,7 +1051,7 @@ exports.getPackages = async (req, res) => {
         'actualPickupTime', 'actualDeliveryTime',
         'priority', 'paymentStatus', 'createdAt', 'updatedAt',
         'codAmount', 'deliveryCost', 'shownDeliveryCost', 'isPaid', 'paymentDate', 'shopNotes',
-        'notes',
+        'notes', 'exchangeDetails',
         'itemsNo'
       ],
       where: whereClause,

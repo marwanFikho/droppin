@@ -20,7 +20,7 @@ const MobileShopNewPickup = () => {
         // Fetch packages that are awaiting schedule
         const packagesResponse = await packageService.getPackages({limit: 10000});
         const pkgs = packagesResponse.data.packages || packagesResponse.data || [];
-        const awaitingSchedulePackages = pkgs.filter(pkg => pkg.status === 'awaiting_schedule');
+        const awaitingSchedulePackages = pkgs.filter(pkg => pkg.status === 'awaiting_schedule' || pkg.status === 'exchange-awaiting-schedule');
         setPackages(awaitingSchedulePackages);
         // Fetch shop profile to get address
         const shopResponse = await packageService.getShopProfile();
@@ -136,7 +136,7 @@ const MobileShopNewPickup = () => {
                   <div className="mobile-shop-dashboard-no-packages">No pending packages available for pickup</div>
                 ) : (
                   packages.map(pkg => (
-                    <label key={pkg.id} className="package-list-item" style={{ display: 'flex', alignItems: 'center', padding: '4px 0', borderBottom: '1px solid #eee', background: selectedPackages.includes(pkg.id) ? '#fff8e1' : 'white', fontWeight: selectedPackages.includes(pkg.id) ? 'bold' : 'normal' }}>
+                    <label key={pkg.id} className="package-list-item" style={{ display: 'flex', alignItems: 'center', padding: '4px 0', borderBottom: '1px solid #eee', background: selectedPackages.includes(pkg.id) ? '#fff8e1' : ((pkg.type === 'exchange' || (pkg.status || '').startsWith('exchange-')) ? '#f3e5f5' : 'white'), fontWeight: selectedPackages.includes(pkg.id) ? 'bold' : 'normal', borderLeft: (pkg.type === 'exchange' || (pkg.status || '').startsWith('exchange-')) ? '3px solid #7b1fa2' : '3px solid transparent' }}>
                       <input
                         type="checkbox"
                         checked={selectedPackages.includes(pkg.id)}
