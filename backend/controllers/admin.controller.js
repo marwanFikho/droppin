@@ -406,9 +406,9 @@ exports.approveShop = async (req, res) => {
   try {
     // Get parameters
     const { id } = req.params;
-    const { approved } = req.body;
+    const { approved, shippingFees } = req.body;
     
-    console.log('Shop approval request:', { id, approved });
+    console.log('Shop approval request:', { id, approved, shippingFees });
     
     // Validation
     if (approved === undefined) {
@@ -425,6 +425,13 @@ exports.approveShop = async (req, res) => {
         console.log('Found shop by shop ID:', id, 'with userId:', shop.userId);
         
         if (approved) {
+          // If shippingFees provided, persist before approval
+          if (shippingFees !== undefined && shippingFees !== null && shippingFees !== '') {
+            const value = parseFloat(shippingFees);
+            if (!Number.isNaN(value) && value >= 0) {
+              await shop.update({ shippingFees: value });
+            }
+          }
           // Approve: Update the user
           await sequelize.query(
             'UPDATE Users SET isApproved = 1 WHERE id = ?',
@@ -476,6 +483,16 @@ exports.approveShop = async (req, res) => {
         console.log('Found user directly by user ID:', id);
         
         if (approved) {
+          // If shippingFees provided, persist on the associated Shop before approval
+          if (shippingFees !== undefined && shippingFees !== null && shippingFees !== '') {
+            const value = parseFloat(shippingFees);
+            if (!Number.isNaN(value) && value >= 0) {
+              const shop = await Shop.findOne({ where: { userId: user.id } });
+              if (shop) {
+                await shop.update({ shippingFees: value });
+              }
+            }
+          }
           // Approve: Update the user
           await user.update({ isApproved: true });
           
@@ -528,6 +545,13 @@ exports.approveShop = async (req, res) => {
         console.log('Found shop by userId:', id);
         
         if (approved) {
+          // If shippingFees provided, persist before approval
+          if (shippingFees !== undefined && shippingFees !== null && shippingFees !== '') {
+            const value = parseFloat(shippingFees);
+            if (!Number.isNaN(value) && value >= 0) {
+              await shopByUserId.update({ shippingFees: value });
+            }
+          }
           // Approve: Update the user
           await sequelize.query(
             'UPDATE Users SET isApproved = 1 WHERE id = ?',

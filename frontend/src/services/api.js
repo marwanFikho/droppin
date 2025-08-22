@@ -140,7 +140,7 @@ export const adminService = {
   // Shop management
   getShops: (filters = {}) => api.get('/admin/shops', { params: filters }),
   getShopById: (id) => api.get(`/admin/shops/${id}`),
-  approveShop: (id, approved) => api.patch(`/admin/shops/${id}/approve`, { approved }),
+  approveShop: (id, approved, shippingFees) => api.patch(`/admin/shops/${id}/approve`, { approved, shippingFees }),
   updateShop: (id, data) => api.patch(`/admin/shops/${id}`, data),
   adjustShopTotalCollected: (shopId, data) => api.post(`/admin/shops/${shopId}/adjust-total-collected`, data),
   

@@ -123,7 +123,6 @@ const AdminDashboard = () => {
   const [showForwardPackageModal, setShowForwardPackageModal] = useState(false);
   const [showRejectPackageModal, setShowRejectPackageModal] = useState(false);
   const [packageToAction, setPackageToAction] = useState(null);
-  const [shippingFeesInput, setShippingFeesInput] = useState('');
   const [adjustTotalCollectedInput, setAdjustTotalCollectedInput] = useState('');
   const [adjustTotalCollectedReason, setAdjustTotalCollectedReason] = useState('');
   const [adjustingTotalCollected, setAdjustingTotalCollected] = useState(false);
@@ -376,7 +375,6 @@ const AdminDashboard = () => {
                 const readyToAssignPackages = (packagesResponse.data || []).filter(pkg =>
                   pkg.status === 'pending' ||
                   pkg.status === 'cancelled-awaiting-return' ||
-                  pkg.status === 'rejected-awaiting-return' ||
                   pkg.status === 'return-requested' ||
                   pkg.status === 'exchange-in-process'
                 );
@@ -594,6 +592,15 @@ const AdminDashboard = () => {
       return;
     }
     
+    // If approving a shop, ask for shipping fees first
+    if (approve && userType === 'shop') {
+      const idToUse = selectedEntity?.shopId || selectedEntity?.userId || entityId;
+      setPendingShopApproval({ id: idToUse, selectedEntity });
+      setShippingFeesInput('');
+      setShowShippingFeesModal(true);
+      return;
+    }
+    
     // If approving, proceed without confirmation
     await processApproval(entityId, userType, approve, selectedEntity);
   };
@@ -632,7 +639,9 @@ const AdminDashboard = () => {
           
           console.log('Approving shop with ID:', idToUse);
           try {
-            response = await adminService.approveShop(idToUse, approve);
+            // Pass shippingFees if coming from the modal input
+            const shippingFees = (typeof shippingFeesInput === 'string' && shippingFeesInput.trim() !== '') ? parseFloat(shippingFeesInput) : undefined;
+            response = await adminService.approveShop(idToUse, approve, shippingFees);
             console.log('Shop approval response:', response);
             // Check if we have a successful response with the new format
             if (response.data && (response.data.success === true || response.data.message)) {
@@ -644,7 +653,8 @@ const AdminDashboard = () => {
             if (selectedEntity && selectedEntity.id) {
               console.log('Trying again with user ID:', selectedEntity.id);
               try {
-                response = await adminService.approveShop(selectedEntity.id, approve);
+                const shippingFees = (typeof shippingFeesInput === 'string' && shippingFeesInput.trim() !== '') ? parseFloat(shippingFeesInput) : undefined;
+                response = await adminService.approveShop(selectedEntity.id, approve, shippingFees);
                 console.log('Second attempt shop approval response:', response);
                 // Check if we have a successful response with the new format
                 if (response.data && (response.data.success === true || response.data.message)) {
@@ -863,7 +873,6 @@ const AdminDashboard = () => {
                   const readyToAssignPackages = (packagesResponse.data || []).filter(pkg =>
                     pkg.status === 'pending' ||
                     pkg.status === 'cancelled-awaiting-return' ||
-                    pkg.status === 'exchange-awaiting-schedule' ||
                     pkg.status === 'exchange-in-process'
                   );
                   setPackages(readyToAssignPackages);
@@ -956,7 +965,6 @@ const AdminDashboard = () => {
           const readyToAssignPackages = (packagesResponse.data || []).filter(pkg =>
             pkg.status === 'pending' ||
             pkg.status === 'cancelled-awaiting-return' ||
-            pkg.status === 'rejected-awaiting-return' ||
             pkg.status === 'exchange-in-process'
           );
           setPackages(readyToAssignPackages);
@@ -3082,7 +3090,6 @@ const AdminDashboard = () => {
         const readyToAssignPackages = (packagesResponse.data || []).filter(pkg =>
           pkg.status === 'pending' ||
           pkg.status === 'cancelled-awaiting-return' ||
-          pkg.status === 'rejected-awaiting-return' ||
           pkg.status === 'return-requested' ||
           pkg.status === 'exchange-in-process'
         );
@@ -3245,7 +3252,6 @@ const AdminDashboard = () => {
           const readyToAssignPackages = (packagesResponse.data || []).filter(pkg =>
             pkg.status === 'pending' ||
             pkg.status === 'cancelled-awaiting-return' ||
-            pkg.status === 'rejected-awaiting-return' ||
             pkg.status === 'return-requested' ||
             pkg.status === 'exchange-in-process'
           );
@@ -3724,7 +3730,6 @@ const AdminDashboard = () => {
           const readyToAssignPackages = (response.data || []).filter(pkg =>
             pkg.status === 'pending' ||
             pkg.status === 'cancelled-awaiting-return' ||
-            pkg.status === 'rejected-awaiting-return' ||
             pkg.status === 'return-requested' ||
             pkg.status === 'exchange-in-process'
           );
@@ -4505,13 +4510,57 @@ const AdminDashboard = () => {
     }
   };
 
+  const [showShippingFeesModal, setShowShippingFeesModal] = useState(false);
+  const [pendingShopApproval, setPendingShopApproval] = useState({ id: null, selectedEntity: null });
+  const [shippingFeesInput, setShippingFeesInput] = useState('');
+
+  const renderShippingFeesModal = () => {
+    if (!showShippingFeesModal) return null;
+    return (
+      <div className="confirmation-overlay">
+        <div className="confirmation-dialog">
+          <h3>Set Shipping Fees</h3>
+          <p>Please enter the shipping fees for this shop. This will be saved and the shop will be approved.</p>
+          <input
+            type="number"
+            step="0.01"
+            value={shippingFeesInput}
+            onChange={(e) => setShippingFeesInput(e.target.value)}
+            style={{ width: '100%', padding: '10px', marginTop: '10px', marginBottom: '10px' }}
+          />
+          <div className="confirmation-buttons">
+            <button className="btn-secondary" onClick={() => { setShowShippingFeesModal(false); setPendingShopApproval({ id: null, selectedEntity: null }); }}>
+              Cancel
+            </button>
+            <button
+              className="btn-primary"
+              onClick={async () => {
+                // Basic validation
+                const value = parseFloat(shippingFeesInput);
+                if (!Number.isFinite(value) || value < 0) {
+                  alert('Please enter a valid non-negative number for shipping fees.');
+                  return;
+                }
+                setShowShippingFeesModal(false);
+                const { id, selectedEntity } = pendingShopApproval;
+                await processApproval(id, 'shop', true, selectedEntity || {});
+                setPendingShopApproval({ id: null, selectedEntity: null });
+              }}
+            >
+              Save & Approve
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="admin-dashboard">
       {renderStatusMessage()}
       {renderConfirmationDialog()}
       {renderForwardPackageModal()}
-      {renderRejectPackageModal()}
-      {renderWorkingAreaModal()}
+      {renderShippingFeesModal()}
       <div className="dashboard-header">
         <h1 style={{color: 'white'}}>Admin Dashboard</h1>
         <div className="header-actions">

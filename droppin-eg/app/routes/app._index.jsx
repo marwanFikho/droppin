@@ -24,78 +24,84 @@ import prisma from "../db.server";
 export const loader = async ({ request }) => {
   const { admin, session } = await authenticate.admin(request);
   // Fetch orders from Shopify using GraphQL
-  const response = await admin.graphql(`#graphql
-    query {
-      orders(first: 10, reverse: true) {
-        edges {
-          node {
-            id
-            name
-            totalPriceSet { shopMoney { amount } }
-            totalWeight
-            shippingAddress {
+  let orders = [];
+  try {
+    const response = await admin.graphql(`#graphql
+      query {
+        orders(first: 250, reverse: true) {
+          edges {
+            node {
+              id
               name
-              address1
-              city
-              province
-              zip
-              country
-              phone
-            }
-            billingAddress {
-              phone
-            }
-            customer {
-              phone
-            }
-            lineItems(first: 10) {
-              edges {
-                node {
-                  title
-                  quantity
-                  originalUnitPriceSet { shopMoney { amount } }
+              totalPriceSet { shopMoney { amount } }
+              totalWeight
+              shippingAddress {
+                name
+                address1
+                city
+                province
+                zip
+                country
+                phone
+              }
+              billingAddress {
+                phone
+              }
+              customer {
+                phone
+              }
+              lineItems(first: 10) {
+                edges {
+                  node {
+                    title
+                    quantity
+                    originalUnitPriceSet { shopMoney { amount } }
+                  }
                 }
               }
             }
           }
         }
       }
-    }
-  `);
-  const data = await response.json();
-  // For demo: add random deliveryFee and delivered status
-  const orders = data.data.orders.edges.map(({ node }) => {
-    const shipping = node.shippingAddress || {};
-    const billing = node.billingAddress || {};
-    const customer = node.customer || {};
-    const items = node.lineItems.edges.map(e => ({
-      title: e.node.title,
-      quantity: e.node.quantity,
-      price: Number(e.node.originalUnitPriceSet.shopMoney.amount)
-    }));
-    const itemsString = items.map(item => `${item.quantity}x ${item.title}`).join(", ");
-    const weight = (node.totalWeight || 0) / 1000; // grams to kg
-    // DEMO: random delivery fee between 20 and 60, and random delivered status
-    const deliveryFee = Math.floor(Math.random() * 41) + 20;
-    const delivered = Math.random() > 0.5;
-    return {
-      id: node.id,
-      name: node.name,
-      customer: shipping.name || "",
-      address: shipping.address1 || "",
-      city: shipping.city || "",
-      province: shipping.province || "",
-      zip: shipping.zip || "",
-      country: shipping.country || "",
-      items,
-      itemsString,
-      weight,
-      phone: shipping.phone || billing.phone || customer.phone || "",
-      total: Number(node.totalPriceSet.shopMoney.amount),
-      deliveryFee,
-      delivered,
-    };
-  });
+    `);
+    const data = await response.json();
+    // For demo: add random deliveryFee and delivered status
+    orders = (data?.data?.orders?.edges || []).map(({ node }) => {
+      const shipping = node.shippingAddress || {};
+      const billing = node.billingAddress || {};
+      const customer = node.customer || {};
+      const items = (node.lineItems?.edges || []).map(e => ({
+        title: e.node.title,
+        quantity: e.node.quantity,
+        price: Number(e.node.originalUnitPriceSet.shopMoney.amount)
+      }));
+      const itemsString = items.map(item => `${item.quantity}x ${item.title}`).join(", ");
+      const weight = (node.totalWeight || 0) / 1000; // grams to kg
+      // DEMO: random delivery fee between 20 and 60, and random delivered status
+      const deliveryFee = Math.floor(Math.random() * 41) + 20;
+      const delivered = Math.random() > 0.5;
+      return {
+        id: node.id,
+        name: node.name,
+        customer: shipping.name || "",
+        address: shipping.address1 || "",
+        city: shipping.city || "",
+        province: shipping.province || "",
+        zip: shipping.zip || "",
+        country: shipping.country || "",
+        items,
+        itemsString,
+        weight,
+        phone: shipping.phone || billing.phone || customer.phone || "",
+        total: Number(node.totalPriceSet.shopMoney.amount),
+        deliveryFee,
+        delivered,
+      };
+    });
+  } catch (error) {
+    console.error("Failed to fetch Shopify orders:", error);
+    orders = [];
+  }
   const shopDomain = session.shop;
   const config = await prisma.droppinShopConfig.findUnique({ where: { shop: shopDomain } });
   const apiKey = config?.apiKey || "";
@@ -205,6 +211,19 @@ export default function Index() {
   });
   const totalPages = Math.ceil(filteredOrders.length / limit);
   const paginatedOrders = filteredOrders.slice((page - 1) * limit, page * limit);
+  
+  // Helpers for selecting all on the current page
+  const currentPageSelectableIds = paginatedOrders.filter(o => !sentOrders.includes(o.id)).map(o => o.id);
+  const areAllPageSelected = currentPageSelectableIds.length > 0 && currentPageSelectableIds.every(id => selected.includes(id));
+  const toggleSelectAllOnPage = () => {
+    setSelected(prev => {
+      if (areAllPageSelected) {
+        return prev.filter(id => !currentPageSelectableIds.includes(id));
+      }
+      const combined = new Set([...prev, ...currentPageSelectableIds]);
+      return Array.from(combined);
+    });
+  };
 
   // Calculate revenue for delivered packages
   const revenue = orders.filter(o => o.delivered).reduce((sum, o) => sum + (o.deliveryFee || 0), 0);
@@ -435,6 +454,9 @@ export default function Index() {
             <option value="sent">Sent</option>
             <option value="not_sent">Not Sent</option>
           </select>
+          <Button size="slim" onClick={toggleSelectAllOnPage} disabled={currentPageSelectableIds.length === 0}>
+            {areAllPageSelected ? "Clear Page Selection" : "Select All (page)"}
+          </Button>
         </div>
         {/* Orders Table */}
         <table className="droppin-orders-table">
@@ -443,6 +465,7 @@ export default function Index() {
               <th>Select</th>
               <th>Order</th>
               <th>Customer</th>
+              <th>Delivery Address</th>
               <th>Items</th>
               <th>Total</th>
               <th>Status</th>
@@ -462,6 +485,7 @@ export default function Index() {
                 </td>
                 <td>{o.name}</td>
                 <td>{o.customer}</td>
+                <td>{[o.address, o.city, o.province, o.zip, o.country].filter(Boolean).join(', ')}</td>
                 <td>
                   <div style={{ 
                     display: 'flex', 

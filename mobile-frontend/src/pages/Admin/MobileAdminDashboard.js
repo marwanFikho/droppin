@@ -60,6 +60,30 @@ const MobileAdminDashboard = () => {
   const [adjustingTotalCollected, setAdjustingTotalCollected] = useState(false);
   const [adjustTotalCollectedStatus, setAdjustTotalCollectedStatus] = useState(null);
   
+  // Define Alert alias to satisfy any usages expecting a capitalized Alert function
+  const Alert = (message) => window.alert(message);
+  
+  // Define fetch helpers if referenced elsewhere in this component
+  const fetchStats = useCallback(async () => {
+    try {
+      const statsResponse = await adminService.getDashboardStats();
+      if (statsResponse.data) {
+        setDashboardStats(statsResponse.data);
+      }
+    } catch (err) {
+      setError('Failed to fetch dashboard stats.');
+    }
+  }, []);
+  
+  const fetchPendingApprovals = useCallback(async () => {
+    try {
+      const response = await adminService.getPendingApprovals();
+      setUsers(response.data || []);
+    } catch (err) {
+      setError('Failed to fetch pending approvals.');
+    }
+  }, []);
+  
   // Add state for give money to driver functionality
   const [giveMoneyAmount, setGiveMoneyAmount] = useState('');
   const [giveMoneyReason, setGiveMoneyReason] = useState('');

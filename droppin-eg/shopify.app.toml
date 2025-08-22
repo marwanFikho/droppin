@@ -3,7 +3,7 @@
 client_id = "204d55c4dc34850c3820d421098f101b"
 name = "Droppin EG"
 handle = "droppin-eg-2"
-application_url = "https://prospects-villa-accent-nt.trycloudflare.com"
+application_url = "https://joel-console-cycle-hewlett.trycloudflare.com"
 embedded = true
 
 [build]
@@ -43,7 +43,7 @@ uri = "/webhooks/shop/redact"
 scopes = "write_products, read_orders, read_customers"
 
 [auth]
-redirect_urls = ["https://prospects-villa-accent-nt.trycloudflare.com/auth/callback", "https://prospects-villa-accent-nt.trycloudflare.com/auth/shopify/callback", "https://prospects-villa-accent-nt.trycloudflare.com/api/auth/callback"]
+redirect_urls = ["https://joel-console-cycle-hewlett.trycloudflare.com/auth/callback", "https://joel-console-cycle-hewlett.trycloudflare.com/auth/shopify/callback", "https://joel-console-cycle-hewlett.trycloudflare.com/api/auth/callback"]
 
 [pos]
 embedded = false
