@@ -4406,8 +4406,8 @@ const AdminDashboard = () => {
       // For all packages, subtotal is just the itemsSum, not cod
       const subTotal = itemsSum;
       const shippingTaxes = isShopify ? Math.max(0, cod - itemsSum) : shippingValue;
-      // Total is itemsSum + shippingValue
-      const total = subTotal + shippingValue;
+      // Total should reflect COD for Shopify, otherwise subtotal + shipping
+      const total = isShopify ? (subTotal + shippingTaxes) : (subTotal + shippingValue);
       
       const totalsRows = isShopify
         ? `<tr><td>Sub Total:</td><td>${subTotal.toFixed(2)} EGP</td></tr>`
