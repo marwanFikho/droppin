@@ -43,9 +43,9 @@ const getNextStatus = (status, type) => {
     switch (status) {
       case 'assigned':
       case 'return-requested':
-        return { next: 'return-in-transit', label: 'Mark Return Picked Up' };
+        return { next: 'return-in-transit', labelKey: 'driver.dashboard.markReturnPickedUp' };
       case 'return-in-transit':
-        return { next: 'return-pending', label: 'Mark Return Picked Up' };
+        return { next: 'return-pending', labelKey: 'driver.dashboard.markReturnPickedUp' };
       default:
         return null;
     }
@@ -53,19 +53,19 @@ const getNextStatus = (status, type) => {
   if (type === 'exchange' || (status && status.startsWith('exchange-'))) {
     switch (status) {
       case 'exchange-awaiting-pickup':
-        return { next: 'exchange-in-transit', label: 'Mark Exchange Picked Up' };
+        return { next: 'exchange-in-transit', labelKey: 'driver.dashboard.markExchangePickedUp' };
       case 'exchange-in-transit':
-        return { next: 'exchange-awaiting-return', label: 'Mark Exchange Awaiting Return' };
+        return { next: 'exchange-awaiting-return', labelKey: 'driver.dashboard.markExchangeAwaitingReturn' };
       case 'exchange-awaiting-return':
-        return { next: 'exchange-returned', label: 'Mark Exchange Completed' };
+        return { next: 'exchange-returned', labelKey: 'driver.dashboard.markExchangeCompleted' };
       default:
         return null;
     }
   }
   switch (status) {
-    case 'assigned': return { next: 'pickedup', label: 'Mark as Picked Up' };
-    case 'pickedup': return { next: 'in-transit', label: 'Mark In Transit' };
-    case 'in-transit': return { next: 'delivered', label: 'Mark as Delivered' };
+    case 'assigned': return { next: 'pickedup', labelKey: 'driver.dashboard.markAsPickedUp' };
+    case 'pickedup': return { next: 'in-transit', labelKey: 'driver.dashboard.markInTransit' };
+    case 'in-transit': return { next: 'delivered', labelKey: 'driver.dashboard.markAsDelivered' };
     default: return null;
   }
 };
@@ -528,6 +528,15 @@ const MobileDriverDashboard = () => {
                       >
                         {t('driver.dashboard.viewDetails')}
                       </button>
+                      {nextStatus && (
+                        <button
+                          className="mobile-driver-dashboard-delivery-start-btn"
+                          onClick={() => handleStatusAction(pkg, nextStatus.next)}
+                          disabled={statusUpdating[pkg.id]}
+                        >
+                          {t(nextStatus.labelKey)}
+                        </button>
+                      )}
                       {/* Reject button: only show if not delivered, cancelled, or rejected */}
                       {![ 'delivered', 'cancelled', 'cancelled-awaiting-return', 'cancelled-returned', 'rejected' ].includes(pkg.status) && (
                         <button
@@ -844,7 +853,13 @@ const MobileDriverDashboard = () => {
                               ? t('driver.dashboard.markReturnPickedUp')
                               : confirmAction.nextStatus === 'return-pending'
                                 ? t('driver.dashboard.markReturnPickedUp')
-                                : t('driver.dashboard.noActions')
+                                : confirmAction.nextStatus === 'exchange-in-transit'
+                                  ? t('driver.dashboard.markExchangePickedUp')
+                                  : confirmAction.nextStatus === 'exchange-awaiting-return'
+                                    ? t('driver.dashboard.markExchangeAwaitingReturn')
+                                    : confirmAction.nextStatus === 'exchange-returned'
+                                      ? t('driver.dashboard.markExchangeCompleted')
+                                      : t('driver.dashboard.noActions')
                   }) }} />
                   <button className="btn btn-primary" style={{marginRight: 10}} onClick={() => doStatusAction(confirmAction.pkg, confirmAction.nextStatus)}>{t('driver.dashboard.yesConfirm')}</button>
                 </>
