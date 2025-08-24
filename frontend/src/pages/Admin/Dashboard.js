@@ -1651,6 +1651,22 @@ const AdminDashboard = () => {
                     <FontAwesomeIcon icon={faCheck} />
                   </button>
                 )}
+                {packagesTab === 'return-to-shop' && pkg.status === 'return-in-transit' && (
+                  <button
+                    className="action-btn return-btn"
+                    onClick={async () => {
+                      try {
+                        await packageService.updatePackageStatus(pkg.id, { status: 'return-pending' });
+                        await fetchPackages();
+                      } catch (err) {
+                        console.error('Failed to forward return status:', err);
+                      }
+                    }}
+                    title="Forward Return (to Pending)"
+                  >
+                    <FontAwesomeIcon icon={faCheck} />
+                  </button>
+                )}
               </td>
             </tr>
           ))}

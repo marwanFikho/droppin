@@ -547,11 +547,13 @@ const ShopPackages = () => {
   };
   const handleBulkPrintAWB = async () => {
     const pkgsToPrint = packages.filter(pkg => selectedPackages.includes(pkg.id));
-    let allAwbHtml = '';
-    for (const pkg of pkgsToPrint) {
-      const qrDataUrl = await QRCode.toDataURL(pkg.trackingNumber || '');
+    if (pkgsToPrint.length === 0) return;
+
+    const awbSections = [];
+    for (let i = 0; i < pkgsToPrint.length; i++) {
+      const pkg = pkgsToPrint[i];
       const logoUrl = window.location.origin + '/assets/images/logo.jpg';
-      
+
       // Ensure we have Items data
       let packageData = pkg;
       try {
@@ -560,67 +562,160 @@ const ShopPackages = () => {
           if (resp && resp.data) packageData = resp.data;
         }
       } catch (e) {
-        // If fetch fails, fall back to passed pkg
+        // fallback silently
       }
-      
-      const cod = parseFloat(packageData.codAmount || 0);
+
+      const qrDataUrl = await QRCode.toDataURL((packageData.trackingNumber || pkg.trackingNumber) || '');
+
+      const cod = parseFloat((packageData.codAmount != null ? packageData.codAmount : pkg.codAmount) || 0);
       const isShopify = (packageData.shopifyOrderId !== undefined && packageData.shopifyOrderId !== null && packageData.shopifyOrderId !== '');
       const itemsSum = (Array.isArray(packageData.Items) && packageData.Items.length > 0)
         ? packageData.Items.reduce((s, it) => s + (parseFloat(it.codAmount || 0) || 0), 0)
         : cod;
-      let shipping = (packageData.shownDeliveryCost !== undefined && packageData.shownDeliveryCost !== null && packageData.shownDeliveryCost !== '')
+      let shippingValue = (packageData.shownDeliveryCost !== undefined && packageData.shownDeliveryCost !== null && packageData.shownDeliveryCost !== '')
         ? Number(packageData.shownDeliveryCost)
         : ((shopFees.shownShippingFees !== undefined && shopFees.shownShippingFees !== null && shopFees.shownShippingFees !== '')
           ? Number(shopFees.shownShippingFees)
           : Number(shopFees.shippingFees));
-      if (!Number.isFinite(shipping) || shipping < 0) shipping = 0;
-      
-      // For manually created packages, subtotal is just the itemsSum, not cod
+      if (!Number.isFinite(shippingValue) || shippingValue < 0) shippingValue = 0;
+
       const subTotal = itemsSum;
-      const shippingValue = shipping;
-      // Total for manually created packages is itemsSum + shippingValue
-      const total = subTotal + shippingValue;
-      
+      const shippingTaxes = isShopify ? Math.max(0, cod - itemsSum) : shippingValue;
+      const total = isShopify ? (subTotal + shippingTaxes) : (subTotal + shippingValue);
+
+      const totalsRows = isShopify
+        ? `<tr><td>Sub Total:</td><td>${subTotal.toFixed(2)} EGP</td></tr>`
+          + `<tr><td>Shipping & Taxes:</td><td>${shippingTaxes.toFixed(2)} EGP</td></tr>`
+          + `<tr><td><b>Total:</b></td><td><b>${total.toFixed(2)} EGP</b></td></tr>`
+        : `<tr><td>Sub Total:</td><td>${subTotal.toFixed(2)} EGP</td></tr>`
+          + `<tr><td>Shipping:</td><td>${shippingValue.toFixed(2)} EGP</td></tr>`
+          + `<tr><td><b>Total:</b></td><td><b>${total.toFixed(2)} EGP</b></td></tr>`;
+
       const shopName = shopFees.businessName || '-';
-      allAwbHtml += `
-        <div class="awb-container" style="page-break-after: always;">
+      const breakStyle = (i < pkgsToPrint.length - 1) ? 'page-break-after: always; break-after: page;' : '';
+
+      awbSections.push(`
+        <div class="awb-container" style="${breakStyle}">
           <div class="awb-header">
             <img src="${logoUrl}" class="awb-logo" alt="Droppin Logo" />
             <div>
-              <div class="awb-title">AIR WAYBILL</div>
               <img src="${qrDataUrl}" alt="QR Code" style="height:140px;width:140px;" />
             </div>
           </div>
           <div class="awb-section">
             <table class="awb-info-table">
               <tr>
-                <td><span class="awb-row"><b>Tracking #:</b><span class="awb-data">${pkg.trackingNumber || '-'}</span></span>
-                <div class="awb-shop-name">Shop Name: ${shopName}</div>
-              </td>
-                <td><b>Date:</b> ${pkg.createdAt ? new Date(pkg.createdAt).toLocaleDateString() : '-'}</td>
+                <td>
+                  <span class="awb-row"><b class="awb-tracking">Tracking #:</b><span class="awb-tracking awb-data">${packageData.trackingNumber || pkg.trackingNumber || '-'}</span></span>
+                  <div class="awb-shop-name">Shop Name: ${shopName}</div>
+                </td>
+                <td><b>Date:</b> ${packageData.createdAt ? new Date(packageData.createdAt).toLocaleDateString() : (pkg.createdAt ? new Date(pkg.createdAt).toLocaleDateString() : '-')}</td>
+              </tr>
+              <tr>
+                <td colspan="2">
+                  <span class="awb-row"><b class="awb-recipient">Recipient:</b><span class="awb-recipient awb-data">${packageData.deliveryContactName || '-'}</span></span><br/>
+                  <span class="awb-row"><b class="awb-phone">Phone:</b><span class="awb-phone awb-data">${packageData.deliveryContactPhone || '-'}</span></span><br/>
+                  <span class="awb-row"><b class="awb-address">Address:</b><span class="awb-address awb-data">${packageData.deliveryAddress || '-'}</span></span>
+                </td>
               </tr>
             </table>
           </div>
+          <div class="awb-section">
+            <b>Description:</b> ${packageData.packageDescription || '-'}
+          </div>
+          <table class="awb-table">
+            <thead>
+              <tr><th>Item</th><th>Qty</th><th>COD Per Unit</th><th>Total COD</th></tr>
+            </thead>
+            <tbody>
+              ${
+                packageData.Items && packageData.Items.length > 0
+                  ? packageData.Items.map(item => `
+                    <tr>
+                      <td>${item.description || '-'}</td>
+                      <td>${item.quantity}</td>
+                      <td>${item.codAmount && item.quantity ? (item.codAmount / item.quantity).toFixed(2) : '0.00'} EGP</td>
+                      <td>${parseFloat(item.codAmount || 0).toFixed(2)} EGP</td>
+                    </tr>
+                  `).join('')
+                  : `<tr>
+                      <td>${packageData.packageDescription || '-'}</td>
+                      <td>${packageData.itemsNo ?? 1}</td>
+                      <td>${cod.toFixed(2)} EGP</td>
+                      <td>${cod.toFixed(2)} EGP</td>
+                    </tr>`
+              }
+            </tbody>
+          </table>
+          <div class="awb-section">
+            <b>Payment Method:</b> COD
+          </div>
+          <div class="awb-section" style="display:flex;justify-content:flex-end;">
+            <table class="awb-info-table" style="width:300px;">
+              ${totalsRows}
+            </table>
+          </div>
+          <div class="awb-footer">Thank you for your order!</div>
         </div>
-      `;
+      `);
     }
+
     const fullHtml = `
       <html>
         <head>
           <title>Droppin Bulk AWB</title>
           <style>
-            .awb-container { width: 800px; margin: 0 auto; padding: 32px; }
+            body { font-family: Arial, sans-serif; background: #fff; color: #111; margin: 0; padding: 0; }
+            .awb-container { width: 800px; margin: 0 auto; padding: 32px; background: #fff; }
             .awb-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #111; padding-bottom: 16px; }
+            .awb-logo { height: 80px; width: auto; }
             .awb-title { font-size: 2rem; font-weight: bold; }
+            .awb-shop-name { font-size: 1.2rem; font-weight: bold; color: #004b6f; margin-top: 4px; }
+            .awb-section { margin-top: 24px; }
+            .awb-table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+            .awb-table th, .awb-table td { border: 1px solid #111; padding: 8px; text-align: left; }
+            .awb-table th { background: #f5f5f5; }
             .awb-info-table { width: 100%; margin-top: 16px; }
             .awb-info-table td { padding: 4px 8px; }
+            .awb-footer { margin-top: 32px; text-align: center; font-size: 1.1rem; font-weight: bold; }
+            .awb-tracking { font-size: 22px; font-weight: bold; }
+            .awb-recipient { font-size: 18px; font-weight: bold; }
+            .awb-phone { font-size: 18px; font-weight: bold; }
+            .awb-address { font-size: 18px; font-weight: bold; }
+            .awb-data { margin-left: 0; }
+            .awb-row { display: block; }
+            @media print {
+              .awb-container { page-break-inside: avoid; }
+            }
           </style>
         </head>
-        <body onload="window.print()">
-          ${allAwbHtml}
+        <body>
+          ${awbSections.join('\n')}
+          <script>
+            (function(){
+              function deferPrint(){
+                try { window.focus(); } catch(e) {}
+                setTimeout(function(){ try { window.print(); } catch(e) {} }, 50);
+              }
+              function onReady(){
+                var imgs = Array.prototype.slice.call(document.images || []);
+                var pending = imgs.filter(function(img){ return !img.complete; });
+                if (pending.length === 0) return deferPrint();
+                var done = 0;
+                pending.forEach(function(img){
+                  var mark = function(){ done++; if (done === pending.length) deferPrint(); };
+                  img.addEventListener('load', mark);
+                  img.addEventListener('error', mark);
+                });
+              }
+              if (document.readyState === 'complete') { onReady(); }
+              else { window.addEventListener('load', onReady); }
+            })();
+          </script>
         </body>
       </html>
     `;
+
     const printWindow = window.open('', '_blank');
     if (printWindow) {
       printWindow.document.open();
