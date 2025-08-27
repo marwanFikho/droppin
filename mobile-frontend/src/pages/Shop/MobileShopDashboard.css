@@ -538,7 +538,7 @@
 .status-scheduled_for_pickup { background: #e0f7fa; color: #f36325; }
 .status-pending { background: #fff7e0; color: #e6a700; }
 .status-in-transit, .status-assigned, .status-pickedup { background: #e0f0ff; color: #f36325; }
-.status-delivered { background: #e6f9e7; color: #28a745; }
+.status-delivered, .status-delivered-returned { background: #e6f9e7; color: #28a745; }
 .status-cancelled, .status-cancelled-awaiting-return, .status-cancelled-returned { background: #ffeaea; color: #dc3545; }
 .status-return-to-shop { background: #f3e6ff; color: #7c3aed; }
 

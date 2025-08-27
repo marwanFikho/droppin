@@ -693,6 +693,12 @@ const ShopDashboard = () => {
                   <span className="label">Delivery Cost</span>
                   <span>EGP {parseFloat(selectedPackage.deliveryCost || 0).toFixed(2)}</span>
                 </div>
+                {selectedPackage.rejectionShippingPaidAmount !== undefined && selectedPackage.rejectionShippingPaidAmount !== null && (
+                  <div className="detail-item">
+                    <span className="label">Rejection Shipping Fees Paid</span>
+                    <span>EGP {parseFloat(selectedPackage.rejectionShippingPaidAmount || 0).toFixed(2)}</span>
+                  </div>
+                )}
                 {selectedPackage.weight && (
                   <div className="detail-item">
                     <span className="label">Weight</span>

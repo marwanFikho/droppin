@@ -642,7 +642,8 @@ exports.getDrivers = async (req, res) => {
         totalDeliveries: row.totalDeliveries,
         totalAssigned: row.totalAssigned,
         activeAssign: row.activeAssign,
-        assignedToday: row.assignedToday
+        assignedToday: row.assignedToday,
+        cashOnHand: row.cashOnHand
       };
     });
 
@@ -660,6 +661,49 @@ exports.getDrivers = async (req, res) => {
   } catch (error) {
     console.error('Error getting drivers:', error);
     res.status(500).json({ message: error.message });
+  }
+};
+
+// Reset driver's cashOnHand to zero and log the settlement
+exports.resetDriverCashOnHand = async (req, res) => {
+  try {
+    const { id } = req.params; // driverId
+    const { note } = req.body;
+    const driver = await Driver.findByPk(id, { include: [{ model: User, attributes: ['name'] }] });
+    if (!driver) {
+      return res.status(404).json({ message: 'Driver not found.' });
+    }
+    const current = parseFloat(driver.cashOnHand || 0) || 0;
+    if (current <= 0) {
+      return res.json({ message: 'Driver cashOnHand already zero.', amount: 0 });
+    }
+    driver.cashOnHand = 0;
+    await driver.save();
+    // Log a money transaction under admin shop but with DriverCashOnHand attribute
+    let adminShop = await Shop.findOne({ where: { businessName: 'ADMIN_SYSTEM' } });
+    if (!adminShop) {
+      adminShop = await Shop.create({
+        userId: 1,
+        businessName: 'ADMIN_SYSTEM',
+        businessType: 'System',
+        address: 'System Address',
+        ToCollect: 0,
+        TotalCollected: 0,
+        settelled: 0
+      });
+    }
+    await MoneyTransaction.create({
+      shopId: adminShop.id,
+      driverId: driver.id,
+      amount: current,
+      attribute: 'DriverCashOnHand',
+      changeType: 'decrease',
+      description: `Admin settled driver cashOnHand for ${driver.User?.name || 'Unknown Driver'} (ID: ${driver.id}). ${note ? 'Note: ' + note : ''}`
+    });
+    return res.json({ message: 'Driver cashOnHand reset to zero.', amountSettled: current, driverId: driver.id });
+  } catch (error) {
+    console.error('Error resetting driver cashOnHand:', error);
+    return res.status(500).json({ message: error.message });
   }
 };
 
@@ -1419,7 +1463,8 @@ exports.getMoneyTransactions = async (req, res) => {
     if (search) {
       where[Op.or] = [
         { description: { [Op.like]: `%${search}%` } },
-        { '$Shop.businessName$': { [Op.like]: `%${search}%` } }
+        { '$Shop.businessName$': { [Op.like]: `%${search}%` } },
+        { '$Driver.User.name$': { [Op.like]: `%${search}%` } }
       ];
     }
 
@@ -1434,11 +1479,22 @@ exports.getMoneyTransactions = async (req, res) => {
     const findOptions = {
       where,
       order: [[actualSortBy, actualSortOrder]],
-      include: [{ 
-        model: Shop, 
-        attributes: ['businessName'],
-        required: false
-      }]
+      include: [
+        { 
+          model: Shop, 
+          attributes: ['businessName'],
+          required: false
+        },
+        {
+          model: Driver,
+          attributes: ['id'],
+          required: false,
+          include: [{
+            model: User,
+            attributes: ['name']
+          }]
+        }
+      ]
     };
     if (limit !== undefined && limit !== null) {
       findOptions.limit = parseInt(limit);
@@ -1449,10 +1505,33 @@ exports.getMoneyTransactions = async (req, res) => {
     // Enhance each transaction with driver info if possible
     const enhancedRows = await Promise.all(rows.map(async (tx) => {
       let driver = null;
-      // If it's a pickup transaction, show '-'
-      if (tx.description && /pickup/i.test(tx.description)) {
-        driver = null;
-      } else {
+      // Check if transaction has driver info directly from the relation
+      if (tx.Driver && tx.Driver.User) {
+        driver = {
+          id: tx.Driver.id,
+          name: tx.Driver.User.name
+        };
+      } 
+      // For DriverCashOnHand transactions, we already have the driver from the relation
+      else if (tx.attribute === 'DriverCashOnHand' && tx.driverId) {
+        // We already included Driver in the query, so this should be available
+        if (tx.Driver && tx.Driver.User) {
+          driver = {
+            id: tx.Driver.id,
+            name: tx.Driver.User.name
+          };
+        } else {
+          // As fallback, try to find the driver directly
+          const driverData = await Driver.findByPk(tx.driverId, {
+            include: [{ model: User, attributes: ['name'] }]
+          });
+          if (driverData && driverData.User) {
+            driver = { id: driverData.id, name: driverData.User.name };
+          }
+        }
+      }
+      // For other transactions without direct driver relation, try to extract from description
+      else if (!driver && tx.description && !/pickup/i.test(tx.description)) {
         // Try to extract tracking number from description for delivered/returned/cancelled
         let trackingMatch = tx.description && tx.description.match(/Package ([A-Z0-9]+)/);
         if (trackingMatch && trackingMatch[1]) {

@@ -1157,13 +1157,31 @@ const AdminDashboard = () => {
               fetchedNotesArr = [];
             }
           }
-          setSelectedEntity({ ...response.data, notes: fetchedNotesArr, entityType: type });
+          // Normalize deliveredItems (may come as string/alt key from DB)
+          let normalizedDelivered = response.data.deliveredItems ?? response.data.delivereditems ?? null;
+          if (typeof normalizedDelivered === 'string') {
+            try { normalizedDelivered = JSON.parse(normalizedDelivered); } catch { normalizedDelivered = null; }
+          }
+          if (!Array.isArray(normalizedDelivered)) normalizedDelivered = [];
+
+          setSelectedEntity({ ...response.data, deliveredItems: normalizedDelivered, notes: fetchedNotesArr, entityType: type });
         } else {
-          setSelectedEntity({ ...entity, notes: notesArr });
+          // Also normalize deliveredItems from the entity if present
+          let normalizedDelivered = entity.deliveredItems ?? entity.delivereditems ?? null;
+          if (typeof normalizedDelivered === 'string') {
+            try { normalizedDelivered = JSON.parse(normalizedDelivered); } catch { normalizedDelivered = null; }
+          }
+          if (!Array.isArray(normalizedDelivered)) normalizedDelivered = [];
+          setSelectedEntity({ ...entity, deliveredItems: normalizedDelivered, notes: notesArr });
         }
       } catch (err) {
         console.error('Error fetching package details:', err);
-        setSelectedEntity({ ...entity, notes: notesArr });
+        let normalizedDelivered = entity.deliveredItems ?? entity.delivereditems ?? null;
+        if (typeof normalizedDelivered === 'string') {
+          try { normalizedDelivered = JSON.parse(normalizedDelivered); } catch { normalizedDelivered = null; }
+        }
+        if (!Array.isArray(normalizedDelivered)) normalizedDelivered = [];
+        setSelectedEntity({ ...entity, deliveredItems: normalizedDelivered, notes: notesArr });
       }
     } else {
       setSelectedEntity(entity);
@@ -1583,6 +1601,15 @@ const AdminDashboard = () => {
                     className="action-btn return-btn"
                     onClick={() => handleMarkAsReturned(pkg)}
                     title="Mark as Rejected Returned"
+                  >
+                    <FontAwesomeIcon icon={faCheck} />
+                  </button>
+                )}
+                {packagesTab === 'return-to-shop' && pkg.status === 'delivered-awaiting-return' && (
+                  <button
+                    className="action-btn return-btn"
+                    onClick={() => handleMarkAsReturned(pkg)}
+                    title="Mark as Delivered Returned"
                   >
                     <FontAwesomeIcon icon={faCheck} />
                   </button>
@@ -2107,6 +2134,7 @@ const AdminDashboard = () => {
               
               {/* Shipping Fees editable field */}
               {isShop && (
+                <>
                 <div className="detail-item full-width">
                   <span className="label">Shipping Fees:</span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -2138,6 +2166,49 @@ const AdminDashboard = () => {
                     </button>
                   </div>
                 </div>
+
+                {selectedEntity && selectedEntity.deliveredItems && Array.isArray(selectedEntity.deliveredItems) && selectedEntity.deliveredItems.length > 0 && (
+                  <div className="detail-item full-width">
+                    <span className="label">Delivered Items</span>
+                    <ul style={{ margin: '6px 0 0 18px', padding: 0 }}>
+                      {selectedEntity.deliveredItems.map((di, idx) => {
+                        const match = (selectedEntity.Items || []).find(it => String(it.id) === String(di.itemId));
+                        const label = match?.description || `Item ${di.itemId}`;
+                        return (
+                          <li key={idx}>
+                            {label}: delivered qty {di.deliveredQuantity}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Returning Items (derived from Items - deliveredItems) */}
+                {selectedEntity && Array.isArray(selectedEntity.Items) && selectedEntity.Items.length > 0 && Array.isArray(selectedEntity.deliveredItems) && selectedEntity.deliveredItems.length > 0 && (
+                  (() => {
+                    const deliveredMap = new Map(selectedEntity.deliveredItems.map(di => [di.itemId, parseInt(di.deliveredQuantity, 10) || 0]));
+                    const remaining = selectedEntity.Items
+                      .map(it => {
+                        const totalQty = parseInt(it.quantity, 10) || 0;
+                        const deliveredQty = deliveredMap.get(it.id) || 0;
+                        const remain = Math.max(0, totalQty - deliveredQty);
+                        return { id: it.id, description: it.description, quantity: remain };
+                      })
+                      .filter(r => r.quantity > 0);
+                    return remaining.length > 0 ? (
+                      <div className="detail-item full-width">
+                        <span className="label">Returning Items</span>
+                        <ul style={{ margin: '6px 0 0 18px', padding: 0 }}>
+                          {remaining.map((r, idx) => (
+                            <li key={`ret-${idx}`}>{r.description || `Item ${r.id}`} — Qty: {r.quantity}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null;
+                  })()
+                )}
+                </>
               )}
               
               {/* Quick settlement panel (visible without loading packages) */}
@@ -2324,6 +2395,40 @@ const AdminDashboard = () => {
                   Show Packages
                 </button>
               </div>
+              {/* Driver cashOnHand overview and actions */}
+              {isDriver && (
+                <div className="detail-item full-width" style={{ marginTop: 16 }}>
+                  <span className="label">Cash On Hand:</span>
+                  <span style={{ fontWeight: 700 }}>EGP {parseFloat(selectedEntity.cashOnHand || 0).toFixed(2)}</span>
+                  <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
+                    <button
+                      className="btn-primary danger"
+                      onClick={() => {
+                        setConfirmationDialogTitle('Reset Driver Cash On Hand');
+                        setConfirmationDialogText('This will reset the driver\'s cash on hand to 0. Do you want to continue?');
+                        setConfirmAction(() => async () => {
+                          try {
+                            await adminService.resetDriverCash(selectedEntity.driverId || selectedEntity.id, { note: 'Admin reset cash on hand' });
+                            const driversResponse = await adminService.getDrivers();
+                            setDrivers(driversResponse.data || []);
+                            setSelectedEntity(prev => ({ ...prev, cashOnHand: 0 }));
+                            setStatusMessage({ type: 'success', text: 'Driver cash on hand reset.' });
+                          } catch (err) {
+                            setStatusMessage({ type: 'error', text: 'Failed to reset driver cash on hand.' });
+                          } finally {
+                            setShowConfirmationDialog(false);
+                          }
+                        });
+                        setShowConfirmationDialog(true);
+                      }}
+                      style={{ marginLeft: 12 }}
+                    >
+                      Reset Cash On Hand
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Give Money to Driver Section */}
               {isDriver && (
                 <div className="detail-item full-width" style={{ marginTop: 24, padding: '20px', backgroundColor: '#f8f9fa', borderRadius: '8px', border: '1px solid #e9ecef' }}>
@@ -2453,6 +2558,12 @@ const AdminDashboard = () => {
                 <span className="label">COD Amount:</span>
                 <span>{selectedEntity.codAmount ? `${selectedEntity.codAmount} EGP` : 'N/A'}</span>
               </div>
+              {selectedEntity.paymentMethod && (
+                <div className="detail-item">
+                  <span className="label">Payment Method:</span>
+                  <span>{String(selectedEntity.paymentMethod).toUpperCase()}</span>
+                </div>
+              )}
               <div className="detail-item">
                 <span className="label">Type:</span>
                 <span>{selectedEntity.type || 'new'}</span>
@@ -2547,6 +2658,12 @@ const AdminDashboard = () => {
                   <span>{selectedEntity.shownDeliveryCost} EGP</span>
                 </div>
               )}
+              {selectedEntity.rejectionShippingPaidAmount !== undefined && selectedEntity.rejectionShippingPaidAmount !== null && (
+                <div className="detail-item">
+                  <span className="label">Rejection Shipping Fees Paid:</span>
+                  <span>{parseFloat(selectedEntity.rejectionShippingPaidAmount || 0).toFixed(2)} EGP</span>
+                </div>
+              )}
               <div className="detail-item full-width">
                 <span className="label">Shop Notes:</span>
                 <span>{selectedEntity.shopNotes}</span>
@@ -2593,6 +2710,22 @@ const AdminDashboard = () => {
                       </div>
                     ))}
                   </div>
+                </div>
+              )}
+              {selectedEntity && Array.isArray(selectedEntity.deliveredItems) && selectedEntity.deliveredItems.length > 0 && (
+                <div className="detail-item full-width" style={{ marginTop: 8 }}>
+                  <span className="label">Delivered Items</span>
+                  <ul style={{ margin: '6px 0 0 18px', padding: 0 }}>
+                    {selectedEntity.deliveredItems.map((di, idx) => {
+                      const match = (selectedEntity.Items || []).find(it => String(it.id) === String(di.itemId));
+                      const label = match?.description || `Item ${di.itemId}`;
+                      return (
+                        <li key={`delivered-under-items-${idx}`}>
+                          {label}: delivered qty {di.deliveredQuantity}
+                        </li>
+                      );
+                    })}
+                  </ul>
                 </div>
               )}
               {/* Delivery address */}
@@ -2686,7 +2819,7 @@ const AdminDashboard = () => {
               </div>
               {Array.isArray(selectedEntity.returnDetails) && selectedEntity.returnDetails.length > 0 && (
                 <div className="detail-item full-width">
-                  <span className="label">Return Details:</span>
+                  <span className="label">Returned Items:</span>
                   <div className="nested-details">
                     {selectedEntity.returnDetails.map((it, idx) => (
                       <div key={idx} className="nested-detail">
@@ -3093,6 +3226,7 @@ const AdminDashboard = () => {
 
   // Mark pickup as picked up
   const handleMarkPickupAsPickedUp = async (pickupId) => {
+    setPickupStatusUpdating(prev => ({ ...prev, [pickupId]: true }));
     try {
       await adminService.markPickupAsPickedUp(pickupId);
       
@@ -3124,6 +3258,9 @@ const AdminDashboard = () => {
         type: 'error', 
         text: `Error: ${error.response?.data?.message || 'Failed to mark pickup as picked up'}` 
       });
+    }
+    finally {
+      setPickupStatusUpdating(prev => ({ ...prev, [pickupId]: false }));
     }
   };
 
@@ -3723,6 +3860,8 @@ const AdminDashboard = () => {
       let newStatus = 'cancelled-returned';
       if (pkg.status === 'rejected-awaiting-return') {
         newStatus = 'rejected-returned';
+      } else if (pkg.status === 'delivered-awaiting-return') {
+        newStatus = 'delivered-returned';
       }
       
       await packageService.updatePackageStatus(pkg.id, { status: newStatus });
@@ -3757,7 +3896,7 @@ const AdminDashboard = () => {
         );
         setPackages(inTransitPackages);
       } else if (packagesTab === 'delivered') {
-        const deliveredPackages = (response.data || []).filter(pkg => pkg.status === 'delivered');
+        const deliveredPackages = (response.data || []).filter(pkg => pkg.status === 'delivered' || pkg.status === 'delivered-returned');
         setPackages(deliveredPackages);
       } else if (packagesTab === 'cancelled') {
         const cancelledPackages = (response.data || []).filter(pkg => ['cancelled', 'rejected'].includes(pkg.status));
@@ -3770,7 +3909,7 @@ const AdminDashboard = () => {
         setPackages(sorted);
               } else if (packagesTab === 'return-to-shop') {
           const returnPackages = (response.data || []).filter(pkg => 
-            ['cancelled-awaiting-return', 'cancelled-returned', 'rejected-awaiting-return', 'rejected-returned', 'return-requested', 'return-in-transit', 'return-pending', 'return-completed', 'exchange-in-transit', 'exchange-awaiting-return'].includes(pkg.status)
+            ['cancelled-awaiting-return', 'cancelled-returned', 'rejected-awaiting-return', 'rejected-returned', 'return-requested', 'return-in-transit', 'return-pending', 'return-completed', 'exchange-in-transit', 'exchange-awaiting-return', 'delivered-awaiting-return', 'delivered-returned'].includes(pkg.status)
           );
         setPackages(returnPackages);
       } else {
@@ -4347,7 +4486,7 @@ const AdminDashboard = () => {
     } else if (packagesTab === 'in-transit') {
       filtered = filtered.filter(pkg => ['assigned', 'pickedup', 'in-transit'].includes(pkg.status));
     } else if (packagesTab === 'delivered') {
-      filtered = filtered.filter(pkg => pkg.status === 'delivered');
+      filtered = filtered.filter(pkg => pkg.status === 'delivered' || pkg.status === 'delivered-returned');
       // Sort by actualDeliveryTime descending (most recent first)
       filtered = filtered.slice().sort((a, b) => {
         const aTime = a.actualDeliveryTime ? new Date(a.actualDeliveryTime).getTime() : 0;
@@ -4355,7 +4494,7 @@ const AdminDashboard = () => {
         return bTime - aTime;
       });
     } else if (packagesTab === 'return-to-shop') {
-      filtered = filtered.filter(pkg => ['cancelled-awaiting-return', 'cancelled-returned', 'rejected-awaiting-return', 'rejected-returned', 'return-requested', 'return-in-transit', 'return-pending', 'return-completed', 'exchange-in-transit', 'exchange-awaiting-return'].includes(pkg.status));
+      filtered = filtered.filter(pkg => ['cancelled-awaiting-return', 'cancelled-returned', 'rejected-awaiting-return', 'rejected-returned', 'return-requested', 'return-in-transit', 'return-pending', 'return-completed', 'exchange-in-transit', 'exchange-awaiting-return', 'delivered-awaiting-return', 'delivered-returned'].includes(pkg.status));
     } else if (packagesTab === 'cancelled') {
       filtered = filtered.filter(pkg => ['cancelled', 'rejected'].includes(pkg.status));
       // Sort by updatedAt desc (fallback createdAt)
@@ -4433,6 +4572,34 @@ const AdminDashboard = () => {
           + `<tr><td>Shipping:</td><td>${shippingValue.toFixed(2)} EGP</td></tr>`
           + `<tr><td><b>Total:</b></td><td><b>${total.toFixed(2)} EGP</b></td></tr>`;
       const shopName = awbPkg.Shop?.businessName || awbPkg.shop?.businessName;
+      const isExchange = (awbPkg.type === 'exchange');
+      const exch = awbPkg.exchangeDetails || {};
+      const takeItems = Array.isArray(exch.takeItems) ? exch.takeItems : [];
+      const giveItems = Array.isArray(exch.giveItems) ? exch.giveItems : [];
+      const cd = exch.cashDelta || {};
+      const moneyAmount = Number.parseFloat(cd.amount || 0) || 0;
+      const moneyType = cd.type || null;
+      const moneyLabel = moneyType === 'give' ? 'Give to customer' : (moneyType === 'take' ? 'Take from customer' : 'Money');
+      const shippingDisplay = Number(awbPkg.shownDeliveryCost ?? awbPkg.deliveryCost ?? shippingValue) || 0;
+
+      const itemsSectionDefault = `
+              <table class=\"awb-table\">\n                <thead>\n                  <tr><th>Item</th><th>Qty</th><th>COD Per Unit</th><th>Total COD</th></tr>\n                </thead>\n                <tbody>\n                  ${
+                    awbPkg.Items && awbPkg.Items.length > 0
+                      ? awbPkg.Items.map(item => `\n                        <tr>\n                          <td>${item.description || '-'}</td>\n                          <td>${item.quantity}</td>\n                          <td>${item.codAmount && item.quantity ? (item.codAmount / item.quantity).toFixed(2) : '0.00'} EGP</td>\n                          <td>${parseFloat(item.codAmount || 0).toFixed(2)} EGP</td>\n                        </tr>\n                      `).join('')
+                      : `\n                        <tr>\n                          <td>${awbPkg.packageDescription || '-'}</td>\n                          <td>${awbPkg.itemsNo ?? 1}</td>\n                          <td>${cod.toFixed(2)} EGP</td>\n                          <td>${cod.toFixed(2)} EGP</td>\n                        </tr>`
+                  }\n                </tbody>\n              </table>\n              <div class=\"awb-section\">\n                <b>Payment Method:</b> COD\n              </div>\n              <div class=\"awb-section\" style=\"display:flex;justify-content:flex-end;\">\n                <table class=\"awb-info-table\" style=\"width:300px;\">\n                  ${totalsRows}\n                </table>\n              </div>`;
+
+      const itemsSectionExchange = `
+              <div class=\"awb-section\">\n                <table class=\"awb-table\">\n                  <thead>\n                    <tr><th colspan=\"2\">Items to take from customer</th></tr>\n                  </thead>\n                  <tbody>\n                    ${
+                      takeItems.length > 0
+                        ? takeItems.map(it => `\n                            <tr>\n                              <td>${(it.description || '-')}</td>\n                              <td>Qty: ${(parseInt(it.quantity) || 0)}</td>\n                            </tr>\n                          `).join('')
+                        : `<tr><td colspan=\"2\">None</td></tr>`
+                    }\n                  </tbody>\n                </table>\n                <table class=\"awb-table\" style=\"margin-top:12px;\">\n                  <thead>\n                    <tr><th colspan=\"2\">Items to give to customer</th></tr>\n                  </thead>\n                  <tbody>\n                    ${
+                      giveItems.length > 0
+                        ? giveItems.map(it => `\n                            <tr>\n                              <td>${(it.description || '-')}</td>\n                              <td>Qty: ${(parseInt(it.quantity) || 0)}</td>\n                            </tr>\n                          `).join('')
+                        : `<tr><td colspan=\"2\">None</td></tr>`
+                    }\n                  </tbody>\n                </table>\n              </div>\n              <div class=\"awb-section\" style=\"display:flex;justify-content:flex-end;\">\n                <table class=\"awb-info-table\" style=\"width:360px;\">\n                  <tr><td>${moneyLabel}:</td><td>EGP ${moneyAmount.toFixed(2)}</td></tr>\n                  <tr><td>Shipping Fees:</td><td>EGP ${shippingDisplay.toFixed(2)}</td></tr>\n                </table>\n              </div>`;
+
       const awbHtml = `
         <html>
           <head>
@@ -4482,35 +4649,7 @@ const AdminDashboard = () => {
               <div class="awb-section">
                 <b>Description:</b> ${awbPkg.packageDescription || '-'}
               </div>
-              <table class="awb-table">
-                <thead>
-                  <tr><th>Item</th><th>Qty</th><th>COD Per Unit</th><th>Total COD</th></tr>
-                </thead>
-                <tbody>
-                  ${
-                    awbPkg.Items && awbPkg.Items.length > 0
-                      ? awbPkg.Items.map(item => `
-                        <tr>
-                          <td>${item.description || '-'}</td>
-                          <td>${item.quantity}</td>
-                          <td>${item.codAmount && item.quantity ? (item.codAmount / item.quantity).toFixed(2) : '0.00'} EGP</td>
-                          <td>${parseFloat(item.codAmount || 0).toFixed(2)} EGP</td>
-                        </tr>
-                      `).join('')
-                      : `<tr>
-                          <td>${awbPkg.packageDescription || '-'}</td>
-                          <td>${awbPkg.itemsNo ?? 1}</td>
-                          <td>${cod.toFixed(2)} EGP</td>
-                          <td>${cod.toFixed(2)} EGP</td>
-                        </tr>`
-                  }
-                </tbody>
-              </table>
-              <div class="awb-section" style="display:flex;justify-content:flex-end;">
-                <table class="awb-info-table" style="width:300px;">
-                  ${totalsRows}
-                </table>
-              </div>
+              ${isExchange ? itemsSectionExchange : itemsSectionDefault}
               <div class="awb-footer">Thank you for your order!</div>
             </div>
           </body>

@@ -70,6 +70,12 @@ const Driver = sequelize.define('Driver', {
     type: DataTypes.STRING,
     allowNull: true,
     comment: 'The area where the driver works (set by admin)'
+  },
+  cashOnHand: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: false,
+    defaultValue: 0.00,
+    comment: 'Accumulated COD cash currently held by the driver'
   }
 }, {
   timestamps: true

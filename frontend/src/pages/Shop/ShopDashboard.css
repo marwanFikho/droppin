@@ -295,7 +295,7 @@
   border: 1px solid #ffcc02;
 }
 
-.status-delivered {
+.status-delivered, .status-delivered-returned {
   background-color: #e8f5e8;
   color: #388e3c;
   border: 1px solid #c8e6c9;

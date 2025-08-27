@@ -2,7 +2,29 @@
 
 module.exports = {
   up: async (queryInterface, Sequelize) => {
-    // Add 'Revenue' to the ENUM values for the attribute column
+    // Add 'Revenue' and 'DriverCashOnHand' to the ENUM values for the attribute column
+    await queryInterface.sequelize.query(`
+      ALTER TABLE "MoneyTransactions" 
+      ALTER COLUMN "attribute" TYPE VARCHAR(255);
+    `);
+    
+    await queryInterface.sequelize.query(`
+      ALTER TABLE "MoneyTransactions" 
+      ALTER COLUMN "attribute" TYPE ENUM('ToCollect', 'TotalCollected', 'Revenue', 'DriverCashOnHand') 
+      USING "attribute"::text::ENUM('ToCollect', 'TotalCollected', 'Revenue', 'DriverCashOnHand');
+    `);
+
+    // Add driverId (nullable)
+    try {
+      await queryInterface.addColumn('MoneyTransactions', 'driverId', {
+        type: Sequelize.INTEGER,
+        allowNull: true
+      });
+    } catch (e) {}
+  },
+
+  down: async (queryInterface, Sequelize) => {
+    // Remove 'DriverCashOnHand' from the ENUM values
     await queryInterface.sequelize.query(`
       ALTER TABLE "MoneyTransactions" 
       ALTER COLUMN "attribute" TYPE VARCHAR(255);
@@ -13,19 +35,7 @@ module.exports = {
       ALTER COLUMN "attribute" TYPE ENUM('ToCollect', 'TotalCollected', 'Revenue') 
       USING "attribute"::text::ENUM('ToCollect', 'TotalCollected', 'Revenue');
     `);
-  },
 
-  down: async (queryInterface, Sequelize) => {
-    // Remove 'Revenue' from the ENUM values
-    await queryInterface.sequelize.query(`
-      ALTER TABLE "MoneyTransactions" 
-      ALTER COLUMN "attribute" TYPE VARCHAR(255);
-    `);
-    
-    await queryInterface.sequelize.query(`
-      ALTER TABLE "MoneyTransactions" 
-      ALTER COLUMN "attribute" TYPE ENUM('ToCollect', 'TotalCollected') 
-      USING "attribute"::text::ENUM('ToCollect', 'TotalCollected');
-    `);
+    try { await queryInterface.removeColumn('MoneyTransactions', 'driverId'); } catch (e) {}
   }
 }; 

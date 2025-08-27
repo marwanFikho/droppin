@@ -5,24 +5,26 @@ const { createNotification } = require('../controllers/notification.controller')
  * Log a money transaction for a shop and notify the shop user
  * @param {number} shopId 
  * @param {number} amount Positive decimal amount
- * @param {'ToCollect'|'TotalCollected'|'settelled'} attribute 
+ * @param {'ToCollect'|'TotalCollected'|'settelled'|'Revenue'|'DriverCashOnHand'} attribute 
  * @param {'increase'|'decrease'} changeType
  * @param {string} [description]
  * @param {Transaction} [transaction] Optional transaction object
  */
-const logMoneyTransaction = async (shopId, amount, attribute, changeType, description = null, transaction = null) => {
+const logMoneyTransaction = async (shopId, amount, attribute, changeType, description = null, transaction = null, opts = {}) => {
   try {
     if (!shopId || !amount) return;
-    await MoneyTransaction.create({
+    const payload = {
       shopId,
       amount: parseFloat(amount).toFixed(2),
       attribute,
       changeType,
       description
-    }, transaction ? { transaction } : {});
+    };
+    if (opts && opts.driverId) payload.driverId = opts.driverId;
+    await MoneyTransaction.create(payload, transaction ? { transaction } : {});
 
     // Skip notifications for Revenue to avoid exposing admin-only revenue to shops
-    if (attribute === 'Revenue') {
+    if (attribute === 'Revenue' || attribute === 'DriverCashOnHand') {
       return;
     }
 

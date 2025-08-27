@@ -14,6 +14,8 @@ const TABS = [
   { label: 'In Transit', value: 'in-transit' },
   { label: 'Delivered', value: 'delivered' },
   { label: 'Return to Shop', value: 'return-to-shop' },
+  { label: 'Return Requests', value: 'return-requests' },
+  { label: 'Exchange Requests', value: 'exchange-requests' },
   { label: 'Pickups', value: 'pickups' },
 ];
 
@@ -222,7 +224,13 @@ const ShopPackages = () => {
         if (reopenPackageId) {
           const packageToReopen = (res.data.packages || res.data || []).find(pkg => pkg.id == reopenPackageId);
           if (packageToReopen) {
-            setSelectedPackage(packageToReopen);
+            const _normalized = (() => {
+              let d = packageToReopen.deliveredItems ?? packageToReopen.delivereditems ?? null;
+              if (typeof d === 'string') { try { d = JSON.parse(d); } catch { d = null; } }
+              if (!Array.isArray(d)) d = [];
+              return { ...packageToReopen, deliveredItems: d };
+            })();
+            setSelectedPackage(_normalized);
             setShowPackageDetailsModal(true);
           }
           localStorage.removeItem('reopenPackageModal');
@@ -361,13 +369,45 @@ const ShopPackages = () => {
       return filtered.filter(pkg => ['rejected', 'rejected-awaiting-return', 'rejected-returned'].includes(pkg.status));
     } else if (activeTab === 'pickups') {
       return filtered; // This will be handled by the pickups tab
+    } else if (activeTab === 'delivered') {
+      return filtered.filter(pkg => pkg.status === 'delivered' || pkg.status === 'delivered-returned')
+        .slice()
+        .sort((a, b) => {
+          const aTime = a.actualDeliveryTime ? new Date(a.actualDeliveryTime).getTime() : 0;
+          const bTime = b.actualDeliveryTime ? new Date(b.actualDeliveryTime).getTime() : 0;
+          return bTime - aTime;
+        });
+    } else if (activeTab === 'return-requests') {
+      // Show delivered packages that have return requests
+      return filtered.filter(pkg => 
+        pkg.status === 'delivered' && 
+        Array.isArray(pkg.returnDetails) && 
+        pkg.returnDetails.length > 0
+      );
+    } else if (activeTab === 'exchange-requests') {
+      // Show delivered packages that have exchange requests
+      return filtered.filter(pkg => 
+        pkg.status === 'delivered' && 
+        pkg.exchangeDetails !== null && 
+        typeof pkg.exchangeDetails === 'object'
+      );
     } else {
       return filtered.filter(pkg => pkg.status === activeTab);
     }
   };
 
+  const normalizeDelivered = (pkg) => {
+    if (!pkg) return pkg;
+    let delivered = pkg.deliveredItems ?? pkg.delivereditems ?? null;
+    if (typeof delivered === 'string') {
+      try { delivered = JSON.parse(delivered); } catch { delivered = null; }
+    }
+    if (!Array.isArray(delivered)) delivered = [];
+    return { ...pkg, deliveredItems: delivered };
+  };
+
   const openDetailsModal = (pkg) => {
-    setSelectedPackage(pkg);
+    setSelectedPackage(normalizeDelivered(pkg));
     setShowPackageDetailsModal(true);
   };
 
@@ -430,6 +470,96 @@ const ShopPackages = () => {
         + `<tr><td>Shipping:</td><td>${shippingValue.toFixed(2)} EGP</td></tr>`
         + `<tr><td><b>Total:</b></td><td><b>${total.toFixed(2)} EGP</b></td></tr>`;
     const shopName = shopFees.businessName || '-';
+    // Build content depending on package type
+    const isExchange = (awbPkg.type === 'exchange');
+    // Normalize exchange details
+    const exch = awbPkg.exchangeDetails || {};
+    const takeItems = Array.isArray(exch.takeItems) ? exch.takeItems : [];
+    const giveItems = Array.isArray(exch.giveItems) ? exch.giveItems : [];
+    const cd = exch.cashDelta || {};
+    const moneyAmount = Number.parseFloat(cd.amount || 0) || 0;
+    const moneyType = cd.type || null; // 'take' | 'give' | null
+    const moneyLabel = moneyType === 'give' ? 'Give to customer' : (moneyType === 'take' ? 'Take from customer' : 'Money');
+    const shippingDisplay = Number(awbPkg.shownDeliveryCost ?? awbPkg.deliveryCost ?? shippingValue) || 0;
+
+    const itemsSectionDefault = `
+            <table class="awb-table">
+              <thead>
+                <tr><th>Item</th><th>Qty</th><th>COD Per Unit</th><th>Total COD</th></tr>
+              </thead>
+              <tbody>
+                ${
+                  awbPkg.Items && awbPkg.Items.length > 0
+                    ? awbPkg.Items.map(item => `
+                      <tr>
+                        <td>${item.description || '-'}</td>
+                        <td>${item.quantity}</td>
+                        <td>${item.codAmount && item.quantity ? (item.codAmount / item.quantity).toFixed(2) : '0.00'} EGP</td>
+                        <td>${parseFloat(item.codAmount || 0).toFixed(2)} EGP</td>
+                      </tr>
+                    `).join('')
+                    : `<tr>
+                        <td>${awbPkg.packageDescription || '-'}</td>
+                        <td>${awbPkg.itemsNo ?? 1}</td>
+                        <td>${cod.toFixed(2)} EGP</td>
+                        <td>${cod.toFixed(2)} EGP</td>
+                      </tr>`
+                }
+              </tbody>
+            </table>
+            <div class="awb-section">
+              <b>Payment Method:</b> COD
+            </div>
+            <div class="awb-section" style="display:flex;justify-content:flex-end;">
+              <table class="awb-info-table" style="width:300px;">
+                ${totalsRows}
+              </table>
+            </div>`;
+
+    const itemsSectionExchange = `
+            <div class="awb-section">
+              <table class="awb-table">
+                <thead>
+                  <tr><th colspan="2">Items to take from customer</th></tr>
+                </thead>
+                <tbody>
+                  ${
+                    takeItems.length > 0
+                      ? takeItems.map(it => `
+                          <tr>
+                            <td>${(it.description || '-')}</td>
+                            <td>Qty: ${(parseInt(it.quantity) || 0)}</td>
+                          </tr>
+                        `).join('')
+                      : `<tr><td colspan="2">None</td></tr>`
+                  }
+                </tbody>
+              </table>
+              <table class="awb-table" style="margin-top:12px;">
+                <thead>
+                  <tr><th colspan="2">Items to give to customer</th></tr>
+                </thead>
+                <tbody>
+                  ${
+                    giveItems.length > 0
+                      ? giveItems.map(it => `
+                          <tr>
+                            <td>${(it.description || '-')}</td>
+                            <td>Qty: ${(parseInt(it.quantity) || 0)}</td>
+                          </tr>
+                        `).join('')
+                      : `<tr><td colspan="2">None</td></tr>`
+                  }
+                </tbody>
+              </table>
+            </div>
+            <div class="awb-section" style="display:flex;justify-content:flex-end;">
+              <table class="awb-info-table" style="width:360px;">
+                <tr><td>${moneyLabel}:</td><td>EGP ${moneyAmount.toFixed(2)}</td></tr>
+                <tr><td>Shipping Fees:</td><td>EGP ${shippingDisplay.toFixed(2)}</td></tr>
+              </table>
+            </div>`;
+
     // Build AWB HTML
     const awbHtml = `
       <html>
@@ -485,38 +615,7 @@ const ShopPackages = () => {
             <div class="awb-section">
               <b>Description:</b> ${awbPkg.packageDescription || '-'}
             </div>
-            <table class="awb-table">
-              <thead>
-                <tr><th>Item</th><th>Qty</th><th>COD Per Unit</th><th>Total COD</th></tr>
-              </thead>
-              <tbody>
-                ${
-                  awbPkg.Items && awbPkg.Items.length > 0
-                    ? awbPkg.Items.map(item => `
-                      <tr>
-                        <td>${item.description || '-'}</td>
-                        <td>${item.quantity}</td>
-                        <td>${item.codAmount && item.quantity ? (item.codAmount / item.quantity).toFixed(2) : '0.00'} EGP</td>
-                        <td>${parseFloat(item.codAmount || 0).toFixed(2)} EGP</td>
-                      </tr>
-                    `).join('')
-                    : `<tr>
-                        <td>${awbPkg.packageDescription || '-'}</td>
-                        <td>${awbPkg.itemsNo ?? 1}</td>
-                        <td>${cod.toFixed(2)} EGP</td>
-                        <td>${cod.toFixed(2)} EGP</td>
-                      </tr>`
-                }
-              </tbody>
-            </table>
-            <div class="awb-section">
-              <b>Payment Method:</b> COD
-            </div>
-            <div class="awb-section" style="display:flex;justify-content:flex-end;">
-              <table class="awb-info-table" style="width:300px;">
-                ${totalsRows}
-              </table>
-            </div>
+            ${isExchange ? itemsSectionExchange : itemsSectionDefault}
             <div class="awb-footer">Thank you for your order!</div>
           </div>
         </body>
@@ -594,35 +693,17 @@ const ShopPackages = () => {
       const shopName = shopFees.businessName || '-';
       const breakStyle = (i < pkgsToPrint.length - 1) ? 'page-break-after: always; break-after: page;' : '';
 
-      awbSections.push(`
-        <div class="awb-container" style="${breakStyle}">
-          <div class="awb-header">
-            <img src="${logoUrl}" class="awb-logo" alt="Droppin Logo" />
-            <div>
-              <img src="${qrDataUrl}" alt="QR Code" style="height:140px;width:140px;" />
-            </div>
-          </div>
-          <div class="awb-section">
-            <table class="awb-info-table">
-              <tr>
-                <td>
-                  <span class="awb-row"><b class="awb-tracking">Tracking #:</b><span class="awb-tracking awb-data">${packageData.trackingNumber || pkg.trackingNumber || '-'}</span></span>
-                  <div class="awb-shop-name">Shop Name: ${shopName}</div>
-                </td>
-                <td><b>Date:</b> ${packageData.createdAt ? new Date(packageData.createdAt).toLocaleDateString() : (pkg.createdAt ? new Date(pkg.createdAt).toLocaleDateString() : '-')}</td>
-              </tr>
-              <tr>
-                <td colspan="2">
-                  <span class="awb-row"><b class="awb-recipient">Recipient:</b><span class="awb-recipient awb-data">${packageData.deliveryContactName || '-'}</span></span><br/>
-                  <span class="awb-row"><b class="awb-phone">Phone:</b><span class="awb-phone awb-data">${packageData.deliveryContactPhone || '-'}</span></span><br/>
-                  <span class="awb-row"><b class="awb-address">Address:</b><span class="awb-address awb-data">${packageData.deliveryAddress || '-'}</span></span>
-                </td>
-              </tr>
-            </table>
-          </div>
-          <div class="awb-section">
-            <b>Description:</b> ${packageData.packageDescription || '-'}
-          </div>
+      const isExchange = (packageData.type === 'exchange');
+      const exch = packageData.exchangeDetails || {};
+      const takeItems = Array.isArray(exch.takeItems) ? exch.takeItems : [];
+      const giveItems = Array.isArray(exch.giveItems) ? exch.giveItems : [];
+      const cd = exch.cashDelta || {};
+      const moneyAmount = Number.parseFloat(cd.amount || 0) || 0;
+      const moneyType = cd.type || null;
+      const moneyLabel = moneyType === 'give' ? 'Give to customer' : (moneyType === 'take' ? 'Take from customer' : 'Money');
+      const shippingDisplay = Number(packageData.shownDeliveryCost ?? packageData.deliveryCost ?? shippingValue) || 0;
+
+      const itemsSectionDefault = `
           <table class="awb-table">
             <thead>
               <tr><th>Item</th><th>Qty</th><th>COD Per Unit</th><th>Total COD</th></tr>
@@ -654,7 +735,82 @@ const ShopPackages = () => {
             <table class="awb-info-table" style="width:300px;">
               ${totalsRows}
             </table>
+          </div>`;
+
+      const itemsSectionExchange = `
+          <div class="awb-section">
+            <table class="awb-table">
+              <thead>
+                <tr><th colspan="2">Items to take from customer</th></tr>
+              </thead>
+              <tbody>
+                ${
+                  takeItems.length > 0
+                    ? takeItems.map(it => `
+                        <tr>
+                          <td>${(it.description || '-')}</td>
+                          <td>Qty: ${(parseInt(it.quantity) || 0)}</td>
+                        </tr>
+                      `).join('')
+                    : `<tr><td colspan=\"2\">None</td></tr>`
+                }
+              </tbody>
+            </table>
+            <table class="awb-table" style="margin-top:12px;">
+              <thead>
+                <tr><th colspan="2">Items to give to customer</th></tr>
+              </thead>
+              <tbody>
+                ${
+                  giveItems.length > 0
+                    ? giveItems.map(it => `
+                        <tr>
+                          <td>${(it.description || '-')}</td>
+                          <td>Qty: ${(parseInt(it.quantity) || 0)}</td>
+                        </tr>
+                      `).join('')
+                    : `<tr><td colspan=\"2\">None</td></tr>`
+                }
+              </tbody>
+            </table>
           </div>
+          <div class="awb-section" style="display:flex;justify-content:flex-end;">
+            <table class="awb-info-table" style="width:360px;">
+              <tr><td>${moneyLabel}:</td><td>EGP ${moneyAmount.toFixed(2)}</td></tr>
+              <tr><td>Shipping Fees:</td><td>EGP ${shippingDisplay.toFixed(2)}</td></tr>
+            </table>
+          </div>`;
+
+      awbSections.push(`
+        <div class="awb-container" style="${breakStyle}">
+          <div class="awb-header">
+            <img src="${logoUrl}" class="awb-logo" alt="Droppin Logo" />
+            <div>
+              <img src="${qrDataUrl}" alt="QR Code" style="height:140px;width:140px;" />
+            </div>
+          </div>
+          <div class="awb-section">
+            <table class="awb-info-table">
+              <tr>
+                <td>
+                  <span class="awb-row"><b class="awb-tracking">Tracking #:</b><span class="awb-tracking awb-data">${packageData.trackingNumber || pkg.trackingNumber || '-'}</span></span>
+                  <div class="awb-shop-name">Shop Name: ${shopName}</div>
+                </td>
+                <td><b>Date:</b> ${packageData.createdAt ? new Date(packageData.createdAt).toLocaleDateString() : (pkg.createdAt ? new Date(pkg.createdAt).toLocaleDateString() : '-')}</td>
+              </tr>
+              <tr>
+                <td colspan="2">
+                  <span class="awb-row"><b class="awb-recipient">Recipient:</b><span class="awb-recipient awb-data">${packageData.deliveryContactName || '-'}</span></span><br/>
+                  <span class="awb-row"><b class="awb-phone">Phone:</b><span class="awb-phone awb-data">${packageData.deliveryContactPhone || '-'}</span></span><br/>
+                  <span class="awb-row"><b class="awb-address">Address:</b><span class="awb-address awb-data">${packageData.deliveryAddress || '-'}</span></span>
+                </td>
+              </tr>
+            </table>
+          </div>
+          <div class="awb-section">
+            <b>Description:</b> ${packageData.packageDescription || '-'}
+          </div>
+          ${isExchange ? itemsSectionExchange : itemsSectionDefault}
           <div class="awb-footer">Thank you for your order!</div>
         </div>
       `);
@@ -955,7 +1111,15 @@ const ShopPackages = () => {
                       )}
                     </td>
                     <td data-label="Recipient">{pkg.deliveryContactName}</td>
-                    <td data-label="Status">{getStatusBadge(pkg.status)}</td>
+                    <td data-label="Status">
+                      {getStatusBadge(pkg.status)}
+                      {activeTab === 'return-requests' && (
+                        <span className="special-badge" style={{background: '#f55247', marginLeft: '5px'}}>Return</span>
+                      )}
+                      {activeTab === 'exchange-requests' && (
+                        <span className="special-badge" style={{background: '#7b1fa2', marginLeft: '5px'}}>Exchange</span>
+                      )}
+                    </td>
                     <td data-label="COD">EGP {parseFloat(pkg.codAmount || 0).toFixed(2)} {getCodBadge(pkg.isPaid)}</td>
                     <td data-label="Date">{new Date(pkg.createdAt).toLocaleDateString()}</td>
                     {activeTab !== 'cancelled' && (
@@ -1213,6 +1377,51 @@ const ShopPackages = () => {
                   <span className="label">COD</span>
                   <span>EGP {parseFloat(selectedPackage.codAmount || 0).toFixed(2)} {getCodBadge(selectedPackage.isPaid)}</span>
                 </div>
+                {selectedPackage?.deliveredItems && Array.isArray(selectedPackage.deliveredItems) && selectedPackage.deliveredItems.length > 0 && (
+                  <div className="detail-item full-width">
+                    <span className="label">Delivered Items</span>
+                    <div className="nested-details">
+                      {selectedPackage.deliveredItems.map((di, idx) => {
+                        const match = (selectedPackage.Items || []).find(it => String(it.id) === String(di.itemId));
+                        const label = match?.description || `Item ${di.itemId}`;
+                        return (
+                          <div key={idx} className="nested-detail">
+                            <span className="nested-label">{label}:</span>
+                            <span>Qty: {di.deliveredQuantity}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Returning Items (derived) */}
+                {Array.isArray(selectedPackage.Items) && selectedPackage.Items.length > 0 && Array.isArray(selectedPackage.deliveredItems) && selectedPackage.deliveredItems.length > 0 && (
+                  (() => {
+                    const dmap = new Map(selectedPackage.deliveredItems.map(di => [di.itemId, parseInt(di.deliveredQuantity, 10) || 0]));
+                    const remaining = selectedPackage.Items
+                      .map(it => {
+                        const total = parseInt(it.quantity, 10) || 0;
+                        const delivered = dmap.get(it.id) || 0;
+                        const remain = Math.max(0, total - delivered);
+                        return { id: it.id, description: it.description, quantity: remain };
+                      })
+                      .filter(r => r.quantity > 0);
+                    return remaining.length > 0 ? (
+                      <div className="detail-item full-width">
+                        <span className="label">Returning Items</span>
+                        <div className="nested-details">
+                          {remaining.map((r, idx) => (
+                            <div key={`ret-${idx}`} className="nested-detail">
+                              <span className="nested-label">{r.description || `Item ${r.id}`}:</span>
+                              <span>Qty: {r.quantity}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null;
+                  })()
+                )}
                 <div className="detail-item">
                   <span className="label">Type</span>
                   <span>{selectedPackage.type === 'return' ? 'Return' : (selectedPackage.type || 'new')}</span>
@@ -1223,7 +1432,7 @@ const ShopPackages = () => {
                 </div>
                 {Array.isArray(selectedPackage.returnDetails) && selectedPackage.returnDetails.length > 0 && (
                   <div className="detail-item full-width">
-                    <span className="label">Return Details</span>
+                    <span className="label">Returned Items</span>
                     <div className="nested-details">
                       {selectedPackage.returnDetails.map((it, idx) => (
                         <div key={idx} className="nested-detail">
@@ -1407,6 +1616,23 @@ const ShopPackages = () => {
                     </div>
                   </div>
                 )}
+                {selectedPackage?.deliveredItems && Array.isArray(selectedPackage.deliveredItems) && selectedPackage.deliveredItems.length > 0 && (
+                  <div className="detail-item full-width" style={{ marginTop: 8 }}>
+                    <span className="label">Delivered Items</span>
+                    <div className="nested-details">
+                      {selectedPackage.deliveredItems.map((di, idx) => {
+                        const match = (selectedPackage.Items || []).find(it => String(it.id) === String(di.itemId));
+                        const label = match?.description || `Item ${di.itemId}`;
+                        return (
+                          <div key={`shop-under-items-delivered-${idx}`} className="nested-detail">
+                            <span className="nested-label">{label}:</span>
+                            <span>Qty: {di.deliveredQuantity}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
               
               {/* Notes Log Section - moved above Close button and improved UI */}
@@ -1445,7 +1671,7 @@ const ShopPackages = () => {
                 </div>
               </div>
               <div className="modal-actions">
-                {selectedPackage.status === 'delivered' && (
+                {['delivered', 'delivered-returned'].includes(selectedPackage.status) && (
                   <>
                     <button
                       className="btn"

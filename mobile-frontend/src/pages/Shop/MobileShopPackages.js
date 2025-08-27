@@ -13,6 +13,8 @@ const TABS = [
   { label: 'In Transit', value: 'in-transit' },
   { label: 'Delivered', value: 'delivered' },
   { label: 'Return to Shop', value: 'return-to-shop' },
+  { label: 'Return Requests', value: 'return-requests' },
+  { label: 'Exchange Requests', value: 'exchange-requests' },
   { label: 'Cancelled', value: 'cancelled' },
   { label: 'Rejected', value: 'rejected' },
 ];
@@ -229,6 +231,20 @@ const MobileShopPackages = () => {
       return filtered.filter(pkg => ['cancelled', 'cancelled-awaiting-return', 'cancelled-returned'].includes(pkg.status));
     } else if (activeTab === 'rejected') {
       return filtered.filter(pkg => pkg.status === 'rejected');
+    } else if (activeTab === 'return-requests') {
+      // Show delivered packages that have return requests
+      return filtered.filter(pkg => 
+        pkg.status === 'delivered' && 
+        Array.isArray(pkg.returnDetails) && 
+        pkg.returnDetails.length > 0
+      );
+    } else if (activeTab === 'exchange-requests') {
+      // Show delivered packages that have exchange requests
+      return filtered.filter(pkg => 
+        pkg.status === 'delivered' && 
+        pkg.exchangeDetails !== null && 
+        typeof pkg.exchangeDetails === 'object'
+      );
     } else {
       return filtered.filter(pkg => pkg.status === activeTab);
     }
@@ -256,7 +272,13 @@ const MobileShopPackages = () => {
   };
 
   const openDetailsModal = async (pkg) => {
-    setSelectedPackage(pkg);
+    // Normalize deliveredItems on initial object
+    let initialDelivered = pkg.deliveredItems ?? pkg.delivereditems ?? null;
+    if (typeof initialDelivered === 'string') {
+      try { initialDelivered = JSON.parse(initialDelivered); } catch { initialDelivered = null; }
+    }
+    if (!Array.isArray(initialDelivered)) initialDelivered = [];
+    setSelectedPackage({ ...pkg, deliveredItems: initialDelivered });
     setShowDetailsModal(true);
     try {
       // Fetch complete package details including items
@@ -266,7 +288,11 @@ const MobileShopPackages = () => {
       if (response.data.Items && response.data.Items.length > 0) {
         console.log('Shop - First item details:', response.data.Items[0]);
       }
-      setSelectedPackage(response.data);
+      // Normalize deliveredItems on fetched response
+      let fetchedDelivered = response.data.deliveredItems ?? response.data.delivereditems ?? null;
+      if (typeof fetchedDelivered === 'string') { try { fetchedDelivered = JSON.parse(fetchedDelivered); } catch { fetchedDelivered = null; } }
+      if (!Array.isArray(fetchedDelivered)) fetchedDelivered = [];
+      setSelectedPackage({ ...response.data, deliveredItems: fetchedDelivered });
     } catch (err) {
       console.error('Failed to fetch complete package details:', err);
       // Keep the original package data if fetch fails
@@ -338,6 +364,34 @@ const MobileShopPackages = () => {
         + `<tr><td>Shipping:</td><td>${shippingValue.toFixed(2)} EGP</td></tr>`
         + `<tr><td><b>Total:</b></td><td><b>${total.toFixed(2)} EGP</b></td></tr>`;
 
+    const isExchange = (awbPkg.type === 'exchange');
+    const exch = awbPkg.exchangeDetails || {};
+    const takeItems = Array.isArray(exch.takeItems) ? exch.takeItems : [];
+    const giveItems = Array.isArray(exch.giveItems) ? exch.giveItems : [];
+    const cd = exch.cashDelta || {};
+    const moneyAmount = Number.parseFloat(cd.amount || 0) || 0;
+    const moneyType = cd.type || null;
+    const moneyLabel = moneyType === 'give' ? 'Give to customer' : (moneyType === 'take' ? 'Take from customer' : 'Money');
+    const shippingDisplay = Number(awbPkg.shownDeliveryCost ?? awbPkg.deliveryCost ?? shippingValue) || 0;
+
+    const itemsSectionDefault = `
+            <table class=\"awb-table\">\n              <thead>\n                <tr><th>Item</th><th>Qty</th><th>COD Per Unit</th><th>Total COD</th></tr>\n              </thead>\n              <tbody>\n                ${
+                  awbPkg.Items && awbPkg.Items.length > 0
+                    ? awbPkg.Items.map(item => `\n                      <tr>\n                        <td>${item.description || '-'}</td>\n                        <td>${item.quantity}</td>\n                        <td>${item.codAmount && item.quantity ? (item.codAmount / item.quantity).toFixed(2) : '0.00'} EGP</td>\n                        <td>${parseFloat(item.codAmount || 0).toFixed(2)} EGP</td>\n                      </tr>\n                    `).join('')
+                    : `\n                      <tr>\n                        <td>${awbPkg.packageDescription || '-'}</td>\n                        <td>${awbPkg.itemsNo ?? 1}</td>\n                        <td>${cod.toFixed(2)} EGP</td>\n                        <td>${cod.toFixed(2)} EGP</td>\n                      </tr>`
+                }\n              </tbody>\n            </table>\n            <div class=\"awb-section\">\n              <b>Payment Method:</b> COD\n            </div>\n            <div class=\"awb-section\" style=\"display:flex;justify-content:flex-end;\">\n              <table class=\"awb-info-table\" style=\"width:300px;\">\n                ${totalsRows}\n              </table>\n            </div>`;
+
+    const itemsSectionExchange = `
+            <div class=\"awb-section\">\n              <table class=\"awb-table\">\n                <thead>\n                  <tr><th colspan=\"2\">Items to take from customer</th></tr>\n                </thead>\n                <tbody>\n                  ${
+                    takeItems.length > 0
+                      ? takeItems.map(it => `\n                          <tr>\n                            <td>${(it.description || '-')}</td>\n                            <td>Qty: ${(parseInt(it.quantity) || 0)}</td>\n                          </tr>\n                        `).join('')
+                      : `<tr><td colspan=\"2\">None</td></tr>`
+                  }\n                </tbody>\n              </table>\n              <table class=\"awb-table\" style=\"margin-top:12px;\">\n                <thead>\n                  <tr><th colspan=\"2\">Items to give to customer</th></tr>\n                </thead>\n                <tbody>\n                  ${
+                    giveItems.length > 0
+                      ? giveItems.map(it => `\n                          <tr>\n                            <td>${(it.description || '-')}</td>\n                            <td>Qty: ${(parseInt(it.quantity) || 0)}</td>\n                          </tr>\n                        `).join('')
+                      : `<tr><td colspan=\"2\">None</td></tr>`
+                  }\n                </tbody>\n              </table>\n            </div>\n            <div class=\"awb-section\" style=\"display:flex;justify-content:flex-end;\">\n              <table class=\"awb-info-table\" style=\"width:360px;\">\n                <tr><td>${moneyLabel}:</td><td>EGP ${moneyAmount.toFixed(2)}</td></tr>\n                <tr><td>Shipping Fees:</td><td>EGP ${shippingDisplay.toFixed(2)}</td></tr>\n              </table>\n            </div>`;
+
     // Build AWB HTML (copied from desktop)
     const awbHtml = `
       <html>
@@ -393,38 +447,7 @@ const MobileShopPackages = () => {
             <div class="awb-section">
               <b>Description:</b> ${awbPkg.packageDescription || '-'}
             </div>
-            <table class="awb-table">
-              <thead>
-                <tr><th>Item</th><th>Qty</th><th>COD Per Unit</th><th>Total COD</th></tr>
-              </thead>
-              <tbody>
-                ${
-                  awbPkg.Items && awbPkg.Items.length > 0
-                    ? awbPkg.Items.map(item => `
-                      <tr>
-                        <td>${item.description || '-'}</td>
-                        <td>${item.quantity}</td>
-                        <td>${item.codAmount && item.quantity ? (item.codAmount / item.quantity).toFixed(2) : '0.00'} EGP</td>
-                        <td>${parseFloat(item.codAmount || 0).toFixed(2)} EGP</td>
-                      </tr>
-                    `).join('')
-                    : `<tr>
-                        <td>${awbPkg.packageDescription || '-'}</td>
-                        <td>${awbPkg.itemsNo ?? 1}</td>
-                        <td>${cod.toFixed(2)} EGP</td>
-                        <td>${cod.toFixed(2)} EGP</td>
-                      </tr>`
-                }
-              </tbody>
-            </table>
-            <div class="awb-section">
-              <b>Payment Method:</b> COD
-            </div>
-            <div class="awb-section" style="display:flex;justify-content:flex-end;">
-              <table class="awb-info-table" style="width:300px;">
-                ${totalsRows}
-              </table>
-            </div>
+            ${isExchange ? itemsSectionExchange : itemsSectionDefault}
             <div class="awb-footer">Thank you for your order!</div>
           </div>
         </body>
@@ -699,7 +722,15 @@ const MobileShopPackages = () => {
             <div key={pkg.id} className="mobile-shop-package-card">
               <div className="mobile-shop-package-header">
                 <span className="mobile-shop-package-tracking">{pkg.trackingNumber}{pkg.type === 'return' && (<span style={{ marginLeft: 6, padding: '2px 6px', fontSize: 10, borderRadius: 10, background: '#ffe8cc', color: '#b45309' }}>Return</span>)}</span>
-                <span className={`mobile-shop-package-status-badge status-${pkg.status?.toLowerCase()}`}>{pkg.status}</span>
+                <span className={`mobile-shop-package-status-badge status-${pkg.status?.toLowerCase()}`}>
+                  {pkg.status}
+                  {activeTab === 'return-requests' && (
+                    <span style={{ marginLeft: 5, padding: '2px 6px', fontSize: 10, borderRadius: 10, background: '#f55247', color: '#fff' }}>Return Request</span>
+                  )}
+                  {activeTab === 'exchange-requests' && (
+                    <span style={{ marginLeft: 5, padding: '2px 6px', fontSize: 10, borderRadius: 10, background: '#7b1fa2', color: '#fff' }}>Exchange Request</span>
+                  )}
+                </span>
               </div>
               <div className="mobile-shop-package-info">
                 <div><span className="mobile-shop-package-label">Descreption:</span> {pkg.packageDescription || '-'}</div>
@@ -910,6 +941,39 @@ const MobileShopPackages = () => {
                 <div className="mobile-modal-detail-item"><span className="label">COD</span><span>EGP {parseFloat(selectedPackage.codAmount || 0).toFixed(2)} {selectedPackage.isPaid ? 'Paid' : 'Unpaid'}</span></div>
                 <div className="mobile-modal-detail-item"><span className="label">Type</span><span>{selectedPackage.type || 'new'}</span></div>
                 <div className="mobile-modal-detail-item"><span className="label">Delivery Cost</span><span>EGP {parseFloat(selectedPackage.deliveryCost || 0).toFixed(2)}</span></div>
+                {selectedPackage?.deliveredItems && Array.isArray(selectedPackage.deliveredItems) && selectedPackage.deliveredItems.length > 0 && (
+                  <div className="mobile-modal-detail-item full-width">
+                    <span className="label">Delivered Items</span>
+                    <div style={{ backgroundColor: '#f9f9f9', padding: '0.5rem', borderRadius: '4px', border: '1px solid #e0e0e0', marginTop: '0.5rem' }}>
+                      {selectedPackage.deliveredItems.map((it, idx) => {
+                        const match = (selectedPackage.Items || []).find(x => String(x.id) === String(it.itemId));
+                        const label = match?.description || `Item ${it.itemId}`;
+                        return (
+                          <div key={`mobile-shop-delivered-${idx}`} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 8px', background: '#fff', border: '1px solid #eaeaea', borderRadius: 6, marginBottom: 6 }}>
+                            <span>{label}</span>
+                            <span>Qty: {it.deliveredQuantity}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+                {Array.isArray(selectedPackage.returnDetails) && selectedPackage.returnDetails.length > 0 && (
+                  <div className="mobile-modal-detail-item full-width">
+                    <span className="label">Returned Items</span>
+                    <div style={{ backgroundColor: '#f9f9f9', padding: '0.5rem', borderRadius: '4px', border: '1px solid #e0e0e0', marginTop: '0.5rem' }}>
+                      {selectedPackage.returnDetails.map((it, idx) => (
+                        <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 8px', background: '#fff', border: '1px solid #eaeaea', borderRadius: 6, marginBottom: 6 }}>
+                          <span>{it.description || `Item ${it.itemId}`}</span>
+                          <span>Qty: {it.quantity}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {selectedPackage.rejectionShippingPaidAmount !== undefined && selectedPackage.rejectionShippingPaidAmount !== null && (
+                  <div className="mobile-modal-detail-item"><span className="label">Rejection Shipping Fees Paid</span><span>EGP {parseFloat(selectedPackage.rejectionShippingPaidAmount || 0).toFixed(2)}</span></div>
+                )}
                 {selectedPackage.weight && (
                   <div className="mobile-modal-detail-item"><span className="label">Weight</span><span>{selectedPackage.weight} kg</span></div>
                 )}
@@ -954,6 +1018,20 @@ const MobileShopPackages = () => {
                               <strong>Total COD:</strong> EGP {parseFloat(item.codAmount || 0).toFixed(2)}
                             </div>
                           </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {Array.isArray(selectedPackage.returnDetails) && selectedPackage.returnDetails.length > 0 && (
+                  <div className="mobile-modal-detail-item full-width">
+                    <span className="label">Returned Items</span>
+                    <div style={{ backgroundColor: '#f9f9f9', padding: '0.5rem', borderRadius: '4px', border: '1px solid #e0e0e0', marginTop: '0.5rem' }}>
+                      {selectedPackage.returnDetails.map((it, idx) => (
+                        <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 8px', background: '#fff', border: '1px solid #eaeaea', borderRadius: 6, marginBottom: 6 }}>
+                          <span>{it.description || `Item ${it.itemId}`}</span>
+                          <span>Qty: {it.quantity}</span>
                         </div>
                       ))}
                     </div>

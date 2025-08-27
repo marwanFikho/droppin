@@ -12,6 +12,7 @@ const NewPickup = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [shopAddress, setShopAddress] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -59,13 +60,17 @@ const NewPickup = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
       if (selectedPackages.length === 0) {
       setError('Please select at least one package for pickup');
+      setIsSubmitting(false);
       return;
     }
 
     if (!pickupDate || !pickupTime) {
       setError('Please select both date and time for pickup');
+      setIsSubmitting(false);
       return;
     }
 
@@ -81,6 +86,8 @@ const NewPickup = () => {
       navigate('/shop/packages');
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to schedule pickup. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -207,8 +214,8 @@ const NewPickup = () => {
               <button type="button" onClick={() => navigate('/shop/packages')} className="btn btn-secondary">
                 Cancel
               </button>
-              <button type="submit" className="btn btn-primary">
-                Schedule Pickup
+              <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
+                {isSubmitting ? 'Scheduling...' : 'Schedule Pickup'}
               </button>
             </div>
           </form>

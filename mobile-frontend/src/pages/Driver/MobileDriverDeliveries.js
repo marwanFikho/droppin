@@ -60,11 +60,102 @@ const MobileDriverDeliveries = () => {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
+  const [showDeliveryModal, setShowDeliveryModal] = useState(false);
+  const [modalPackage, setModalPackage] = useState(null);
+  const [isPartial, setIsPartial] = useState(false);
+  const [deliveredQuantities, setDeliveredQuantities] = useState({});
+
+  const openDeliveryModal = (pkg) => {
+    setModalPackage(pkg);
+    setIsPartial(false);
+    setDeliveredQuantities({});
+    setShowDeliveryModal(true);
+  };
+
+  const buildDeliveryPayload = () => {
+    if (!isPartial) return { status: 'delivered' };
+    const items = Array.isArray(modalPackage?.Items) ? modalPackage.Items : [];
+    const deliveredItems = items
+      .map(it => {
+        const maxQty = parseInt(it.quantity, 10) || 0;
+        const qty = parseInt(deliveredQuantities[it.id], 10) || 0;
+        const clamped = Math.min(Math.max(0, qty), maxQty);
+        return clamped > 0 ? { itemId: it.id, deliveredQuantity: clamped } : null;
+      })
+      .filter(Boolean);
+    return { status: 'delivered-awaiting-return', deliveredItems };
+  };
+
   const handleStatusAction = async (pkg, nextStatus) => {
     setStatusUpdating((prev) => ({ ...prev, [pkg.id]: true }));
     try {
+      if (nextStatus === 'delivered') {
+        openDeliveryModal(pkg);
+        return;
+      }
       await packageService.updatePackageStatus(pkg.id, { status: nextStatus });
-      await fetchPackages(); // Refetch all packages to get the updated list
+      await fetchPackages();
+      {showDeliveryModal && modalPackage && (
+        <div className="mobile-modal-overlay" onClick={() => setShowDeliveryModal(false)}>
+          <div className="mobile-modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="mobile-modal-header">
+              <h3>Mark as Delivered</h3>
+              <button className="mobile-modal-close" onClick={() => setShowDeliveryModal(false)}>×</button>
+            </div>
+            <div className="mobile-modal-body">
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                <input type="checkbox" checked={isPartial} onChange={(e) => setIsPartial(e.target.checked)} />
+                Partial delivery
+              </label>
+              {isPartial ? (
+                Array.isArray(modalPackage.Items) && modalPackage.Items.length > 0 ? (
+                  <div>
+                    {modalPackage.Items.map((it) => {
+                      const maxQty = parseInt(it.quantity, 10) || 0;
+                      return (
+                        <div key={it.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                          <div style={{ flex: 1, marginRight: 8 }}>{it.description} (max {maxQty})</div>
+                          <input
+                            type="number"
+                            min="0"
+                            max={maxQty}
+                            value={deliveredQuantities[it.id] ?? ''}
+                            onChange={(e) => setDeliveredQuantities(prev => ({ ...prev, [it.id]: e.target.value }))}
+                            placeholder="0"
+                            style={{ width: 80, padding: 6 }}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div style={{ color: '#666' }}>No items available for partial selection. Uncheck partial to deliver completely.</div>
+                )
+              ) : (
+                <div style={{ color: '#444' }}>Deliver package completely to the customer.</div>
+              )}
+            </div>
+            <div className="mobile-modal-actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <button className="mobile-modal-btn" onClick={() => setShowDeliveryModal(false)}>Cancel</button>
+              <button
+                className="mobile-modal-btn primary"
+                onClick={async () => {
+                  try {
+                    const payload = buildDeliveryPayload();
+                    await packageService.updatePackageStatus(modalPackage.id, payload);
+                    setShowDeliveryModal(false);
+                    await fetchPackages();
+                  } catch (e) {
+                    setError('Failed to update package status.');
+                  }
+                }}
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     } catch (err) {
       setError('Failed to update package status.');
     } finally {

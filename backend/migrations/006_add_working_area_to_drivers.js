@@ -9,6 +9,14 @@ async function up() {
       comment: 'The area where the driver works (set by admin)'
     });
 
+    // Add cashOnHand column to Drivers table
+    await sequelize.getQueryInterface().addColumn('Drivers', 'cashOnHand', {
+      type: sequelize.Sequelize.DECIMAL(10, 2),
+      allowNull: false,
+      defaultValue: 0.00,
+      comment: 'Accumulated COD cash currently held by the driver'
+    });
+
     console.log('workingArea field added to Drivers table successfully');
     return true;
   } catch (error) {
@@ -21,6 +29,9 @@ async function down() {
   try {
     // Remove workingArea column from Drivers table
     await sequelize.getQueryInterface().removeColumn('Drivers', 'workingArea');
+
+    // Remove cashOnHand column from Drivers table
+    await sequelize.getQueryInterface().removeColumn('Drivers', 'cashOnHand');
 
     console.log('workingArea field removed from Drivers table successfully');
     return true;

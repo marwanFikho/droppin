@@ -66,6 +66,8 @@ const Package = sequelize.define('Package', {
 			'pickedup',
 			'in-transit',
 			'delivered',
+			'delivered-awaiting-return',
+			'delivered-returned',
 			'cancelled',
 			'cancelled-awaiting-return',
 			'cancelled-returned',
@@ -204,11 +206,28 @@ const Package = sequelize.define('Package', {
 		allowNull: true,
 		defaultValue: 0
 	},
+	// New: partial delivery tracking
+	paidAmount: {
+		type: DataTypes.FLOAT,
+		allowNull: true,
+		defaultValue: 0
+	},
+	deliveredItems: {
+		type: DataTypes.JSON,
+		allowNull: true,
+		defaultValue: null
+	},
 	// New: exchange details (takeItems, giveItems, cashDelta)
 	exchangeDetails: {
 		type: DataTypes.JSON,
 		allowNull: true,
 		defaultValue: null
+	},
+	// New: amount of the shop's shipping fee paid by the customer at rejection time
+	rejectionShippingPaidAmount: {
+		type: DataTypes.FLOAT,
+		allowNull: true,
+		defaultValue: 0
 	}
 }, {
 	hooks: {

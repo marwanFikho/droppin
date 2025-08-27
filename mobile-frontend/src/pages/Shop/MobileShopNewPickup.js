@@ -12,6 +12,7 @@ const MobileShopNewPickup = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [shopAddress, setShopAddress] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -54,12 +55,16 @@ const MobileShopNewPickup = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     if (selectedPackages.length === 0) {
       setError('Please select at least one package for pickup');
+      setIsSubmitting(false);
       return;
     }
     if (!pickupDate || !pickupTime) {
       setError('Please select both date and time for pickup');
+      setIsSubmitting(false);
       return;
     }
     try {
@@ -73,6 +78,8 @@ const MobileShopNewPickup = () => {
       navigate('/shop/packages');
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to schedule pickup. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -163,7 +170,7 @@ const MobileShopNewPickup = () => {
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
               <button type="button" className="mobile-shop-create-btn" style={{ background: '#6c757d' }} onClick={() => navigate('/shop/packages')}>Cancel</button>
-              <button type="submit" className="mobile-shop-create-btn" style={{ background: '#ffc107', color: '#333' }}>Schedule Pickup</button>
+              <button type="submit" className="mobile-shop-create-btn" style={{ background: '#ffc107', color: '#333' }} disabled={isSubmitting}>{isSubmitting ? 'Scheduling...' : 'Schedule Pickup'}</button>
             </div>
           </form>
         </>

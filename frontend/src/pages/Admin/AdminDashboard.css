@@ -218,7 +218,7 @@
   min-width: 10px;
 }
 
-.status-badge.status-delivered {
+.status-badge.status-delivered, .status-badge.status-delivered-returned {
   background-color: #e8f5e9;
   color: #2e7d32;
 }

@@ -22,6 +22,7 @@ const MobileAdminDashboard = () => {
   const [packages, setPackages] = useState([]);
   const [packageSubTab, setPackageSubTab] = useState('all');
   const [pickups, setPickups] = useState([]);
+  const [pickupStatusUpdating, setPickupStatusUpdating] = useState({});
   const [selectedPackage, setSelectedPackage] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedPackages, setSelectedPackages] = useState([]);
@@ -108,7 +109,6 @@ const MobileAdminDashboard = () => {
   const [pickupDriverSearchTerm, setPickupDriverSearchTerm] = useState('');
   const [assigningPickupDriver, setAssigningPickupDriver] = useState(false);
   const [availableDrivers, setAvailableDrivers] = useState([]);
-  const [pickupStatusUpdating, setPickupStatusUpdating] = useState({});
 
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -175,7 +175,7 @@ const MobileAdminDashboard = () => {
         } else if (packageSubTab === 'assigned') {
           filteredPackages = filteredPackages.filter(pkg => pkg.status === 'assigned');
         } else if (packageSubTab === 'return-to-shop') {
-          const returnToShopStatuses = ['cancelled-awaiting-return', 'cancelled-returned', 'rejected-awaiting-return', 'rejected-returned', 'return-requested', 'return-in-transit', 'return-pending', 'return-completed', 'exchange-in-transit', 'exchange-awaiting-return'];
+          const returnToShopStatuses = ['cancelled-awaiting-return', 'cancelled-returned', 'rejected-awaiting-return', 'rejected-returned', 'return-requested', 'return-in-transit', 'return-pending', 'return-completed', 'exchange-in-transit', 'exchange-awaiting-return', 'delivered-awaiting-return', 'delivered-returned'];
           filteredPackages = filteredPackages.filter(pkg => returnToShopStatuses.includes(pkg.status));
         } else if (packageSubTab === 'in-transit') {
           const inTransitStatuses = ['pickedup', 'in-transit'];
@@ -342,7 +342,13 @@ const MobileAdminDashboard = () => {
         notesArr = [];
       }
     }
-    setSelectedAdminPackage({ ...pkg, notes: notesArr });
+    // Normalize deliveredItems on initial object
+    let initialDelivered = pkg.deliveredItems ?? pkg.delivereditems ?? null;
+    if (typeof initialDelivered === 'string') {
+      try { initialDelivered = JSON.parse(initialDelivered); } catch { initialDelivered = null; }
+    }
+    if (!Array.isArray(initialDelivered)) initialDelivered = [];
+    setSelectedAdminPackage({ ...pkg, deliveredItems: initialDelivered, notes: notesArr });
     setShowDetailsModal(true);
     try {
       // Fetch complete package details including items
@@ -353,8 +359,13 @@ const MobileAdminDashboard = () => {
       if (completePackage.Items && completePackage.Items.length > 0) {
         console.log('Admin - First item details:', completePackage.Items[0]);
       }
-      // Preserve the notes array we already processed
-      setSelectedAdminPackage({ ...completePackage, notes: notesArr });
+      // Preserve the notes array we already processed and normalize deliveredItems
+      let fetchedDelivered = completePackage.deliveredItems ?? completePackage.delivereditems ?? null;
+      if (typeof fetchedDelivered === 'string') {
+        try { fetchedDelivered = JSON.parse(fetchedDelivered); } catch { fetchedDelivered = null; }
+      }
+      if (!Array.isArray(fetchedDelivered)) fetchedDelivered = [];
+      setSelectedAdminPackage({ ...completePackage, deliveredItems: fetchedDelivered, notes: notesArr });
     } catch (err) {
       console.error('Failed to fetch complete package details:', err);
       // Keep the original package data if fetch fails
@@ -439,6 +450,8 @@ const MobileAdminDashboard = () => {
       let newStatus = 'cancelled-returned';
       if (pkg.status === 'rejected-awaiting-return') {
         newStatus = 'rejected-returned';
+      } else if (pkg.status === 'delivered-awaiting-return') {
+        newStatus = 'delivered-returned';
       }
       await packageService.updatePackageStatus(pkg.id, { status: newStatus });
       // Refresh packages list
@@ -476,6 +489,7 @@ const MobileAdminDashboard = () => {
   };
 
   const handleMarkPickupAsPickedUp = async (pickupId) => {
+    setPickupStatusUpdating(prev => ({ ...prev, [pickupId]: true }));
     try {
       await adminService.markPickupAsPickedUp(pickupId);
       // Refresh pickups data
@@ -483,6 +497,8 @@ const MobileAdminDashboard = () => {
       setPickups(response.data || []);
     } catch (error) {
       console.error('Error marking pickup as picked up:', error);
+    } finally {
+      setPickupStatusUpdating(prev => ({ ...prev, [pickupId]: false }));
     }
   };
 
@@ -794,6 +810,35 @@ const MobileAdminDashboard = () => {
         : `<tr><td>Sub Total:</td><td>${subTotal.toFixed(2)} EGP</td></tr>`
           + `<tr><td>Shipping:</td><td>${shippingValue.toFixed(2)} EGP</td></tr>`
           + `<tr><td><b>Total:</b></td><td><b>${total.toFixed(2)} EGP</b></td></tr>`;
+
+      // Exchange-specific rendering
+      const isExchange = (awbPkg.type === 'exchange');
+      const exch = awbPkg.exchangeDetails || {};
+      const takeItems = Array.isArray(exch.takeItems) ? exch.takeItems : [];
+      const giveItems = Array.isArray(exch.giveItems) ? exch.giveItems : [];
+      const cd = exch.cashDelta || {};
+      const moneyAmount = Number.parseFloat(cd.amount || 0) || 0;
+      const moneyType = cd.type || null;
+      const moneyLabel = moneyType === 'give' ? 'Give to customer' : (moneyType === 'take' ? 'Take from customer' : 'Money');
+      const shippingDisplay = Number(awbPkg.shownDeliveryCost ?? awbPkg.deliveryCost ?? shippingValue) || 0;
+
+      const itemsSectionDefault = `
+              <table class=\"awb-table\">\n                <thead>\n                  <tr><th>Item</th><th>Qty</th><th>COD Per Unit</th><th>Total COD</th></tr>\n                </thead>\n                <tbody>\n                  ${
+                    awbPkg.Items && awbPkg.Items.length > 0
+                      ? awbPkg.Items.map(item => `\n                        <tr>\n                          <td>${item.description || '-'}</td>\n                          <td>${item.quantity}</td>\n                          <td>${item.codAmount && item.quantity ? (item.codAmount / item.quantity).toFixed(2) : '0.00'} EGP</td>\n                          <td>${parseFloat(item.codAmount || 0).toFixed(2)} EGP</td>\n                        </tr>\n                      `).join('')
+                      : `\n                        <tr>\n                          <td>${awbPkg.packageDescription || '-'}</td>\n                          <td>${awbPkg.itemsNo ?? 1}</td>\n                          <td>${cod.toFixed(2)} EGP</td>\n                          <td>${cod.toFixed(2)} EGP</td>\n                        </tr>`
+                  }\n                </tbody>\n              </table>\n              <div class=\"awb-section\">\n                <b>Payment Method:</b> COD\n              </div>\n              <div class=\"awb-section\" style=\"display:flex;justify-content:flex-end;\">\n                <table class=\"awb-info-table\" style=\"width:300px;\">\n                  ${totalsRows}\n                </table>\n              </div>`;
+
+      const itemsSectionExchange = `
+              <div class=\"awb-section\">\n                <table class=\"awb-table\">\n                  <thead>\n                    <tr><th colspan=\"2\">Items to take from customer</th></tr>\n                  </thead>\n                  <tbody>\n                    ${
+                      takeItems.length > 0
+                        ? takeItems.map(it => `\n                            <tr>\n                              <td>${(it.description || '-')}</td>\n                              <td>Qty: ${(parseInt(it.quantity) || 0)}</td>\n                            </tr>\n                          `).join('')
+                        : `<tr><td colspan=\"2\">None</td></tr>`
+                    }\n                  </tbody>\n                </table>\n                <table class=\"awb-table\" style=\"margin-top:12px;\">\n                  <thead>\n                    <tr><th colspan=\"2\">Items to give to customer</th></tr>\n                  </thead>\n                  <tbody>\n                    ${
+                      giveItems.length > 0
+                        ? giveItems.map(it => `\n                            <tr>\n                              <td>${(it.description || '-')}</td>\n                              <td>Qty: ${(parseInt(it.quantity) || 0)}</td>\n                            </tr>\n                          `).join('')
+                        : `<tr><td colspan=\"2\">None</td></tr>`
+                    }\n                  </tbody>\n                </table>\n              </div>\n              <div class=\"awb-section\" style=\"display:flex;justify-content:flex-end;\">\n                <table class=\"awb-info-table\" style=\"width:360px;\">\n                  <tr><td>${moneyLabel}:</td><td>EGP ${moneyAmount.toFixed(2)}</td></tr>\n                  <tr><td>Shipping Fees:</td><td>EGP ${shippingDisplay.toFixed(2)}</td></tr>\n                </table>\n              </div>`;
       const awbHtml = `
         <html>
           <head>
@@ -848,35 +893,7 @@ const MobileAdminDashboard = () => {
               <div class="awb-section">
                 <b>Description:</b> ${awbPkg.packageDescription || '-'}
               </div>
-              <table class="awb-table">
-                <thead>
-                  <tr><th>Item</th><th>Qty</th><th>COD Per Unit</th><th>Total COD</th></tr>
-                </thead>
-                <tbody>
-                  ${
-                    awbPkg.Items && awbPkg.Items.length > 0
-                      ? awbPkg.Items.map(item => `
-                        <tr>
-                          <td>${item.description || '-'}</td>
-                          <td>${item.quantity}</td>
-                          <td>${item.codAmount && item.quantity ? (item.codAmount / item.quantity).toFixed(2) : '0.00'} EGP</td>
-                          <td>${parseFloat(item.codAmount || 0).toFixed(2)} EGP</td>
-                        </tr>
-                      `).join('')
-                      : `<tr>
-                          <td>${awbPkg.packageDescription || '-'}</td>
-                          <td>${awbPkg.itemsNo ?? 1}</td>
-                          <td>${cod.toFixed(2)} EGP</td>
-                          <td>${cod.toFixed(2)} EGP</td>
-                        </tr>`
-                  }
-                </tbody>
-              </table>
-              <div class="awb-section" style="display:flex;justify-content:flex-end;">
-                <table class="awb-info-table" style="width:300px;">
-                  ${totalsRows}
-                </table>
-              </div>
+              ${isExchange ? itemsSectionExchange : itemsSectionDefault}
               <div class="awb-footer">Thank you for your order!</div>
             </div>
           </body>
@@ -1409,8 +1426,9 @@ const MobileAdminDashboard = () => {
                             onClick={() => handleMarkPickupAsPickedUp(pickup.id)}
                             className="mobile-admin-dashboard-mark-pickedup-btn"
                             style={{ backgroundColor: '#28a745', color: 'white', border: 'none', padding: '8px 12px', borderRadius: '4px' }}
+                            disabled={pickupStatusUpdating[pickup.id]}
                           >
-                            Mark as Picked Up
+                            {pickupStatusUpdating[pickup.id] ? 'Picking...' : 'Mark as Picked Up'}
                           </button>
                         </>
                       )}
@@ -1461,6 +1479,7 @@ const MobileAdminDashboard = () => {
                     <tr>
                       <th>Date</th>
                       <th>Shop</th>
+                      <th>Driver</th>
                       <th>Attribute</th>
                       <th>Type</th>
                       <th>Amount</th>
@@ -1472,6 +1491,7 @@ const MobileAdminDashboard = () => {
                       <tr key={tx.id}>
                         <td>{tx.createdAt ? new Date(tx.createdAt).toLocaleString() : ''}</td>
                         <td>{tx.Shop?.businessName || tx.shopId}</td>
+                        <td>{tx.driver ? tx.driver.name : '-'}</td>
                         <td>{tx.attribute}</td>
                         <td>{tx.changeType}</td>
                         <td style={{ color: tx.changeType === 'increase' ? '#28a745' : '#d32f2f', fontWeight: 600 }}>
@@ -1586,6 +1606,9 @@ const MobileAdminDashboard = () => {
                 </div>
                 {selectedPackage.shownDeliveryCost !== undefined && selectedPackage.shownDeliveryCost !== null && (
                   <div className="mobile-modal-detail-item"><span className="label">Shown Delivery Cost</span><span>EGP {parseFloat(selectedPackage.shownDeliveryCost).toFixed(2)}</span></div>
+                )}
+                {selectedPackage.rejectionShippingPaidAmount !== undefined && selectedPackage.rejectionShippingPaidAmount !== null && (
+                  <div className="mobile-modal-detail-item"><span className="label">Rejection Shipping Fees Paid</span><span>EGP {parseFloat(selectedPackage.rejectionShippingPaidAmount || 0).toFixed(2)}</span></div>
                 )}
                 {selectedPackage.weight && (
                   <div className="mobile-modal-detail-item"><span className="label">Weight</span><span>{selectedPackage.weight} kg</span></div>
@@ -2253,6 +2276,39 @@ const MobileAdminDashboard = () => {
                               <strong>Total COD:</strong> EGP {parseFloat(item.codAmount || 0).toFixed(2)}
                             </div>
                           </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Delivered Items */}
+                {selectedAdminPackage && selectedAdminPackage.deliveredItems && Array.isArray(selectedAdminPackage.deliveredItems) && selectedAdminPackage.deliveredItems.length > 0 && (
+                  <div className="mobile-modal-detail-item full-width">
+                    <span className="label">Delivered Items</span>
+                    <div style={{ backgroundColor: '#f9f9f9', padding: '0.5rem', borderRadius: '4px', border: '1px solid #e0e0e0', marginTop: '0.5rem' }}>
+                      {selectedAdminPackage.deliveredItems.map((it, idx) => {
+                        const match = (selectedAdminPackage.Items || []).find(x => String(x.id) === String(it.itemId));
+                        const label = match?.description || `Item ${it.itemId}`;
+                        return (
+                          <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 8px', background: '#fff', border: '1px solid #eaeaea', borderRadius: 6, marginBottom: 6 }}>
+                            <span>{label}</span>
+                            <span>Qty: {it.deliveredQuantity}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {Array.isArray(selectedAdminPackage.returnDetails) && selectedAdminPackage.returnDetails.length > 0 && (
+                  <div className="mobile-modal-detail-item full-width">
+                    <span className="label">Returned Items</span>
+                    <div style={{ backgroundColor: '#f9f9f9', padding: '0.5rem', borderRadius: '4px', border: '1px solid #e0e0e0', marginTop: '0.5rem' }}>
+                      {selectedAdminPackage.returnDetails.map((it, idx) => (
+                        <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 8px', background: '#fff', border: '1px solid #eaeaea', borderRadius: 6, marginBottom: 6 }}>
+                          <span>{it.description || `Item ${it.itemId}`}</span>
+                          <span>Qty: {it.quantity}</span>
                         </div>
                       ))}
                     </div>

@@ -29,6 +29,7 @@ router.post('/shops/:id/adjust-total-collected', adminController.adjustShopTotal
 router.get('/drivers', adminController.getDrivers);
 router.patch('/drivers/:id/approve', adminController.approveDriver);
 router.post('/drivers/:id/give-money', adminController.giveMoneyToDriver);
+router.post('/drivers/:id/reset-cash', adminController.resetDriverCashOnHand);
 
 // Package management
 router.get('/packages', adminController.getPackages);

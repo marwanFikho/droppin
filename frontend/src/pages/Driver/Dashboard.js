@@ -461,6 +461,40 @@ const DriverDashboard = () => {
       console.error('Error updating package:', err);
     }
   };
+
+  // Partial/Complete delivery modal state
+  const [showDeliveryModal, setShowDeliveryModal] = useState(false);
+  const [deliveryModalPackage, setDeliveryModalPackage] = useState(null);
+  const [deliveredQuantities, setDeliveredQuantities] = useState({});
+  const [isPartial, setIsPartial] = useState(false);
+
+  const handleMarkDelivered = async (pkg) => {
+    // open modal, load latest items (selectedPackage already fetches details, but ensure items are present)
+    setDeliveryModalPackage(pkg);
+    setIsPartial(false);
+    setDeliveredQuantities({});
+    setShowDeliveryModal(true);
+  };
+
+  const handleConfirmDelivery = async () => {
+    if (!deliveryModalPackage) return;
+    const packageId = deliveryModalPackage.id;
+    if (!isPartial) {
+      await updatePackageStatus(packageId, 'delivered');
+      setShowDeliveryModal(false);
+      return;
+    }
+    // Build deliveredItems from quantities > 0
+    const items = Array.isArray(deliveryModalPackage.Items) ? deliveryModalPackage.Items : [];
+    const deliveredItems = items
+      .map(it => {
+        const qty = parseInt(deliveredQuantities[it.id], 10) || 0;
+        return qty > 0 ? { itemId: it.id, deliveredQuantity: Math.min(qty, parseInt(it.quantity, 10) || 0) } : null;
+      })
+      .filter(Boolean);
+    await updatePackageStatus(packageId, 'delivered-awaiting-return', { deliveredItems });
+    setShowDeliveryModal(false);
+  };
   
   // Mark package as delivered and handle payment collection
   const markAsDeliveredWithPayment = async (packageId) => {
@@ -629,7 +663,13 @@ const DriverDashboard = () => {
                       <button
                         className={`btn-primary`}
                         style={{ background: gradient, color: pkg.status === 'pickedup' ? '#333' : '#fff', border: 'none' }}
-                        onClick={() => updatePackageStatus(pkg.id, nextStatus.next)}
+                        onClick={() => {
+                          if (nextStatus.next === 'delivered') {
+                            handleMarkDelivered(pkg);
+                          } else {
+                            updatePackageStatus(pkg.id, nextStatus.next);
+                          }
+                        }}
                         title={nextStatus.label}
                       >
                         {nextStatus ? nextStatus.label : 'No actions available'}
@@ -770,6 +810,12 @@ const DriverDashboard = () => {
                       <span className="label">COD Amount</span>
                       <span>EGP {parseFloat(selectedPackage.codAmount || 0).toFixed(2)}</span>
                     </div>
+                    {selectedPackage.rejectionShippingPaidAmount !== undefined && selectedPackage.rejectionShippingPaidAmount !== null && (
+                      <div className="detail-item">
+                        <span className="label">Rejection Shipping Fees Paid</span>
+                        <span>EGP {parseFloat(selectedPackage.rejectionShippingPaidAmount || 0).toFixed(2)}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -1268,6 +1314,62 @@ const DriverDashboard = () => {
       )}
 
       <PackageDetailsModal />
+
+      {/* Delivery Modal */}
+      {showDeliveryModal && deliveryModalPackage && (
+        <div className="modal-overlay show" onClick={() => setShowDeliveryModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Mark as Delivered</h3>
+              <button className="close-btn" onClick={() => setShowDeliveryModal(false)}>×</button>
+            </div>
+            <div className="modal-body">
+              <div style={{ marginBottom: 12 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <input type="checkbox" checked={isPartial} onChange={(e) => setIsPartial(e.target.checked)} />
+                  Partial delivery
+                </label>
+              </div>
+              {isPartial ? (
+                <div>
+                  <div style={{ fontWeight: 600, marginBottom: 8 }}>Select delivered quantities:</div>
+                  {Array.isArray(deliveryModalPackage.Items) && deliveryModalPackage.Items.length > 0 ? (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px', gap: 8 }}>
+                      {deliveryModalPackage.Items.map((it) => {
+                        const maxQty = parseInt(it.quantity, 10) || 0;
+                        return (
+                          <React.Fragment key={it.id}>
+                            <div style={{ alignSelf: 'center' }}>{it.description} (max {maxQty})</div>
+                            <input
+                              type="number"
+                              min="0"
+                              max={maxQty}
+                              value={deliveredQuantities[it.id] ?? ''}
+                              onChange={(e) => setDeliveredQuantities((prev) => ({ ...prev, [it.id]: e.target.value }))}
+                              placeholder="0"
+                              style={{ width: '100%', padding: 6 }}
+                            />
+                          </React.Fragment>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div style={{ color: '#666' }}>No items available for partial selection. Uncheck partial to deliver completely.</div>
+                  )}
+                </div>
+              ) : (
+                <div style={{ color: '#444' }}>Deliver package completely to the customer.</div>
+              )}
+            </div>
+            <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <button className="btn-secondary" onClick={() => setShowDeliveryModal(false)}>Cancel</button>
+              <button className="gradient-confirm-btn" onClick={handleConfirmDelivery}>
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Custom confirmation dialog for availability */}
       {showAvailabilityDialog && (

@@ -10,12 +10,20 @@ const MoneyTransaction = sequelize.define('MoneyTransaction', {
       key: 'id'
     }
   },
+  driverId: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: 'Drivers',
+      key: 'id'
+    }
+  },
   amount: {
     type: DataTypes.DECIMAL(10, 2),
     allowNull: false
   },
   attribute: {
-    type: DataTypes.ENUM('ToCollect', 'TotalCollected', 'Revenue'),
+    type: DataTypes.ENUM('ToCollect', 'TotalCollected', 'Revenue', 'DriverCashOnHand'),
     allowNull: false
   },
   changeType: {

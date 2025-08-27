@@ -233,8 +233,10 @@ exports.getPackages = async (req, res) => {
         'actualPickupTime', 'actualDeliveryTime',
         'priority', 'paymentStatus', 'createdAt', 'updatedAt',
         'codAmount', 'deliveryCost', 'shownDeliveryCost', 'isPaid', 'paymentDate', 'notes', 'shopNotes',
+        'paymentMethod',
         'returnDetails', 'returnRefundAmount', 'exchangeDetails',
-        'itemsNo', 'shopifyOrderId'
+        'itemsNo', 'shopifyOrderId', 'rejectionShippingPaidAmount',
+        'paidAmount', 'deliveredItems'
       ],
       where,
       limit: parseInt(limit),
@@ -284,8 +286,11 @@ exports.getPackageById = async (req, res) => {
         'actualPickupTime', 'actualDeliveryTime',
         'priority', 'paymentStatus', 'createdAt', 'updatedAt',
         'codAmount', 'deliveryCost', 'shownDeliveryCost', 'isPaid', 'paymentDate', 'notes', 'shopNotes',
+        'paymentMethod',
         'returnDetails', 'returnRefundAmount', 'exchangeDetails',
-        'itemsNo'
+        'itemsNo', 'paidAmount', 'deliveredItems',
+        // New field
+        'rejectionShippingPaidAmount'
       ],
       include: [
         {
@@ -439,6 +444,11 @@ exports.updatePackageStatus = async (req, res) => {
   try {
     const { id } = req.params;
     const { status, note } = req.body;
+    // Normalize and validate payment method if provided
+    const inputPaymentMethod = (req.body.paymentMethod || '').toString().toUpperCase();
+    const paymentMethod = (inputPaymentMethod === 'CASH' || inputPaymentMethod === 'VISA') ? inputPaymentMethod : null;
+    // New: amount of shop shipping fees paid by customer at time of rejection
+    const paidAtRejection = req.body.rejectionShippingPaidAmount != null ? parseFloat(req.body.rejectionShippingPaidAmount) : null;
     let nextStatus = status; // Use a mutable variable
     
     if (!nextStatus) {
@@ -447,7 +457,7 @@ exports.updatePackageStatus = async (req, res) => {
     }
     
     // Validate status
-    const validStatuses = ['pending', 'assigned', 'pickedup', 'in-transit', 'delivered', 'cancelled', 'cancelled-awaiting-return', 'cancelled-returned', 'rejected', 'rejected-awaiting-return', 'rejected-returned', 'return-requested', 'return-in-transit', 'return-pending', 'return-completed', 'exchange-awaiting-schedule', 'exchange-awaiting-pickup', 'exchange-in-process', 'exchange-in-transit', 'exchange-awaiting-return', 'exchange-returned', 'exchange-cancelled'];
+    const validStatuses = ['pending', 'assigned', 'pickedup', 'in-transit', 'delivered', 'delivered-awaiting-return', 'delivered-returned', 'cancelled', 'cancelled-awaiting-return', 'cancelled-returned', 'rejected', 'rejected-awaiting-return', 'rejected-returned', 'return-requested', 'return-in-transit', 'return-pending', 'return-completed', 'exchange-awaiting-schedule', 'exchange-awaiting-pickup', 'exchange-in-process', 'exchange-in-transit', 'exchange-awaiting-return', 'exchange-returned', 'exchange-cancelled'];
     if (!validStatuses.includes(nextStatus)) {
       await t.rollback();
       return res.status(400).json({ message: 'Invalid status' });
@@ -502,13 +512,20 @@ exports.updatePackageStatus = async (req, res) => {
     if (nextStatus === 'rejected' && ['assigned', 'pickedup', 'in-transit'].includes(package.status)) {
       nextStatus = 'rejected-awaiting-return';
     }
+    // If driver is rejecting, and provided a paid amount, store it on the package for future accounting
+    if ((nextStatus === 'rejected' || nextStatus === 'rejected-awaiting-return') && paidAtRejection !== null && !isNaN(paidAtRejection)) {
+      const normalized = Math.max(0, paidAtRejection);
+      // Clamp to deliveryCost just in case
+      const maxPayable = parseFloat(package.deliveryCost || 0);
+      package.rejectionShippingPaidAmount = Math.min(normalized, isNaN(maxPayable) ? normalized : maxPayable);
+    }
     // --- BEGIN: Set actualPickupTime and actualDeliveryTime based on status change ---
     // If status is being set to 'pickedup', set actualPickupTime
     if (nextStatus === 'pickedup' && package.actualPickupTime == null) {
       package.actualPickupTime = getCairoDateTime();
     }
-    // If status is being set to 'delivered', set actualDeliveryTime
-    if (nextStatus === 'delivered' && package.actualDeliveryTime == null) {
+    // If status is being set to 'delivered' or 'delivered-awaiting-return', set actualDeliveryTime
+    if ((nextStatus === 'delivered' || nextStatus === 'delivered-awaiting-return') && package.actualDeliveryTime == null) {
       package.actualDeliveryTime = getCairoDateTime();
     }
     // If setting to return-pending, set actualPickupTime if not set (driver picked it up from customer)
@@ -544,6 +561,218 @@ exports.updatePackageStatus = async (req, res) => {
       lock: true // Add row-level locking
     });
     
+    // === Partial delivery flow: delivered-awaiting-return ===
+    if (
+      nextStatus === 'delivered-awaiting-return' &&
+      originalStatus !== 'delivered-awaiting-return' &&
+      shop &&
+      package.type !== 'exchange'
+    ) {
+      // Validate deliveredItems payload (optional but recommended)
+      const deliveredItemsPayload = Array.isArray(req.body.deliveredItems) ? req.body.deliveredItems : [];
+      try {
+        const items = await Item.findAll({ where: { packageId: package.id }, transaction: t, lock: true });
+        const itemById = new Map(items.map(i => [i.id, i]));
+        const normalizedDelivered = [];
+        for (const entry of deliveredItemsPayload) {
+          const itemId = parseInt(entry.itemId, 10);
+          const deliveredQuantity = parseInt(entry.deliveredQuantity, 10);
+          if (!Number.isFinite(itemId) || !Number.isFinite(deliveredQuantity)) continue;
+          const it = itemById.get(itemId);
+          if (!it) continue;
+          const maxQty = parseInt(it.quantity, 10) || 0;
+          const clamped = Math.min(Math.max(0, deliveredQuantity), maxQty);
+          normalizedDelivered.push({ itemId: it.id, deliveredQuantity: clamped });
+        }
+        if (normalizedDelivered.length > 0) {
+          package.deliveredItems = normalizedDelivered;
+        }
+      } catch {}
+
+      // Money movements:
+      // 1) Decrease ToCollect by the package codAmount (whole package COD that was previously added)
+      // 2) Increase TotalCollected by the complete COD collected from the customer
+      //    For non-Shopify packages, codAmount already includes shownDeliveryCost.
+      //    For Shopify packages, codAmount is items total; we add shownDeliveryCost as well.
+      const isShopify = (package.shopifyOrderId !== undefined && package.shopifyOrderId !== null && package.shopifyOrderId !== '');
+      const codAmount = parseFloat(package.codAmount || 0) || 0;
+      const shownDeliveryCost = parseFloat(package.shownDeliveryCost || 0) || 0;
+      // Compute delivered items COD sum and total items COD
+      let deliveredItemsCod = 0;
+      let itemsCodTotal = 0;
+      try {
+        const items = await Item.findAll({ where: { packageId: package.id }, transaction: t });
+        const deliveredMap = new Map((Array.isArray(package.deliveredItems) ? package.deliveredItems : []).map(di => [parseInt(di.itemId, 10), parseInt(di.deliveredQuantity, 10) || 0]));
+        for (const it of items) {
+          const qty = parseInt(it.quantity, 10) || 0;
+          const perUnit = qty > 0 ? (parseFloat(it.codAmount || 0) / qty) : 0;
+          const deliveredQty = Math.min(qty, Math.max(0, deliveredMap.get(it.id) || 0));
+          deliveredItemsCod += perUnit * deliveredQty;
+          itemsCodTotal += parseFloat(it.codAmount || 0) || 0;
+        }
+      } catch {}
+      // New accounting approach:
+      // Step A: Move full COD to TotalCollected (and decrease ToCollect)
+      // Step B: Deduct not-delivered items COD from TotalCollected
+      // Shipping shown to customer (Shopify) is added separately to TotalCollected
+      const notDeliveredItemsCod = Math.max(0, (isShopify ? itemsCodTotal : Math.max(0, itemsCodTotal)) - deliveredItemsCod);
+      const initialIncrease = codAmount;
+      const shippingIncrease = isShopify ? shownDeliveryCost : 0;
+
+      const currentToCollect = parseFloat(shop.ToCollect || 0) || 0;
+      const currentTotalCollected = parseFloat(shop.TotalCollected || 0) || 0;
+
+      const newToCollect = Math.max(0, currentToCollect - codAmount);
+      // Apply: increase by full COD + shippingIncrease, then decrease by not delivered
+      const newTotalCollected = currentTotalCollected + initialIncrease + shippingIncrease - notDeliveredItemsCod;
+
+      await sequelize.query(
+        'UPDATE Shops SET ToCollect = :newToCollect, TotalCollected = :newTotalCollected WHERE id = :shopId',
+        {
+          replacements: { newToCollect, newTotalCollected, shopId: shop.id },
+          type: sequelize.QueryTypes.UPDATE,
+          transaction: t
+        }
+      );
+      await logMoneyTransaction(
+        shop.id,
+        codAmount,
+        'ToCollect',
+        'decrease',
+        `Partial delivery for ${package.trackingNumber}: moved full COD ${codAmount.toFixed(2)} from To Collect (awaiting return).`,
+        t
+      );
+      // Log: add full COD to TotalCollected
+      await logMoneyTransaction(
+        shop.id,
+        initialIncrease,
+        'TotalCollected',
+        'increase',
+        `Partial delivery for ${package.trackingNumber}: full COD ${codAmount.toFixed(2)} added to Total Collected.`,
+        t
+      );
+      // Log: add shown shipping (Shopify) if any
+      if (shippingIncrease > 0) {
+        await logMoneyTransaction(
+          shop.id,
+          shippingIncrease,
+          'TotalCollected',
+          'increase',
+          `Partial delivery for ${package.trackingNumber}: shown shipping ${shownDeliveryCost.toFixed(2)} added.`,
+          t
+        );
+      }
+      // Log: deduct not-delivered items COD
+      if (notDeliveredItemsCod > 0) {
+        await logMoneyTransaction(
+          shop.id,
+          notDeliveredItemsCod,
+          'TotalCollected',
+          'decrease',
+          `Partial delivery for ${package.trackingNumber}: not delivered items deducted (${notDeliveredItemsCod.toFixed(2)}).`,
+          t
+        );
+      }
+
+      // 3) Deduct deliveryCost from TotalCollected and recognize revenue in Stats (same as full delivery)
+      const deliveryCost = parseFloat(package.deliveryCost || 0) || 0;
+      if (deliveryCost > 0) {
+        await sequelize.query(
+          'UPDATE Stats SET profit = profit + :amount',
+          {
+            replacements: { amount: deliveryCost },
+            type: sequelize.QueryTypes.UPDATE,
+            transaction: t
+          }
+        );
+        // Log revenue under admin shop (not visible to the shop)
+        let adminShop = await Shop.findOne({ where: { businessName: 'ADMIN_SYSTEM' }, transaction: t });
+        if (!adminShop) {
+          adminShop = await Shop.create({
+            userId: 1,
+            businessName: 'ADMIN_SYSTEM',
+            businessType: 'System',
+            address: 'System Address',
+            ToCollect: 0,
+            TotalCollected: 0,
+            settelled: 0
+          }, { transaction: t });
+        }
+        await logMoneyTransaction(
+          adminShop.id,
+          deliveryCost,
+          'Revenue',
+          'increase',
+          `Partial delivery (awaiting return) for ${package.trackingNumber} (delivery cost revenue)`,
+          t
+        );
+        // Deduct delivery cost from shop's TotalCollected
+        await sequelize.query(
+          'UPDATE Shops SET TotalCollected = TotalCollected - :amount WHERE id = :shopId',
+          {
+            replacements: { amount: deliveryCost, shopId: shop.id },
+            type: sequelize.QueryTypes.UPDATE,
+            transaction: t
+          }
+        );
+        await logMoneyTransaction(
+          shop.id,
+          deliveryCost,
+          'TotalCollected',
+          'decrease',
+          `Partial delivery (awaiting return) for ${package.trackingNumber} (delivery cost deducted)`,
+          t
+        );
+      }
+
+      // Mark as paid and store paid amount (net movement to TotalCollected)
+      package.isPaid = true;
+      const netCollected = initialIncrease + shippingIncrease - notDeliveredItemsCod;
+      package.paidAmount = netCollected;
+      if (paymentMethod) {
+        package.paymentMethod = paymentMethod;
+      }
+      await package.save({ transaction: t });
+
+      // If customer paid in CASH, add to driver's cashOnHand and log
+      if (paymentMethod === 'CASH' && package.driverId && netCollected > 0) {
+        const driver = await Driver.findByPk(package.driverId, { 
+          transaction: t,
+          include: [{ model: User, attributes: ['name'] }]
+        });
+        if (driver) {
+          const prev = parseFloat(driver.cashOnHand || 0) || 0;
+          const next = prev + netCollected;
+          driver.cashOnHand = next;
+          await driver.save({ transaction: t });
+          try {
+            let adminShop = await Shop.findOne({ where: { businessName: 'ADMIN_SYSTEM' }, transaction: t });
+            if (!adminShop) {
+              adminShop = await Shop.create({
+                userId: 1,
+                businessName: 'ADMIN_SYSTEM',
+                businessType: 'System',
+                address: 'System Address',
+                ToCollect: 0,
+                TotalCollected: 0,
+                settelled: 0
+              }, { transaction: t });
+            }
+            const driverName = driver.User?.name || 'Unknown Driver';
+            await logMoneyTransaction(
+              adminShop.id,
+              netCollected,
+              'Revenue',
+              'increase',
+              `[DRIVER CASH] ${driverName} (ID: ${driver.id}) cashOnHand increased by EGP ${netCollected.toFixed(2)} for partial delivery ${package.trackingNumber}.`,
+              t,
+              { driverId: driver.id }
+            );
+          } catch {}
+        }
+      }
+    }
+
     // === COD transfer logic when delivered ===
     if (
       nextStatus === 'delivered' &&
@@ -572,7 +801,48 @@ exports.updatePackageStatus = async (req, res) => {
       await logMoneyTransaction(shop.id, codAmount, 'TotalCollected', 'increase', `Package ${package.trackingNumber} delivered (COD collected)`, t);
       // Mark package as paid
       package.isPaid = true;
+      if (paymentMethod) {
+        package.paymentMethod = paymentMethod;
+      }
       await package.save({ transaction: t });
+
+      // If customer paid in CASH, add to driver's cashOnHand and log
+      if (paymentMethod === 'CASH' && package.driverId && codAmount > 0) {
+        const driver = await Driver.findByPk(package.driverId, { 
+          transaction: t,
+          include: [{ model: User, attributes: ['name'] }]
+        });
+        if (driver) {
+          const prev = parseFloat(driver.cashOnHand || 0) || 0;
+          const next = prev + codAmount;
+          driver.cashOnHand = next;
+          await driver.save({ transaction: t });
+          try {
+            let adminShop = await Shop.findOne({ where: { businessName: 'ADMIN_SYSTEM' }, transaction: t });
+            if (!adminShop) {
+              adminShop = await Shop.create({
+                userId: 1,
+                businessName: 'ADMIN_SYSTEM',
+                businessType: 'System',
+                address: 'System Address',
+                ToCollect: 0,
+                TotalCollected: 0,
+                settelled: 0
+              }, { transaction: t });
+            }
+            const driverName = driver.User?.name || 'Unknown Driver';
+            await logMoneyTransaction(
+              adminShop.id,
+              codAmount,
+              'Revenue',
+              'increase',
+              `[DRIVER CASH] ${driverName} (ID: ${driver.id}) cashOnHand increased by EGP ${codAmount.toFixed(2)} for delivery ${package.trackingNumber}.`,
+              t,
+              { driverId: driver.id }
+            );
+          } catch {}
+        }
+      }
     }
 
     // === Increment Stats.profit by deliveryCost when delivered ===
@@ -637,8 +907,8 @@ exports.updatePackageStatus = async (req, res) => {
     if (package.driverId) {
       const driver = await Driver.findByPk(package.driverId, { transaction: t });
       if (driver) {
-        // When package is marked as delivered
-        if (nextStatus === 'delivered') {
+        // When package is marked as delivered or delivered-awaiting-return (partial)
+        if (nextStatus === 'delivered' || nextStatus === 'delivered-awaiting-return') {
           driver.totalDeliveries += 1;
           driver.activeAssign = Math.max(0, driver.activeAssign - 1);
           await driver.save({ transaction: t });
@@ -652,6 +922,14 @@ exports.updatePackageStatus = async (req, res) => {
           await driver.save({ transaction: t });
         }
       }
+    }
+
+    // Admin marks remainder as returned: delivered-awaiting-return -> delivered-returned (no financial updates)
+    if (
+      nextStatus === 'delivered-returned' &&
+      req.user.role === 'admin'
+    ) {
+      // nothing else; state change already applied
     }
     
     // 1. If shop marks a rejected package as cancelled-awaiting-return, increment driver's totalCancelled
@@ -717,6 +995,125 @@ exports.updatePackageStatus = async (req, res) => {
           }
         );
         await logMoneyTransaction(shop.id, codAmount, 'ToCollect', 'decrease', `Package ${package.trackingNumber} rejected and returned to shop`, t);
+      }
+      // Additionally: adjust TotalCollected by the unpaid portion of the shipping fee if any
+      const shippingFees = parseFloat(package.deliveryCost || 0) || 0;
+      const paidPortion = parseFloat(package.rejectionShippingPaidAmount || 0) || 0;
+      const unpaidPortion = Math.max(0, shippingFees - paidPortion);
+      if (unpaidPortion > 0) {
+        const currentTotalCollected = parseFloat(shop.TotalCollected || 0);
+        const newTotalCollected = currentTotalCollected - unpaidPortion;
+        await sequelize.query(
+          'UPDATE Shops SET TotalCollected = :newTotalCollected WHERE id = :shopId',
+          {
+            replacements: { newTotalCollected, shopId: shop.id },
+            type: sequelize.QueryTypes.UPDATE,
+            transaction: t
+          }
+        );
+        await logMoneyTransaction(
+          shop.id,
+          unpaidPortion,
+          'TotalCollected',
+          'decrease',
+          `Rejected return: unpaid shipping fee for package ${package.trackingNumber}`,
+          t
+        );
+      }
+    }
+
+    // === Handle Exchange: when driver marks as exchange-awaiting-return, adjust driver's cash if applicable ===
+    if (
+      nextStatus === 'exchange-awaiting-return'
+    ) {
+      try {
+        // Ensure we have latest exchangeDetails
+        const pkgForExchange = await Package.findByPk(id, { transaction: t });
+        let exchangeDetails = pkgForExchange.exchangeDetails || {};
+        if (typeof exchangeDetails === 'string') {
+          try { exchangeDetails = JSON.parse(exchangeDetails); } catch { exchangeDetails = {}; }
+        }
+        const cd = exchangeDetails.cashDelta || {};
+        const amount = parseFloat(cd.amount || 0) || 0;
+        const kind = (cd.type === 'take' || cd.type === 'give') ? cd.type : null;
+        if (amount > 0 && kind && paymentMethod === 'CASH' && pkgForExchange.driverId) {
+          const driver = await Driver.findByPk(pkgForExchange.driverId, { transaction: t });
+          if (driver) {
+            const prev = parseFloat(driver.cashOnHand || 0) || 0;
+            const delta = kind === 'take' ? amount : -amount;
+            driver.cashOnHand = prev + delta;
+            await driver.save({ transaction: t });
+            try {
+              let adminShop = await Shop.findOne({ where: { businessName: 'ADMIN_SYSTEM' }, transaction: t });
+              if (!adminShop) {
+                adminShop = await Shop.create({
+                  userId: 1,
+                  businessName: 'ADMIN_SYSTEM',
+                  businessType: 'System',
+                  address: 'System Address',
+                  ToCollect: 0,
+                  TotalCollected: 0,
+                  settelled: 0
+                }, { transaction: t });
+              }
+              await logMoneyTransaction(
+                adminShop.id,
+                amount,
+                'Revenue',
+                delta >= 0 ? 'increase' : 'decrease',
+                `[DRIVER CASH] Driver ID ${driver.id} cashOnHand ${delta >= 0 ? 'increased' : 'decreased'} by EGP ${amount.toFixed(2)} for exchange ${pkgForExchange.trackingNumber}.`,
+                t
+              );
+            } catch {}
+          }
+        }
+        // Store payment method used for this exchange step if provided
+        if (paymentMethod) {
+          pkgForExchange.paymentMethod = paymentMethod;
+          await pkgForExchange.save({ transaction: t });
+        }
+      } catch {}
+    }
+
+    // === Handle Rejection shipping fee collection by driver ===
+    if (
+      (nextStatus === 'rejected' || nextStatus === 'rejected-awaiting-return') &&
+      paymentMethod === 'CASH'
+    ) {
+      const paid = parseFloat(package.rejectionShippingPaidAmount || 0) || 0;
+      if (paid > 0 && package.driverId) {
+        const driver = await Driver.findByPk(package.driverId, { transaction: t });
+        if (driver) {
+          const prev = parseFloat(driver.cashOnHand || 0) || 0;
+          driver.cashOnHand = prev + paid;
+          await driver.save({ transaction: t });
+          try {
+            let adminShop = await Shop.findOne({ where: { businessName: 'ADMIN_SYSTEM' }, transaction: t });
+            if (!adminShop) {
+              adminShop = await Shop.create({
+                userId: 1,
+                businessName: 'ADMIN_SYSTEM',
+                businessType: 'System',
+                address: 'System Address',
+                ToCollect: 0,
+                TotalCollected: 0,
+                settelled: 0
+              }, { transaction: t });
+            }
+            await logMoneyTransaction(
+              adminShop.id,
+              paid,
+              'Revenue',
+              'increase',
+              `[DRIVER CASH] Driver ID ${driver.id} cashOnHand increased by EGP ${paid.toFixed(2)} for rejection shipping fee on ${package.trackingNumber}.`,
+              t
+            );
+          } catch {}
+        }
+      }
+      if (paymentMethod) {
+        package.paymentMethod = paymentMethod;
+        await package.save({ transaction: t });
       }
     }
     
@@ -1460,10 +1857,11 @@ exports.requestReturn = async (req, res) => {
 			return res.status(404).json({ message: 'Package not found' });
 		}
 
-		// Only delivered packages can be returned
-		if (pkg.status !== 'delivered') {
+		// Only delivered or delivered-returned packages can be returned
+		const validReturnStatuses = ['delivered', 'delivered-returned'];
+		if (!validReturnStatuses.includes(pkg.status)) {
 			await t.rollback();
-			return res.status(400).json({ message: 'Only delivered packages can be returned' });
+			return res.status(400).json({ message: 'Only delivered or delivered-returned packages can be returned' });
 		}
 
 		// Validate items
@@ -1610,9 +2008,10 @@ exports.requestExchange = async (req, res) => {
 			await t.rollback();
 			return res.status(404).json({ message: 'Package not found' });
 		}
-		if (pkg.status !== 'delivered') {
+		const validExchangeStatuses = ['delivered', 'delivered-returned'];
+		if (!validExchangeStatuses.includes(pkg.status)) {
 			await t.rollback();
-			return res.status(400).json({ message: 'Only delivered packages can be exchanged' });
+			return res.status(400).json({ message: 'Only delivered or delivered-returned packages can be exchanged' });
 		}
 
 		// Normalize lists to arrays of simple objects

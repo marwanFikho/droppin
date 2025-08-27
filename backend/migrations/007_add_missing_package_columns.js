@@ -45,6 +45,14 @@ async function up() {
       defaultValue: null
     });
 
+    // Add rejectionShippingPaidAmount column to Packages table
+    await queryInterface.addColumn('Packages', 'rejectionShippingPaidAmount', {
+      type: sequelize.Sequelize.DECIMAL(10, 2),
+      allowNull: true,
+      defaultValue: 0.00,
+      comment: 'Amount of shop shipping fees paid by customer at rejection'
+    });
+
     // Update the status enum to include new statuses
     await queryInterface.changeColumn('Packages', 'status', {
       type: DataTypes.ENUM('awaiting_schedule', 'awaiting_pickup', 'scheduled_for_pickup', 'pending', 'assigned', 'pickedup', 'in-transit', 'delivered', 'cancelled', 'returned'),
@@ -70,6 +78,7 @@ async function down() {
     await queryInterface.removeColumn('Packages', 'signature');
     await queryInterface.removeColumn('Packages', 'deliveryPhotos');
     await queryInterface.removeColumn('Packages', 'statusHistory');
+    await queryInterface.removeColumn('Packages', 'rejectionShippingPaidAmount');
 
     // Revert status enum to original values
     await queryInterface.changeColumn('Packages', 'status', {

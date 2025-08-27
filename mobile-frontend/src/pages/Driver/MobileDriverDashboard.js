@@ -101,6 +101,12 @@ const MobileDriverDashboard = () => {
   const [pickupActionLoading, setPickupActionLoading] = useState(false);
   const [pickupModalError, setPickupModalError] = useState(null);
   const [activePickupTab, setActivePickupTab] = useState('notPickedUp');
+  // Delivery modal state for partial/complete flow
+  const [deliveryModalOpen, setDeliveryModalOpen] = useState(false);
+  const [deliveryModalPackage, setDeliveryModalPackage] = useState(null);
+  const [isPartialDelivery, setIsPartialDelivery] = useState(false);
+  const [deliveredQuantities, setDeliveredQuantities] = useState({});
+  const [paymentMethodChoice, setPaymentMethodChoice] = useState('CASH');
 
   const handleToggleLanguage = async () => {
     const newLang = lang === 'en' ? 'ar' : 'en';
@@ -218,6 +224,23 @@ const MobileDriverDashboard = () => {
   };
 
   const doStatusAction = async (pkg, nextStatus) => {
+    // Intercept delivered to show partial/complete modal
+    if (nextStatus === 'delivered') {
+      setConfirmAction(null);
+      try {
+        // Load full package with items for quantity selection
+        const res = await packageService.getPackageById(pkg.id);
+        setDeliveryModalPackage(res.data || pkg);
+      } catch (_) {
+        setDeliveryModalPackage(pkg);
+      }
+      setIsPartialDelivery(false);
+      setDeliveredQuantities({});
+      setPaymentMethodChoice('CASH');
+      setPaymentMethodChoice('CASH');
+      setDeliveryModalOpen(true);
+      return;
+    }
     setStatusUpdating((prev) => ({ ...prev, [pkg.id]: true }));
     try {
       await packageService.updatePackageStatus(pkg.id, { status: nextStatus });
@@ -237,7 +260,7 @@ const MobileDriverDashboard = () => {
   const doRejectPackage = async (pkg) => {
     setStatusUpdating((prev) => ({ ...prev, [pkg.id]: true }));
     try {
-      await packageService.updatePackageStatus(pkg.id, { status: 'rejected' });
+      await packageService.updatePackageStatus(pkg.id, { status: 'rejected', rejectionShippingPaidAmount: (confirmAction?.shippingPaidAmount != null ? parseFloat(confirmAction.shippingPaidAmount) : undefined) });
       // Refresh packages
       const packagesRes = await packageService.getPackages({ assignedToMe: true, page: 1, limit: 10000 });
       const fetched = packagesRes.data.packages || packagesRes.data || [];
@@ -576,6 +599,9 @@ const MobileDriverDashboard = () => {
                   <div className="mobile-modal-detail-item"><span className="label">{t('driver.dashboard.pickupAddress')}</span><span>{selectedPackage.pickupAddress}</span></div>
                   <div className="mobile-modal-detail-item"><span className="label">{t('driver.dashboard.deliveryAddress')}</span><span>{selectedPackage.deliveryAddress}</span></div>
                   <div className="mobile-modal-detail-item"><span className="label">{t('driver.dashboard.codAmount')}</span><span>EGP {parseFloat(selectedPackage.codAmount || 0).toFixed(2)}</span></div>
+                  {selectedPackage.paymentMethod && (
+                    <div className="mobile-modal-detail-item"><span className="label">Payment Method</span><span>{String(selectedPackage.paymentMethod).toUpperCase()}</span></div>
+                  )}
                   <div className="mobile-modal-detail-item"><span className="label">{t('driver.dashboard.deliveryCost')}</span><span>EGP {parseFloat(selectedPackage.deliveryCost || 0).toFixed(2)}</span></div>
                   <div className="mobile-modal-detail-item"><span className="label">{t('driver.dashboard.recipientName')}</span><span>{selectedPackage.deliveryContactName}</span></div>
                   <div className="mobile-modal-detail-item"><span className="label">{t('driver.dashboard.recipientPhone')}</span><span>{selectedPackage.deliveryContactPhone}</span></div>
@@ -866,10 +892,132 @@ const MobileDriverDashboard = () => {
               ) : (
                 <>
                   <p>{t('driver.dashboard.confirmCancel')}</p>
-                  <button className="btn btn-danger" style={{marginRight: 10}} onClick={() => doRejectPackage(confirmAction.pkg)}>{t('driver.dashboard.yesCancel')}</button>
+                  <div style={{ textAlign: 'left', margin: '10px 0' }}>
+                    <label style={{ display: 'block', fontSize: 12, marginBottom: 4 }}>{t('driver.dashboard.customerPaidShippingQuestion') || 'How much did the customer pay for the shop shipping fees?'}</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={confirmAction.shippingPaidAmount ?? ''}
+                      onChange={(e) => setConfirmAction(prev => ({ ...prev, shippingPaidAmount: e.target.value }))}
+                      placeholder={t('driver.dashboard.enterAmount') || 'Enter amount'}
+                      style={{ width: '100%', padding: '8px', borderRadius: 6, border: '1px solid #ccc' }}
+                    />
+                   {(
+                     confirmAction.shippingPaidAmount === '' ||
+                     confirmAction.shippingPaidAmount === undefined ||
+                     isNaN(parseFloat(confirmAction.shippingPaidAmount)) ||
+                     parseFloat(confirmAction.shippingPaidAmount) < 0
+                   ) && (
+                     <div style={{ color: '#c62828', fontSize: 12, marginTop: 6 }}>
+                       {t('driver.dashboard.amountRequired')}
+                     </div>
+                   )}
+                  </div>
+                  <button
+                    className="btn btn-danger"
+                    style={{marginRight: 10}}
+                    onClick={() => doRejectPackage(confirmAction.pkg)}
+                    disabled={
+                      confirmAction.shippingPaidAmount === '' ||
+                      confirmAction.shippingPaidAmount === undefined ||
+                      isNaN(parseFloat(confirmAction.shippingPaidAmount)) ||
+                      parseFloat(confirmAction.shippingPaidAmount) < 0
+                    }
+                  >
+                    {t('driver.dashboard.yesCancel')}
+                  </button>
                 </>
               )}
               <button className="btn btn-secondary" onClick={() => setConfirmAction(null)}>{t('driver.dashboard.cancelBtn')}</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {deliveryModalOpen && deliveryModalPackage && (
+        <div className="mobile-modal-overlay" onClick={() => setDeliveryModalOpen(false)}>
+          <div className="mobile-modal-content" onClick={(e) => e.stopPropagation()} style={{maxWidth: 360}}>
+            <div className="mobile-modal-header">
+              <h3>{t('driver.dashboard.markAsDelivered')}</h3>
+              <button className="mobile-modal-close" onClick={() => setDeliveryModalOpen(false)}>&times;</button>
+            </div>
+            <div className="mobile-modal-body">
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                <input type="checkbox" checked={isPartialDelivery} onChange={(e) => setIsPartialDelivery(e.target.checked)} />
+                {t('driver.dashboard.partialDelivery') || 'Partial delivery'}
+              </label>
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontWeight: 600, marginBottom: 6 }}>{t('driver.dashboard.paymentMethod') || 'Payment Method'}</div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button type="button" onClick={() => setPaymentMethodChoice('CASH')} className={`btn ${paymentMethodChoice === 'CASH' ? 'btn-primary' : 'btn-secondary'}`}>
+                    CASH
+                  </button>
+                  <button type="button" onClick={() => setPaymentMethodChoice('VISA')} className={`btn ${paymentMethodChoice === 'VISA' ? 'btn-primary' : 'btn-secondary'}`}>
+                    VISA
+                  </button>
+                </div>
+              </div>
+              {isPartialDelivery ? (
+                Array.isArray(deliveryModalPackage.Items) && deliveryModalPackage.Items.length > 0 ? (
+                  <div>
+                    {deliveryModalPackage.Items.map((it) => {
+                      const maxQty = parseInt(it.quantity, 10) || 0;
+                      return (
+                        <div key={it.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                          <div style={{ flex: 1, marginRight: 8 }}>{it.description} (max {maxQty})</div>
+                          <input
+                            type="number"
+                            min="0"
+                            max={maxQty}
+                            value={deliveredQuantities[it.id] ?? ''}
+                            onChange={(e) => setDeliveredQuantities(prev => ({ ...prev, [it.id]: e.target.value }))}
+                            placeholder="0"
+                            style={{ width: 80, padding: 6 }}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div style={{ color: '#666' }}>{t('driver.dashboard.noItemsForPartial') || 'No items available for partial selection.'}</div>
+                )
+              ) : (
+                <div style={{ color: '#444' }}>{t('driver.dashboard.completeDelivery') || 'Deliver package completely to the customer.'}</div>
+              )}
+            </div>
+            <div className="mobile-modal-actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <button className="btn btn-secondary" onClick={() => setDeliveryModalOpen(false)}>{t('driver.dashboard.cancelBtn')}</button>
+              <button
+                className="btn btn-primary"
+                onClick={async () => {
+                  try {
+                    if (!isPartialDelivery) {
+                      await packageService.updatePackageStatus(deliveryModalPackage.id, { status: 'delivered', paymentMethod: paymentMethodChoice });
+                    } else {
+                      const items = Array.isArray(deliveryModalPackage.Items) ? deliveryModalPackage.Items : [];
+                      const deliveredItems = items
+                        .map(it => {
+                          const maxQty = parseInt(it.quantity, 10) || 0;
+                          const qty = parseInt(deliveredQuantities[it.id], 10) || 0;
+                          const clamped = Math.min(Math.max(0, qty), maxQty);
+                          return clamped > 0 ? { itemId: it.id, deliveredQuantity: clamped } : null;
+                        })
+                        .filter(Boolean);
+                      await packageService.updatePackageStatus(deliveryModalPackage.id, { status: 'delivered-awaiting-return', deliveredItems, paymentMethod: paymentMethodChoice });
+                    }
+                    setDeliveryModalOpen(false);
+                    // Refresh list
+                    const packagesRes = await packageService.getPackages({ assignedToMe: true, page: 1, limit: 10000 });
+                    const fetched = packagesRes.data.packages || packagesRes.data || [];
+                    const filtered = Array.isArray(fetched) ? fetched.filter(p => p.status !== 'return-pending') : [];
+                    setPackages(filtered);
+                  } catch (e) {
+                    setError(t('driver.dashboard.error') || 'Failed to update package status.');
+                  }
+                }}
+              >
+                {t('driver.dashboard.confirm') || 'Confirm'}
+              </button>
             </div>
           </div>
         </div>
