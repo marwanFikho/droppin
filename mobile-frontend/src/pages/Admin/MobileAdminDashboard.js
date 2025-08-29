@@ -1269,6 +1269,13 @@ const MobileAdminDashboard = () => {
                         )}
                       </div>
                     )}
+                    {userSubTab === 'drivers' && user.role === 'driver' && (
+                      <div className="mobile-admin-dashboard-driver-financials">
+                        <p><strong>Cash On Hand:</strong> EGP {parseFloat(user.cashOnHand || 0).toFixed(2)}</p>
+                        <p><strong>Working Area:</strong> {user.workingArea || 'Not assigned'}</p>
+                        <p><strong>Assigned Today:</strong> {user.assignedToday || 0}</p>
+                      </div>
+                    )}
                   </div>
                   {user.status === 'pending' && (
                     <div className="mobile-admin-dashboard-user-actions">

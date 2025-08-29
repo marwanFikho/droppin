@@ -209,7 +209,7 @@ export default function Index() {
     if (sentFilter === 'not_sent') return !sentOrders.includes(o.id);
     return true;
   });
-  const totalPages = Math.ceil(filteredOrders.length / limit);
+  const totalPages = Math.max(1, Math.ceil(filteredOrders.length / limit));
   const paginatedOrders = filteredOrders.slice((page - 1) * limit, page * limit);
   
   // Helpers for selecting all on the current page
@@ -400,19 +400,40 @@ export default function Index() {
           background: #fff;
           border: 1px solid #ccc;
           border-radius: 6px;
-          padding: 4px 10px;
+          padding: 6px 12px;
+          min-width: 36px;
           cursor: pointer;
-          transition: background 0.15s, border 0.15s;
+          transition: all 0.2s ease;
+          font-size: 14px;
+        }
+        .droppin-pagination button:hover:not(:disabled) {
+          background: #f0f5ff;
+          border-color: #1a73e8;
+          color: #1a73e8;
+        }
+        .droppin-pagination button:active:not(:disabled) {
+          background: #e4edff;
+          transform: translateY(1px);
         }
         .droppin-pagination button:disabled {
-          opacity: 0.5;
+          opacity: 0.4;
           cursor: not-allowed;
+        }
+        .droppin-pagination span {
+          font-size: 14px;
+          padding: 0 8px;
         }
         .droppin-pagination select {
           margin-left: 8px;
           border-radius: 6px;
           border: 1px solid #ccc;
-          padding: 4px 8px;
+          padding: 6px 8px;
+          cursor: pointer;
+          font-size: 14px;
+          transition: border 0.2s ease;
+        }
+        .droppin-pagination select:hover {
+          border-color: #1a73e8;
         }
         @media (max-width: 900px) {
           .droppin-orders-container {
@@ -426,6 +447,19 @@ export default function Index() {
           .droppin-item-card {
             padding: 3px 6px !important;
             font-size: 12px !important;
+          }
+          .droppin-pagination {
+            padding: 8px;
+            flex-wrap: wrap;
+            justify-content: center;
+          }
+          .droppin-pagination button {
+            padding: 4px 8px;
+            min-width: 30px;
+            font-size: 13px;
+          }
+          .droppin-pagination select {
+            margin-top: 8px;
           }
         }
       `}</style>
@@ -661,14 +695,51 @@ export default function Index() {
         )}
         {/* Pagination/Limiter */}
         <div className="droppin-pagination">
-          <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>&lt;</button>
-          <span>Page {page} of {totalPages || 1}</span>
-          <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages || totalPages === 0}>&gt;</button>
+          <button 
+            onClick={() => setPage(1)} 
+            disabled={page === 1}
+            style={{ fontWeight: 'bold' }}
+          >
+            &lt;&lt;
+          </button>
+          <button 
+            onClick={() => setPage(p => Math.max(1, p - 1))} 
+            disabled={page === 1}
+          >
+            &lt;
+          </button>
+          <span>Page {page} of {totalPages}</span>
+          <button 
+            onClick={() => setPage(p => Math.min(totalPages, p + 1))} 
+            disabled={page >= totalPages}
+          >
+            &gt;
+          </button>
+          <button 
+            onClick={() => setPage(totalPages)} 
+            disabled={page >= totalPages}
+            style={{ fontWeight: 'bold' }}
+          >
+            &gt;&gt;
+          </button>
           <span style={{ marginLeft: 16 }}>Show</span>
-          <select value={limit} onChange={e => { setLimit(Number(e.target.value)); setPage(1); }}>
+          <select 
+            value={limit} 
+            onChange={e => { 
+              const newLimit = Number(e.target.value);
+              setLimit(newLimit); 
+              // Adjust page if necessary to keep items visible
+              const newTotalPages = Math.max(1, Math.ceil(filteredOrders.length / newLimit));
+              if (page > newTotalPages) {
+                setPage(newTotalPages);
+              }
+            }}
+          >
+            <option value={10}>10 / page</option>
             <option value={15}>15 / page</option>
             <option value={30}>30 / page</option>
             <option value={50}>50 / page</option>
+            <option value={100}>100 / page</option>
           </select>
         </div>
         {/* Ship with Droppin Button */}

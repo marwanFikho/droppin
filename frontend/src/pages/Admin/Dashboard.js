@@ -1163,6 +1163,7 @@ const AdminDashboard = () => {
             {activeTab === 'drivers' && (
               <>
                 <th>Working Area</th>
+                <th>Cash On Hand (EGP)</th>
                 <th>Assigned Today</th>
                 <th>Total Assigned Packages</th>
                 <th>Active Assignments</th>
@@ -1208,6 +1209,9 @@ const AdminDashboard = () => {
                     >
                       <FontAwesomeIcon icon={faEdit} />
                     </button>
+                  </td>
+                  <td data-label="Cash On Hand (EGP)" className="financial-cell" style={{fontSize: '15px', color: parseFloat(user.cashOnHand || 0) > 0 ? '#2e7d32' : '#d32f2f'}}>
+                    EGP {parseFloat(user.cashOnHand || 0).toFixed(2)}
                   </td>
                   <td data-label="Assigned Today">{user.assignedToday || 0}</td>
                   <td data-label="Total Assigned">{user.totalAssigned || 0}</td>

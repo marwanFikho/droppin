@@ -999,3 +999,22 @@
   color: #6c757d;
   font-style: italic;
 } 
+
+.mobile-admin-dashboard-driver-financials {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 12px;
+  margin-top: 8px;
+}
+
+.mobile-admin-dashboard-driver-financials p {
+  margin: 4px 0;
+  font-size: 14px;
+  color: #495057;
+}
+
+.mobile-admin-dashboard-driver-financials p strong {
+  color: #212529;
+  font-weight: 600;
+}
