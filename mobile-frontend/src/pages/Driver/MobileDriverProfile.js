@@ -102,7 +102,7 @@ const MobileDriverProfile = () => {
   if (error) return <div className="mobile-error-message">{error}</div>;
 
   return (
-    <div className="mobile-driver-dashboard" style={{ marginTop: '2rem' }}>
+    <div className="mobile-driver-dashboard">
       <div className="mobile-driver-dashboard-container" style={{ paddingTop: 20 }}>
         <div className="mobile-shop-dashboard-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h1 className="mobile-shop-dashboard-title" style={{ margin: 0 }}>{t('driver.profile.myProfile')}</h1>

@@ -8,7 +8,7 @@ const dbPath = path.resolve(__dirname, '../db/dropin.sqlite');
 const sequelize = new Sequelize({
   dialect: 'sqlite',
   storage: dbPath,
-  logging: console.log, // Enable logging to see SQL queries
+  logging: process.env.NODE_ENV === 'development' ? console.log : false,
 });
 
 // Test database connection

@@ -1,0 +1,413 @@
+/* Mobile Help Page Styles */
+.mobile-help-page {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  padding-top: 65px; /* Account for top navigation */
+  padding-bottom: 30px;
+}
+
+/* Hero Section */
+.mobile-help-hero {
+  background: linear-gradient(135deg, #235789 0%, #FF6B00 100%);
+  color: white;
+  padding: 60px 20px 40px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.mobile-help-hero::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="25" cy="25" r="2" fill="rgba(255,255,255,0.1)"/><circle cx="75" cy="35" r="1.5" fill="rgba(255,255,255,0.1)"/><circle cx="45" cy="75" r="1" fill="rgba(255,255,255,0.1)"/></svg>');
+  opacity: 0.3;
+}
+
+.mobile-help-hero-content {
+  position: relative;
+  z-index: 2;
+}
+
+.mobile-help-hero h1 {
+  font-size: 32px;
+  font-weight: 900;
+  margin-bottom: 12px;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.mobile-help-hero p {
+  font-size: 16px;
+  opacity: 0.9;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+/* Help Sections */
+.mobile-help-section {
+  margin-bottom: 40px;
+}
+
+.mobile-help-content {
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.mobile-section-content {
+  padding: 0 20px;
+}
+
+.mobile-section-title {
+  font-size: 24px;
+  font-weight: 800;
+  color: #2c3e50;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+/* Search Section */
+.mobile-help-search {
+  position: relative;
+  margin-bottom: 20px;
+}
+
+.mobile-help-search-input {
+  width: 100%;
+  padding: 16px 50px 16px 20px;
+  border: 2px solid #e1e8ed;
+  border-radius: 16px;
+  font-size: 16px;
+  background: white;
+  color: #2c3e50;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+  box-sizing: border-box;
+}
+
+.mobile-help-search-input:focus {
+  outline: none;
+  border-color: #FF6B00;
+  box-shadow: 0 0 0 3px rgba(255, 107, 0, 0.1);
+}
+
+.mobile-help-search-icon {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 18px;
+  color: #5a6c7d;
+}
+
+/* Categories Section */
+.mobile-help-categories {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.mobile-help-category {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px 12px;
+  background: white;
+  border: 2px solid #e1e8ed;
+  border-radius: 16px;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+}
+
+.mobile-help-category:hover,
+.mobile-help-category.active {
+  border-color: #FF6B00;
+  background: linear-gradient(135deg, #FF6B00, #235789);
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(255, 107, 0, 0.3);
+}
+
+.mobile-category-icon {
+  font-size: 24px;
+  margin-bottom: 8px;
+}
+
+.mobile-category-label {
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  line-height: 1.2;
+}
+
+/* FAQ Section */
+.mobile-faq-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mobile-faq-item {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  overflow: hidden;
+}
+
+.mobile-faq-question {
+  width: 100%;
+  padding: 20px;
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 16px;
+  font-weight: 600;
+  color: #2c3e50;
+  transition: all 0.3s ease;
+}
+
+.mobile-faq-question:hover {
+  background: rgba(255, 107, 0, 0.05);
+}
+
+.mobile-faq-toggle {
+  font-size: 18px;
+  font-weight: 700;
+  color: #FF6B00;
+  transition: transform 0.3s ease;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 107, 0, 0.1);
+  border-radius: 50%;
+}
+
+.mobile-faq-toggle.expanded {
+  transform: rotate(180deg);
+}
+
+.mobile-faq-answer {
+  padding: 0 20px 20px;
+  border-top: 1px solid #e1e8ed;
+}
+
+.mobile-faq-answer p {
+  font-size: 14px;
+  color: #5a6c7d;
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* No Results */
+.mobile-no-results {
+  text-align: center;
+  padding: 40px 20px;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+}
+
+.mobile-no-results-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.mobile-no-results h3 {
+  font-size: 18px;
+  font-weight: 700;
+  color: #2c3e50;
+  margin-bottom: 8px;
+}
+
+.mobile-no-results p {
+  font-size: 14px;
+  color: #5a6c7d;
+}
+
+/* Support CTA Section */
+.mobile-support-cta {
+  background: white;
+  padding: 32px 20px;
+  border-radius: 16px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+  text-align: center;
+}
+
+.mobile-support-cta h2 {
+  font-size: 24px;
+  font-weight: 800;
+  color: #2c3e50;
+  margin-bottom: 12px;
+}
+
+.mobile-support-cta p {
+  font-size: 16px;
+  color: #5a6c7d;
+  margin-bottom: 24px;
+  line-height: 1.5;
+}
+
+.mobile-support-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mobile-support-option {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 12px;
+  text-decoration: none;
+  color: #2c3e50;
+  transition: all 0.3s ease;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+}
+
+.mobile-support-option:hover {
+  background: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+}
+
+.mobile-support-icon {
+  font-size: 24px;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #FF6B00, #235789);
+  border-radius: 12px;
+  color: white;
+  flex-shrink: 0;
+}
+
+.mobile-support-details {
+  flex: 1;
+  text-align: left;
+}
+
+.mobile-support-details h3 {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.mobile-support-details p {
+  font-size: 14px;
+  color: #5a6c7d;
+  margin: 0;
+}
+
+/* Quick Links Section */
+.mobile-quick-links {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.mobile-quick-link {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 20px 16px;
+  background: white;
+  border-radius: 16px;
+  text-decoration: none;
+  color: #2c3e50;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+}
+
+.mobile-quick-link:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+  background: linear-gradient(135deg, #FF6B00, #235789);
+  color: white;
+}
+
+.mobile-quick-link-icon {
+  font-size: 24px;
+}
+
+.mobile-quick-link span {
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+}
+
+/* Responsive Design */
+@media (max-width: 480px) {
+  .mobile-help-hero {
+    padding: 50px 15px 30px;
+  }
+
+  .mobile-help-hero h1 {
+    font-size: 28px;
+  }
+
+  .mobile-help-hero p {
+    font-size: 15px;
+  }
+
+  .mobile-section-title {
+    font-size: 22px;
+  }
+
+  .mobile-help-categories {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .mobile-help-category {
+    padding: 14px 12px;
+  }
+
+  .mobile-category-icon {
+    font-size: 20px;
+  }
+
+  .mobile-support-options {
+    gap: 10px;
+  }
+
+  .mobile-support-option {
+    padding: 14px;
+  }
+
+  .mobile-support-icon {
+    width: 44px;
+    height: 44px;
+    font-size: 20px;
+  }
+
+  .mobile-quick-links {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .mobile-quick-link {
+    flex-direction: row;
+    justify-content: center;
+    gap: 12px;
+    padding: 16px;
+  }
+
+  .mobile-quick-link span {
+    font-size: 14px;
+  }
+}

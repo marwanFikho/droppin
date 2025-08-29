@@ -13,6 +13,27 @@
   padding: 20px;
 }
 
+/* Loading and Error States */
+.mobile-admin-dashboard-loading,
+.mobile-admin-dashboard-error {
+  text-align: center;
+  padding: 40px 20px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  margin: 20px 0;
+}
+
+.mobile-admin-dashboard-loading {
+  color: #f36325;
+  font-weight: 600;
+}
+
+.mobile-admin-dashboard-error {
+  color: #dc3545;
+  font-weight: 600;
+}
+
 /* Dashboard Header */
 .mobile-admin-dashboard-header {
   display: flex;

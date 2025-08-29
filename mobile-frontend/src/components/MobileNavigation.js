@@ -139,19 +139,28 @@ const MobileNavigation = () => {
             </Link>
           </div>
           
-          {currentUser && (
+          {currentUser ? (
             <div className="mobile-user-menu">
               <div className="mobile-user-info">
                 <span className="mobile-user-name">{currentUser.name || currentUser.email}</span>
                 <span className="mobile-user-role">{currentUser.role}</span>
               </div>
-              <button 
+              <button
                 onClick={handleLogout}
                 className="mobile-logout-btn"
                 aria-label="Logout"
               >
                 🚪
               </button>
+            </div>
+          ) : (
+            <div className="mobile-auth-buttons">
+              <Link to="/login" className="mobile-login-btn">
+                Sign In
+              </Link>
+              <Link to="/register/shop" className="mobile-register-btn">
+                Register
+              </Link>
             </div>
           )}
         </div>

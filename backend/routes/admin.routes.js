@@ -48,5 +48,7 @@ router.get('/analytics/packages-per-month', adminController.getPackagesPerMonth)
 router.get('/analytics/cod-per-month', adminController.getCodCollectedPerMonth);
 router.get('/analytics/package-status-distribution', adminController.getPackageStatusDistribution);
 router.get('/analytics/top-shops', adminController.getTopShops);
+router.get('/analytics/recent-packages', adminController.getRecentPackagesData);
+router.get('/analytics/recent-cod', adminController.getRecentCodData);
 
 module.exports = router;

@@ -12,6 +12,29 @@
   padding: 20px;
 }
 
+/* Loading and Error States */
+.mobile-driver-dashboard-loading,
+.mobile-driver-dashboard-error,
+.mobile-error-message {
+  text-align: center;
+  padding: 40px 20px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  margin: 20px 0;
+}
+
+.mobile-driver-dashboard-loading {
+  color: #f36325;
+  font-weight: 600;
+}
+
+.mobile-driver-dashboard-error,
+.mobile-error-message {
+  color: #dc3545;
+  font-weight: 600;
+}
+
 /* Dashboard Header */
 .mobile-driver-dashboard-header {
   display: flex;

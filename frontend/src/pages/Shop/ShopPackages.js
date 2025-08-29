@@ -216,13 +216,13 @@ const ShopPackages = () => {
     const fetchPackages = async () => {
       setLoading(true);
       try {
-        const res = await packageService.getPackages({ limit: 10000 });
-        setPackages(res.data.packages || res.data || []);
+        const res = await packageService.getPackages({ page: 1, limit: 25 });
+        setPackages(res.data?.packages || res.data || []);
         
         // Check if we need to reopen a package modal after refresh
         const reopenPackageId = localStorage.getItem('reopenPackageModal');
         if (reopenPackageId) {
-          const packageToReopen = (res.data.packages || res.data || []).find(pkg => pkg.id == reopenPackageId);
+          const packageToReopen = (res.data?.packages || res.data || []).find(pkg => pkg.id == reopenPackageId);
           if (packageToReopen) {
             const _normalized = (() => {
               let d = packageToReopen.deliveredItems ?? packageToReopen.delivereditems ?? null;
@@ -909,8 +909,8 @@ const ShopPackages = () => {
       // Refresh list without full page reload
       // Prefer staying on the same tab
       try {
-        const res = await packageService.getPackages({ limit: 10000 });
-        setPackages(res.data.packages || res.data || []);
+        const res = await packageService.getPackages({ page: 1, limit: 25 });
+        setPackages(res.data?.packages || res.data || []);
       } catch (e) {
         // Silent fallback
       }

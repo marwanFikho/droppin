@@ -25,8 +25,8 @@ const MobileShopDashboard = () => {
       setLoading(true);
       setError(null);
       try {
-        // Fetch all packages for this shop
-        const packagesRes = await packageService.getPackages({ limit: 10000 });
+        // Fetch paginated packages for this shop
+        const packagesRes = await packageService.getPackages({ page: 1, limit: 25 });
         const pkgs = packagesRes.data?.packages || packagesRes.data || [];
         // Calculate stats
         const totalPackages = pkgs.length;
@@ -97,7 +97,7 @@ const MobileShopDashboard = () => {
   };
 
   return (
-    <div className="mobile-shop-dashboard" style={{marginTop: '2rem'}}>
+    <div className="mobile-shop-dashboard">
       <div className="mobile-shop-dashboard-container">
         {/* Dashboard Header */}
         <div className="mobile-shop-dashboard-header">

@@ -93,9 +93,33 @@ const startServer = async () => {
 
     const { User, Shop, Driver, Package } = require('./models/index');
 
+    // SQLite performance pragmas
+    try {
+      await sequelize.query("PRAGMA journal_mode=WAL;");
+      await sequelize.query("PRAGMA synchronous=NORMAL;");
+      await sequelize.query("PRAGMA temp_store=MEMORY;");
+      await sequelize.query("PRAGMA cache_size=-20000;");
+      console.log('Applied SQLite performance PRAGMAs');
+    } catch (e) {
+      console.warn('Failed to apply SQLite PRAGMAs:', e.message);
+    }
+
     console.log('Synchronizing database models...');
     await sequelize.sync({ force: false });
     console.log('Database synchronized successfully');
+
+    // Ensure helpful indexes exist (SQLite supports IF NOT EXISTS)
+    try {
+      await sequelize.query("CREATE INDEX IF NOT EXISTS idx_packages_status ON Packages (status)");
+      await sequelize.query("CREATE INDEX IF NOT EXISTS idx_packages_shopId ON Packages (shopId)");
+      await sequelize.query("CREATE INDEX IF NOT EXISTS idx_packages_driverId ON Packages (driverId)");
+      await sequelize.query("CREATE INDEX IF NOT EXISTS idx_packages_createdAt ON Packages (createdAt)");
+      await sequelize.query("CREATE INDEX IF NOT EXISTS idx_packages_actualDeliveryTime ON Packages (actualDeliveryTime)");
+      await sequelize.query("ANALYZE;");
+      console.log('Ensured indexes on Packages table');
+    } catch (e) {
+      console.warn('Failed to ensure indexes:', e.message);
+    }
 
     const adminEmail = 'admin@dropin.com';
     const admin = await User.findOne({ where: { email: adminEmail } });

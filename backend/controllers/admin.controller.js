@@ -1061,122 +1061,158 @@ exports.assignDriverToPackage = async (req, res) => {
   }
 };
 
-// Get all packages (with optional filtering)
+// Get all packages (with optional filtering) - optimized with pagination and joins
 exports.getPackages = async (req, res) => {
   try {
-    console.log('Getting packages with query:', req.query);
-    const { status, shopId, search, createdAfter, createdBefore, deliveredAfter, deliveredBefore } = req.query;
+    const {
+      id,
+      driverId,
+      status,
+      statusIn, // comma-separated statuses
+      shopId,
+      search,
+      createdAfter,
+      createdBefore,
+      deliveredAfter,
+      deliveredBefore,
+      page = 1,
+      limit: rawLimit = 25,
+      sortBy = 'createdAt',
+      sortOrder = 'DESC'
+    } = req.query;
+
+    const limit = parseInt(rawLimit) || 25;
+    const currentPage = Math.max(1, parseInt(page) || 1);
+    const offset = (currentPage - 1) * limit;
+
     const whereClause = {};
-    
-    // Add status filter if provided
+
+    if (id) {
+      whereClause.id = id;
+    }
+
+    if (driverId) {
+      whereClause.driverId = driverId;
+    }
+
     if (status && status !== 'all') {
       whereClause.status = status;
     }
-    
-    // Add shop filter if provided
+    // Multiple status values
+    if (statusIn) {
+      const statuses = String(statusIn)
+        .split(',')
+        .map(s => s.trim())
+        .filter(Boolean);
+      if (statuses.length > 0) {
+        whereClause.status = { [Op.in]: statuses };
+      }
+    }
+
     if (shopId) {
       whereClause.shopId = shopId;
     }
-    
-    // Add search filter if provided
+
     if (search) {
-      // Use the Op object imported directly from sequelize to avoid issues
       whereClause[Op.or] = [
         { trackingNumber: { [Op.like]: `%${search}%` } },
         { packageDescription: { [Op.like]: `%${search}%` } }
       ];
     }
 
-    // Add createdAt date range filter if provided
     if (createdAfter || createdBefore) {
       whereClause.createdAt = {};
-      if (createdAfter) {
-        whereClause.createdAt[Op.gte] = new Date(createdAfter);
-      }
-      if (createdBefore) {
-        whereClause.createdAt[Op.lte] = new Date(createdBefore);
-      }
+      if (createdAfter) whereClause.createdAt[Op.gte] = new Date(createdAfter);
+      if (createdBefore) whereClause.createdAt[Op.lte] = new Date(createdBefore);
     }
-    // Add actualDeliveryTime date range filter if provided
+
     if (deliveredAfter || deliveredBefore) {
       whereClause.actualDeliveryTime = {};
-      if (deliveredAfter) {
-        whereClause.actualDeliveryTime[Op.gte] = new Date(deliveredAfter);
-      }
-      if (deliveredBefore) {
-        whereClause.actualDeliveryTime[Op.lte] = new Date(deliveredBefore);
-      }
+      if (deliveredAfter) whereClause.actualDeliveryTime[Op.gte] = new Date(deliveredAfter);
+      if (deliveredBefore) whereClause.actualDeliveryTime[Op.lte] = new Date(deliveredBefore);
     }
-    
-    const packages = await Package.findAll({
+
+    const validSortFields = ['createdAt', 'actualDeliveryTime', 'status', 'updatedAt'];
+    const orderField = validSortFields.includes(sortBy) ? sortBy : 'createdAt';
+    const orderDirection = ['ASC', 'DESC'].includes(String(sortOrder).toUpperCase()) ? String(sortOrder).toUpperCase() : 'DESC';
+
+    const { count, rows } = await Package.findAndCountAll({
       attributes: [
         'id', 'trackingNumber', 'packageDescription', 'weight', 'dimensions',
-        'type',
-        'status', 'shopId', 'userId', 'driverId',
+        'type', 'status', 'shopId', 'userId', 'driverId',
         'pickupContactName', 'pickupContactPhone', 'pickupAddress',
         'deliveryContactName', 'deliveryContactPhone', 'deliveryAddress',
         'schedulePickupTime', 'estimatedDeliveryTime',
         'actualPickupTime', 'actualDeliveryTime',
         'priority', 'paymentStatus', 'createdAt', 'updatedAt',
         'codAmount', 'deliveryCost', 'shownDeliveryCost', 'isPaid', 'paymentDate', 'shopNotes',
-        'notes', 'exchangeDetails',
-        'itemsNo'
+        'notes', 'exchangeDetails', 'itemsNo'
       ],
       where: whereClause,
-      order: [['createdAt', 'DESC']]
+      include: [
+        {
+          model: Shop,
+          attributes: ['id', 'businessName', 'userId'],
+          include: [
+            {
+              model: User,
+              attributes: ['name', 'email', 'phone']
+            }
+          ]
+        },
+        {
+          model: Driver,
+          attributes: ['id', 'vehicleType', 'licensePlate', 'userId'],
+          include: [
+            {
+              model: User,
+              attributes: ['name', 'email', 'phone']
+            }
+          ]
+        }
+      ],
+      order: [[orderField, orderDirection]],
+      limit,
+      offset
     });
-    
-    // Fetch additional data for each package
-    const enhancedPackages = await Promise.all(packages.map(async (pkg) => {
-      const packageData = pkg.toJSON();
-      
-      // Dates are now stored as formatted strings, so no formatting needed
-      
-      // Get shop info
-      if (pkg.shopId) {
-        const shop = await Shop.findByPk(pkg.shopId);
-        if (shop) {
-          const shopUser = await User.findByPk(shop.userId, {
-            attributes: ['name', 'email', 'phone']
-          });
-          
-          packageData.shop = {
-            id: shop.id,
-            businessName: shop.businessName,
-            contact: shopUser ? {
-              name: shopUser.name,
-              email: shopUser.email,
-              phone: shopUser.phone
-            } : null
-          };
-        }
+
+    const packages = rows.map(row => {
+      const pkg = row.toJSON();
+      const formatted = { ...pkg };
+      if (pkg.Shop) {
+        formatted.shop = {
+          id: pkg.Shop.id,
+          businessName: pkg.Shop.businessName,
+          contact: pkg.Shop.User ? {
+            name: pkg.Shop.User.name,
+            email: pkg.Shop.User.email,
+            phone: pkg.Shop.User.phone
+          } : null
+        };
       }
-      
-      // Get driver info
-      if (pkg.driverId) {
-        const driver = await Driver.findByPk(pkg.driverId);
-        if (driver) {
-          const driverUser = await User.findByPk(driver.userId, {
-            attributes: ['name', 'email', 'phone']
-          });
-          
-          packageData.driver = {
-            id: driver.id,
-            vehicleType: driver.vehicleType,
-            licensePlate: driver.licensePlate,
-            contact: driverUser ? {
-              name: driverUser.name,
-              email: driverUser.email,
-              phone: driverUser.phone
-            } : null
-          };
-        }
+      if (pkg.Driver) {
+        formatted.driver = {
+          id: pkg.Driver.id,
+          vehicleType: pkg.Driver.vehicleType,
+          licensePlate: pkg.Driver.licensePlate,
+          contact: pkg.Driver.User ? {
+            name: pkg.Driver.User.name,
+            email: pkg.Driver.User.email,
+            phone: pkg.Driver.User.phone
+          } : null
+        };
       }
-      
-      return packageData;
-    }));
-    
-    res.json(enhancedPackages);
+      delete formatted.Shop;
+      delete formatted.Driver;
+      return formatted;
+    });
+
+    return res.json({
+      packages,
+      total: count,
+      totalPages: Math.ceil(count / limit),
+      currentPage
+    });
   } catch (error) {
     console.error('Error getting packages:', error);
     res.status(500).json({ message: error.message });
@@ -1435,7 +1471,7 @@ exports.getMoneyTransactions = async (req, res) => {
   try {
     const { 
       page = 1, 
-      limit, 
+      limit = 25, 
       shopId,
       startDate,
       endDate,
@@ -1468,8 +1504,9 @@ exports.getMoneyTransactions = async (req, res) => {
       ];
     }
 
-    const offset = limit ? (page - 1) * limit : undefined;
-    // Models and Op should be imported at the top of the file
+    const pageNum = Math.max(1, parseInt(page) || 1);
+    const limitNum = Math.max(1, parseInt(limit) || 25);
+    const offset = (pageNum - 1) * limitNum;
 
     // Validate sort field
     const validSortFields = ['createdAt', 'amount', 'attribute', 'changeType'];
@@ -1494,12 +1531,11 @@ exports.getMoneyTransactions = async (req, res) => {
             attributes: ['name']
           }]
         }
-      ]
+      ],
+      limit: limitNum,
+      offset
     };
-    if (limit !== undefined && limit !== null) {
-      findOptions.limit = parseInt(limit);
-      findOptions.offset = offset;
-    }
+
     const { count, rows } = await MoneyTransaction.findAndCountAll(findOptions);
 
     // Enhance each transaction with driver info if possible
@@ -1569,8 +1605,8 @@ exports.getMoneyTransactions = async (req, res) => {
     res.json({
       transactions: filteredRows,
       total: count,
-      totalPages: limit ? Math.ceil(count / limit) : 1,
-      currentPage: parseInt(page),
+      totalPages: Math.ceil(count / limitNum),
+      currentPage: pageNum,
       filters: {
         shopId,
         startDate,
@@ -1707,6 +1743,71 @@ exports.getTopShops = async (req, res) => {
     `, { type: QueryTypes.SELECT });
     res.json({ volume, cod });
   } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// 5. Recent packages data (last 7 days for dashboard chart)
+exports.getRecentPackagesData = async (req, res) => {
+  try {
+    const results = await sequelize.query(`
+      SELECT
+        date(createdAt) as date,
+        COUNT(*) as created,
+        SUM(CASE WHEN status = 'delivered' THEN 1 ELSE 0 END) as delivered
+      FROM Packages
+      WHERE date(createdAt) >= date('now', '-6 days')
+      GROUP BY date(createdAt)
+      ORDER BY date(createdAt) ASC
+    `, { type: QueryTypes.SELECT });
+
+    console.log('Recent packages data:', results); // Debug log
+    res.json(results);
+  } catch (error) {
+    console.error('Error in getRecentPackagesData:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// 6. Recent COD collected data (last 4 weeks for dashboard chart)
+exports.getRecentCodData = async (req, res) => {
+  try {
+    // Get data for each of the last 4 weeks
+    const weeklyResults = [];
+    const now = new Date();
+
+    for (let weekOffset = 3; weekOffset >= 0; weekOffset--) {
+      const weekStart = new Date(now);
+      weekStart.setDate(now.getDate() - (weekOffset * 7) - 6); // Start of week
+      const weekEnd = new Date(now);
+      weekEnd.setDate(now.getDate() - (weekOffset * 7)); // End of week
+
+      const startDate = weekStart.toISOString().split('T')[0];
+      const endDate = weekEnd.toISOString().split('T')[0];
+
+      const result = await sequelize.query(`
+        SELECT
+          SUM(CASE WHEN status = 'delivered' THEN codAmount ELSE 0 END) as codCollected
+        FROM Packages
+        WHERE actualDeliveryTime IS NOT NULL
+          AND date(actualDeliveryTime) >= ?
+          AND date(actualDeliveryTime) <= ?
+      `, {
+        replacements: [startDate, endDate],
+        type: QueryTypes.SELECT
+      });
+
+      weeklyResults.push({
+        week: weekOffset === 0 ? 'This week' : `${weekOffset} week${weekOffset > 1 ? 's' : ''} ago`,
+        weekOffset: weekOffset,
+        codCollected: result[0]?.codCollected || 0
+      });
+    }
+
+    console.log('Recent COD data:', weeklyResults); // Debug log
+    res.json(weeklyResults);
+  } catch (error) {
+    console.error('Error in getRecentCodData:', error);
     res.status(500).json({ message: error.message });
   }
 };

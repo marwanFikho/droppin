@@ -103,7 +103,8 @@ const AdminDashboard = () => {
     changeType: '',
     search: '',
     sortBy: 'createdAt',
-    sortOrder: 'DESC'
+    sortOrder: 'DESC',
+    shopId: ''
   });
   const [sortConfig, setSortConfig] = useState({
     field: 'createdAt',
@@ -180,8 +181,9 @@ const AdminDashboard = () => {
       const params = { driverId };
       if (opts.createdAfter) params.createdAfter = opts.createdAfter;
       if (opts.createdBefore) params.createdBefore = opts.createdBefore;
-      const res = await adminService.getPackages(params);
-      setDriverPackages((res.data || []).filter(pkg => pkg.driverId === driverId));
+      const res = await adminService.getPackages({ ...params, page: 1, limit: 25 });
+      const list = res.data?.packages || res.data || [];
+      setDriverPackages(list.filter(pkg => pkg.driverId === driverId));
     } catch (err) {
       setDriverPackages([]);
     }
@@ -340,10 +342,10 @@ const AdminDashboard = () => {
           const deliveredAfter = createdAfter;
           // Fetch packages created OR delivered in the last 7 days
           const [allPkgsRes, trans] = await Promise.all([
-            adminService.getPackages({ limit: 1000 }),
+            adminService.getPackages({ page: 1, limit: 25 }),
             adminService.getMoneyTransactions()
           ]);
-          const pkgs = allPkgsRes.data || [];
+          const pkgs = allPkgsRes.data?.packages || allPkgsRes.data || [];
           setPackages(pkgs);
           setMoneyTransactions(trans.data.transactions || []);
           // --- Fetch shops for dashboard revenue table ---
@@ -367,31 +369,13 @@ const AdminDashboard = () => {
             break;
           case 'packages':
             console.log('Fetching packages...');
-            const packagesResponse = await adminService.getPackages();
-            console.log('Packages received:', packagesResponse.data);
-            // For ready-to-assign tab, only show pending packages
-            // For all-packages tab, show all packages except those that aren't picked up yet
-                          if (packagesTab === 'ready-to-assign') {
-                const readyToAssignPackages = (packagesResponse.data || []).filter(pkg =>
-                  pkg.status === 'pending' ||
-                  pkg.status === 'cancelled-awaiting-return' ||
-                  pkg.status === 'return-requested' ||
-                  pkg.status === 'exchange-in-process'
-                );
-              console.log('Filtered ready-to-assign packages:', readyToAssignPackages);
-              setPackages(readyToAssignPackages);
-            } else {
-              const filteredPackages = (packagesResponse.data || []);
-              console.log('Filtered all packages (excluding non-picked up):', filteredPackages);
-              setPackages(filteredPackages);
-            }
+            await fetchPackages(1, searchTerm);
             // Fetch all drivers for lookup
             const driversResponse = await adminService.getDrivers();
             setDrivers(driversResponse.data || []);
-            
             // Check if we need to reopen a package modal after refresh
             if (reopenEntityId) {
-              const entityToReopen = (packagesResponse.data || []).find(pkg => pkg.id == reopenEntityId);
+              const entityToReopen = (packages || []).find(pkg => pkg.id == reopenEntityId);
               if (entityToReopen) {
                 setSelectedEntity(entityToReopen);
                 setShowDetailsModal(true);
@@ -424,124 +408,7 @@ const AdminDashboard = () => {
     return Math.floor((d1 - d2) / (1000 * 60 * 60 * 24));
   }
 
-  // New useEffect for processing dashboard data
-  useEffect(() => {
-    if (activeTab === 'dashboard' && packages.length > 0) {
-      // Use the most recent createdAt date as the reference for the last 7 days
-      const allDates = packages.map(p => p.createdAt ? new Date(p.createdAt) : null).filter(Boolean);
-      const maxDate = allDates.length > 0 ? new Date(Math.max(...allDates.map(d => d.getTime()))) : new Date();
-      const last7Days = [...Array(7)].map((_, i) => {
-        const d = new Date(maxDate);
-        d.setDate(maxDate.getDate() - (6 - i));
-        return d.toISOString().split('T')[0];
-      });
-      const last7DaysLabels = last7Days.map(dateStr => {
-        const d = new Date(dateStr);
-        return d.toLocaleDateString('en-US', { weekday: 'short' });
-      });
-      const createdPerDay = Array(7).fill(0);
-      const deliveredPerDay = Array(7).fill(0);
-      // Debug output
-      console.log('last7Days:', last7Days);
-      console.log('All createdAt:', packages.map(p => p.createdAt));
-      console.log('All actualDeliveryTime:', packages.map(p => p.actualDeliveryTime));
-      packages.forEach(pkg => {
-        // Universal date extraction
-        let createdDateStr = '';
-        if (pkg.createdAt) {
-          if (pkg.createdAt.includes('T')) {
-            createdDateStr = pkg.createdAt.split('T')[0];
-          } else {
-            createdDateStr = pkg.createdAt;
-          }
-        }
-        const createdIdx = last7Days.indexOf(createdDateStr);
-        if (createdIdx !== -1) {
-          createdPerDay[createdIdx]++;
-        }
-        if (pkg.status === 'delivered') {
-          let deliveredDate = pkg.actualDeliveryTime || pkg.updatedAt || pkg.createdAt;
-          let deliveredDateStr = '';
-          if (deliveredDate) {
-            if (deliveredDate.includes('T')) {
-              deliveredDateStr = deliveredDate.split('T')[0];
-            } else {
-              deliveredDateStr = deliveredDate;
-            }
-          }
-          const deliveredIdx = last7Days.indexOf(deliveredDateStr);
-          if (deliveredIdx !== -1) {
-            deliveredPerDay[deliveredIdx]++;
-          }
-        }
-      });
-      
-      const packagesChart = {
-        labels: last7DaysLabels,
-        datasets: [
-          {
-            label: 'Created',
-            data: createdPerDay,
-            borderColor: 'rgba(75,192,192,1)',
-            backgroundColor: 'rgba(75,192,192,0.2)',
-            tension: 0.4,
-          },
-          {
-            label: 'Delivered',
-            data: deliveredPerDay,
-            borderColor: 'rgba(54,162,235,1)',
-            backgroundColor: 'rgba(54,162,235,0.2)',
-            tension: 0.4,
-          },
-        ],
-      };
 
-      // Process COD Collected
-      const totalCod = packages
-        .filter(p => p.status === 'delivered' && p.codAmount > 0)
-        .reduce((sum, p) => sum + parseFloat(p.codAmount), 0);
-      
-      const weeklyCod = [0, 0, 0, 0];
-      const today = new Date();
-      packages.filter(p => p.status === 'delivered' && p.codAmount > 0 && p.actualDeliveryTime).forEach(p => {
-        const deliveryDate = new Date(p.actualDeliveryTime);
-        const weeksAgo = Math.floor((today - deliveryDate) / (1000 * 60 * 60 * 24 * 7));
-        if (weeksAgo < 4) {
-          weeklyCod[3 - weeksAgo] += parseFloat(p.codAmount);
-        }
-      });
-
-      const codChart = {
-        labels: ['3 wks ago', '2 wks ago', 'Last wk', 'This wk'],
-        datasets: [{
-          label: 'COD Collected',
-          data: weeklyCod,
-          backgroundColor: 'rgba(255, 206, 86, 0.6)',
-          borderColor: 'rgba(255, 206, 86, 1)',
-          borderWidth: 1,
-        }]
-      };
-
-      // Recent Packages
-      const recentPackages = [...packages]
-        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-        .slice(0, 5);
-      
-      // Recent Settlements
-      const recentSettlements = moneyTransactions
-        .filter(tx => tx.description && (tx.description.toLowerCase().includes('settle') || tx.changeType === 'payout'))
-        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-        .slice(0, 5);
-
-      setDashboardData({
-        packagesChart,
-        codChart,
-        recentPackages,
-        recentSettlements,
-        totalCodCollected: totalCod
-      });
-    }
-  }, [activeTab, packages, moneyTransactions]);
 
   // Clear selected packages when switching tabs or when packages change
   useEffect(() => {
@@ -791,15 +658,15 @@ const AdminDashboard = () => {
                   await fetchUsers('driver');
                   break;
                 case 'packages':
-                  const packagesResponse = await adminService.getPackages();
-                  setPackages(packagesResponse.data || []);
+                  const packagesResponse = await adminService.getPackages({ page: 1, limit: 25 });
+                  setPackages(packagesResponse.data?.packages || packagesResponse.data || []);
                   break;
                 case 'dashboard':
                   const [pkgs, trans] = await Promise.all([
-                    adminService.getPackages(),
+                    adminService.getPackages({ page: 1, limit: 25 }),
                     adminService.getMoneyTransactions()
                   ]);
-                  setPackages(pkgs.data || []);
+                  setPackages(pkgs.data?.packages || pkgs.data || []);
                   setMoneyTransactions(trans.data.transactions || []);
                   break;
                 default:
@@ -868,27 +735,14 @@ const AdminDashboard = () => {
                 await fetchUsers('driver');
                 break;
               case 'packages':
-                const packagesResponse = await adminService.getPackages();
-                if (packagesTab === 'ready-to-assign') {
-                  const readyToAssignPackages = (packagesResponse.data || []).filter(pkg =>
-                    pkg.status === 'pending' ||
-                    pkg.status === 'cancelled-awaiting-return' ||
-                    pkg.status === 'exchange-in-process'
-                  );
-                  setPackages(readyToAssignPackages);
-                } else {
-                  const filteredPackages = (packagesResponse.data || []).filter(pkg => 
-                    !['awaiting_schedule', 'awaiting_pickup', 'scheduled_for_pickup'].includes(pkg.status)
-                  );
-                  setPackages(filteredPackages);
-                }
+                await fetchPackages(1, searchTerm);
                 break;
               case 'dashboard':
                 const [pkgs, trans] = await Promise.all([
-                  adminService.getPackages(),
+                  adminService.getPackages({ page: 1, limit: 25 }),
                   adminService.getMoneyTransactions()
                 ]);
-                setPackages(pkgs.data || []);
+                setPackages(pkgs.data?.packages || pkgs.data || []);
                 setMoneyTransactions(trans.data.transactions || []);
                 break;
               default:
@@ -960,20 +814,7 @@ const AdminDashboard = () => {
       
       // Refresh packages data
       if (activeTab === 'packages') {
-        const packagesResponse = await adminService.getPackages();
-        if (packagesTab === 'ready-to-assign') {
-          const readyToAssignPackages = (packagesResponse.data || []).filter(pkg =>
-            pkg.status === 'pending' ||
-            pkg.status === 'cancelled-awaiting-return' ||
-            pkg.status === 'exchange-in-process'
-          );
-          setPackages(readyToAssignPackages);
-        } else {
-          const filteredPackages = (packagesResponse.data || []).filter(pkg => 
-            !['awaiting_schedule', 'awaiting_pickup', 'scheduled_for_pickup'].includes(pkg.status)
-          );
-          setPackages(filteredPackages);
-        }
+        await fetchPackages(1, searchTerm);
       }
       
       setShowAssignDriverModal(false);
@@ -1462,7 +1303,7 @@ const AdminDashboard = () => {
             <button 
               key={tab.value}
               className={`sub-tab-btn ${packagesTab === tab.value ? 'active' : ''}`}
-              onClick={() => setPackagesTab(tab.value)}
+              onClick={() => { setPackagesTab(tab.value); setPackagePage(1); }}
             >
               {tab.label}
             </button>
@@ -2952,7 +2793,7 @@ const AdminDashboard = () => {
                 )}
                 
                 {/* Reject Package button - only show for packages that are not already rejected, cancelled, or delivered */}
-                {!['cancelled', 'cancelled-awaiting-return', 'cancelled-returned', 'rejected', 'rejected-awaiting-return', 'rejected-returned', 'delivered'].includes(selectedEntity.status) && (
+                {!['cancelled', 'cancelled-awaiting-return', 'cancelled-returned', 'rejected', 'rejected-returned', 'delivered'].includes(selectedEntity.status) && (
                   <button
                     className="btn btn-danger"
                     onClick={() => {
@@ -3235,21 +3076,7 @@ const AdminDashboard = () => {
       setPickups(pickupsResponse.data || []);
       
       // Refresh packages data
-      const packagesResponse = await adminService.getPackages();
-      if (packagesTab === 'ready-to-assign') {
-        const readyToAssignPackages = (packagesResponse.data || []).filter(pkg =>
-          pkg.status === 'pending' ||
-          pkg.status === 'cancelled-awaiting-return' ||
-          pkg.status === 'return-requested' ||
-          pkg.status === 'exchange-in-process'
-        );
-        setPackages(readyToAssignPackages);
-      } else {
-        const filteredPackages = (packagesResponse.data || []).filter(pkg => 
-          !['awaiting_schedule', 'awaiting_pickup', 'scheduled_for_pickup'].includes(pkg.status)
-        );
-        setPackages(filteredPackages);
-      }
+      await fetchPackages(1, searchTerm);
       
       setStatusMessage({ type: 'success', text: 'Pickup marked as picked up successfully!' });
     } catch (error) {
@@ -3400,9 +3227,9 @@ const AdminDashboard = () => {
       
       // Refresh the packages list
       if (activeTab === 'packages') {
-        const packagesResponse = await adminService.getPackages();
+        const packagesResponse = await adminService.getPackages({ page: 1, limit: 25 });
         if (packagesTab === 'ready-to-assign') {
-          const readyToAssignPackages = (packagesResponse.data || []).filter(pkg =>
+          const readyToAssignPackages = (packagesResponse.data?.packages || packagesResponse.data || []).filter(pkg =>
             pkg.status === 'pending' ||
             pkg.status === 'cancelled-awaiting-return' ||
             pkg.status === 'return-requested' ||
@@ -3410,7 +3237,7 @@ const AdminDashboard = () => {
           );
           setPackages(readyToAssignPackages);
         } else {
-          const filteredPackages = (packagesResponse.data || []);
+          const filteredPackages = (packagesResponse.data?.packages || packagesResponse.data || []);
           setPackages(filteredPackages);
         }
       }
@@ -3659,14 +3486,18 @@ const AdminDashboard = () => {
         [field]: value
       }));
     }
+    // Reset to first page when filters change
+    setMoneyPage(1);
   };
 
   // Add function to fetch money transactions with filters
-  const fetchMoneyTransactions = async () => {
+  const fetchMoneyTransactions = async (page = moneyPage) => {
     try {
       const params = {
         ...moneyFilters,
-        page: 1
+        page,
+        limit: 25,
+        search: searchTerm
       };
       // Convert shopId to number if present
       if (params.shopId) {
@@ -3681,6 +3512,9 @@ const AdminDashboard = () => {
       });
       const res = await adminService.getMoneyTransactions(params);
       setMoneyTransactions(res.data.transactions || []);
+      setMoneyPage(res.data.currentPage || page);
+      setMoneyTotalPages(res.data.totalPages || 1);
+      setMoneyTotal(res.data.total || (res.data.transactions || []).length);
     } catch (error) {
       console.error('Error fetching money transactions:', error);
       setStatusMessage({
@@ -3693,9 +3527,9 @@ const AdminDashboard = () => {
   // Add effect to refetch when filters change
   useEffect(() => {
     if (activeTab === 'money') {
-      fetchMoneyTransactions();
+      fetchMoneyTransactions(1);
     }
-  }, [activeTab, moneyFilters]);
+  }, [activeTab, moneyFilters, searchTerm]);
 
   const renderMoneyTable = () => {
     // Use all transactions from backend, do not filter by searchTerm on frontend
@@ -3755,74 +3589,70 @@ const AdminDashboard = () => {
               <option value="">All Types</option>
               <option value="increase">Increase</option>
               <option value="decrease">Decrease</option>
+              <option value="payout">Payout</option>
             </select>
           </div>
-          <div className="filter-group">
-            <input
-              type="text"
-              className="filter-input"
-              value={moneyFilters.search}
-              onChange={e => handleMoneyFilterChange('search', e.target.value)}
-              placeholder="Search transactions..."
-            />
           </div>
-        </div>
-        {filteredTransactions.length === 0 ? (
-          <p style={{textAlign:'center'}}>No transactions found{moneyFilters.search ? ' matching your search' : ''}.</p>
-        ) : (
+
+        {/* Transactions table */}
+        <div className="money-table-wrapper">
           <table className="admin-table money-table">
             <thead>
               <tr>
-                <th 
-                  onClick={() => handleMoneyFilterChange('sortBy', 'createdAt')} 
-                  className="sortable-header"
-                >
-                  Date {renderSortIcon('createdAt')}
-                </th>
+                <th onClick={() => handleMoneyFilterChange('sortBy', 'createdAt')}>Date {renderSortIcon('createdAt')}</th>
                 <th>Shop</th>
-                <th>Driver</th>
-                <th 
-                  onClick={() => handleMoneyFilterChange('sortBy', 'attribute')} 
-                  className="sortable-header"
-                >
-                  Attribute {renderSortIcon('attribute')}
-                </th>
-                <th 
-                  onClick={() => handleMoneyFilterChange('sortBy', 'changeType')} 
-                  className="sortable-header"
-                >
-                  Type {renderSortIcon('changeType')}
-                </th>
-                <th 
-                  onClick={() => handleMoneyFilterChange('sortBy', 'amount')} 
-                  className="sortable-header"
-                >
-                  Amount (EGP) {renderSortIcon('amount')}
-                </th>
                 <th>Description</th>
+                <th onClick={() => handleMoneyFilterChange('sortBy', 'attribute')}>Attribute {renderSortIcon('attribute')}</th>
+                <th onClick={() => handleMoneyFilterChange('sortBy', 'changeType')}>Type {renderSortIcon('changeType')}</th>
+                <th onClick={() => handleMoneyFilterChange('sortBy', 'amount')}>Amount {renderSortIcon('amount')}</th>
               </tr>
             </thead>
             <tbody>
-              {filteredTransactions.map(tx => (
+              {filteredTransactions.length === 0 ? (
+                <tr><td colSpan="6" style={{ textAlign: 'center' }}>No transactions found.</td></tr>
+              ) : (
+                filteredTransactions.map(tx => (
                 <tr key={tx.id}>
                   <td data-label="Date">{new Date(tx.createdAt).toLocaleString()}</td>
-                  <td data-label="Shop">{tx.Shop?.businessName || tx.shopId}</td>
-                  <td data-label="Driver">{tx.driver ? tx.driver.name : '-'}</td>
+                    <td data-label="Shop">{tx.Shop?.businessName || 'N/A'}</td>
+                    <td data-label="Description">{tx.description}</td>
                   <td data-label="Attribute">{tx.attribute}</td>
                   <td data-label="Type">
                     <span className={`change-type ${tx.changeType}`}>
                       {tx.changeType}
                     </span>
                   </td>
-                  <td data-label="Amount (EGP)" className={`financial-cell ${tx.changeType}`}>
-                    EGP {parseFloat(tx.amount).toFixed(2)}
+                    <td data-label="Amount" className={`financial-cell ${tx.changeType}`}>
+                      EGP {Number(tx.amount || 0).toFixed(2)}
                   </td>
-                  <td data-label="Description">{tx.description || '-'}</td>
                 </tr>
-              ))}
+                ))
+              )}
             </tbody>
           </table>
-        )}
+        </div>
+
+        {/* Pagination controls */}
+        <div className="money-pagination" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 16, padding: 8 }}>
+          <button
+            className="btn-secondary"
+            onClick={() => { if (moneyPage > 1) fetchMoneyTransactions(moneyPage - 1); }}
+            disabled={moneyPage <= 1 || loading}
+            title="Previous page"
+          >
+            ◀ Prev
+          </button>
+          <span style={{ whiteSpace: 'nowrap' }}>Page {moneyPage} of {moneyTotalPages}</span>
+          <button
+            className="btn-secondary"
+            onClick={() => { if (moneyPage < moneyTotalPages) fetchMoneyTransactions(moneyPage + 1); }}
+            disabled={moneyPage >= moneyTotalPages || loading}
+            title="Next page"
+          >
+            Next ▶
+          </button>
+          <span style={{ marginLeft: 8, color: '#666' }}>Total: {moneyTotal}</span>
+        </div>
       </div>
     );
   };
@@ -3874,53 +3704,46 @@ const AdminDashboard = () => {
   };
 
   // Add fetchPackages function
-  const fetchPackages = async () => {
+  const fetchPackages = async (page = packagePage, search = undefined) => {
     try {
       setLoading(true);
-      const response = await adminService.getPackages();
-      console.log('Packages received:', response.data);
-      
-      // Filter packages based on the current tab
+      const params = { page, limit: 25 };
+      if (typeof search === 'string' && search.trim() !== '') params.search = search.trim();
+      // Map packagesTab to server filters
               if (packagesTab === 'ready-to-assign') {
-          const readyToAssignPackages = (response.data || []).filter(pkg =>
-            pkg.status === 'pending' ||
-            pkg.status === 'cancelled-awaiting-return' ||
-            pkg.status === 'return-requested' ||
-            pkg.status === 'exchange-in-process'
-          );
-        console.log('Filtered ready-to-assign packages:', readyToAssignPackages);
-        setPackages(readyToAssignPackages);
+        params.statusIn = ['pending', 'cancelled-awaiting-return', 'return-requested', 'exchange-in-process'].join(',');
       } else if (packagesTab === 'in-transit') {
-        const inTransitPackages = (response.data || []).filter(pkg => 
-          ['assigned', 'pickedup', 'in-transit'].includes(pkg.status)
-        );
-        setPackages(inTransitPackages);
+        params.statusIn = ['assigned', 'pickedup', 'in-transit'].join(',');
       } else if (packagesTab === 'delivered') {
-        const deliveredPackages = (response.data || []).filter(pkg => pkg.status === 'delivered' || pkg.status === 'delivered-returned');
-        setPackages(deliveredPackages);
+        params.statusIn = ['delivered', 'delivered-returned'].join(',');
+        params.sortBy = 'actualDeliveryTime';
+        params.sortOrder = 'DESC';
       } else if (packagesTab === 'cancelled') {
-        const cancelledPackages = (response.data || []).filter(pkg => ['cancelled', 'rejected'].includes(pkg.status));
-        // Sort by updatedAt desc (fallback createdAt)
-        const sorted = cancelledPackages.slice().sort((a, b) => {
-          const aTime = a.updatedAt ? new Date(a.updatedAt).getTime() : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
-          const bTime = b.updatedAt ? new Date(b.updatedAt).getTime() : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
-          return bTime - aTime;
-        });
-        setPackages(sorted);
+        params.statusIn = ['cancelled', 'rejected'].join(',');
+        params.sortBy = 'updatedAt';
+        params.sortOrder = 'DESC';
               } else if (packagesTab === 'return-to-shop') {
-          const returnPackages = (response.data || []).filter(pkg => 
-            ['cancelled-awaiting-return', 'cancelled-returned', 'rejected-awaiting-return', 'rejected-returned', 'return-requested', 'return-in-transit', 'return-pending', 'return-completed', 'exchange-in-transit', 'exchange-awaiting-return', 'delivered-awaiting-return', 'delivered-returned'].includes(pkg.status)
-          );
-        setPackages(returnPackages);
-      } else {
-        // For 'all' tab, show all packages
-        setPackages(response.data || []);
+        params.statusIn = ['cancelled-awaiting-return', 'cancelled-returned', 'rejected-awaiting-return', 'rejected-returned', 'return-requested', 'return-in-transit', 'return-pending', 'return-completed', 'exchange-in-transit', 'exchange-awaiting-return', 'delivered-awaiting-return', 'delivered-returned'].join(',');
       }
-      
-      // Check if we need to reopen a package modal after refresh
+
+      const response = await adminService.getPackages(params);
+      const list = response.data?.packages || response.data || [];
+      const totalPages = response.data?.totalPages || 1;
+      const total = response.data?.total || list.length;
+      const current = response.data?.currentPage || page;
+
+      // No client-side status filtering; keep server result
+      setPackages(list);
+
+      // Update pagination state
+      setPackagePage(current);
+      setPackageTotalPages(totalPages);
+      setPackageTotal(total);
+
+      // Reopen details if needed
       const reopenEntityId = localStorage.getItem('reopenAdminModal');
       if (reopenEntityId) {
-        const entityToReopen = (response.data || []).find(pkg => pkg.id == reopenEntityId);
+        const entityToReopen = list.find(pkg => pkg.id == reopenEntityId);
         if (entityToReopen) {
           setSelectedEntity(entityToReopen);
           setShowDetailsModal(true);
@@ -3938,7 +3761,7 @@ const AdminDashboard = () => {
   // Add useEffect to fetch packages on component mount and when packagesTab changes
   useEffect(() => {
     if (activeTab === 'packages') {
-      fetchPackages();
+      fetchPackages(1, searchTerm);
     }
   }, [activeTab, packagesTab]);
 
@@ -3949,13 +3772,105 @@ const AdminDashboard = () => {
         adminService.getPackagesPerMonth(),
         adminService.getCodCollectedPerMonth(),
         adminService.getPackageStatusDistribution(),
-        adminService.getTopShops()
-      ]).then(([pkgRes, codRes, statusRes, shopsRes]) => {
+        adminService.getTopShops(),
+        adminService.getRecentPackagesData(),
+        adminService.getRecentCodData()
+      ]).then(([pkgRes, codRes, statusRes, shopsRes, recentPkgRes, recentCodRes]) => {
         setAnalytics({
           packagesPerMonth: pkgRes.data,
           codPerMonth: codRes.data,
           statusDistribution: statusRes.data,
           topShops: shopsRes.data
+        });
+
+        // Generate dashboard charts from backend data
+        const recentPackagesData = recentPkgRes.data;
+        const recentCodData = recentCodRes.data;
+
+        // Debug: Log the data to verify it's correct
+        console.log('Recent packages data:', recentPackagesData);
+        console.log('Recent COD data:', recentCodData);
+
+        // Create last 7 days labels
+        console.log('Processing dashboard charts...');
+        const last7DaysLabels = [];
+        const now = new Date();
+        for (let i = 6; i >= 0; i--) {
+          const date = new Date(now);
+          date.setDate(date.getDate() - i);
+          last7DaysLabels.push(date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+        }
+
+        // Process packages data
+        const createdPerDay = new Array(7).fill(0);
+        const deliveredPerDay = new Array(7).fill(0);
+
+        recentPackagesData.forEach(item => {
+          // item.date comes as 'YYYY-MM-DD' string
+          const itemDateStr = item.date;
+          const itemDate = new Date(itemDateStr + 'T00:00:00'); // Ensure consistent timezone
+          const nowDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          const itemDateOnly = new Date(itemDate.getFullYear(), itemDate.getMonth(), itemDate.getDate());
+
+          const daysAgo = Math.floor((nowDate - itemDateOnly) / (1000 * 60 * 60 * 24));
+
+          if (daysAgo >= 0 && daysAgo < 7) {
+            createdPerDay[6 - daysAgo] = Number(item.created) || 0;
+            deliveredPerDay[6 - daysAgo] = Number(item.delivered) || 0;
+          }
+        });
+
+        const packagesChart = {
+          labels: last7DaysLabels,
+          datasets: [
+            {
+              label: 'Created',
+              data: createdPerDay,
+              borderColor: 'rgba(75,192,192,1)',
+              backgroundColor: 'rgba(75,192,192,0.2)',
+              tension: 0.4,
+            },
+            {
+              label: 'Delivered',
+              data: deliveredPerDay,
+              borderColor: 'rgba(54,162,235,1)',
+              backgroundColor: 'rgba(54,162,235,0.2)',
+              tension: 0.4,
+            },
+          ],
+        };
+
+        console.log('Packages chart data:', { labels: last7DaysLabels, createdPerDay, deliveredPerDay });
+
+        // Process COD data (last 4 weeks)
+        const weeklyCod = new Array(4).fill(0);
+        recentCodData.forEach(item => {
+          // Backend now returns weekOffset directly (0 = this week, 1 = 1 week ago, etc.)
+          const weekOffset = item.weekOffset;
+          if (weekOffset >= 0 && weekOffset < 4) {
+            weeklyCod[3 - weekOffset] = Number(item.codCollected) || 0;
+          }
+        });
+
+        const codChart = {
+          labels: ['3 wks ago', '2 wks ago', 'Last wk', 'This wk'],
+          datasets: [{
+            label: 'COD Collected',
+            data: weeklyCod,
+            backgroundColor: 'rgba(255, 206, 86, 0.6)',
+            borderColor: 'rgba(255, 206, 86, 1)',
+            borderWidth: 1,
+          }]
+        };
+
+        console.log('COD chart data:', { weeklyCod });
+
+        setDashboardData({
+          packagesChart,
+          codChart,
+          recentPackages: [],
+          recentSettlements: [],
+          totalCodCollected: 0
         });
       }).finally(() => setAnalyticsLoading(false));
     }
@@ -4474,45 +4389,15 @@ const AdminDashboard = () => {
   // In getFilteredPackages, apply the new filters
   const getFilteredPackages = () => {
     let filtered = packages;
-    // Apply tab filter
-    if (packagesTab === 'ready-to-assign') {
-      filtered = filtered.filter(pkg => (
-        pkg.status === 'pending' ||
-        pkg.status === 'cancelled-awaiting-return' ||
-        pkg.status === 'rejected-awaiting-return' ||
-        pkg.status === 'return-requested' ||
-        pkg.status === 'exchange-in-process'
-      ));
-    } else if (packagesTab === 'in-transit') {
-      filtered = filtered.filter(pkg => ['assigned', 'pickedup', 'in-transit'].includes(pkg.status));
-    } else if (packagesTab === 'delivered') {
-      filtered = filtered.filter(pkg => pkg.status === 'delivered' || pkg.status === 'delivered-returned');
-      // Sort by actualDeliveryTime descending (most recent first)
-      filtered = filtered.slice().sort((a, b) => {
-        const aTime = a.actualDeliveryTime ? new Date(a.actualDeliveryTime).getTime() : 0;
-        const bTime = b.actualDeliveryTime ? new Date(b.actualDeliveryTime).getTime() : 0;
-        return bTime - aTime;
-      });
-    } else if (packagesTab === 'return-to-shop') {
-      filtered = filtered.filter(pkg => ['cancelled-awaiting-return', 'cancelled-returned', 'rejected-awaiting-return', 'rejected-returned', 'return-requested', 'return-in-transit', 'return-pending', 'return-completed', 'exchange-in-transit', 'exchange-awaiting-return', 'delivered-awaiting-return', 'delivered-returned'].includes(pkg.status));
-    } else if (packagesTab === 'cancelled') {
-      filtered = filtered.filter(pkg => ['cancelled', 'rejected'].includes(pkg.status));
-      // Sort by updatedAt desc (fallback createdAt)
-      filtered = filtered.slice().sort((a, b) => {
-        const aTime = a.updatedAt ? new Date(a.updatedAt).getTime() : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
-        const bTime = b.updatedAt ? new Date(b.updatedAt).getTime() : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
-        return bTime - aTime;
-      });
-    }
-    // Apply status filter
+    // Apply status filter (local dropdown)
     if (packageStatusFilter) {
       filtered = filtered.filter(pkg => pkg.status === packageStatusFilter);
     }
-    // Apply shop filter
+    // Apply shop filter (local dropdown)
     if (packageShopFilter) {
       filtered = filtered.filter(pkg => (pkg.shop?.businessName || 'N/A') === packageShopFilter);
     }
-    // Apply search filter
+    // Apply search filter (client-side fallback; server already filters across DB)
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase();
       filtered = filtered.filter(pkg => 
@@ -4710,6 +4595,24 @@ const AdminDashboard = () => {
     );
   };
 
+  // Pagination for packages tab
+  const [packagePage, setPackagePage] = useState(1);
+  const [packageTotalPages, setPackageTotalPages] = useState(1);
+  const [packageTotal, setPackageTotal] = useState(0);
+
+  useEffect(() => {
+    if (activeTab === 'packages') {
+      // Reset to first page on new search
+      setPackagePage(1);
+      fetchPackages(1, searchTerm);
+    }
+  }, [searchTerm]);
+
+  // Pagination for money tab
+  const [moneyPage, setMoneyPage] = useState(1);
+  const [moneyTotalPages, setMoneyTotalPages] = useState(1);
+  const [moneyTotal, setMoneyTotal] = useState(0);
+
   return (
     <div className="admin-dashboard">
       {renderStatusMessage()}
@@ -4785,7 +4688,32 @@ const AdminDashboard = () => {
           <>
             {activeTab === 'dashboard' ? renderDashboardHome() :
              activeTab === 'pickups' ? <>{renderPickupsSubTabs()}{renderPickupsTable()}</> : 
-             activeTab === 'packages' ? <> {renderPackagesSubTabs()} {renderPackagesTable()} </> :
+             activeTab === 'packages' ? <> 
+               {renderPackagesSubTabs()} 
+               {renderPackagesTable()} 
+               {activeTab === 'packages' && (
+                 <div className="packages-pagination" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 16, padding: 8 }}>
+                   <button
+                     className="btn-secondary"
+                     onClick={() => { if (packagePage > 1) fetchPackages(packagePage - 1, searchTerm); }}
+                     disabled={packagePage <= 1 || loading}
+                     title="Previous page"
+                   >
+                     ◀ Prev
+                   </button>
+                   <span style={{ whiteSpace: 'nowrap' }}>Page {packagePage} of {packageTotalPages}</span>
+                   <button
+                     className="btn-secondary"
+                     onClick={() => { if (packagePage < packageTotalPages) fetchPackages(packagePage + 1, searchTerm); }}
+                     disabled={packagePage >= packageTotalPages || loading}
+                     title="Next page"
+                   >
+                     Next ▶
+                   </button>
+                   <span style={{ marginLeft: 8, color: '#666' }}>Total: {packageTotal}</span>
+                 </div>
+               )}
+             </> :
              activeTab === 'money' ? renderMoneyTable() :
              activeTab === 'driver-packages' ? null :
              renderUsersTable()}

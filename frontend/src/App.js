@@ -21,6 +21,13 @@ import NewPickup from './pages/Shop/NewPickup';
 import ShopPackages from './pages/Shop/ShopPackages';
 import CreatePackage from './pages/Shop/CreatePackage';
 import ShopProfile from './pages/Shop/ShopProfile';
+import About from './pages/About';
+import Careers from './pages/Careers';
+import Contact from './pages/Contact';
+import Help from './pages/Help';
+import Services from './pages/Services';
+import Terms from './pages/Terms';
+import Privacy from './pages/Privacy';
 
 // Unauthorized page component
 const Unauthorized = () => (
@@ -158,6 +165,15 @@ function App() {
             <Route path="/registration-success" element={<RegistrationSuccess />} />
             <Route path="/track/:trackingNumber?" element={<PackageTracking />} />
             <Route path="/unauthorized" element={<Unauthorized />} />
+
+            {/* Public informational pages */}
+            <Route path="/about" element={<About />} />
+            <Route path="/careers" element={<Careers />} />
+            <Route path="/contact" element={<Contact />} />
+            <Route path="/help" element={<Help />} />
+            <Route path="/services" element={<Services />} />
+            <Route path="/terms" element={<Terms />} />
+            <Route path="/privacy" element={<Privacy />} />
             
             {/* Role-based protected routes */}
             <Route 

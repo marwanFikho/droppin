@@ -32,6 +32,16 @@ const MobileAdminDashboard = () => {
   const [driverSearchTerm, setDriverSearchTerm] = useState('');
   const [isBulkAssigning, setIsBulkAssigning] = useState(false);
   const [selectedPickup, setSelectedPickup] = useState(null);
+
+  // Pagination state for packages
+  const [packagePage, setPackagePage] = useState(1);
+  const [packageTotalPages, setPackageTotalPages] = useState(1);
+  const [packageTotal, setPackageTotal] = useState(0);
+
+  // Pagination state for money transactions
+  const [moneyPage, setMoneyPage] = useState(1);
+  const [moneyTotalPages, setMoneyTotalPages] = useState(1);
+  const [moneyTotal, setMoneyTotal] = useState(0);
   const [showPickupDetailsModal, setShowPickupDetailsModal] = useState(false);
   const [pickupPackages, setPickupPackages] = useState([]);
   const [pickupPackagesLoading, setPickupPackagesLoading] = useState(false);
@@ -153,62 +163,61 @@ const MobileAdminDashboard = () => {
     }
   }, [activeTab]);
 
-  const fetchPackages = useCallback(async () => {
+  const fetchPackages = useCallback(async (page = packagePage, search = undefined) => {
     if (activeTab !== 'packages') return;
 
     try {
       setLoading(true);
+      const params = { page, limit: 25 };
+      if (typeof search === 'string' && search.trim() !== '') params.search = search.trim();
+
+      // Map packageSubTab to server filters (same logic as desktop)
+      if (packageSubTab === 'ready-to-assign') {
+        params.statusIn = ['pending', 'cancelled-awaiting-return', 'return-requested', 'exchange-in-process'].join(',');
+      } else if (packageSubTab === 'in-transit') {
+        params.statusIn = ['assigned', 'pickedup', 'in-transit'].join(',');
+      } else if (packageSubTab === 'delivered') {
+        params.statusIn = ['delivered', 'delivered-returned'].join(',');
+        params.sortBy = 'actualDeliveryTime';
+        params.sortOrder = 'DESC';
+      } else if (packageSubTab === 'cancelled') {
+        params.statusIn = ['cancelled', 'rejected'].join(',');
+        params.sortBy = 'updatedAt';
+        params.sortOrder = 'DESC';
+      } else if (packageSubTab === 'return-to-shop') {
+        params.statusIn = ['cancelled-awaiting-return', 'cancelled-returned', 'rejected-awaiting-return', 'rejected-returned', 'return-requested', 'return-in-transit', 'return-pending', 'return-completed', 'exchange-in-transit', 'exchange-awaiting-return', 'delivered-awaiting-return', 'delivered-returned'].join(',');
+      } else if (packageSubTab !== 'all') {
+        // Handle specific status filters
+        params.statusIn = packageSubTab;
+      }
+
       const [packagesResponse, driversResponse] = await Promise.all([
-        adminService.getPackages(),
+        adminService.getPackages(params),
         adminService.getDrivers()
       ]);
-      
+
       setDrivers(driversResponse.data || []);
-      let filteredPackages = packagesResponse.data || [];
-      if (packageSubTab !== 'all') {
-        if (packageSubTab === 'ready-to-assign') {
-          filteredPackages = filteredPackages.filter(pkg => (
-            pkg.status === 'pending' ||
-            pkg.status === 'return-requested' ||
-            pkg.status === 'exchange-in-process'
-          ));
-        } else if (packageSubTab === 'assigned') {
-          filteredPackages = filteredPackages.filter(pkg => pkg.status === 'assigned');
-        } else if (packageSubTab === 'return-to-shop') {
-          const returnToShopStatuses = ['cancelled-awaiting-return', 'cancelled-returned', 'rejected-awaiting-return', 'rejected-returned', 'return-requested', 'return-in-transit', 'return-pending', 'return-completed', 'exchange-in-transit', 'exchange-awaiting-return', 'delivered-awaiting-return', 'delivered-returned'];
-          filteredPackages = filteredPackages.filter(pkg => returnToShopStatuses.includes(pkg.status));
-        } else if (packageSubTab === 'in-transit') {
-          const inTransitStatuses = ['pickedup', 'in-transit'];
-          filteredPackages = filteredPackages.filter(pkg => inTransitStatuses.includes(pkg.status));
-        } else if (packageSubTab === 'delivered') {
-          filteredPackages = filteredPackages.filter(pkg => pkg.status === 'delivered');
-          // Sort by actualDeliveryTime descending (most recent first)
-          filteredPackages = filteredPackages.slice().sort((a, b) => {
-            const aTime = a.actualDeliveryTime ? new Date(a.actualDeliveryTime).getTime() : 0;
-            const bTime = b.actualDeliveryTime ? new Date(b.actualDeliveryTime).getTime() : 0;
-            return bTime - aTime;
-          });
-        } else if (packageSubTab === 'cancelled') {
-          // Show cancelled and rejected only
-          filteredPackages = filteredPackages.filter(pkg => ['cancelled', 'rejected'].includes(pkg.status));
-          // Sort by last update time (fallback to createdAt)
-          filteredPackages = filteredPackages.slice().sort((a, b) => {
-            const aTime = a.updatedAt ? new Date(a.updatedAt).getTime() : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
-            const bTime = b.updatedAt ? new Date(b.updatedAt).getTime() : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
-            return bTime - aTime;
-          });
-        } else {
-          filteredPackages = filteredPackages.filter(pkg => pkg.status === packageSubTab);
-        }
-      }
-      setPackages(filteredPackages);
+      const list = packagesResponse.data?.packages || packagesResponse.data || [];
+      const totalPages = packagesResponse.data?.totalPages || 1;
+      const total = packagesResponse.data?.total || list.length;
+      const current = packagesResponse.data?.currentPage || page;
+
+      // No client-side status filtering; keep server result
+      setPackages(list);
+
+      // Update pagination state
+      setPackagePage(current);
+      setPackageTotalPages(totalPages);
+      setPackageTotal(total);
+
+      setSelectedPackages([]); // Clear selections when data changes
     } catch (err) {
       setError('Failed to fetch packages.');
       console.error(err);
     } finally {
       setLoading(false);
     }
-  }, [activeTab, packageSubTab]);
+  }, [activeTab, packagePage, packageSubTab]);
 
   // Add these at the top of the component, after useState declarations
   const fetchDashboardData = useCallback(async () => {
@@ -270,38 +279,59 @@ const MobileAdminDashboard = () => {
   }, [fetchUsers]);
 
   useEffect(() => {
-    fetchPackages();
-  }, [fetchPackages]);
+    if (activeTab === 'packages') {
+      setPackagePage(1); // Reset to page 1 when search or tab changes
+      fetchPackages(1, searchTerm);
+    }
+  }, [activeTab, searchTerm, packageSubTab]);
 
   useEffect(() => {
     fetchPickups();
   }, [fetchPickups]);
 
+  // Add function to fetch money transactions with pagination
+  const fetchMoneyTransactions = async (page = moneyPage) => {
+    try {
+      setLoading(true);
+      const params = {
+        startDate: moneyFilters.startDate,
+        endDate: moneyFilters.endDate,
+        search: moneyFilters.search,
+        page,
+        limit: 25
+      };
+
+      // Remove empty filters
+      Object.keys(params).forEach(key => {
+        if (params[key] === '' || params[key] === null || params[key] === undefined) {
+          delete params[key];
+        }
+      });
+
+      const res = await adminService.getMoneyTransactions(params);
+      setMoneyTransactions(res.data.transactions || []);
+      setMoneyPage(res.data.currentPage || page);
+      setMoneyTotalPages(res.data.totalPages || 1);
+      setMoneyTotal(res.data.total || (res.data.transactions || []).length);
+    } catch (err) {
+      setError('Failed to fetch money transactions.');
+      console.error('Error fetching money transactions:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (activeTab !== 'money') return;
-    const fetchMoney = async () => {
-      try {
-        setLoading(true);
-        const res = await adminService.getMoneyTransactions({
-          startDate: moneyFilters.startDate,
-          endDate: moneyFilters.endDate,
-          search: moneyFilters.search
-        });
-        setMoneyTransactions(res.data.transactions || []);
-      } catch (err) {
-        setError('Failed to fetch money transactions.');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchMoney();
+    setMoneyPage(1); // Reset to page 1 when filters change
+    fetchMoneyTransactions(1);
   }, [activeTab, moneyFilters]);
 
   useEffect(() => {
     if (selectedUser && selectedUser.role === 'driver') {
       setLoadingDriverPackages(true);
-      adminService.getPackages({ driverId: selectedUser.driverId })
-        .then(res => setDriverPackages(res.data || []))
+      adminService.getPackages({ driverId: selectedUser.driverId, page: 1, limit: 25 })
+        .then(res => setDriverPackages(res.data?.packages || res.data || []))
         .catch(() => setDriverPackages([]))
         .finally(() => setLoadingDriverPackages(false));
     } else {
@@ -426,8 +456,8 @@ const MobileAdminDashboard = () => {
 
       // Refresh the packages list
       if (packageSubTab === 'ready-to-assign') {
-        const packagesResponse = await adminService.getPackages();
-        const pendingPackages = (packagesResponse.data || []).filter(pkg => pkg.status === 'pending');
+        const packagesResponse = await adminService.getPackages({ page: 1, limit: 25 });
+        const pendingPackages = (packagesResponse.data?.packages || packagesResponse.data || []).filter(pkg => pkg.status === 'pending');
         setPackages(pendingPackages);
       }
 
@@ -539,8 +569,8 @@ const MobileAdminDashboard = () => {
     try {
       setLoadingDriverPackages(true);
       // Fetch all packages and filter for the specific driver
-      const response = await adminService.getPackages();
-      const allPackages = response.data || [];
+      const response = await adminService.getPackages({ page: 1, limit: 25 });
+      const allPackages = response.data?.packages || response.data || [];
       
       // Filter packages that are assigned or were assigned to this driver
       const driverPackages = allPackages.filter(pkg => {
@@ -1257,43 +1287,43 @@ const MobileAdminDashboard = () => {
             <div className="mobile-admin-dashboard-sub-tabs">
               <button
                 className={`mobile-admin-dashboard-sub-tab ${packageSubTab === 'all' ? 'active' : ''}`}
-                onClick={() => setPackageSubTab('all')}
+                onClick={() => { setPackageSubTab('all'); setPackagePage(1); }}
               >
                 All
               </button>
               <button
                 className={`mobile-admin-dashboard-sub-tab ${packageSubTab === 'ready-to-assign' ? 'active' : ''}`}
-                onClick={() => setPackageSubTab('ready-to-assign')}
+                onClick={() => { setPackageSubTab('ready-to-assign'); setPackagePage(1); }}
               >
                 Ready to Assign
               </button>
               <button
                 className={`mobile-admin-dashboard-sub-tab ${packageSubTab === 'assigned' ? 'active' : ''}`}
-                onClick={() => setPackageSubTab('assigned')}
+                onClick={() => { setPackageSubTab('assigned'); setPackagePage(1); }}
               >
                 Assigned
               </button>
               <button
                 className={`mobile-admin-dashboard-sub-tab ${packageSubTab === 'in-transit' ? 'active' : ''}`}
-                onClick={() => setPackageSubTab('in-transit')}
+                onClick={() => { setPackageSubTab('in-transit'); setPackagePage(1); }}
               >
                 In Transit
               </button>
               <button
                 className={`mobile-admin-dashboard-sub-tab ${packageSubTab === 'delivered' ? 'active' : ''}`}
-                onClick={() => setPackageSubTab('delivered')}
+                onClick={() => { setPackageSubTab('delivered'); setPackagePage(1); }}
               >
                 Delivered
               </button>
               <button
                 className={`mobile-admin-dashboard-sub-tab ${packageSubTab === 'cancelled' ? 'active' : ''}`}
-                onClick={() => setPackageSubTab('cancelled')}
+                onClick={() => { setPackageSubTab('cancelled'); setPackagePage(1); }}
               >
                 Cancelled
               </button>
               <button
                 className={`mobile-admin-dashboard-sub-tab ${packageSubTab === 'return-to-shop' ? 'active' : ''}`}
-                onClick={() => setPackageSubTab('return-to-shop')}
+                onClick={() => { setPackageSubTab('return-to-shop'); setPackagePage(1); }}
               >
                 Return to Shop
               </button>
@@ -1391,6 +1421,61 @@ const MobileAdminDashboard = () => {
               <button onClick={openBulkAssignModal} className="mobile-admin-dashboard-bulk-assign-btn">
                 Assign to Driver
               </button>
+            )}
+
+            {/* Pagination Controls */}
+            {packageTotalPages > 1 && (
+              <div className="mobile-admin-dashboard-pagination" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 16, padding: '12px', background: '#f8f9fa', borderRadius: '8px' }}>
+                <button
+                  className="mobile-admin-dashboard-pagination-btn"
+                  onClick={() => { if (packagePage > 1) fetchPackages(packagePage - 1, searchTerm); }}
+                  disabled={packagePage <= 1 || loading}
+                  style={{
+                    background: packagePage <= 1 || loading ? '#e9ecef' : '#007bff',
+                    color: packagePage <= 1 || loading ? '#6c757d' : '#fff',
+                    border: 'none',
+                    borderRadius: '6px',
+                    padding: '8px 16px',
+                    fontWeight: 'bold',
+                    cursor: packagePage <= 1 || loading ? 'not-allowed' : 'pointer',
+                    fontSize: '14px'
+                  }}
+                >
+                  ◀ Prev
+                </button>
+                <span style={{
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  color: '#495057',
+                  whiteSpace: 'nowrap'
+                }}>
+                  Page {packagePage} of {packageTotalPages}
+                </span>
+                <button
+                  className="mobile-admin-dashboard-pagination-btn"
+                  onClick={() => { if (packagePage < packageTotalPages) fetchPackages(packagePage + 1, searchTerm); }}
+                  disabled={packagePage >= packageTotalPages || loading}
+                  style={{
+                    background: packagePage >= packageTotalPages || loading ? '#e9ecef' : '#007bff',
+                    color: packagePage >= packageTotalPages || loading ? '#6c757d' : '#fff',
+                    border: 'none',
+                    borderRadius: '6px',
+                    padding: '8px 16px',
+                    fontWeight: 'bold',
+                    cursor: packagePage >= packageTotalPages || loading ? 'not-allowed' : 'pointer',
+                    fontSize: '14px'
+                  }}
+                >
+                  Next ▶
+                </button>
+                <span style={{
+                  marginLeft: 8,
+                  color: '#6c757d',
+                  fontSize: '12px'
+                }}>
+                  Total: {packageTotal}
+                </span>
+              </div>
             )}
           </div>
         )}
@@ -1504,6 +1589,61 @@ const MobileAdminDashboard = () => {
                 </table>
               )}
             </div>
+
+            {/* Money Pagination Controls */}
+            {moneyTotalPages > 1 && (
+              <div className="mobile-admin-dashboard-money-pagination" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 16, padding: '12px', background: '#f8f9fa', borderRadius: '8px' }}>
+                <button
+                  className="mobile-admin-dashboard-pagination-btn"
+                  onClick={() => { if (moneyPage > 1) fetchMoneyTransactions(moneyPage - 1); }}
+                  disabled={moneyPage <= 1 || loading}
+                  style={{
+                    background: moneyPage <= 1 || loading ? '#e9ecef' : '#007bff',
+                    color: moneyPage <= 1 || loading ? '#6c757d' : '#fff',
+                    border: 'none',
+                    borderRadius: '6px',
+                    padding: '8px 16px',
+                    fontWeight: 'bold',
+                    cursor: moneyPage <= 1 || loading ? 'not-allowed' : 'pointer',
+                    fontSize: '14px'
+                  }}
+                >
+                  ◀ Prev
+                </button>
+                <span style={{
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  color: '#495057',
+                  whiteSpace: 'nowrap'
+                }}>
+                  Page {moneyPage} of {moneyTotalPages}
+                </span>
+                <button
+                  className="mobile-admin-dashboard-pagination-btn"
+                  onClick={() => { if (moneyPage < moneyTotalPages) fetchMoneyTransactions(moneyPage + 1); }}
+                  disabled={moneyPage >= moneyTotalPages || loading}
+                  style={{
+                    background: moneyPage >= moneyTotalPages || loading ? '#e9ecef' : '#007bff',
+                    color: moneyPage >= moneyTotalPages || loading ? '#6c757d' : '#fff',
+                    border: 'none',
+                    borderRadius: '6px',
+                    padding: '8px 16px',
+                    fontWeight: 'bold',
+                    cursor: moneyPage >= moneyTotalPages || loading ? 'not-allowed' : 'pointer',
+                    fontSize: '14px'
+                  }}
+                >
+                  Next ▶
+                </button>
+                <span style={{
+                  marginLeft: 8,
+                  color: '#6c757d',
+                  fontSize: '12px'
+                }}>
+                  Total: {moneyTotal}
+                </span>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -1558,9 +1698,9 @@ const MobileAdminDashboard = () => {
                         try {
                           await adminService.updatePackage(selectedPackage.id, { deliveryCost: parseFloat(newDeliveryCost) });
                           // Refetch the updated package from the backend
-                          const refreshed = await adminService.getPackages({ id: selectedPackage.id });
-                          if (refreshed.data && Array.isArray(refreshed.data) && refreshed.data.length > 0) {
-                            setSelectedPackage(refreshed.data[0]);
+                          const refreshed = await adminService.getPackages({ id: selectedPackage.id, page: 1, limit: 25 });
+                          if (refreshed.data && Array.isArray(refreshed.data?.packages)) {
+                            setSelectedPackage(refreshed.data.packages[0]);
                           } else if (refreshed.data && refreshed.data.id) {
                             setSelectedPackage(refreshed.data);
                           }
@@ -2183,9 +2323,9 @@ const MobileAdminDashboard = () => {
                         try {
                           await adminService.updatePackage(selectedAdminPackage.id, { deliveryCost: parseFloat(newDeliveryCost) });
                           // Refetch the updated package from the backend
-                          const refreshed = await adminService.getPackages({ id: selectedAdminPackage.id });
-                          if (refreshed.data && Array.isArray(refreshed.data) && refreshed.data.length > 0) {
-                            setSelectedAdminPackage(refreshed.data[0]);
+                          const refreshed = await adminService.getPackages({ id: selectedAdminPackage.id, page: 1, limit: 25 });
+                          if (refreshed.data && Array.isArray(refreshed.data?.packages)) {
+                            setSelectedAdminPackage(refreshed.data.packages[0]);
                           } else if (refreshed.data && refreshed.data.id) {
                             setSelectedAdminPackage(refreshed.data);
                           }
@@ -2493,8 +2633,8 @@ const MobileAdminDashboard = () => {
                       setShowAssignDriverModal(false);
                       setSelectedAdminPackage(null);
                       // Refresh packages
-                      const packagesResponse = await adminService.getPackages();
-                      setPackages(packagesResponse.data || []);
+                      const packagesResponse = await adminService.getPackages({ page: 1, limit: 25 });
+                      setPackages(packagesResponse.data?.packages || packagesResponse.data || []);
                     } catch (err) {
                       // Optionally show error
                     } finally {
@@ -2566,6 +2706,50 @@ const MobileAdminDashboard = () => {
                     <div><strong>Total Cancelled:</strong> {selectedDriver.totalCancelled || 0}</div>
                     <div><strong>Active Assignments:</strong> {selectedDriver.activeAssign || 0}</div>
                     <div><strong>Assigned Today:</strong> {selectedDriver.assignedToday || 0}</div>
+                  </div>
+                </div>
+
+                {/* Cash on Hand */}
+                <div className="mobile-modal-detail-item full-width" style={{ marginTop: 16, padding: '16px', backgroundColor: '#fff3cd', borderRadius: '8px', border: '1px solid #ffeaa7' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <span className="label" style={{ marginBottom: 4, display: 'block', fontWeight: 600, color: '#856404' }}>
+                        💰 Cash on Hand
+                      </span>
+                      <span style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#856404' }}>
+                        EGP {parseFloat(selectedDriver.cashOnHand || 0).toFixed(2)}
+                      </span>
+                    </div>
+                    <button
+                      onClick={async () => {
+                        if (window.confirm('This will reset the driver\'s cash on hand to 0. Do you want to continue?')) {
+                          try {
+                            await adminService.resetDriverCash(selectedDriver.driverId || selectedDriver.id, { note: 'Admin reset cash on hand' });
+                            // Update the local state to reflect the change
+                            setSelectedDriver(prev => ({ ...prev, cashOnHand: 0 }));
+                            alert('Driver cash on hand has been reset to 0.');
+                          } catch (error) {
+                            console.error('Error resetting cash on hand:', error);
+                            alert('Failed to reset driver cash on hand.');
+                          }
+                        }
+                      }}
+                      style={{
+                        background: '#dc3545',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '6px',
+                        padding: '8px 16px',
+                        fontSize: '12px',
+                        fontWeight: 'bold',
+                        cursor: 'pointer',
+                        transition: 'background-color 0.2s'
+                      }}
+                      onMouseOver={(e) => e.target.style.background = '#c82333'}
+                      onMouseOut={(e) => e.target.style.background = '#dc3545'}
+                    >
+                      Reset to 0
+                    </button>
                   </div>
                 </div>
 

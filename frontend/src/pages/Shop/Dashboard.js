@@ -80,7 +80,7 @@ const ShopDashboard = () => {
   // Add fetchPackages function
   const fetchPackages = async () => {
     try {
-      const response = await packageService.getPackages({ limit: 10000 });
+      const response = await packageService.getPackages({ page: 1, limit: 25 });
       const pkgs = response.data?.packages || response.data || [];
       setPackages(Array.isArray(pkgs) ? pkgs : []);
     } catch (error) {
@@ -103,8 +103,8 @@ const ShopDashboard = () => {
         setLoading(true);
 
         // Get packages
-        const packagesResponse = await packageService.getPackages({ limit: 10000 });
-        const packages = packagesResponse.data.packages || packagesResponse.data || [];
+        const packagesResponse = await packageService.getPackages({ page: 1, limit: 25 });
+        const packages = packagesResponse.data?.packages || packagesResponse.data || [];
         setPackages(packages);
         
         // Get shop profile with financial data

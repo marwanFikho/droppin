@@ -6,6 +6,10 @@ import { faBox, faTruck, faStore, faMapMarkerAlt, faPhone, faWeight, faRuler } f
 import './PackageTracking.css';
 
 const PackageTracking = () => {
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   const [trackingNumber, setTrackingNumber] = useState('');
   const [packageData, setPackageData] = useState(null);
   const [loading, setLoading] = useState(false);

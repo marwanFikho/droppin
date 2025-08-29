@@ -1,6 +1,6 @@
 # Droppin Mobile Frontend
 
-A mobile-optimized frontend for the Droppin B2B delivery management platform, designed specifically for mobile devices with touch-friendly interfaces and mobile-first design principles.
+A mobile-optimized frontend for the Droppin Last-mile Delivery delivery management platform, designed specifically for mobile devices with touch-friendly interfaces and mobile-first design principles.
 
 ## 🎯 Purpose
 

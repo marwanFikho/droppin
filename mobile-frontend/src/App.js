@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, Outlet, Link } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import MobileNavigation from './components/MobileNavigation';
 import './App.css';
@@ -27,6 +27,14 @@ import MobileShopWallet from './pages/Shop/MobileShopWallet';
 import MobileAdminAnalytics from './pages/Admin/MobileAdminAnalytics';
 import ScanPickup from './pages/Driver/ScanPickup';
 import MobileUserProfile from './pages/User/MobileUserProfile';
+// Informational Pages
+import MobileAbout from './pages/MobileAbout';
+import MobileCareers from './pages/MobileCareers';
+import MobileContact from './pages/MobileContact';
+import MobileHelp from './pages/MobileHelp';
+import MobileServices from './pages/MobileServices';
+import MobileTerms from './pages/MobileTerms';
+import MobilePrivacy from './pages/MobilePrivacy';
 
 // Protected Route Component
 const ProtectedRoute = ({ children, allowedRoles = [] }) => {
@@ -69,11 +77,26 @@ const DashboardLayout = () => {
   );
 };
 
+// Global Mobile Header Component
+const GlobalMobileHeader = () => {
+  return (
+    <header className="global-mobile-header">
+      <div className="global-mobile-header-content">
+        <Link to="/" className="global-mobile-logo">
+          <span className="global-mobile-logo-icon">📦</span>
+          <span className="global-mobile-logo-text">Droppin</span>
+        </Link>
+      </div>
+    </header>
+  );
+};
+
 function App() {
   return (
     <AuthProvider>
       <Router>
         <div className="mobile-app">
+          <GlobalMobileHeader />
           <Routes>
             {/* Public Routes */}
             <Route path="/" element={<MobileHome />} />
@@ -84,6 +107,15 @@ function App() {
             <Route path="/registration-success" element={<MobileRegistrationSuccess />} />
             <Route path="/track" element={<MobilePackageTracking />} />
             <Route path="/track/:trackingNumber" element={<MobilePackageTracking />} />
+
+            {/* Public Informational Pages */}
+            <Route path="/about" element={<MobileAbout />} />
+            <Route path="/careers" element={<MobileCareers />} />
+            <Route path="/contact" element={<MobileContact />} />
+            <Route path="/help" element={<MobileHelp />} />
+            <Route path="/services" element={<MobileServices />} />
+            <Route path="/terms" element={<MobileTerms />} />
+            <Route path="/privacy" element={<MobilePrivacy />} />
 
             {/* Protected Dashboard Routes */}
             <Route path="/shop" element={

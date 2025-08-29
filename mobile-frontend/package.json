@@ -15,6 +15,7 @@
     "axios": "^1.10.0",
     "bootstrap": "^5.3.7",
     "chart.js": "^4.5.0",
+    "framer-motion": "^12.23.12",
     "html5-qrcode": "^2.3.8",
     "i18next": "^25.2.1",
     "jsqr": "^1.4.0",

@@ -1,0 +1,458 @@
+/* Mobile Services Page Styles */
+.mobile-services-page {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  padding-top: 65px; /* Account for top navigation */
+  padding-bottom: 30px;
+}
+
+/* Hero Section */
+.mobile-services-hero {
+  background: linear-gradient(135deg, #FF6B00 0%, #235789 100%);
+  color: white;
+  padding: 60px 20px 40px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.mobile-services-hero::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="30" cy="30" r="2" fill="rgba(255,255,255,0.1)"/><circle cx="70" cy="50" r="1.5" fill="rgba(255,255,255,0.1)"/><circle cx="20" cy="70" r="1" fill="rgba(255,255,255,0.1)"/></svg>');
+  opacity: 0.3;
+}
+
+.mobile-services-hero-content {
+  position: relative;
+  z-index: 2;
+}
+
+.mobile-services-hero h1 {
+  font-size: 32px;
+  font-weight: 900;
+  margin-bottom: 12px;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.mobile-services-hero p {
+  font-size: 16px;
+  opacity: 0.9;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+/* Services Sections */
+.mobile-services-section {
+  margin-bottom: 40px;
+}
+
+.mobile-services-content {
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.mobile-section-content {
+  padding: 0 20px;
+}
+
+.mobile-section-title {
+  font-size: 24px;
+  font-weight: 800;
+  color: #2c3e50;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+/* Services Grid */
+.mobile-services-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.mobile-service-card {
+  background: white;
+  padding: 24px;
+  border-radius: 16px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  text-align: center;
+}
+
+.mobile-service-icon {
+  font-size: 32px;
+  margin-bottom: 16px;
+}
+
+.mobile-service-card h3 {
+  font-size: 18px;
+  font-weight: 700;
+  color: #2c3e50;
+  margin-bottom: 12px;
+}
+
+.mobile-service-description {
+  font-size: 14px;
+  color: #5a6c7d;
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+
+.mobile-service-features {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  text-align: left;
+}
+
+.mobile-service-features li {
+  font-size: 13px;
+  color: #5a6c7d;
+  padding: 4px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mobile-feature-check {
+  color: #FF6B00;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+/* Benefits Grid */
+.mobile-benefits-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+.mobile-benefit-card {
+  background: white;
+  padding: 20px;
+  border-radius: 16px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+  text-align: center;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+}
+
+.mobile-benefit-icon {
+  font-size: 28px;
+  margin-bottom: 12px;
+}
+
+.mobile-benefit-card h3 {
+  font-size: 16px;
+  font-weight: 700;
+  color: #2c3e50;
+  margin-bottom: 8px;
+}
+
+.mobile-benefit-card p {
+  font-size: 14px;
+  color: #5a6c7d;
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* Areas Grid */
+.mobile-areas-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 20px;
+}
+
+.mobile-area-card {
+  background: white;
+  padding: 24px;
+  border-radius: 16px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+}
+
+.mobile-area-icon {
+  font-size: 24px;
+  margin-bottom: 12px;
+}
+
+.mobile-area-card h3 {
+  font-size: 18px;
+  font-weight: 700;
+  color: #2c3e50;
+  margin-bottom: 8px;
+}
+
+.mobile-area-card p {
+  font-size: 14px;
+  color: #5a6c7d;
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+
+.mobile-area-card ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.mobile-area-card li {
+  font-size: 13px;
+  color: #5a6c7d;
+  padding: 4px 8px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  text-align: center;
+}
+
+/* Pricing Grid */
+.mobile-pricing-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.mobile-pricing-card {
+  background: white;
+  padding: 24px;
+  border-radius: 16px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  position: relative;
+  overflow: hidden;
+}
+
+.mobile-pricing-card.popular {
+  border: 2px solid #FF6B00;
+  transform: scale(1.02);
+}
+
+.mobile-popular-badge {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: linear-gradient(135deg, #FF6B00, #235789);
+  color: white;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.mobile-pricing-header {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.mobile-pricing-header h3 {
+  font-size: 20px;
+  font-weight: 800;
+  color: #2c3e50;
+  margin-bottom: 12px;
+}
+
+.mobile-pricing-price {
+  margin-bottom: 8px;
+}
+
+.mobile-price-amount {
+  font-size: 32px;
+  font-weight: 900;
+  color: #FF6B00;
+}
+
+.mobile-price-period {
+  font-size: 14px;
+  color: #5a6c7d;
+}
+
+.mobile-pricing-description {
+  font-size: 14px;
+  color: #5a6c7d;
+  line-height: 1.4;
+}
+
+.mobile-pricing-features {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 24px 0;
+}
+
+.mobile-pricing-features li {
+  font-size: 14px;
+  color: #5a6c7d;
+  padding: 8px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.mobile-pricing-features li:last-child {
+  border-bottom: none;
+}
+
+.mobile-pricing-cta {
+  display: block;
+  width: 100%;
+  padding: 14px;
+  background: linear-gradient(135deg, #FF6B00, #235789);
+  color: white;
+  text-decoration: none;
+  text-align: center;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 14px;
+  transition: all 0.3s ease;
+}
+
+.mobile-pricing-cta:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(255, 107, 0, 0.3);
+}
+
+/* Delivery Options */
+.mobile-delivery-options {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+.mobile-delivery-option {
+  background: white;
+  padding: 20px;
+  border-radius: 16px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+  text-align: center;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+}
+
+.mobile-delivery-icon {
+  font-size: 28px;
+  margin-bottom: 12px;
+}
+
+.mobile-delivery-option h3 {
+  font-size: 16px;
+  font-weight: 700;
+  color: #2c3e50;
+  margin-bottom: 4px;
+}
+
+.mobile-delivery-option p {
+  font-size: 14px;
+  color: #5a6c7d;
+  margin: 4px 0;
+}
+
+.mobile-delivery-price {
+  font-weight: 700 !important;
+  color: #FF6B00 !important;
+}
+
+/* CTA Section */
+.mobile-services-cta {
+  background: white;
+  padding: 32px 20px;
+  border-radius: 16px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+  text-align: center;
+}
+
+.mobile-services-cta h2 {
+  font-size: 24px;
+  font-weight: 800;
+  color: #2c3e50;
+  margin-bottom: 12px;
+}
+
+.mobile-services-cta p {
+  font-size: 16px;
+  color: #5a6c7d;
+  margin-bottom: 24px;
+  line-height: 1.5;
+}
+
+.mobile-services-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* Button Styles */
+.mobile-btn {
+  padding: 12px 24px;
+  border-radius: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  font-size: 14px;
+  display: inline-block;
+  text-align: center;
+  min-width: 120px;
+}
+
+.mobile-btn-primary {
+  background: linear-gradient(135deg, #FF6B00, #235789);
+  color: white;
+  border: none;
+}
+
+.mobile-btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(255, 107, 0, 0.3);
+}
+
+.mobile-btn-outline {
+  background: transparent;
+  color: #FF6B00;
+  border: 2px solid #FF6B00;
+}
+
+.mobile-btn-outline:hover {
+  background: #FF6B00;
+  color: white;
+  transform: translateY(-2px);
+}
+
+/* Responsive Design */
+@media (max-width: 480px) {
+  .mobile-services-hero {
+    padding: 50px 15px 30px;
+  }
+
+  .mobile-services-hero h1 {
+    font-size: 28px;
+  }
+
+  .mobile-services-hero p {
+    font-size: 15px;
+  }
+
+  .mobile-section-title {
+    font-size: 22px;
+  }
+
+  .mobile-area-card ul {
+    grid-template-columns: 1fr;
+  }
+
+  .mobile-services-actions {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .mobile-btn {
+    width: 100%;
+    max-width: 280px;
+  }
+}

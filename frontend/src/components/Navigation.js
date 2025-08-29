@@ -5,6 +5,7 @@ import logo from '../assets/images/logo.jpg';
 import api from '../services/api';
 import { FaTrash } from 'react-icons/fa';
 import { FaTrashAlt } from 'react-icons/fa';
+import { motion } from 'framer-motion';
 
 const Navigation = () => {
   const { currentUser, logout } = useAuth();
@@ -15,6 +16,7 @@ const Navigation = () => {
   const [loadingNotifications, setLoadingNotifications] = useState(false);
   const notificationDropdownRef = useRef(null);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [isScrolled, setIsScrolled] = useState(false);
 
   // Fetch notifications when dropdown is opened
   useEffect(() => {
@@ -85,6 +87,17 @@ const Navigation = () => {
     };
   }, [showNotifications]);
 
+  // Handle scroll effect
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollTop = window.scrollY;
+      setIsScrolled(scrollTop > 50);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
   const handleLogout = () => {
     logout();
     navigate('/');
@@ -144,7 +157,12 @@ const Navigation = () => {
   };
 
   return (
-    <nav className="main-nav">
+    <motion.nav
+      className={`main-nav ${isScrolled ? 'scrolled' : ''}`}
+      initial={{ y: -100 }}
+      animate={{ y: 0 }}
+      transition={{ duration: 0.6, ease: "easeOut" }}
+    >
       <div className="nav-container">
         <div className="nav-logo">
           <Link to="/" onClick={closeMenu}>
@@ -237,7 +255,7 @@ const Navigation = () => {
           )}
         </div>
       </div>
-    </nav>
+    </motion.nav>
   );
 };
 
