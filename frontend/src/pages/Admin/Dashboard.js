@@ -4447,19 +4447,19 @@ const AdminDashboard = () => {
         : cod;
       const shippingValue = Number(awbPkg.shownDeliveryCost ?? awbPkg.deliveryCost ?? pkg.shownDeliveryCost ?? pkg.deliveryCost ?? 0) || 0;
       
-      // For all packages, subtotal is just the itemsSum, not cod
-      const subTotal = itemsSum;
-      const shippingTaxes = isShopify ? Math.max(0, cod - itemsSum) : shippingValue;
-      // Total should reflect COD for Shopify, otherwise subtotal + shipping
-      const total = isShopify ? (subTotal + shippingTaxes) : (subTotal + shippingValue);
-      
-      const totalsRows = isShopify
-        ? `<tr><td>Sub Total:</td><td>${subTotal.toFixed(2)} EGP</td></tr>`
-          + `<tr><td>Shipping & Taxes:</td><td>${shippingTaxes.toFixed(2)} EGP</td></tr>`
-          + `<tr><td><b>Total:</b></td><td><b>${total.toFixed(2)} EGP</b></td></tr>`
-        : `<tr><td>Sub Total:</td><td>${subTotal.toFixed(2)} EGP</td></tr>`
-          + `<tr><td>Shipping:</td><td>${shippingValue.toFixed(2)} EGP</td></tr>`
-          + `<tr><td><b>Total:</b></td><td><b>${total.toFixed(2)} EGP</b></td></tr>`;
+          // For Shopify packages: Sub Total = COD - shownShippingFees, Delivery fees = shownShippingFees, Total = COD
+    // For manually created packages: Sub Total = itemsSum, Delivery fees = shippingValue, Total = subTotal + shipping
+    const subTotal = isShopify ? Math.max(0, cod - shippingValue) : itemsSum;
+    const deliveryFees = isShopify ? shippingValue : shippingValue;
+    const total = isShopify ? cod : (subTotal + shippingValue);
+    
+    const totalsRows = isShopify
+      ? `<tr><td>Sub Total:</td><td>${subTotal.toFixed(2)} EGP</td></tr>`
+        + `<tr><td>Delivery fees & Taxes:</td><td>${deliveryFees.toFixed(2)} EGP</td></tr>`
+        + `<tr><td><b>Total:</b></td><td><b>${total.toFixed(2)} EGP</b></td></tr>`
+      : `<tr><td>Sub Total:</td><td>${subTotal.toFixed(2)} EGP</td></tr>`
+        + `<tr><td>Shipping:</td><td>${deliveryFees.toFixed(2)} EGP</td></tr>`
+        + `<tr><td><b>Total:</b></td><td><b>${total.toFixed(2)} EGP</b></td></tr>`;
       const shopName = awbPkg.Shop?.businessName || awbPkg.shop?.businessName;
       const isExchange = (awbPkg.type === 'exchange');
       const exch = awbPkg.exchangeDetails || {};

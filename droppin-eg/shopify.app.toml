@@ -3,7 +3,7 @@
 client_id = "204d55c4dc34850c3820d421098f101b"
 name = "Droppin EG"
 handle = "droppin-eg-2"
-application_url = "https://asus-cooking-lake-interview.trycloudflare.com"
+application_url = "https://thought-lexmark-recovery-traveler.trycloudflare.com"
 embedded = true
 
 [build]
@@ -43,7 +43,7 @@ uri = "/webhooks/shop/redact"
 scopes = "write_products, read_orders, read_customers"
 
 [auth]
-redirect_urls = ["https://asus-cooking-lake-interview.trycloudflare.com/auth/callback", "https://asus-cooking-lake-interview.trycloudflare.com/auth/shopify/callback", "https://asus-cooking-lake-interview.trycloudflare.com/api/auth/callback"]
+redirect_urls = ["https://thought-lexmark-recovery-traveler.trycloudflare.com/auth/callback", "https://thought-lexmark-recovery-traveler.trycloudflare.com/auth/shopify/callback", "https://thought-lexmark-recovery-traveler.trycloudflare.com/api/auth/callback"]
 
 [pos]
 embedded = false

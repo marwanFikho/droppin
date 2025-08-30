@@ -34,6 +34,7 @@ export const loader = async ({ request }) => {
               id
               name
               totalPriceSet { shopMoney { amount } }
+              totalShippingPriceSet { shopMoney { amount } }
               totalWeight
               shippingAddress {
                 name
@@ -77,8 +78,8 @@ export const loader = async ({ request }) => {
       }));
       const itemsString = items.map(item => `${item.quantity}x ${item.title}`).join(", ");
       const weight = (node.totalWeight || 0) / 1000; // grams to kg
-      // DEMO: random delivery fee between 20 and 60, and random delivered status
-      const deliveryFee = Math.floor(Math.random() * 41) + 20;
+      // Get real shipping fees from Shopify order
+      const deliveryFee = Number(node.totalShippingPriceSet?.shopMoney?.amount || 0);
       const delivered = Math.random() > 0.5;
       return {
         id: node.id,
@@ -266,6 +267,7 @@ export default function Index() {
       deliveryContactPhone: o.phone,
       schedulePickupTime: "ASAP",
       codAmount: o.total,
+      shownDeliveryCost: o.deliveryFee, // Send Shopify shipping fees
       shopNotes: shopNotes[o.id] || "",
     }));
     try {
