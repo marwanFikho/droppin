@@ -62,7 +62,11 @@ exports.createPackage = async (req, res) => {
       calculatedCodAmount = parseFloat(codAmount) || 0;
     }
 
+    // Determine if this is a Shopify package
+    const isShopify = (req.body.shopifyOrderId !== undefined && req.body.shopifyOrderId !== null && req.body.shopifyOrderId !== '');
+
     // Resolve shown delivery cost using precedence: provided -> shop.shownShippingFees -> shop.shippingFees -> 0
+    // For Shopify packages, prioritize the explicitly provided shownDeliveryCost
     const resolvedShownDeliveryCost = (shownDeliveryCost !== undefined && shownDeliveryCost !== null && shownDeliveryCost !== '')
       ? (parseFloat(shownDeliveryCost) || 0)
       : (
@@ -70,9 +74,6 @@ exports.createPackage = async (req, res) => {
             ? (parseFloat(shop.shownShippingFees) || 0)
             : ((shop.shippingFees !== undefined && shop.shippingFees !== null && shop.shippingFees !== '') ? (parseFloat(shop.shippingFees) || 0) : 0)
         );
-
-    // Determine if this is a Shopify package
-    const isShopify = (req.body.shopifyOrderId !== undefined && req.body.shopifyOrderId !== null && req.body.shopifyOrderId !== '');
 
     // For non-Shopify: COD should include items total + shown delivery cost
     const codToSave = isShopify ? calculatedCodAmount : (calculatedCodAmount + resolvedShownDeliveryCost);
@@ -1401,7 +1402,7 @@ exports.updatePackage = async (req, res) => {
         filteredUpdateData.itemsNo = newItemsNo;
         // Determine shown delivery cost to use (new value if provided, else existing)
         const newShown = ('shownDeliveryCost' in filteredUpdateData)
-          ? (filteredUpdateData.shownDeliveryCost === null || filteredUpdateData.shownDeliveryCost === '' ? 0 : (parseFloat(filteredUpdateData.shownDeliveryCost) || 0))
+          ? (filteredUpdateData.shownDeliveryCost === null || filteredUpdateData.shownDeliveryCost === undefined || filteredUpdateData.shownDeliveryCost === '' ? 0 : (parseFloat(filteredUpdateData.shownDeliveryCost) || 0))
           : (parseFloat(package.shownDeliveryCost) || 0);
         filteredUpdateData.codAmount = isShopify ? itemsCodSum : (itemsCodSum + newShown);
         await package.update(filteredUpdateData, { transaction: t });

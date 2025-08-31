@@ -36,6 +36,7 @@ router.get('/packages', adminController.getPackages);
 router.post('/packages/:packageId/assign-driver', adminController.assignDriverToPackage);
 router.patch('/packages/:packageId/payment', adminController.updatePackagePayment);
 router.put('/packages/:id', adminController.updatePackage);
+router.delete('/packages/:id', adminController.deletePackage);
 
 // Financial management
 router.post('/shops/:shopId/settle-payments', adminController.settleShopPayments);

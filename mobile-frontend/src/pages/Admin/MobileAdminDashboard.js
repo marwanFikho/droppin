@@ -142,6 +142,24 @@ const MobileAdminDashboard = () => {
   const [savingShippingFees, setSavingShippingFees] = useState(false);
   const [shippingFeesError, setShippingFeesError] = useState('');
 
+  // Delete package function
+  const deletePackage = async (pkg) => {
+    if (window.confirm(`Are you sure you want to delete package #${pkg.trackingNumber}? This action cannot be undone.`)) {
+      try {
+        await adminService.deletePackage(pkg.id);
+        setShowDetailsModal(false);
+        setStatusMessage({ type: 'success', text: 'Package deleted successfully.' });
+        // Refresh packages list
+        fetchPackages(packagePage, searchTerm);
+      } catch (err) {
+        setStatusMessage({ 
+          type: 'error', 
+          text: `Failed to delete package: ${err.response?.data?.message || err.message}` 
+        });
+      }
+    }
+  };
+
   const handleLanguageChange = () => {
     const newLang = lang === 'en' ? 'ar' : 'en';
     i18n.changeLanguage(newLang);
@@ -1660,7 +1678,14 @@ const MobileAdminDashboard = () => {
           <div className="mobile-modal-content" onClick={e => e.stopPropagation()}>
             <div className="mobile-modal-header">
               <h3>Package Details</h3>
-              <div style={{ display:'flex', justifyContent:'flex-end', marginBottom: 12 }}>
+              <div style={{ display:'flex', justifyContent:'flex-end', marginBottom: 12, gap: 8 }}>
+                <button
+                  className="mobile-shop-package-details-btn"
+                  onClick={(e) => { e.stopPropagation(); deletePackage(selectedPackage); }}
+                  style={{ background: '#dc3545', color: '#fff' }}
+                >
+                  Delete
+                </button>
                 <button
                   className="mobile-shop-package-details-btn"
                   onClick={(e) => { e.stopPropagation(); handlePrintAWB(selectedPackage); }}

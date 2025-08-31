@@ -35,6 +35,7 @@ export const loader = async ({ request }) => {
               name
               totalPriceSet { shopMoney { amount } }
               totalShippingPriceSet { shopMoney { amount } }
+              totalTaxSet { shopMoney { amount } }
               totalWeight
               shippingAddress {
                 name
@@ -78,8 +79,9 @@ export const loader = async ({ request }) => {
       }));
       const itemsString = items.map(item => `${item.quantity}x ${item.title}`).join(", ");
       const weight = (node.totalWeight || 0) / 1000; // grams to kg
-      // Get real shipping fees from Shopify order
+      // Get real shipping fees and taxes from Shopify order
       const deliveryFee = Number(node.totalShippingPriceSet?.shopMoney?.amount || 0);
+      const taxAmount = Number(node.totalTaxSet?.shopMoney?.amount || 0);
       const delivered = Math.random() > 0.5;
       return {
         id: node.id,
@@ -96,6 +98,7 @@ export const loader = async ({ request }) => {
         phone: shipping.phone || billing.phone || customer.phone || "",
         total: Number(node.totalPriceSet.shopMoney.amount),
         deliveryFee,
+        taxAmount,
         delivered,
       };
     });
@@ -226,8 +229,8 @@ export default function Index() {
     });
   };
 
-  // Calculate revenue for delivered packages
-  const revenue = orders.filter(o => o.delivered).reduce((sum, o) => sum + (o.deliveryFee || 0), 0);
+  // Calculate revenue for delivered packages (delivery fees + taxes)
+  const revenue = orders.filter(o => o.delivered).reduce((sum, o) => sum + ((o.deliveryFee || 0) + (o.taxAmount || 0)), 0);
 
   useEffect(() => {
     if (productId) {
@@ -267,7 +270,7 @@ export default function Index() {
       deliveryContactPhone: o.phone,
       schedulePickupTime: "ASAP",
       codAmount: o.total,
-      shownDeliveryCost: o.deliveryFee, // Send Shopify shipping fees
+      shownDeliveryCost: o.deliveryFee + o.taxAmount, // Send Shopify shipping fees + taxes
       shopNotes: shopNotes[o.id] || "",
     }));
     try {
@@ -598,7 +601,14 @@ export default function Index() {
                     )}
                   </div>
                 </td>
-                <td>${o.total}</td>
+                <td>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <div style={{ fontWeight: '600' }}>${o.total}</div>
+                    <div style={{ fontSize: '11px', color: '#6c757d' }}>
+                      Shipping: ${o.deliveryFee} | Tax: ${o.taxAmount}
+                    </div>
+                  </div>
+                </td>
                 <td>
                   {sentOrders.includes(o.id) ? (
                     <span style={{ color: 'green', fontWeight: 600 }}>Sent</span>

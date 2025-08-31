@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { adminService, packageService } from '../../services/api';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faUser, faStore, faTruck, faBox, faSearch, faEye, faCheck, faTimes, faChartBar, faUserPlus, faTimes as faClose, faEdit, faSignOutAlt, faTrash, faDollarSign } from '@fortawesome/free-solid-svg-icons';
+import { faUser, faStore, faTruck, faBox, faSearch, faEye, faCheck, faTimes, faChartBar, faUserPlus, faTimes as faClose, faEdit, faSignOutAlt, faTrash, faDollarSign, faPlus } from '@fortawesome/free-solid-svg-icons';
 import { formatDate } from '../../utils/dateUtils';
 import './AdminDashboard.css';
 import { Line, Bar, Pie } from 'react-chartjs-2';
@@ -76,6 +76,7 @@ const AdminDashboard = () => {
   const [pickupPackages, setPickupPackages] = useState([]);
   const [pickupPackagesLoading, setPickupPackagesLoading] = useState(false);
   const [packagesTab, setPackagesTab] = useState('all');
+  const [packagesSubTab, setPackagesSubTab] = useState('all'); // New state for sub-sub-tabs
   const [selectedPackages, setSelectedPackages] = useState([]);
   const [showBulkAssignModal, setShowBulkAssignModal] = useState(false);
   const [bulkAssignDriverId, setBulkAssignDriverId] = useState('');
@@ -148,6 +149,12 @@ const AdminDashboard = () => {
   const [settleShopId, setSettleShopId] = useState(null);
   // Add state for auto-scrolling to settlement
   const [autoScrollToSettle, setAutoScrollToSettle] = useState(false);
+  
+  // Add state for comprehensive package editing
+  const [isEditingPackage, setIsEditingPackage] = useState(false);
+  const [editingPackageData, setEditingPackageData] = useState({});
+  const [savingPackage, setSavingPackage] = useState(false);
+  
   // Move these to the top level of AdminDashboard
   const settlementRef = useRef(null);
   useEffect(() => {
@@ -174,6 +181,45 @@ const AdminDashboard = () => {
     { label: 'Cancelled', value: 'cancelled' },
     { label: 'Return to Shop', value: 'return-to-shop' }
   ];
+
+  // Define sub-sub-tabs for each main tab
+  const PACKAGE_SUB_TABS = {
+    'all': [
+      { label: 'All', value: 'all' }
+    ],
+    'ready-to-assign': [
+      { label: 'All Ready', value: 'all' },
+      { label: 'Awaiting Schedule', value: 'awaiting_schedule' },
+      { label: 'Scheduled for Pickup', value: 'scheduled_for_pickup' },
+      { label: 'Pending', value: 'pending' }
+    ],
+    'in-transit': [
+      { label: 'All In Transit', value: 'all' },
+      { label: 'Assigned', value: 'assigned' },
+      { label: 'Picked Up', value: 'pickedup' },
+      { label: 'In Transit', value: 'in-transit' }
+    ],
+    'delivered': [
+      { label: 'All Delivered', value: 'all' },
+      { label: 'Delivered', value: 'delivered' },
+      { label: 'Delivered & Returned', value: 'delivered-returned' }
+    ],
+    'cancelled': [
+      { label: 'All Cancelled', value: 'all' },
+      { label: 'Cancelled & Cancelled Returned', value: 'cancelled-group' },
+      { label: 'Rejected & Rejected Returned', value: 'rejected-group' }
+    ],
+    'return-to-shop': [
+      { label: 'All Returns', value: 'all' },
+      { label: 'Return Requested', value: 'return-requested' },
+      { label: 'Return In Transit', value: 'return-in-transit' },
+      { label: 'Return Pending', value: 'return-pending' },
+      { label: 'Return Completed', value: 'return-completed' },
+      { label: 'Exchange Requested', value: 'exchange-requests' },
+      { label: 'Cancelled Awaiting Return', value: 'cancelled-awaiting-return' },
+      { label: 'Rejected Awaiting Return', value: 'rejected-awaiting-return' }
+    ]
+  };
 
   // Function to fetch packages for a driver
   const fetchDriverPackages = async (driverId, opts = {}) => {
@@ -223,12 +269,21 @@ const AdminDashboard = () => {
   const rejectPackage = async (pkg) => {
     try {
       await packageService.updatePackageStatus(pkg.id, { status: 'rejected' });
-      setPackages(prev => prev.map(p => p.id === pkg.id ? { ...p, status: 'rejected' } : p));
+      // Refresh the packages list to get the correct status from backend
+      fetchPackages(packagePage, searchTerm);
       setShowRejectPackageModal(false);
       setPackageToAction(null);
       setShowDetailsModal(false);
+      setStatusMessage({
+        type: 'success',
+        text: `Package ${pkg.trackingNumber} has been rejected and is awaiting return.`
+      });
     } catch (err) {
       console.error('Error rejecting package:', err);
+      setStatusMessage({
+        type: 'error',
+        text: `Error rejecting package: ${err.response?.data?.message || err.message || 'Unknown error'}`
+      });
     }
   };
 
@@ -250,6 +305,138 @@ const AdminDashboard = () => {
       console.error('Error forwarding package:', err);
     }
   };
+
+  // Start editing package
+  const startEditingPackage = (pkg) => {
+    setEditingPackageData({
+      packageDescription: pkg.packageDescription || '',
+      weight: pkg.weight || '',
+      dimensions: pkg.dimensions || '',
+      pickupAddress: pkg.pickupAddress || '',
+      deliveryAddress: pkg.deliveryAddress || '',
+      pickupContactName: pkg.pickupContactName || '',
+      pickupContactPhone: pkg.pickupContactPhone || '',
+      deliveryContactName: pkg.deliveryContactName || '',
+      deliveryContactPhone: pkg.deliveryContactPhone || '',
+      codAmount: pkg.codAmount || 0,
+      deliveryCost: pkg.deliveryCost || 0,
+      shownDeliveryCost: pkg.shownDeliveryCost || 0,
+      shopNotes: pkg.shopNotes || '',
+      type: pkg.type || 'new',
+      status: pkg.status || 'pending',
+      paymentMethod: pkg.paymentMethod || '',
+      isPaid: pkg.isPaid || false,
+      paymentNotes: pkg.paymentNotes || '',
+      items: pkg.Items ? pkg.Items.map(item => ({
+        id: item.id,
+        description: item.description || '',
+        quantity: item.quantity || 1,
+        codPerUnit: item.codAmount && item.quantity ? (item.codAmount / item.quantity) : 0
+      })) : []
+    });
+    setIsEditingPackage(true);
+  };
+
+  // Save package edits
+  const savePackageEdits = async () => {
+    if (!selectedEntity) return;
+    
+    setSavingPackage(true);
+    try {
+      const updateData = { ...editingPackageData };
+      
+      // Convert items back to the format expected by the backend
+      if (updateData.items && Array.isArray(updateData.items)) {
+        updateData.items = updateData.items.map(item => ({
+          description: item.description,
+          quantity: parseInt(item.quantity) || 1,
+          codPerUnit: parseFloat(item.codPerUnit) || 0
+        }));
+      }
+      
+      await adminService.updatePackage(selectedEntity.id, updateData);
+      
+      // Refresh the package data
+      const response = await packageService.getPackageById(selectedEntity.id);
+      if (response && response.data) {
+        setSelectedEntity({ ...response.data, entityType: 'package' });
+      }
+      
+      setIsEditingPackage(false);
+      setEditingPackageData({});
+      setStatusMessage({ type: 'success', text: 'Package updated successfully.' });
+    } catch (err) {
+      console.error('Error saving package:', err);
+      setStatusMessage({ 
+        type: 'error', 
+        text: `Failed to update package: ${err.response?.data?.message || err.message}` 
+      });
+    } finally {
+      setSavingPackage(false);
+    }
+  };
+
+  // Cancel package editing
+  const cancelPackageEditing = () => {
+    setIsEditingPackage(false);
+    setEditingPackageData({});
+  };
+
+  // Delete package
+  const deletePackage = async (pkg) => {
+    setConfirmationDialogTitle('Delete Package');
+    setConfirmationDialogText(`Are you sure you want to delete package #${pkg.trackingNumber}? This action cannot be undone.`);
+    setConfirmAction(() => async () => {
+      try {
+        await adminService.deletePackage(pkg.id);
+        setShowDetailsModal(false);
+        setStatusMessage({ type: 'success', text: 'Package deleted successfully.' });
+        // Refresh packages list
+        fetchPackages(packagePage, searchTerm);
+      } catch (err) {
+        setStatusMessage({ 
+          type: 'error', 
+          text: `Failed to delete package: ${err.response?.data?.message || err.message}` 
+        });
+      } finally {
+        setShowConfirmationDialog(false);
+      }
+    });
+    setShowConfirmationDialog(true);
+  };
+
+  // Add new item to package
+  const addItemToPackage = () => {
+    setEditingPackageData(prev => ({
+      ...prev,
+      items: [...(prev.items || []), {
+        id: Date.now(), // Temporary ID
+        description: '',
+        quantity: 1,
+        codPerUnit: 0
+      }]
+    }));
+  };
+
+  // Remove item from package
+  const removeItemFromPackage = (index) => {
+    setEditingPackageData(prev => ({
+      ...prev,
+      items: prev.items.filter((_, i) => i !== index)
+    }));
+  };
+
+  // Update item in package
+  const updateItemInPackage = (index, field, value) => {
+    setEditingPackageData(prev => ({
+      ...prev,
+      items: prev.items.map((item, i) => 
+        i === index ? { ...item, [field]: value } : item
+      )
+    }));
+  };
+
+
 
   // Handle logout
   const handleLogout = () => {
@@ -369,7 +556,7 @@ const AdminDashboard = () => {
             break;
           case 'packages':
             console.log('Fetching packages...');
-            await fetchPackages(1, searchTerm);
+            // Don't fetch packages here - let the packages-specific useEffect handle it
             // Fetch all drivers for lookup
             const driversResponse = await adminService.getDrivers();
             setDrivers(driversResponse.data || []);
@@ -1300,6 +1487,8 @@ const AdminDashboard = () => {
   const renderPackagesSubTabs = () => {
     if (activeTab !== 'packages') return null;
 
+    const currentSubTabs = PACKAGE_SUB_TABS[packagesTab] || [];
+
     return (
       <div className="packages-header">
         <div className="packages-sub-tabs">
@@ -1307,7 +1496,7 @@ const AdminDashboard = () => {
             <button 
               key={tab.value}
               className={`sub-tab-btn ${packagesTab === tab.value ? 'active' : ''}`}
-              onClick={() => { setPackagesTab(tab.value); setPackagePage(1); }}
+              onClick={() => handleMainTabChange(tab.value)}
             >
               {tab.label}
             </button>
@@ -1322,6 +1511,21 @@ const AdminDashboard = () => {
             </button>
           )}
         </div>
+        
+        {/* Sub-sub-tabs */}
+        {currentSubTabs.length > 1 && (
+          <div className="packages-sub-sub-tabs">
+            {currentSubTabs.map(subTab => (
+              <button 
+                key={subTab.value}
+                className={`sub-sub-tab-btn ${packagesSubTab === subTab.value ? 'active' : ''}`}
+                onClick={() => handleSubTabChange(subTab.value)}
+              >
+                {subTab.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     );
   };
@@ -1330,14 +1534,6 @@ const AdminDashboard = () => {
   const renderPackagesTable = () => {
     const filteredPackages = getFilteredPackages();
     const isAllSelected = filteredPackages.length > 0 && selectedPackages.length === filteredPackages.length;
-
-    if (filteredPackages.length === 0) {
-      return (
-        <div className="empty-state">
-          <p>No packages found{searchTerm ? ' matching your search' : ''}.</p>
-        </div>
-      );
-    }
 
     return (
       <table className="admin-table">
@@ -1355,31 +1551,17 @@ const AdminDashboard = () => {
             )}
             <th>Tracking Number</th>
             <th>Description</th>
-            <th>
-              Status
-              <select
-                value={packageStatusFilter}
-                onChange={e => setPackageStatusFilter(e.target.value)}
-                style={{ marginLeft: 6, fontSize: '0.95em' }}
-              >
-                <option value="">All</option>
-                {allStatuses.map(status => (
-                  <option key={status} value={status}>
-                    {status.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
-                  </option>
-                ))}
-              </select>
-            </th>
+            <th>Status</th>
             <th>
               From
               <select
                 value={packageShopFilter}
-                onChange={e => setPackageShopFilter(e.target.value)}
+                onChange={e => handleShopFilterChange(e.target.value)}
                 style={{ marginLeft: 6, fontSize: '0.95em' }}
               >
                 <option value="">All</option>
-                {allShops.map(shop => (
-                  <option key={shop} value={shop}>{shop}</option>
+                {availableShops.map(shop => (
+                  <option key={shop.id} value={shop.businessName}>{shop.businessName}</option>
                 ))}
               </select>
             </th>
@@ -1390,7 +1572,16 @@ const AdminDashboard = () => {
           </tr>
         </thead>
         <tbody>
-          {filteredPackages.map(pkg => (
+          {filteredPackages.length === 0 ? (
+            <tr>
+              <td colSpan={packagesTab === 'ready-to-assign' ? 9 : 8} style={{ textAlign: 'center', padding: '40px 20px' }}>
+                <div className="empty-state">
+                  <p>No packages found{searchTerm ? ' matching your search' : ''}.</p>
+                </div>
+              </td>
+            </tr>
+          ) : (
+            filteredPackages.map(pkg => (
             <tr key={pkg.id}>
               {packagesTab === 'ready-to-assign' && (
                 <td data-label="Select">
@@ -1465,7 +1656,7 @@ const AdminDashboard = () => {
                     onClick={async () => {
                       try {
                         await packageService.updatePackageStatus(pkg.id, { status: 'return-completed' });
-                        await fetchPackages();
+                        await fetchPackagesWithMainTab(packagesTab, packagesSubTab, packagePage);
                       } catch (err) {
                         console.error('Failed to mark return completed:', err);
                       }
@@ -1481,28 +1672,12 @@ const AdminDashboard = () => {
                     onClick={async () => {
                       try {
                         await packageService.updatePackageStatus(pkg.id, { status: 'exchange-returned' });
-                        await fetchPackages();
+                        await fetchPackagesWithMainTab(packagesTab, packagesSubTab, packagePage);
                       } catch (err) {
                         console.error('Failed to mark exchange completed:', err);
                       }
                     }}
                     title="Mark Exchange Completed"
-                  >
-                    <FontAwesomeIcon icon={faCheck} />
-                  </button>
-                )}
-                {packagesTab === 'return-to-shop' && pkg.status === 'return-pending' && (
-                  <button
-                    className="action-btn return-btn"
-                    onClick={async () => {
-                      try {
-                        await packageService.updatePackageStatus(pkg.id, { status: 'return-completed' });
-                        await fetchPackages();
-                      } catch (err) {
-                        console.error('Failed to mark return completed:', err);
-                      }
-                    }}
-                    title="Mark Return Completed"
                   >
                     <FontAwesomeIcon icon={faCheck} />
                   </button>
@@ -1513,7 +1688,7 @@ const AdminDashboard = () => {
                     onClick={async () => {
                       try {
                         await packageService.updatePackageStatus(pkg.id, { status: 'exchange-awaiting-return' });
-                        await fetchPackages();
+                        await fetchPackagesWithMainTab(packagesTab, packagesSubTab, packagePage);
                       } catch (err) {
                         console.error('Failed to move exchange to awaiting return:', err);
                       }
@@ -1529,7 +1704,7 @@ const AdminDashboard = () => {
                     onClick={async () => {
                       try {
                         await packageService.updatePackageStatus(pkg.id, { status: 'return-pending' });
-                        await fetchPackages();
+                        await fetchPackagesWithMainTab(packagesTab, packagesSubTab, packagePage);
                       } catch (err) {
                         console.error('Failed to forward return status:', err);
                       }
@@ -1541,7 +1716,8 @@ const AdminDashboard = () => {
                 )}
               </td>
             </tr>
-          ))}
+          ))
+        )}
         </tbody>
       </table>
     );
@@ -2373,128 +2549,263 @@ const AdminDashboard = () => {
           {/* Package details */}
           {isPackage && (
             <div className="details-grid">
+              {/* Edit/View Mode Toggle */}
+              <div className="detail-item full-width" style={{ marginBottom: 20, padding: '16px', backgroundColor: '#f8f9fa', borderRadius: '8px', border: '1px solid #e9ecef' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <h3 style={{ margin: 0, color: '#495057' }}>
+                    <FontAwesomeIcon icon={faBox} style={{ marginRight: 8 }} />
+                    Package Details
+                  </h3>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    {!isEditingPackage ? (
+                      <>
+                        <button
+                          className="btn btn-primary"
+                          onClick={() => startEditingPackage(selectedEntity)}
+                          style={{ display: 'flex', alignItems: 'center', gap: 4 }}
+                        >
+                          <FontAwesomeIcon icon={faEdit} />
+                          Edit Package
+                        </button>
+                        <button
+                          className="btn btn-danger"
+                          onClick={() => deletePackage(selectedEntity)}
+                          style={{ display: 'flex', alignItems: 'center', gap: 4 }}
+                        >
+                          <FontAwesomeIcon icon={faTrash} />
+                          Delete Package
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          className="btn btn-success"
+                          onClick={savePackageEdits}
+                          disabled={savingPackage}
+                          style={{ display: 'flex', alignItems: 'center', gap: 4 }}
+                        >
+                          {savingPackage ? 'Saving...' : (
+                            <>
+                              <FontAwesomeIcon icon={faCheck} />
+                              Save Changes
+                            </>
+                          )}
+                        </button>
+                        <button
+                          className="btn btn-secondary"
+                          onClick={cancelPackageEditing}
+                          disabled={savingPackage}
+                        >
+                          Cancel
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Read-only fields */}
               <div className="detail-item">
                 <span className="label">Tracking Number:</span>
-                <span>{selectedEntity.trackingNumber}</span>
-              </div>
-              <div className="detail-item">
-                <span className="label">Status:</span>
-                <span className={`status-badge ${selectedEntity.status}`}>
-                  {selectedEntity.status}
-                </span>
+                <span style={{ fontWeight: 'bold', color: '#007bff' }}>{selectedEntity.trackingNumber}</span>
               </div>
               <div className="detail-item">
                 <span className="label">Created:</span>
                 <span>{selectedEntity.createdAt ? new Date(selectedEntity.createdAt).toLocaleDateString() : 'N/A'}</span>
               </div>
-              <div className="detail-item full-width">
-                <span className="label">Description:</span>
-                <span>{selectedEntity.packageDescription || 'No description'}</span>
-              </div>
+
+              {/* Editable fields */}
               <div className="detail-item">
-                <span className="label">Weight:</span>
-                <span>{selectedEntity.weight ? `${selectedEntity.weight} kg` : 'N/A'}</span>
+                <span className="label">Status:</span>
+                {isEditingPackage ? (
+                  <select
+                    value={editingPackageData.status || selectedEntity.status}
+                    onChange={(e) => setEditingPackageData(prev => ({ ...prev, status: e.target.value }))}
+                    style={{ padding: '6px 10px', borderRadius: 4, border: '1px solid #ccc', fontSize: '1em' }}
+                  >
+                    <option value="awaiting_schedule">Awaiting Schedule</option>
+                    <option value="scheduled_for_pickup">Scheduled for Pickup</option>
+                    <option value="pending">Pending</option>
+                    <option value="assigned">Assigned</option>
+                    <option value="pickedup">Picked Up</option>
+                    <option value="in-transit">In Transit</option>
+                    <option value="delivered">Delivered</option>
+                    <option value="cancelled">Cancelled</option>
+                    <option value="rejected">Rejected</option>
+                  </select>
+                ) : (
+                  <span className={`status-badge ${selectedEntity.status}`}>
+                    {selectedEntity.status}
+                  </span>
+                )}
               </div>
-              <div className="detail-item">
-                <span className="label">Dimensions:</span>
-                <span>{selectedEntity.dimensions || 'N/A'}</span>
-              </div>
-              <div className="detail-item">
-                <span className="label">COD Amount:</span>
-                <span>{selectedEntity.codAmount ? `${selectedEntity.codAmount} EGP` : 'N/A'}</span>
-              </div>
-              {selectedEntity.paymentMethod && (
-                <div className="detail-item">
-                  <span className="label">Payment Method:</span>
-                  <span>{String(selectedEntity.paymentMethod).toUpperCase()}</span>
-                </div>
-              )}
+
               <div className="detail-item">
                 <span className="label">Type:</span>
-                <span>{selectedEntity.type || 'new'}</span>
-                <button
-                  style={{
-                    background: '#fff', border: '1px solid #007bff', color: '#007bff', borderRadius: 4, padding: '4px 12px', marginLeft: 8, cursor: 'pointer', fontWeight: 'bold'
-                  }}
-                  onClick={async () => {
-                    const next = prompt('Enter type (new, return, exchange):', selectedEntity.type || 'new');
-                    if (!next) return;
-                    const val = next.toLowerCase().trim();
-                    if (!['new','return','exchange'].includes(val)) { alert('Invalid type'); return; }
-                    try {
-                      await adminService.updatePackage(selectedEntity.id, { type: val });
-                      localStorage.setItem('reopenAdminModal', selectedEntity.id);
-                      localStorage.setItem('reopenAdminTab', 'packages');
-                      localStorage.setItem('reopenAdminPackagesTab', packagesTab);
-                      window.location.reload();
-                    } catch (e) {
-                      alert('Failed to update type');
-                    }
-                  }}
-                >Edit</button>
-              </div>
-              <div className="detail-item">
-                <span className="label">Delivery Cost:</span>
-                {editingDeliveryCost ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <input
-                      type="number"
-                      value={newDeliveryCost}
-                      onChange={e => setNewDeliveryCost(e.target.value)}
-                      style={{ width: 90, padding: '6px 10px', borderRadius: 4, border: '1px solid #ccc', fontSize: '1em' }}
-                      min="0"
-                    />
-                    <button
-                      onClick={async () => {
-                        setSavingDeliveryCost(true);
-                        try {
-                          await adminService.updatePackage(selectedEntity.id, { deliveryCost: parseFloat(newDeliveryCost) });
-                          // Store the entity ID and tab to reopen modal after refresh
-                          localStorage.setItem('reopenAdminModal', selectedEntity.id);
-                          localStorage.setItem('reopenAdminTab', 'packages');
-                          localStorage.setItem('reopenAdminPackagesTab', packagesTab);
-                          // Refresh the entire page to get fresh data
-                          window.location.reload();
-                        } catch (err) {
-                          alert('Failed to update delivery cost');
-                        } finally {
-                          setSavingDeliveryCost(false);
-                        }
-                      }}
-                      disabled={savingDeliveryCost || newDeliveryCost === ''}
-                      style={{
-                        background: '#28a745', color: 'white', border: 'none', borderRadius: 4, padding: '6px 16px', fontWeight: 'bold', cursor: savingDeliveryCost ? 'not-allowed' : 'pointer', transition: 'background 0.2s',
-                        marginRight: 4
-                      }}
-                    >
-                      {savingDeliveryCost ? 'Saving...' : 'Save'}
-                    </button>
-                    <button
-                      onClick={() => setEditingDeliveryCost(false)}
-                      style={{
-                        background: '#f5f5f5', color: '#333', border: '1px solid #ccc', borderRadius: 4, padding: '6px 16px', fontWeight: 'bold', cursor: 'pointer', transition: 'background 0.2s'
-                      }}
-                    >
-                      Cancel
-                    </button>
-                  </div>
+                {isEditingPackage ? (
+                  <select
+                    value={editingPackageData.type || selectedEntity.type}
+                    onChange={(e) => setEditingPackageData(prev => ({ ...prev, type: e.target.value }))}
+                    style={{ padding: '6px 10px', borderRadius: 4, border: '1px solid #ccc', fontSize: '1em' }}
+                  >
+                    <option value="new">New</option>
+                    <option value="return">Return</option>
+                    <option value="exchange">Exchange</option>
+                  </select>
                 ) : (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontWeight: 500 }}>{selectedEntity.deliveryCost ? `${selectedEntity.deliveryCost} EGP` : 'N/A'}</span>
-                    <button
-                      style={{
-                        background: '#fff', border: '1px solid #007bff', color: '#007bff', borderRadius: 4, padding: '4px 12px', marginLeft: 4, cursor: 'pointer', fontWeight: 'bold', transition: 'background 0.2s'
-                      }}
-                      onClick={() => {
-                        setEditingDeliveryCost(true);
-                        setNewDeliveryCost(selectedEntity.deliveryCost || '');
-                      }}
-                      onMouseOver={e => e.currentTarget.style.background = '#e6f0ff'}
-                      onMouseOut={e => e.currentTarget.style.background = '#fff'}
-                    >
-                      Edit
-                    </button>
-                  </div>
+                  <span>{selectedEntity.type || 'new'}</span>
+                )}
+              </div>
+
+              <div className="detail-item full-width">
+                <span className="label">Description:</span>
+                {isEditingPackage ? (
+                  <textarea
+                    value={editingPackageData.packageDescription || selectedEntity.packageDescription || ''}
+                    onChange={(e) => setEditingPackageData(prev => ({ ...prev, packageDescription: e.target.value }))}
+                    style={{ width: '100%', padding: '8px', borderRadius: 4, border: '1px solid #ccc', fontSize: '1em', minHeight: '60px' }}
+                    placeholder="Package description"
+                  />
+                ) : (
+                  <span>{selectedEntity.packageDescription || 'No description'}</span>
+                )}
+              </div>
+
+              <div className="detail-item">
+                <span className="label">Weight (kg):</span>
+                {isEditingPackage ? (
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={editingPackageData.weight || selectedEntity.weight || ''}
+                    onChange={(e) => setEditingPackageData(prev => ({ ...prev, weight: e.target.value }))}
+                    style={{ padding: '6px 10px', borderRadius: 4, border: '1px solid #ccc', fontSize: '1em', width: '100px' }}
+                  />
+                ) : (
+                  <span>{selectedEntity.weight ? `${selectedEntity.weight} kg` : 'N/A'}</span>
+                )}
+              </div>
+
+              <div className="detail-item">
+                <span className="label">Dimensions:</span>
+                {isEditingPackage ? (
+                  <input
+                    type="text"
+                    value={editingPackageData.dimensions || selectedEntity.dimensions || ''}
+                    onChange={(e) => setEditingPackageData(prev => ({ ...prev, dimensions: e.target.value }))}
+                    style={{ padding: '6px 10px', borderRadius: 4, border: '1px solid #ccc', fontSize: '1em', width: '150px' }}
+                    placeholder="LxWxH"
+                  />
+                ) : (
+                  <span>{selectedEntity.dimensions || 'N/A'}</span>
+                )}
+              </div>
+
+              <div className="detail-item">
+                <span className="label">COD Amount (EGP):</span>
+                {isEditingPackage ? (
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={editingPackageData.codAmount || selectedEntity.codAmount || ''}
+                    onChange={(e) => setEditingPackageData(prev => ({ ...prev, codAmount: e.target.value }))}
+                    style={{ padding: '6px 10px', borderRadius: 4, border: '1px solid #ccc', fontSize: '1em', width: '120px' }}
+                  />
+                ) : (
+                  <span>{selectedEntity.codAmount ? `${selectedEntity.codAmount} EGP` : 'N/A'}</span>
+                )}
+              </div>
+
+              <div className="detail-item">
+                <span className="label">Delivery Cost (EGP):</span>
+                {isEditingPackage ? (
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={editingPackageData.deliveryCost || selectedEntity.deliveryCost || ''}
+                    onChange={(e) => setEditingPackageData(prev => ({ ...prev, deliveryCost: e.target.value }))}
+                    style={{ padding: '6px 10px', borderRadius: 4, border: '1px solid #ccc', fontSize: '1em', width: '120px' }}
+                  />
+                ) : (
+                  <span>{selectedEntity.deliveryCost ? `${selectedEntity.deliveryCost} EGP` : 'N/A'}</span>
+                )}
+              </div>
+
+              <div className="detail-item">
+                <span className="label">Shown Delivery Cost (EGP):</span>
+                {isEditingPackage ? (
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={editingPackageData.shownDeliveryCost || selectedEntity.shownDeliveryCost || ''}
+                    onChange={(e) => setEditingPackageData(prev => ({ ...prev, shownDeliveryCost: e.target.value }))}
+                    style={{ padding: '6px 10px', borderRadius: 4, border: '1px solid #ccc', fontSize: '1em', width: '120px' }}
+                  />
+                ) : (
+                  <span>{selectedEntity.shownDeliveryCost ? `${selectedEntity.shownDeliveryCost} EGP` : 'N/A'}</span>
+                )}
+              </div>
+
+              <div className="detail-item">
+                <span className="label">Payment Method:</span>
+                {isEditingPackage ? (
+                  <select
+                    value={editingPackageData.paymentMethod || selectedEntity.paymentMethod || ''}
+                    onChange={(e) => setEditingPackageData(prev => ({ ...prev, paymentMethod: e.target.value }))}
+                    style={{ padding: '6px 10px', borderRadius: 4, border: '1px solid #ccc', fontSize: '1em' }}
+                  >
+                    <option value="">Select payment method</option>
+                    <option value="CASH">Cash</option>
+                    <option value="VISA">Visa</option>
+                  </select>
+                ) : (
+                  <span>{selectedEntity.paymentMethod ? String(selectedEntity.paymentMethod).toUpperCase() : 'N/A'}</span>
+                )}
+              </div>
+
+              <div className="detail-item">
+                <span className="label">Payment Status:</span>
+                {isEditingPackage ? (
+                  <select
+                    value={editingPackageData.isPaid ? 'true' : 'false'}
+                    onChange={(e) => setEditingPackageData(prev => ({ ...prev, isPaid: e.target.value === 'true' }))}
+                    style={{ padding: '6px 10px', borderRadius: 4, border: '1px solid #ccc', fontSize: '1em' }}
+                  >
+                    <option value="false">Unpaid</option>
+                    <option value="true">Paid</option>
+                  </select>
+                ) : (
+                  <span className={`payment-status ${selectedEntity.isPaid ? 'paid' : 'unpaid'}`}>
+                    {selectedEntity.isPaid ? 'Paid' : 'Unpaid'}
+                  </span>
+                )}
+              </div>
+
+              <div className="detail-item full-width">
+                <span className="label">Payment Notes:</span>
+                {isEditingPackage ? (
+                  <textarea
+                    value={editingPackageData.paymentNotes || selectedEntity.paymentNotes || ''}
+                    onChange={(e) => setEditingPackageData(prev => ({ ...prev, paymentNotes: e.target.value }))}
+                    style={{ width: '100%', padding: '8px', borderRadius: 4, border: '1px solid #ccc', fontSize: '1em', minHeight: '60px' }}
+                    placeholder="Payment notes"
+                  />
+                ) : (
+                  <span>{selectedEntity.paymentNotes || 'N/A'}</span>
+                )}
+              </div>
+
+              <div className="detail-item full-width">
+                <span className="label">Shop Notes:</span>
+                {isEditingPackage ? (
+                  <textarea
+                    value={editingPackageData.shopNotes || selectedEntity.shopNotes || ''}
+                    onChange={(e) => setEditingPackageData(prev => ({ ...prev, shopNotes: e.target.value }))}
+                    style={{ width: '100%', padding: '8px', borderRadius: 4, border: '1px solid #ccc', fontSize: '1em', minHeight: '60px' }}
+                    placeholder="Shop notes"
+                  />
+                ) : (
+                  <span>{selectedEntity.shopNotes || 'N/A'}</span>
                 )}
               </div>
               {selectedEntity.shownDeliveryCost !== undefined && selectedEntity.shownDeliveryCost !== null && (
@@ -2519,15 +2830,44 @@ const AdminDashboard = () => {
                 <div className="nested-details">
                   <div className="nested-detail">
                     <span className="nested-label">Contact Name:</span>
-                    <span>{selectedEntity.pickupContactName || 'N/A'}</span>
+                    {isEditingPackage ? (
+                      <input
+                        type="text"
+                        value={editingPackageData.pickupContactName || selectedEntity.pickupContactName || ''}
+                        onChange={(e) => setEditingPackageData(prev => ({ ...prev, pickupContactName: e.target.value }))}
+                        style={{ padding: '6px 10px', borderRadius: 4, border: '1px solid #ccc', fontSize: '1em', width: '200px' }}
+                        placeholder="Contact name"
+                      />
+                    ) : (
+                      <span>{selectedEntity.pickupContactName || 'N/A'}</span>
+                    )}
                   </div>
                   <div className="nested-detail">
                     <span className="nested-label">Contact Phone:</span>
-                    <span>{selectedEntity.pickupContactPhone || 'N/A'}</span>
+                    {isEditingPackage ? (
+                      <input
+                        type="text"
+                        value={editingPackageData.pickupContactPhone || selectedEntity.pickupContactPhone || ''}
+                        onChange={(e) => setEditingPackageData(prev => ({ ...prev, pickupContactPhone: e.target.value }))}
+                        style={{ padding: '6px 10px', borderRadius: 4, border: '1px solid #ccc', fontSize: '1em', width: '200px' }}
+                        placeholder="Contact phone"
+                      />
+                    ) : (
+                      <span>{selectedEntity.pickupContactPhone || 'N/A'}</span>
+                    )}
                   </div>
                   <div className="nested-detail">
                     <span className="nested-label">Address:</span>
-                    <span>{selectedEntity.pickupAddress || 'N/A'}</span>
+                    {isEditingPackage ? (
+                      <textarea
+                        value={editingPackageData.pickupAddress || selectedEntity.pickupAddress || ''}
+                        onChange={(e) => setEditingPackageData(prev => ({ ...prev, pickupAddress: e.target.value }))}
+                        style={{ padding: '6px 10px', borderRadius: 4, border: '1px solid #ccc', fontSize: '1em', width: '100%', minHeight: '60px' }}
+                        placeholder="Pickup address"
+                      />
+                    ) : (
+                      <span>{selectedEntity.pickupAddress || 'N/A'}</span>
+                    )}
                   </div>
                   <div className="nested-detail">
                     <span className="nested-label">Pickedup Time</span>
@@ -2540,23 +2880,103 @@ const AdminDashboard = () => {
                 </div>
               </div>
               {/* Items Section */}
-              {selectedEntity.Items && selectedEntity.Items.length > 0 && (
-                <div className="detail-item full-width" style={{ marginTop: 16 }}>
+              <div className="detail-item full-width" style={{ marginTop: 16 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                   <span className="label">Items</span>
-                  <div style={{ backgroundColor: '#f9f9fa', padding: '1rem', borderRadius: '8px', border: '1px solid #e0e0e0', marginTop: '0.5rem' }}>
-                    {selectedEntity.Items.map((item, index) => (
-                      <div key={item.id} style={{ border: '1px solid #ddd', padding: '0.75rem', marginBottom: '0.5rem', borderRadius: '4px', backgroundColor: 'white' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: '1rem', alignItems: 'center' }}>
-                          <div><strong>Description:</strong> {item.description}</div>
-                          <div><strong>Quantity:</strong> {item.quantity}</div>
-                          <div><strong>COD Per Unit:</strong> EGP {item.codAmount && item.quantity ? (item.codAmount / item.quantity).toFixed(2) : '0.00'}</div>
-                          <div><strong>Total COD:</strong> EGP {parseFloat(item.codAmount || 0).toFixed(2)}</div>
+                  {isEditingPackage && (
+                    <button
+                      className="btn btn-primary"
+                      onClick={addItemToPackage}
+                      style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.9em', padding: '6px 12px' }}
+                    >
+                      <FontAwesomeIcon icon={faPlus} />
+                      Add Item
+                    </button>
+                  )}
+                </div>
+                
+                {isEditingPackage ? (
+                  <div style={{ backgroundColor: '#f9f9fa', padding: '1rem', borderRadius: '8px', border: '1px solid #e0e0e0' }}>
+                    {(editingPackageData.items || []).map((item, index) => (
+                      <div key={item.id || index} style={{ border: '1px solid #ddd', padding: '1rem', marginBottom: '0.5rem', borderRadius: '4px', backgroundColor: 'white' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr auto', gap: '1rem', alignItems: 'center' }}>
+                          <div>
+                            <label style={{ fontSize: '0.9em', color: '#666', display: 'block', marginBottom: '4px' }}>Description:</label>
+                            <input
+                              type="text"
+                              value={item.description}
+                              onChange={(e) => updateItemInPackage(index, 'description', e.target.value)}
+                              style={{ width: '100%', padding: '6px 8px', borderRadius: 4, border: '1px solid #ccc', fontSize: '0.9em' }}
+                              placeholder="Item description"
+                            />
+                          </div>
+                          <div>
+                            <label style={{ fontSize: '0.9em', color: '#666', display: 'block', marginBottom: '4px' }}>Quantity:</label>
+                            <input
+                              type="number"
+                              min="1"
+                              value={item.quantity}
+                              onChange={(e) => updateItemInPackage(index, 'quantity', parseInt(e.target.value) || 1)}
+                              style={{ width: '100%', padding: '6px 8px', borderRadius: 4, border: '1px solid #ccc', fontSize: '0.9em' }}
+                            />
+                          </div>
+                          <div>
+                            <label style={{ fontSize: '0.9em', color: '#666', display: 'block', marginBottom: '4px' }}>COD Per Unit (EGP):</label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={item.codPerUnit}
+                              onChange={(e) => updateItemInPackage(index, 'codPerUnit', parseFloat(e.target.value) || 0)}
+                              style={{ width: '100%', padding: '6px 8px', borderRadius: 4, border: '1px solid #ccc', fontSize: '0.9em' }}
+                            />
+                          </div>
+                          <div>
+                            <label style={{ fontSize: '0.9em', color: '#666', display: 'block', marginBottom: '4px' }}>Total COD:</label>
+                            <span style={{ fontWeight: 'bold', color: '#007bff' }}>
+                              EGP {((item.quantity || 1) * (item.codPerUnit || 0)).toFixed(2)}
+                            </span>
+                          </div>
+                          <div>
+                            <button
+                              className="btn btn-danger"
+                              onClick={() => removeItemFromPackage(index)}
+                              style={{ padding: '6px 8px', fontSize: '0.8em' }}
+                              title="Remove item"
+                            >
+                              <FontAwesomeIcon icon={faTrash} />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ))}
+                    {(editingPackageData.items || []).length === 0 && (
+                      <div style={{ textAlign: 'center', padding: '2rem', color: '#666', fontStyle: 'italic' }}>
+                        No items added. Click "Add Item" to add items to this package.
+                      </div>
+                    )}
                   </div>
-                </div>
-              )}
+                ) : (
+                  selectedEntity.Items && selectedEntity.Items.length > 0 ? (
+                    <div style={{ backgroundColor: '#f9f9fa', padding: '1rem', borderRadius: '8px', border: '1px solid #e0e0e0' }}>
+                      {selectedEntity.Items.map((item, index) => (
+                        <div key={item.id} style={{ border: '1px solid #ddd', padding: '0.75rem', marginBottom: '0.5rem', borderRadius: '4px', backgroundColor: 'white' }}>
+                          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: '1rem', alignItems: 'center' }}>
+                            <div><strong>Description:</strong> {item.description}</div>
+                            <div><strong>Quantity:</strong> {item.quantity}</div>
+                            <div><strong>COD Per Unit:</strong> EGP {item.codAmount && item.quantity ? (item.codAmount / item.quantity).toFixed(2) : '0.00'}</div>
+                            <div><strong>Total COD:</strong> EGP {parseFloat(item.codAmount || 0).toFixed(2)}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={{ textAlign: 'center', padding: '2rem', color: '#666', fontStyle: 'italic' }}>
+                      No items in this package.
+                    </div>
+                  )
+                )}
+              </div>
               {selectedEntity && Array.isArray(selectedEntity.deliveredItems) && selectedEntity.deliveredItems.length > 0 && (
                 <div className="detail-item full-width" style={{ marginTop: 8 }}>
                   <span className="label">Delivered Items</span>
@@ -2579,15 +2999,44 @@ const AdminDashboard = () => {
                 <div className="nested-details">
                   <div className="nested-detail">
                     <span className="nested-label">Contact Name:</span>
-                    <span>{selectedEntity.deliveryContactName || 'N/A'}</span>
+                    {isEditingPackage ? (
+                      <input
+                        type="text"
+                        value={editingPackageData.deliveryContactName || selectedEntity.deliveryContactName || ''}
+                        onChange={(e) => setEditingPackageData(prev => ({ ...prev, deliveryContactName: e.target.value }))}
+                        style={{ padding: '6px 10px', borderRadius: 4, border: '1px solid #ccc', fontSize: '1em', width: '200px' }}
+                        placeholder="Contact name"
+                      />
+                    ) : (
+                      <span>{selectedEntity.deliveryContactName || 'N/A'}</span>
+                    )}
                   </div>
                   <div className="nested-detail">
                     <span className="nested-label">Contact Phone:</span>
-                    <span>{selectedEntity.deliveryContactPhone || 'N/A'}</span>
+                    {isEditingPackage ? (
+                      <input
+                        type="text"
+                        value={editingPackageData.deliveryContactPhone || selectedEntity.deliveryContactPhone || ''}
+                        onChange={(e) => setEditingPackageData(prev => ({ ...prev, deliveryContactPhone: e.target.value }))}
+                        style={{ padding: '6px 10px', borderRadius: 4, border: '1px solid #ccc', fontSize: '1em', width: '200px' }}
+                        placeholder="Contact phone"
+                      />
+                    ) : (
+                      <span>{selectedEntity.deliveryContactPhone || 'N/A'}</span>
+                    )}
                   </div>
                   <div className="nested-detail">
                     <span className="nested-label">Address:</span>
-                    <span>{selectedEntity.deliveryAddress || 'N/A'}</span>
+                    {isEditingPackage ? (
+                      <textarea
+                        value={editingPackageData.deliveryAddress || selectedEntity.deliveryAddress || ''}
+                        onChange={(e) => setEditingPackageData(prev => ({ ...prev, deliveryAddress: e.target.value }))}
+                        style={{ padding: '6px 10px', borderRadius: 4, border: '1px solid #ccc', fontSize: '1em', width: '100%', minHeight: '60px' }}
+                        placeholder="Delivery address"
+                      />
+                    ) : (
+                      <span>{selectedEntity.deliveryAddress || 'N/A'}</span>
+                    )}
                   </div>
                   <div className="nested-detail">
                     <span className="nested-label">Delivery Time</span>
@@ -2797,7 +3246,7 @@ const AdminDashboard = () => {
                 )}
                 
                 {/* Reject Package button - only show for packages that are not already rejected, cancelled, or delivered */}
-                {!['cancelled', 'cancelled-awaiting-return', 'cancelled-returned', 'rejected', 'rejected-returned', 'delivered'].includes(selectedEntity.status) && (
+                {!['cancelled', 'cancelled-awaiting-return', 'cancelled-returned', 'rejected', 'rejected-returned', 'delivered', 'awaiting_schedule', 'awaiting_pickup', 'scheduled_for_pickup', 'rejected-awaiting-return'].includes(selectedEntity.status) && (
                   <button
                     className="btn btn-danger"
                     onClick={() => {
@@ -2906,7 +3355,7 @@ const AdminDashboard = () => {
       <div className="confirmation-overlay">
         <div className="confirmation-dialog warning-dialog">
           <h3>Reject Package</h3>
-          <p>Are you sure you want to reject this package? This will mark it as <strong>rejected</strong>.</p>
+          <p>Are you sure you want to reject this package? This will mark it as <strong>rejected-awaiting-return</strong>.</p>
           <div className="confirmation-buttons">
             <button 
               className="btn-secondary"
@@ -3690,44 +4139,88 @@ const AdminDashboard = () => {
   // Add new function to handle marking package as returned
   const handleMarkAsReturned = async (pkg) => {
     try {
-      // Determine the appropriate status based on current status
-      let newStatus = 'cancelled-returned';
-      if (pkg.status === 'rejected-awaiting-return') {
-        newStatus = 'rejected-returned';
-      } else if (pkg.status === 'delivered-awaiting-return') {
-        newStatus = 'delivered-returned';
+      let newStatus = '';
+      
+      // Determine the new status based on current status
+      switch (pkg.status) {
+        case 'cancelled-awaiting-return':
+          newStatus = 'cancelled-returned';
+          break;
+        case 'rejected-awaiting-return':
+          newStatus = 'rejected-returned';
+          break;
+        case 'delivered-awaiting-return':
+          newStatus = 'delivered-returned';
+          break;
+        default:
+          console.error('Unknown status for return:', pkg.status);
+          return;
       }
       
       await packageService.updatePackageStatus(pkg.id, { status: newStatus });
-      // Refresh packages list
-      fetchPackages();
+      
+      // Update local state
+      setPackages(prev => prev.map(p => p.id === pkg.id ? { ...p, status: newStatus } : p));
+      
+      // Show success message
+      setStatusMessage({
+        type: 'success',
+        text: `Package ${pkg.trackingNumber} has been marked as returned.`
+      });
+      
+      // Refresh packages to get updated data
+      fetchPackagesWithMainTab(packagesTab, packagesSubTab, packagePage);
+      
     } catch (error) {
       console.error('Error marking package as returned:', error);
-      alert('Failed to mark package as returned. Please try again.');
+      setStatusMessage({
+        type: 'error',
+        text: `Error marking package as returned: ${error.response?.data?.message || error.message || 'Unknown error'}`
+      });
     }
   };
 
-  // Add fetchPackages function
+  // Add fetchPackages function with server-side filtering
   const fetchPackages = async (page = packagePage, search = undefined) => {
+    return fetchPackagesWithFilters(page, search, packageStatusFilter, packageShopFilter);
+  };
+
+  // Add fetchPackagesWithFilters function that accepts filter parameters directly
+  const fetchPackagesWithFilters = async (page = packagePage, search = undefined, statusFilter = undefined, shopFilter = packageShopFilter) => {
     try {
       setLoading(true);
       const params = { page, limit: 25 };
+      
+      // Add search parameter
       if (typeof search === 'string' && search.trim() !== '') params.search = search.trim();
-      // Map packagesTab to server filters
-              if (packagesTab === 'ready-to-assign') {
-        params.statusIn = ['pending', 'cancelled-awaiting-return', 'return-requested', 'exchange-in-process'].join(',');
-      } else if (packagesTab === 'in-transit') {
-        params.statusIn = ['assigned', 'pickedup', 'in-transit'].join(',');
-      } else if (packagesTab === 'delivered') {
-        params.statusIn = ['delivered', 'delivered-returned'].join(',');
+      
+      // Add shop filter
+      if (shopFilter && shopFilter !== 'All') {
+        params.shopName = shopFilter;
+      }
+      
+      // Handle status filtering based on the new system
+      // Only apply status filter if it's provided and not empty
+      if (statusFilter && statusFilter !== '') {
+        // If statusFilter contains multiple statuses (comma-separated), use statusIn
+        if (statusFilter.includes(',')) {
+          params.statusIn = statusFilter;
+        } else {
+          // Single status, use status
+          params.status = statusFilter;
+        }
+      }
+      // If no statusFilter is provided, don't add any status filtering (show all packages)
+      
+
+      
+      // Set default sorting based on tab
+      if (packagesTab === 'delivered') {
         params.sortBy = 'actualDeliveryTime';
         params.sortOrder = 'DESC';
       } else if (packagesTab === 'cancelled') {
-        params.statusIn = ['cancelled', 'rejected'].join(',');
         params.sortBy = 'updatedAt';
         params.sortOrder = 'DESC';
-              } else if (packagesTab === 'return-to-shop') {
-        params.statusIn = ['cancelled-awaiting-return', 'cancelled-returned', 'rejected-awaiting-return', 'rejected-returned', 'return-requested', 'return-in-transit', 'return-pending', 'return-completed', 'exchange-in-transit', 'exchange-awaiting-return', 'delivered-awaiting-return', 'delivered-returned'].join(',');
       }
 
       const response = await adminService.getPackages(params);
@@ -3736,7 +4229,6 @@ const AdminDashboard = () => {
       const total = response.data?.total || list.length;
       const current = response.data?.currentPage || page;
 
-      // No client-side status filtering; keep server result
       setPackages(list);
 
       // Update pagination state
@@ -3762,12 +4254,52 @@ const AdminDashboard = () => {
     }
   };
 
-  // Add useEffect to fetch packages on component mount and when packagesTab changes
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Clear filters when changing tabs
+  useEffect(() => {
+    if (activeTab !== 'packages') {
+      setPackageStatusFilter('');
+      setPackageShopFilter('');
+    }
+  }, [activeTab]);
+
+  // Initialize sub-tab and fetch packages when component mounts or when main tab changes
   useEffect(() => {
     if (activeTab === 'packages') {
-      fetchPackages(1, searchTerm);
+      // If packagesTab is 'all' (initial state), set it to the first available tab
+      let currentMainTab = packagesTab;
+      if (packagesTab === 'all') {
+        currentMainTab = 'all'; // Use 'all' as the default main tab
+        setPackagesTab('all');
+      }
+      
+      // Get the first sub-sub-tab for the current main tab
+      const currentSubTabs = PACKAGE_SUB_TABS[currentMainTab] || [];
+      const firstSubTab = currentSubTabs.length > 0 ? currentSubTabs[0].value : 'all';
+      
+      // Set the sub-tab and immediately fetch with the correct filtering
+      setPackagesSubTab(firstSubTab);
+      // Fetch immediately with the correct parameters
+      fetchPackagesWithMainTab(currentMainTab, firstSubTab, 1);
+      fetchAvailableShops(); // Fetch shops for filtering
     }
   }, [activeTab, packagesTab]);
+
+  // Fetch packages when sub-tab changes (separate from main tab changes)
+  useEffect(() => {
+    if (activeTab === 'packages' && packagesSubTab && packages.length > 0) {
+      // Only fetch when user manually changes sub-tab (not during initial load)
+      fetchPackagesWithMainTab(packagesTab, packagesSubTab, 1);
+    }
+  }, [packagesSubTab]);
 
   useEffect(() => {
     if (activeTab === 'dashboard') {
@@ -4386,42 +4918,139 @@ const AdminDashboard = () => {
     }
   };
 
-  // Add state for package filters
+  // Add state for server-side package filters
   const [packageStatusFilter, setPackageStatusFilter] = useState('');
   const [packageShopFilter, setPackageShopFilter] = useState('');
+  const [availableShops, setAvailableShops] = useState([]);
+  const searchTimeoutRef = useRef(null);
 
-  // In getFilteredPackages, apply the new filters
+  // Function to get filtered packages (now just returns packages since filtering is server-side)
   const getFilteredPackages = () => {
-    let filtered = packages;
-    // Apply status filter (local dropdown)
-    if (packageStatusFilter) {
-      filtered = filtered.filter(pkg => pkg.status === packageStatusFilter);
-    }
-    // Apply shop filter (local dropdown)
-    if (packageShopFilter) {
-      filtered = filtered.filter(pkg => (pkg.shop?.businessName || 'N/A') === packageShopFilter);
-    }
-    // Apply search filter (client-side fallback; server already filters across DB)
-    if (searchTerm) {
-      const searchLower = searchTerm.toLowerCase();
-      filtered = filtered.filter(pkg => 
-        pkg.trackingNumber.toLowerCase().includes(searchLower) ||
-        pkg.packageDescription.toLowerCase().includes(searchLower) ||
-        (pkg.shop?.businessName || '').toLowerCase().includes(searchLower) ||
-        pkg.deliveryAddress.toLowerCase().includes(searchLower)
-      );
-    }
-    return filtered;
+    return packages;
   };
 
-  // In renderPackagesTable, compute unique statuses and shops for dropdowns
+  // Function to fetch available shops for filtering
+  const fetchAvailableShops = async () => {
+    try {
+      const response = await adminService.getShops();
+      setAvailableShops(response.data || []);
+    } catch (error) {
+      console.error('Error fetching shops:', error);
+    }
+  };
+
+  // Function to handle status filter change (kept for backward compatibility)
+  const handleStatusFilterChange = (newStatus) => {
+    setPackageStatusFilter(newStatus);
+    setPackagePage(1); // Reset to first page
+    // Call fetchPackages with the new status immediately
+    fetchPackagesWithFilters(1, searchTerm, newStatus, packageShopFilter);
+  };
+
+  // Function to handle shop filter change
+  const handleShopFilterChange = (newShop) => {
+    setPackageShopFilter(newShop);
+    setPackagePage(1); // Reset to first page
+    // Call fetchPackages with the new shop immediately
+    fetchPackagesWithFilters(1, searchTerm, packageStatusFilter, newShop);
+  };
+
+  // Function to handle main tab change
+  const handleMainTabChange = (newTab) => {
+    setPackagesTab(newTab);
+    
+    // Get the first sub-sub-tab for the new main tab
+    const currentSubTabs = PACKAGE_SUB_TABS[newTab] || [];
+    const firstSubTab = currentSubTabs.length > 0 ? currentSubTabs[0].value : 'all';
+    
+    setPackagesSubTab(firstSubTab); // Set to first sub-sub-tab instead of 'all'
+    setPackagePage(1);
+    // Fetch packages based on the new main tab and first sub-sub-tab
+    fetchPackagesWithMainTab(newTab, firstSubTab, 1);
+  };
+
+  // Function to handle sub-tab change
+  const handleSubTabChange = (newSubTab) => {
+    setPackagesSubTab(newSubTab);
+    setPackagePage(1);
+    // Fetch packages based on the current main tab and new sub-tab
+    fetchPackagesWithMainTab(packagesTab, newSubTab, 1);
+  };
+
+  // Function to fetch packages with main tab and sub-tab filtering
+  const fetchPackagesWithMainTab = (mainTab, subTab, page = 1) => {
+    let statusFilter = '';
+    
+    // Determine status filter based on main tab and sub tab
+    switch (mainTab) {
+      case 'ready-to-assign':
+        if (subTab === 'all') {
+          statusFilter = 'awaiting_schedule,scheduled_for_pickup,pending';
+        } else {
+          statusFilter = subTab;
+        }
+        break;
+      case 'in-transit':
+        if (subTab === 'all') {
+          statusFilter = 'assigned,pickedup,in-transit';
+        } else {
+          statusFilter = subTab;
+        }
+        break;
+      case 'delivered':
+        if (subTab === 'all') {
+          statusFilter = 'delivered,delivered-returned';
+        } else {
+          statusFilter = subTab;
+        }
+        break;
+      case 'cancelled':
+        if (subTab === 'all') {
+          statusFilter = 'cancelled,cancelled-returned,rejected,rejected-returned';
+        } else if (subTab === 'cancelled-group') {
+          statusFilter = 'cancelled,cancelled-returned';
+        } else if (subTab === 'rejected-group') {
+          statusFilter = 'rejected,rejected-returned';
+        } else {
+          statusFilter = subTab;
+        }
+        break;
+      case 'return-to-shop':
+        if (subTab === 'all') {
+          statusFilter = 'return-requested,return-in-transit,return-pending,return-completed,exchange-requests,cancelled-awaiting-return,rejected-awaiting-return';
+        } else {
+          statusFilter = subTab;
+        }
+        break;
+      default:
+        statusFilter = '';
+    }
+    
+          fetchPackagesWithFilters(page, searchTerm, statusFilter, packageShopFilter);
+  };
+
+  // Function to handle search with debouncing
+  const handleSearchChange = (e) => {
+    const newSearchTerm = e.target.value;
+    setSearchTerm(newSearchTerm);
+    
+    // Clear existing timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    
+    // Set new timeout for debounced search
+    searchTimeoutRef.current = setTimeout(() => {
+      setPackagePage(1); // Reset to first page
+      fetchPackagesWithFilters(1, newSearchTerm, packageStatusFilter, packageShopFilter);
+    }, 500); // 500ms delay
+  };
+
+  // Get unique statuses from current packages for dropdown
   const allStatuses = Array.from(new Set(packages.map(pkg => pkg.status))).sort();
-  const allShops = Array.from(new Set(packages.map(pkg => pkg.shop?.businessName || 'N/A'))).sort();
 
   // Add new state variables for delivery cost editing
-  const [editingDeliveryCost, setEditingDeliveryCost] = useState(false);
-  const [newDeliveryCost, setNewDeliveryCost] = useState('');
-  const [savingDeliveryCost, setSavingDeliveryCost] = useState(false);
+
 
   // Print AWB (admin)
   const handlePrintAWB = async (pkg) => {
@@ -4604,13 +5233,7 @@ const AdminDashboard = () => {
   const [packageTotalPages, setPackageTotalPages] = useState(1);
   const [packageTotal, setPackageTotal] = useState(0);
 
-  useEffect(() => {
-    if (activeTab === 'packages') {
-      // Reset to first page on new search
-      setPackagePage(1);
-      fetchPackages(1, searchTerm);
-    }
-  }, [searchTerm]);
+
 
   // Pagination for money tab
   const [moneyPage, setMoneyPage] = useState(1);
@@ -4622,6 +5245,7 @@ const AdminDashboard = () => {
       {renderStatusMessage()}
       {renderConfirmationDialog()}
       {renderForwardPackageModal()}
+      {renderRejectPackageModal()}
       {renderShippingFeesModal()}
       <div className="dashboard-header">
         <h1 style={{color: 'white'}}>Admin Dashboard</h1>
@@ -4632,7 +5256,7 @@ const AdminDashboard = () => {
               type="text" 
               placeholder={activeTab === 'packages' ? "Search by Package ID, description, recipient, shop, or status..." : "Search users, shops, drivers, or packages..."} 
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={activeTab === 'packages' ? handleSearchChange : (e) => setSearchTerm(e.target.value)}
             />
           </div>
         </div>
@@ -4699,7 +5323,13 @@ const AdminDashboard = () => {
                  <div className="packages-pagination" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 16, padding: 8 }}>
                    <button
                      className="btn-secondary"
-                     onClick={() => { if (packagePage > 1) fetchPackages(packagePage - 1, searchTerm); }}
+                     onClick={() => { 
+                       if (packagePage > 1) {
+                         const newPage = packagePage - 1;
+                         setPackagePage(newPage);
+                         fetchPackagesWithMainTab(packagesTab, packagesSubTab, newPage);
+                       }
+                     }}
                      disabled={packagePage <= 1 || loading}
                      title="Previous page"
                    >
@@ -4708,7 +5338,13 @@ const AdminDashboard = () => {
                    <span style={{ whiteSpace: 'nowrap' }}>Page {packagePage} of {packageTotalPages}</span>
                    <button
                      className="btn-secondary"
-                     onClick={() => { if (packagePage < packageTotalPages) fetchPackages(packagePage + 1, searchTerm); }}
+                     onClick={() => { 
+                       if (packagePage < packageTotalPages) {
+                         const newPage = packagePage + 1;
+                         setPackagePage(newPage);
+                         fetchPackagesWithMainTab(packagesTab, packagesSubTab, newPage);
+                       }
+                     }}
                      disabled={packagePage >= packageTotalPages || loading}
                      title="Next page"
                    >

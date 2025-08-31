@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import logo from '../assets/images/logo.jpg';
 import api from '../services/api';
@@ -10,6 +10,7 @@ import { motion } from 'framer-motion';
 const Navigation = () => {
   const { currentUser, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState([]);
@@ -156,6 +157,14 @@ const Navigation = () => {
     setIsMenuOpen(false);
   };
 
+  // Check if a link is active
+  const isLinkActive = (path) => {
+    if (path === '/') {
+      return location.pathname === '/';
+    }
+    return location.pathname.startsWith(path);
+  };
+
   return (
     <motion.nav
       className={`main-nav ${isScrolled ? 'scrolled' : ''}`}
@@ -176,13 +185,13 @@ const Navigation = () => {
         </button>
 
         <div className={`nav-links ${isMenuOpen ? 'open' : ''}`}>
-          <Link to="/" className="nav-link" onClick={closeMenu}>Home</Link>
-          <Link to="/track" className="nav-link" onClick={closeMenu}>Track Package</Link>
+          <Link to="/" className={`nav-link ${isLinkActive('/') ? 'active' : ''}`} onClick={closeMenu}>Home</Link>
+          <Link to="/track" className={`nav-link ${isLinkActive('/track') ? 'active' : ''}`} onClick={closeMenu}>Track Package</Link>
           
           {currentUser ? (
             <>
               {getDashboardLink() && (
-                <Link to={getDashboardLink()} className="nav-link" onClick={closeMenu}>
+                <Link to={getDashboardLink()} className={`nav-link ${isLinkActive(getDashboardLink()) ? 'active' : ''}`} onClick={closeMenu}>
                   {currentUser.role.charAt(0).toUpperCase() + currentUser.role.slice(1)} Dashboard
                 </Link>
               )}

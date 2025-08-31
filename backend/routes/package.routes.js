@@ -20,6 +20,8 @@ router.post('/shopify', apiKeyAuth, async (req, res) => {
       return res.status(400).json({ message: 'No packages provided' });
     }
 
+
+
     // Helper to generate tracking number
     function generateTrackingNumber() {
       const prefix = 'DP';
@@ -33,7 +35,7 @@ router.post('/shopify', apiKeyAuth, async (req, res) => {
       // Single package, use create
       const pkg = packages[0];
       const trackingNumber = pkg.trackingNumber || generateTrackingNumber();
-      const newPackage = await Package.create({
+      const packageData = {
         shopId: req.shop.id,
         trackingNumber,
         packageDescription: pkg.packageDescription,
@@ -50,7 +52,7 @@ router.post('/shopify', apiKeyAuth, async (req, res) => {
         priority: pkg.priority || 'normal',
         codAmount: pkg.codAmount || 0,
         deliveryCost: req.shop.shippingFees != null ? parseFloat(req.shop.shippingFees) : (parseFloat(pkg.deliveryCost) || 0),
-        shownDeliveryCost: pkg.shownDeliveryCost !== undefined && pkg.shownDeliveryCost !== null ? parseFloat(pkg.shownDeliveryCost) : (req.shop.shownShippingFees != null ? parseFloat(req.shop.shownShippingFees) : null),
+        shownDeliveryCost: pkg.shownDeliveryCost !== undefined && pkg.shownDeliveryCost !== null && pkg.shownDeliveryCost !== '' ? parseFloat(pkg.shownDeliveryCost) : (req.shop.shownShippingFees != null ? parseFloat(req.shop.shownShippingFees) : null),
         paymentMethod: pkg.paymentMethod || null,
         paymentNotes: pkg.paymentNotes || null,
         shopNotes: pkg.shopNotes || null,
@@ -59,7 +61,9 @@ router.post('/shopify', apiKeyAuth, async (req, res) => {
         isPaid: false,
         paymentStatus: 'pending',
         shopifyOrderId: pkg.shopifyOrderId // Only set shopifyOrderId, not isShopifySent
-      });
+      };
+
+      const newPackage = await Package.create(packageData);
 
       // Create items if provided
       if (pkg.items && Array.isArray(pkg.items) && pkg.items.length > 0) {
@@ -94,7 +98,7 @@ router.post('/shopify', apiKeyAuth, async (req, res) => {
         priority: pkg.priority || 'normal',
         codAmount: pkg.codAmount || 0,
         deliveryCost: req.shop.shippingFees != null ? parseFloat(req.shop.shippingFees) : (parseFloat(pkg.deliveryCost) || 0),
-        shownDeliveryCost: pkg.shownDeliveryCost !== undefined && pkg.shownDeliveryCost !== null ? parseFloat(pkg.shownDeliveryCost) : (req.shop.shownShippingFees != null ? parseFloat(req.shop.shownShippingFees) : null),
+        shownDeliveryCost: pkg.shownDeliveryCost !== undefined && pkg.shownDeliveryCost !== null && pkg.shownDeliveryCost !== '' ? parseFloat(pkg.shownDeliveryCost) : (req.shop.shownShippingFees != null ? parseFloat(req.shop.shownShippingFees) : null),
         paymentMethod: pkg.paymentMethod || null,
         paymentNotes: pkg.paymentNotes || null,
         shopNotes: pkg.shopNotes || null,
@@ -104,6 +108,7 @@ router.post('/shopify', apiKeyAuth, async (req, res) => {
         paymentStatus: 'pending',
         shopifyOrderId: pkg.shopifyOrderId // Only set shopifyOrderId, not isShopifySent
       }));
+      
       const newPackages = await Package.bulkCreate(pkgsToCreate, { individualHooks: true });
       
       // Create items for each package if provided

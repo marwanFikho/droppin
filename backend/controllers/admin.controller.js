@@ -1,5 +1,5 @@
 const { Op, QueryTypes } = require('sequelize');
-const { sequelize, User, Shop, Driver, Package, Pickup, MoneyTransaction } = require('../models/index');
+const { sequelize, User, Shop, Driver, Package, Pickup, MoneyTransaction, Item } = require('../models/index');
 const { formatDateTimeToDDMMYYYY, getCairoDateTime } = require('../utils/dateUtils');
 const { logMoneyTransaction } = require('../utils/moneyLogger');
 const { createNotification } = require('./notification.controller');
@@ -1070,6 +1070,7 @@ exports.getPackages = async (req, res) => {
       status,
       statusIn, // comma-separated statuses
       shopId,
+      shopName, // Add support for filtering by shop name
       search,
       createdAfter,
       createdBefore,
@@ -1111,6 +1112,11 @@ exports.getPackages = async (req, res) => {
 
     if (shopId) {
       whereClause.shopId = shopId;
+    }
+
+    // Add shop name filter
+    if (shopName) {
+      whereClause['$Shop.businessName$'] = { [Op.like]: `%${shopName}%` };
     }
 
     if (search) {
@@ -1985,27 +1991,115 @@ exports.giveMoneyToDriver = async (req, res) => {
 exports.updatePackage = async (req, res) => {
   try {
     const { id } = req.params;
-    const { deliveryCost, shownDeliveryCost, type } = req.body;
+    const updateData = req.body;
     const pkg = await Package.findByPk(id);
     if (!pkg) {
       return res.status(404).json({ message: 'Package not found' });
     }
-    if (deliveryCost !== undefined) {
-      pkg.deliveryCost = deliveryCost;
+    
+    // Admin can update all package fields
+    const allowedUpdates = [
+      'packageDescription', 'weight', 'dimensions', 
+      'pickupAddress', 'deliveryAddress', 'schedulePickupTime',
+      'priority', 'notes', 'deliveryFee', 'deliveryCost',
+      'shownDeliveryCost', 'shopNotes', 'items', 'type',
+      'pickupContactName', 'pickupContactPhone', 'deliveryContactName', 
+      'deliveryContactPhone', 'codAmount', 'paymentMethod', 'isPaid',
+      'paymentDate', 'paymentNotes', 'status', 'driverId', 'shopId',
+      'actualPickupTime', 'actualDeliveryTime', 'rejectionShippingPaidAmount',
+      'returnRefundAmount', 'returnDetails', 'exchangeDetails', 'itemsNo'
+    ];
+    
+    // Filter out fields that are not allowed to be updated
+    const filteredUpdateData = Object.keys(updateData)
+      .filter(key => allowedUpdates.includes(key))
+      .reduce((obj, key) => {
+        obj[key] = updateData[key];
+        return obj;
+      }, {});
+    
+    // Handle special field updates
+    if (updateData.deliveryCost !== undefined) {
+      pkg.deliveryCost = updateData.deliveryCost;
     }
-    if (shownDeliveryCost !== undefined) {
-      pkg.shownDeliveryCost = shownDeliveryCost;
+    if (updateData.shownDeliveryCost !== undefined) {
+      pkg.shownDeliveryCost = updateData.shownDeliveryCost;
     }
-    if (type !== undefined) {
-      if (!['new', 'return', 'exchange'].includes(type)) {
+    if (updateData.type !== undefined) {
+      if (!['new', 'return', 'exchange'].includes(updateData.type)) {
         return res.status(400).json({ message: 'Invalid package type' });
       }
-      pkg.type = type;
+      pkg.type = updateData.type;
     }
-    await pkg.save();
+    
+    // Update all other fields
+    await pkg.update(filteredUpdateData);
+    
+    // If items are provided, update them
+    if (Array.isArray(updateData.items)) {
+      const transaction = await sequelize.transaction();
+      try {
+        // Replace items
+        await Item.destroy({ where: { packageId: pkg.id }, transaction });
+        const itemsToCreate = updateData.items.map((it) => {
+          const quantity = parseInt(it.quantity) || 1;
+          const codPerUnit = parseFloat(it.codPerUnit) || 0;
+          return {
+            packageId: pkg.id,
+            description: it.description,
+            quantity,
+            codAmount: codPerUnit * quantity
+          };
+        });
+        await Item.bulkCreate(itemsToCreate, { transaction });
+        
+        // Recalculate totals
+        const itemsCodSum = itemsToCreate.reduce((sum, it) => sum + (parseFloat(it.codAmount) || 0), 0);
+        const newItemsNo = itemsToCreate.reduce((sum, it) => sum + (parseInt(it.quantity) || 0), 0);
+        
+        await pkg.update({
+          itemsNo: newItemsNo,
+          codAmount: itemsCodSum + (parseFloat(pkg.shownDeliveryCost) || 0)
+        }, { transaction });
+        
+        await transaction.commit();
+      } catch (error) {
+        await transaction.rollback();
+        throw error;
+      }
+    }
+    
     res.json({ success: true, package: pkg });
   } catch (error) {
     console.error('Error updating package:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Delete package by admin
+exports.deletePackage = async (req, res) => {
+  const transaction = await sequelize.transaction();
+  try {
+    const { id } = req.params;
+    
+    // Find package
+    const pkg = await Package.findByPk(id, { transaction });
+    if (!pkg) {
+      await transaction.rollback();
+      return res.status(404).json({ message: 'Package not found' });
+    }
+    
+    // Delete related items
+    await Item.destroy({ where: { packageId: id }, transaction });
+    
+    // Delete the package
+    await pkg.destroy({ transaction });
+    
+    await transaction.commit();
+    res.json({ success: true, message: 'Package deleted successfully' });
+  } catch (error) {
+    await transaction.rollback();
+    console.error('Error deleting package:', error);
     res.status(500).json({ message: error.message });
   }
 };
