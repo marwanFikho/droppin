@@ -299,8 +299,11 @@ const ShopPackages = () => {
   const handleCancel = async () => {
     if (!packageToCancel) return;
     try {
-      await packageService.cancelPackage(packageToCancel.id);
-      setPackages(prev => prev.map(p => p.id === packageToCancel.id ? { ...p, status: 'cancelled' } : p));
+      const response = await packageService.cancelPackage(packageToCancel.id);
+      // Update the package status based on the response from the backend
+      // The backend will set it to 'cancelled-awaiting-return' for packages that need to be returned
+      const updatedStatus = response.data?.package?.status || 'cancelled';
+      setPackages(prev => prev.map(p => p.id === packageToCancel.id ? { ...p, status: updatedStatus } : p));
       setShowCancelModal(false);
       setPackageToCancel(null);
       setCancelError(null);

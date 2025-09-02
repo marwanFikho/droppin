@@ -349,7 +349,7 @@ const ShopDashboard = () => {
   const handleCancel = async () => {
     if (!packageToCancel) return;
     try {
-      await packageService.updatePackageStatus(packageToCancel.id, { status: 'cancelled' });
+      await packageService.cancelPackage(packageToCancel.id);
       setRefreshData(Date.now());
       setShowCancelModal(false);
       setPackageToCancel(null);

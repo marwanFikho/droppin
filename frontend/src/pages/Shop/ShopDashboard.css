@@ -159,6 +159,7 @@
 /* Shop Packages Page Layout */
 .shop-packages-page {
   margin-left: 280px; /* match sidebar width */
+  margin-top: 80px !important; /* Add top margin to account for fixed navigation header */
   padding: 3rem 3rem 3rem 0;
   min-height: 100vh;
   background: #f7f9fb;
@@ -230,6 +231,7 @@
 @media (max-width: 900px) {
   .shop-packages-page {
     margin-left: 0;
+    margin-top: 70px !important; /* Adjust top margin for smaller screens */
     padding: 1rem;
   }
   .packages-table th, .packages-table td {
@@ -344,6 +346,7 @@
 
 .shop-profile-page {
   margin-left: 280px;
+  margin-top: 80px !important; /* Add top margin to account for fixed navigation header */
   padding: 3rem 3rem 3rem 0;
   min-height: 100vh;
   background: #f7f9fb;
@@ -1280,4 +1283,91 @@
 
 .dashboard-content-shop {
   margin-left: 280px;
+  margin-top: 80px; /* Add top margin to account for fixed navigation header */
+}
+
+/* Responsive adjustments for different screen sizes */
+@media (max-width: 1024px) {
+  .dashboard-content-shop {
+    margin-top: 70px; /* Slightly less margin on medium screens */
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-content-shop {
+    margin-top: 60px; /* Less margin on small screens */
+  }
+}
+
+/* Shop Dashboard Header Styling */
+.dashboard-content-shop .dashboard-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+/* Ensure sidebar is properly positioned below fixed navigation */
+.dashboard-container .dashboard-sidebar {
+  top: 80px; /* Position sidebar below the fixed navigation */
+  height: calc(100vh - 80px); /* Adjust height to account for navigation */
+}
+
+/* Responsive sidebar positioning */
+@media (max-width: 1024px) {
+  .dashboard-container .dashboard-sidebar {
+    top: 70px;
+    height: calc(100vh - 70px);
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-container .dashboard-sidebar {
+    top: 60px;
+    height: calc(100vh - 60px);
+  }
+}
+
+/* Add top margin to all shop page containers to prevent content from being hidden under navigation */
+.shop-packages-page,
+.wallet-page,
+.shop-profile-page,
+.dashboard-content {
+  margin-top: 80px !important; /* Add top margin to account for fixed navigation header */
+}
+
+/* Responsive adjustments for shop page containers */
+@media (max-width: 1024px) {
+  .shop-packages-page,
+  .wallet-page,
+  .shop-profile-page,
+  .dashboard-content {
+    margin-top: 70px !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .shop-packages-page,
+  .wallet-page,
+  .shop-profile-page,
+  .dashboard-content {
+    margin-top: 60px !important;
+  }
+}
+
+/* Additional specific rules to ensure top margin is applied */
+div.shop-packages-page,
+div.wallet-page,
+div.shop-profile-page,
+div.dashboard-content {
+  margin-top: 80px !important;
+}
+
+/* Target the specific page containers with higher specificity */
+.dashboard-container .shop-packages-page,
+.dashboard-container .wallet-page,
+.dashboard-container .shop-profile-page,
+.dashboard-container .dashboard-content {
+  margin-top: 80px !important;
 }

@@ -509,8 +509,8 @@ exports.updatePackageStatus = async (req, res) => {
       package.driverId = null;
     }
     
-    // Handle rejected packages that have been picked up or are assigned or in transit
-    if (nextStatus === 'rejected' && ['assigned', 'pickedup', 'in-transit'].includes(package.status)) {
+    // Handle rejected packages that have been picked up or are assigned or in transit or pending
+    if (nextStatus === 'rejected' && ['pending', 'assigned', 'pickedup', 'in-transit'].includes(package.status)) {
       nextStatus = 'rejected-awaiting-return';
     }
     // If driver is rejecting, and provided a paid amount, store it on the package for future accounting
