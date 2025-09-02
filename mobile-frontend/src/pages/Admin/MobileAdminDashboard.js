@@ -21,6 +21,7 @@ const MobileAdminDashboard = () => {
   const [userSubTab, setUserSubTab] = useState('all');
   const [packages, setPackages] = useState([]);
   const [packageSubTab, setPackageSubTab] = useState('all');
+  const [packageSubSubTab, setPackageSubSubTab] = useState('');
   const [pickups, setPickups] = useState([]);
   const [pickupStatusUpdating, setPickupStatusUpdating] = useState({});
   const [selectedPackage, setSelectedPackage] = useState(null);
@@ -191,7 +192,7 @@ const MobileAdminDashboard = () => {
 
       // Map packageSubTab to server filters (same logic as desktop)
       if (packageSubTab === 'ready-to-assign') {
-        params.statusIn = ['pending', 'cancelled-awaiting-return', 'return-requested', 'exchange-in-process'].join(',');
+        params.statusIn = ['pending', 'cancelled-awaiting-return', 'return-requested', 'exchange-in-process', 'exchange-awaiting-schedule'].join(',');
       } else if (packageSubTab === 'in-transit') {
         params.statusIn = ['assigned', 'pickedup', 'in-transit'].join(',');
       } else if (packageSubTab === 'delivered') {
@@ -203,7 +204,13 @@ const MobileAdminDashboard = () => {
         params.sortBy = 'updatedAt';
         params.sortOrder = 'DESC';
       } else if (packageSubTab === 'return-to-shop') {
-        params.statusIn = ['cancelled-awaiting-return', 'cancelled-returned', 'rejected-awaiting-return', 'rejected-returned', 'return-requested', 'return-in-transit', 'return-pending', 'return-completed', 'exchange-in-transit', 'exchange-awaiting-return', 'delivered-awaiting-return', 'delivered-returned'].join(',');
+        if (packageSubSubTab === 'exchange-requests') {
+          params.statusIn = ['exchange-awaiting-schedule', 'exchange-awaiting-pickup', 'exchange-in-process', 'exchange-in-transit', 'exchange-awaiting-return'].join(',');
+        } else if (packageSubSubTab === 'exchange-completed') {
+          params.statusIn = ['exchange-returned'].join(',');
+        } else {
+          params.statusIn = ['cancelled-awaiting-return', 'cancelled-returned', 'rejected-awaiting-return', 'rejected-returned', 'return-requested', 'return-in-transit', 'return-pending', 'return-completed', 'exchange-in-transit', 'exchange-awaiting-return', 'delivered-awaiting-return', 'delivered-returned', 'exchange-returned'].join(',');
+        }
       } else if (packageSubTab !== 'all') {
         // Handle specific status filters
         params.statusIn = packageSubTab;
@@ -235,7 +242,7 @@ const MobileAdminDashboard = () => {
     } finally {
       setLoading(false);
     }
-  }, [activeTab, packagePage, packageSubTab]);
+  }, [activeTab, packagePage, packageSubTab, packageSubSubTab]);
 
   // Add these at the top of the component, after useState declarations
   const fetchDashboardData = useCallback(async () => {
@@ -1312,43 +1319,43 @@ const MobileAdminDashboard = () => {
             <div className="mobile-admin-dashboard-sub-tabs">
               <button
                 className={`mobile-admin-dashboard-sub-tab ${packageSubTab === 'all' ? 'active' : ''}`}
-                onClick={() => { setPackageSubTab('all'); setPackagePage(1); }}
+                onClick={() => { setPackageSubTab('all'); setPackageSubSubTab(''); setPackagePage(1); }}
               >
                 All
               </button>
               <button
                 className={`mobile-admin-dashboard-sub-tab ${packageSubTab === 'ready-to-assign' ? 'active' : ''}`}
-                onClick={() => { setPackageSubTab('ready-to-assign'); setPackagePage(1); }}
+                onClick={() => { setPackageSubTab('ready-to-assign'); setPackageSubSubTab(''); setPackagePage(1); }}
               >
                 Ready to Assign
               </button>
               <button
                 className={`mobile-admin-dashboard-sub-tab ${packageSubTab === 'assigned' ? 'active' : ''}`}
-                onClick={() => { setPackageSubTab('assigned'); setPackagePage(1); }}
+                onClick={() => { setPackageSubTab('assigned'); setPackageSubSubTab(''); setPackagePage(1); }}
               >
                 Assigned
               </button>
               <button
                 className={`mobile-admin-dashboard-sub-tab ${packageSubTab === 'in-transit' ? 'active' : ''}`}
-                onClick={() => { setPackageSubTab('in-transit'); setPackagePage(1); }}
+                onClick={() => { setPackageSubTab('in-transit'); setPackageSubSubTab(''); setPackagePage(1); }}
               >
                 In Transit
               </button>
               <button
                 className={`mobile-admin-dashboard-sub-tab ${packageSubTab === 'delivered' ? 'active' : ''}`}
-                onClick={() => { setPackageSubTab('delivered'); setPackagePage(1); }}
+                onClick={() => { setPackageSubTab('delivered'); setPackageSubSubTab(''); setPackagePage(1); }}
               >
                 Delivered
               </button>
               <button
                 className={`mobile-admin-dashboard-sub-tab ${packageSubTab === 'cancelled' ? 'active' : ''}`}
-                onClick={() => { setPackageSubTab('cancelled'); setPackagePage(1); }}
+                onClick={() => { setPackageSubTab('cancelled'); setPackageSubSubTab(''); setPackagePage(1); }}
               >
                 Cancelled
               </button>
               <button
                 className={`mobile-admin-dashboard-sub-tab ${packageSubTab === 'return-to-shop' ? 'active' : ''}`}
-                onClick={() => { setPackageSubTab('return-to-shop'); setPackagePage(1); }}
+                onClick={() => { setPackageSubTab('return-to-shop'); setPackageSubSubTab(''); setPackagePage(1); }}
               >
                 Return to Shop
               </button>
@@ -1362,6 +1369,29 @@ const MobileAdminDashboard = () => {
                   checked={selectedPackages.length === packages.length && packages.length > 0}
                 />
                 <label>Select All</label>
+              </div>
+            )}
+
+            {packageSubTab === 'return-to-shop' && (
+              <div className="mobile-admin-dashboard-sub-sub-tabs">
+                <button
+                  className={`mobile-admin-dashboard-sub-sub-tab ${packageSubTab === 'return-to-shop' && !packageSubSubTab ? 'active' : ''}`}
+                  onClick={() => { setPackageSubSubTab(''); setPackagePage(1); }}
+                >
+                  All Returns
+                </button>
+                <button
+                  className={`mobile-admin-dashboard-sub-sub-tab ${packageSubTab === 'return-to-shop' && packageSubSubTab === 'exchange-requests' ? 'active' : ''}`}
+                  onClick={() => { setPackageSubSubTab('exchange-requests'); setPackagePage(1); }}
+                >
+                  Exchange Requested
+                </button>
+                <button
+                  className={`mobile-admin-dashboard-sub-sub-tab ${packageSubTab === 'return-to-shop' && packageSubSubTab === 'exchange-completed' ? 'active' : ''}`}
+                  onClick={() => { setPackageSubSubTab('exchange-completed'); setPackagePage(1); }}
+                >
+                  Exchange Completed
+                </button>
               </div>
             )}
 
@@ -1384,6 +1414,9 @@ const MobileAdminDashboard = () => {
                     <p><strong>Sender:</strong> {pkg.shop?.businessName || 'N/A'}</p>
                     <p><strong>Recipient:</strong> {pkg.deliveryContactName || 'N/A'}</p>
                     <p><strong>Date:</strong> {pkg.createdAt ? new Date(pkg.createdAt).toLocaleDateString() : '-'}</p>
+                    {packageSubTab === 'delivered' && (
+                      <p><strong>Delivery Date:</strong> {pkg.actualDeliveryTime ? new Date(pkg.actualDeliveryTime).toLocaleDateString() : 'N/A'}</p>
+                    )}
                     <p><strong>Address:</strong> {(pkg.deliveryAddress?.address || pkg.deliveryAddress) || 'N/A'}</p>
                     <p><strong>Driver:</strong> {getDriverName(pkg.driverId)}</p>
                   </div>

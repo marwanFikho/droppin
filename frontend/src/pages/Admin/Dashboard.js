@@ -191,7 +191,9 @@ const AdminDashboard = () => {
       { label: 'All Ready', value: 'all' },
       { label: 'Awaiting Schedule', value: 'awaiting_schedule' },
       { label: 'Scheduled for Pickup', value: 'scheduled_for_pickup' },
-      { label: 'Pending', value: 'pending' }
+      { label: 'Pending', value: 'pending' },
+      { label: 'Exchange Awaiting Schedule', value: 'exchange-awaiting-schedule' },
+      { label: 'Return Requested', value: 'return-requested' }
     ],
     'in-transit': [
       { label: 'All In Transit', value: 'all' },
@@ -217,7 +219,8 @@ const AdminDashboard = () => {
       { label: 'Return Completed', value: 'return-completed' },
       { label: 'Exchange Requested', value: 'exchange-requests' },
       { label: 'Cancelled Awaiting Return', value: 'cancelled-awaiting-return' },
-      { label: 'Rejected Awaiting Return', value: 'rejected-awaiting-return' }
+      { label: 'Rejected Awaiting Return', value: 'rejected-awaiting-return' },
+      { label: 'Exchange Completed', value: 'exchange-completed' }
     ]
   };
 
@@ -1552,6 +1555,7 @@ const AdminDashboard = () => {
             <th>Tracking Number</th>
             <th>Description</th>
             <th>Status</th>
+            {packagesTab === 'delivered' && <th>Delivery Date</th>}
             <th>
               From
               <select
@@ -1574,7 +1578,7 @@ const AdminDashboard = () => {
         <tbody>
           {filteredPackages.length === 0 ? (
             <tr>
-              <td colSpan={packagesTab === 'ready-to-assign' ? 9 : 8} style={{ textAlign: 'center', padding: '40px 20px' }}>
+              <td colSpan={packagesTab === 'ready-to-assign' ? 9 : (packagesTab === 'delivered' ? 9 : 8)} style={{ textAlign: 'center', padding: '40px 20px' }}>
                 <div className="empty-state">
                   <p>No packages found{searchTerm ? ' matching your search' : ''}.</p>
                 </div>
@@ -1599,6 +1603,11 @@ const AdminDashboard = () => {
                   {pkg.status.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
                 </span>
               </td>
+              {packagesTab === 'delivered' && (
+                <td data-label="Delivery Date">
+                  {pkg.actualDeliveryTime ? new Date(pkg.actualDeliveryTime).toLocaleDateString() : 'N/A'}
+                </td>
+              )}
               <td data-label="From">{pkg.shop?.businessName || 'N/A'}</td>
               <td data-label="To">
                 <div>{pkg.deliveryAddress}</div>
@@ -4985,7 +4994,7 @@ const AdminDashboard = () => {
     switch (mainTab) {
       case 'ready-to-assign':
         if (subTab === 'all') {
-          statusFilter = 'awaiting_schedule,scheduled_for_pickup,pending';
+          statusFilter = 'awaiting_schedule,scheduled_for_pickup,pending,exchange-awaiting-schedule,return-requested';
         } else {
           statusFilter = subTab;
         }
@@ -5017,7 +5026,11 @@ const AdminDashboard = () => {
         break;
       case 'return-to-shop':
         if (subTab === 'all') {
-          statusFilter = 'return-requested,return-in-transit,return-pending,return-completed,exchange-requests,cancelled-awaiting-return,rejected-awaiting-return';
+          statusFilter = 'return-requested,return-in-transit,return-pending,return-completed,exchange-requests,cancelled-awaiting-return,rejected-awaiting-return,exchange-completed';
+        } else if (subTab === 'exchange-requests') {
+          statusFilter = 'exchange-awaiting-schedule,exchange-awaiting-pickup,exchange-in-process,exchange-in-transit,exchange-awaiting-return';
+        } else if (subTab === 'exchange-completed') {
+          statusFilter = 'exchange-returned';
         } else {
           statusFilter = subTab;
         }

@@ -997,30 +997,8 @@ exports.updatePackageStatus = async (req, res) => {
         );
         await logMoneyTransaction(shop.id, codAmount, 'ToCollect', 'decrease', `Package ${package.trackingNumber} rejected and returned to shop`, t);
       }
-      // Additionally: adjust TotalCollected by the unpaid portion of the shipping fee if any
-      const shippingFees = parseFloat(package.deliveryCost || 0) || 0;
-      const paidPortion = parseFloat(package.rejectionShippingPaidAmount || 0) || 0;
-      const unpaidPortion = Math.max(0, shippingFees - paidPortion);
-      if (unpaidPortion > 0) {
-        const currentTotalCollected = parseFloat(shop.TotalCollected || 0);
-        const newTotalCollected = currentTotalCollected - unpaidPortion;
-        await sequelize.query(
-          'UPDATE Shops SET TotalCollected = :newTotalCollected WHERE id = :shopId',
-          {
-            replacements: { newTotalCollected, shopId: shop.id },
-            type: sequelize.QueryTypes.UPDATE,
-            transaction: t
-          }
-        );
-        await logMoneyTransaction(
-          shop.id,
-          unpaidPortion,
-          'TotalCollected',
-          'decrease',
-          `Rejected return: unpaid shipping fee for package ${package.trackingNumber}`,
-          t
-        );
-      }
+      // Note: Shipping fees are NOT deducted from TotalCollected when marking as rejected-returned
+      // This is to avoid double deduction since the shop already paid for shipping
     }
 
     // === Handle Exchange: when driver marks as exchange-awaiting-return, adjust driver's cash if applicable ===

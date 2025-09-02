@@ -471,6 +471,34 @@
   border-color: #f36325;
 }
 
+/* Sub-sub-tab Styles */
+.mobile-admin-dashboard-sub-sub-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 15px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+
+.mobile-admin-dashboard-sub-sub-tab {
+  padding: 6px 12px;
+  border: 1px solid #dee2e6;
+  border-radius: 16px;
+  background-color: #fff;
+  color: #495057;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.mobile-admin-dashboard-sub-sub-tab.active {
+  background-color: #004b6f;
+  color: #fff;
+  border-color: #004b6f;
+}
+
 /* User, Package, and Pickup Card Styles */
 .mobile-admin-dashboard-user-list,
 .mobile-admin-dashboard-package-list,
