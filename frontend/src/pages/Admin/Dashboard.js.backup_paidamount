@@ -2789,10 +2789,6 @@ const AdminDashboard = () => {
                   </span>
                 )}
               </div>
-              <div className="detail-item">
-                <span className="label">Amount Paid (EGP):</span>
-                <span>{selectedEntity.paidAmount ? `${selectedEntity.paidAmount} EGP` : 'N/A'}</span>
-              </div>
 
               <div className="detail-item full-width">
                 <span className="label">Payment Notes:</span>
@@ -3006,41 +3002,6 @@ const AdminDashboard = () => {
                   </ul>
                 </div>
               )}
-              {(() => {
-                let returnedItems = [];
-                // First, check if there are formal return details
-                if (Array.isArray(selectedEntity.returnDetails) && selectedEntity.returnDetails.length > 0) {
-                  returnedItems = selectedEntity.returnDetails;
-                } 
-                // For partially delivered packages, calculate returned items as total - delivered
-                else if (selectedEntity.status === 'delivered-awaiting-return' && Array.isArray(selectedEntity.deliveredItems) && selectedEntity.deliveredItems.length > 0 && Array.isArray(selectedEntity.Items)) {
-                  const deliveredMap = new Map(selectedEntity.deliveredItems.map(di => [String(di.itemId), di.deliveredQuantity]));
-                  selectedEntity.Items.forEach(item => {
-                    const deliveredQty = deliveredMap.get(String(item.id)) || 0;
-                    const returnedQty = item.quantity - deliveredQty;
-                    if (returnedQty > 0) {
-                      returnedItems.push({
-                        itemId: item.id,
-                        description: item.description,
-                        quantity: returnedQty
-                      });
-                    }
-                  });
-                }
-                return returnedItems.length > 0 && (
-                  <div className="detail-item full-width">
-                    <span className="label">Returned Items:</span>
-                    <div className="nested-details">
-                      {returnedItems.map((it, idx) => (
-                        <div key={idx} className="nested-detail">
-                          <span className="nested-label">{it.description || `Item ${it.itemId}`}:</span>
-                          <span>Qty: {it.quantity}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })()}
               {/* Delivery address */}
               <div className="detail-item full-width">
                 <span className="label">Delivery Details:</span>
@@ -3159,7 +3120,19 @@ const AdminDashboard = () => {
                   {notesError && <div className="error-message" style={{color:'#dc3545', marginTop:'0.5rem'}}>{notesError}</div>}
                 </div>
               </div>
-              
+              {Array.isArray(selectedEntity.returnDetails) && selectedEntity.returnDetails.length > 0 && (
+                <div className="detail-item full-width">
+                  <span className="label">Returned Items:</span>
+                  <div className="nested-details">
+                    {selectedEntity.returnDetails.map((it, idx) => (
+                      <div key={idx} className="nested-detail">
+                        <span className="nested-label">{it.description || `Item ${it.itemId}`}:</span>
+                        <span>Qty: {it.quantity}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               {(selectedEntity.returnRefundAmount !== null && selectedEntity.returnRefundAmount !== undefined) && (
                 <div className="detail-item">
                   <span className="label">Return Refund:</span>

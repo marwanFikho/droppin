@@ -939,7 +939,6 @@ const MobileShopPackages = () => {
                   <div className="mobile-modal-detail-item full-width"><span className="label">Delivery Address</span><span>{selectedPackage.deliveryAddress?.address || selectedPackage.deliveryAddress}</span></div>
                 )}
                 <div className="mobile-modal-detail-item"><span className="label">COD</span><span>EGP {parseFloat(selectedPackage.codAmount || 0).toFixed(2)} {selectedPackage.isPaid ? 'Paid' : 'Unpaid'}</span></div>
-                <div className="mobile-modal-detail-item"><span className="label">Amount Paid</span><span>EGP {parseFloat(selectedPackage.paidAmount || 0).toFixed(2)}</span></div>
                 <div className="mobile-modal-detail-item"><span className="label">Type</span><span>{selectedPackage.type || 'new'}</span></div>
                 <div className="mobile-modal-detail-item"><span className="label">Delivery Cost</span><span>EGP {parseFloat(selectedPackage.deliveryCost || 0).toFixed(2)}</span></div>
                 {selectedPackage?.deliveredItems && Array.isArray(selectedPackage.deliveredItems) && selectedPackage.deliveredItems.length > 0 && (

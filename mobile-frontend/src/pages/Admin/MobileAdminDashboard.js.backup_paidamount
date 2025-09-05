@@ -1747,7 +1747,6 @@ const MobileAdminDashboard = () => {
                   <div className="mobile-modal-detail-item full-width"><span className="label">Delivery Address</span><span>{selectedPackage.recipient.address}</span></div>
                 )}
                 <div className="mobile-modal-detail-item"><span className="label">COD</span><span>EGP {parseFloat(selectedPackage.codAmount || 0).toFixed(2)} {selectedPackage.isPaid ? 'Paid' : 'Unpaid'}</span></div>
-                <div className="mobile-modal-detail-item"><span className="label">Amount Paid</span><span>EGP {parseFloat(selectedPackage.paidAmount || 0).toFixed(2)}</span></div>
                 <div className="mobile-modal-detail-item"><span className="label">Delivery Cost</span>
                 {editingDeliveryCost ? (
                   <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -2373,7 +2372,6 @@ const MobileAdminDashboard = () => {
                 <div className="mobile-modal-detail-item"><span className="label">Recipient Phone</span><span>{selectedAdminPackage.deliveryContactPhone || 'N/A'}</span></div>
                 <div className="mobile-modal-detail-item full-width"><span className="label">Delivery Address</span><span>{selectedAdminPackage.deliveryAddress || 'N/A'}</span></div>
                 <div className="mobile-modal-detail-item"><span className="label">COD</span><span>EGP {parseFloat(selectedAdminPackage.codAmount || 0).toFixed(2)} {selectedAdminPackage.isPaid ? 'Paid' : 'Unpaid'}</span></div>
-                <div className="mobile-modal-detail-item"><span className="label">Amount Paid</span><span>EGP {parseFloat(selectedAdminPackage.paidAmount || 0).toFixed(2)}</span></div>
                 <div className="mobile-modal-detail-item"><span className="label">Delivery Cost</span>
                 {editingDeliveryCost ? (
                   <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

@@ -1382,6 +1382,51 @@ const ShopPackages = () => {
                   <span className="label">COD</span>
                   <span>EGP {parseFloat(selectedPackage.codAmount || 0).toFixed(2)} {getCodBadge(selectedPackage.isPaid)}</span>
                 </div>
+                {selectedPackage?.deliveredItems && Array.isArray(selectedPackage.deliveredItems) && selectedPackage.deliveredItems.length > 0 && (
+                  <div className="detail-item full-width">
+                    <span className="label">Delivered Items</span>
+                    <div className="nested-details">
+                      {selectedPackage.deliveredItems.map((di, idx) => {
+                        const match = (selectedPackage.Items || []).find(it => String(it.id) === String(di.itemId));
+                        const label = match?.description || `Item ${di.itemId}`;
+                        return (
+                          <div key={idx} className="nested-detail">
+                            <span className="nested-label">{label}:</span>
+                            <span>Qty: {di.deliveredQuantity}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Returning Items (derived) */}
+                {Array.isArray(selectedPackage.Items) && selectedPackage.Items.length > 0 && Array.isArray(selectedPackage.deliveredItems) && selectedPackage.deliveredItems.length > 0 && (
+                  (() => {
+                    const dmap = new Map(selectedPackage.deliveredItems.map(di => [di.itemId, parseInt(di.deliveredQuantity, 10) || 0]));
+                    const remaining = selectedPackage.Items
+                      .map(it => {
+                        const total = parseInt(it.quantity, 10) || 0;
+                        const delivered = dmap.get(it.id) || 0;
+                        const remain = Math.max(0, total - delivered);
+                        return { id: it.id, description: it.description, quantity: remain };
+                      })
+                      .filter(r => r.quantity > 0);
+                    return remaining.length > 0 ? (
+                      <div className="detail-item full-width">
+                        <span className="label">Returning Items</span>
+                        <div className="nested-details">
+                          {remaining.map((r, idx) => (
+                            <div key={`ret-${idx}`} className="nested-detail">
+                              <span className="nested-label">{r.description || `Item ${r.id}`}:</span>
+                              <span>Qty: {r.quantity}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null;
+                  })()
+                )}
                 <div className="detail-item">
                   <span className="label">Type</span>
                   <span>{selectedPackage.type === 'return' ? 'Return' : (selectedPackage.type || 'new')}</span>
