@@ -12,16 +12,17 @@ const { Driver } = require('./models');
 // Load environment variables
 dotenv.config();
 
-// Set default JWT_SECRET if not provided
+// Require JWT_SECRET to be set in environment
 if (!process.env.JWT_SECRET) {
-  process.env.JWT_SECRET = 'your-secret-key-for-development';
-  console.log('Warning: Using default JWT_SECRET. In production, set JWT_SECRET in .env file');
+  console.error('FATAL: JWT_SECRET is not set. Refusing to start.');
+  process.exit(1);
 }
 
 // Initialize Express app
 const app = express();
 
 // Middleware
+app.disable('x-powered-by');
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -121,33 +122,30 @@ const startServer = async () => {
       console.warn('Failed to ensure indexes:', e.message);
     }
 
-    const adminEmail = 'admin@dropin.com';
-    const admin = await User.findOne({ where: { email: adminEmail } });
-    console.log('Checking for existing admin user:', admin ? 'Found' : 'Not found');
+    if (process.env.ADMIN_SEED_ENABLED === 'true') {
+      const adminEmail = process.env.ADMIN_EMAIL;
+      const adminPassword = process.env.ADMIN_PASSWORD;
 
-    if (!admin) {
-      console.log('Creating default admin user...');
-      const bcrypt = require('bcryptjs');
-      const salt = await bcrypt.genSalt(10);
-      const hashedPassword = await bcrypt.hash('password', salt);
-      console.log('Generated hashed password for admin');
-      
-      const newAdmin = await User.create({
-        name: 'Admin User',
-        email: adminEmail,
-        password: hashedPassword,
-        phone: '1234567890',
-        role: 'admin',
-        isApproved: true,
-        isActive: true
-      });
-      console.log('Admin user created successfully:', {
-        id: newAdmin.id,
-        email: newAdmin.email,
-        role: newAdmin.role,
-        isApproved: newAdmin.isApproved,
-        isActive: newAdmin.isActive
-      });
+      if (!adminEmail || !adminPassword) {
+        console.warn('ADMIN_SEED_ENABLED is true but ADMIN_EMAIL or ADMIN_PASSWORD is missing. Skipping admin seed.');
+      } else {
+        const existingAdmin = await User.findOne({ where: { email: adminEmail } });
+        if (!existingAdmin) {
+          const bcrypt = require('bcryptjs');
+          const salt = await bcrypt.genSalt(10);
+          const hashedPassword = await bcrypt.hash(adminPassword, salt);
+          await User.create({
+            name: 'Admin User',
+            email: adminEmail,
+            password: hashedPassword,
+            phone: '0000000000',
+            role: 'admin',
+            isApproved: true,
+            isActive: true
+          });
+          console.log('Seeded admin user:', adminEmail);
+        }
+      }
     }
 
     // Reset assignedToday for all drivers at midnight every day

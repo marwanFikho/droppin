@@ -60,7 +60,8 @@ router.post('/shopify', apiKeyAuth, async (req, res) => {
         itemsNo: Number.isInteger(pkg.itemsNo) ? pkg.itemsNo : (Array.isArray(pkg.items) ? pkg.items.length : null),
         isPaid: false,
         paymentStatus: 'pending',
-        shopifyOrderId: pkg.shopifyOrderId // Only set shopifyOrderId, not isShopifySent
+        shopifyOrderId: pkg.shopifyOrderId, // Only set shopifyOrderId, not isShopifySent
+        shopifyOrderName: pkg.shopifyOrderName || pkg.orderName || null
       };
 
       const newPackage = await Package.create(packageData);
@@ -106,7 +107,8 @@ router.post('/shopify', apiKeyAuth, async (req, res) => {
         itemsNo: Number.isInteger(pkg.itemsNo) ? pkg.itemsNo : (Array.isArray(pkg.items) ? pkg.items.length : null),
         isPaid: false,
         paymentStatus: 'pending',
-        shopifyOrderId: pkg.shopifyOrderId // Only set shopifyOrderId, not isShopifySent
+        shopifyOrderId: pkg.shopifyOrderId, // Only set shopifyOrderId, not isShopifySent
+        shopifyOrderName: pkg.shopifyOrderName || pkg.orderName || null
       }));
       
       const newPackages = await Package.bulkCreate(pkgsToCreate, { individualHooks: true });

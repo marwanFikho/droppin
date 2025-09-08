@@ -23,25 +23,14 @@ const Navigation = () => {
   useEffect(() => {
     if (showNotifications) {
       setLoadingNotifications(true);
-      api.get('/notifications', {
-        headers: {
-          'x-user-id': currentUser?.id || 1, // fallback to admin id 1
-          'x-user-type': currentUser?.role || 'admin'
-        }
-      })
+      api.get('/notifications')
         .then(res => {
           const data = res.data;
           setNotifications(data);
           setLoadingNotifications(false);
-          console.log('NOTIFICATIONS STATE:', data);
           // Mark all as read when dropdown is opened
           if (data.some(n => !n.isRead)) {
-            api.post('/notifications/mark-all-read', {}, {
-              headers: {
-                'x-user-id': currentUser?.id || 1,
-                'x-user-type': currentUser?.role || 'admin'
-              }
-            }).then(() => {
+            api.post('/notifications/mark-all-read').then(() => {
               // Update local state to mark all as read
               setNotifications((prev) => prev.map(n => ({ ...n, isRead: true })));
             });
@@ -57,12 +46,7 @@ const Navigation = () => {
   // Fetch unread count on mount or when currentUser changes
   useEffect(() => {
     if (currentUser && ['admin', 'shop', 'driver'].includes(currentUser.role)) {
-      api.get('/notifications', {
-        headers: {
-          'x-user-id': currentUser.id,
-          'x-user-type': currentUser.role
-        }
-      })
+      api.get('/notifications')
         .then(res => {
           const data = res.data;
           setUnreadCount(data.filter(n => !n.isRead).length);
@@ -107,12 +91,7 @@ const Navigation = () => {
 
   // Handler to delete a notification
   const handleDeleteNotification = (id) => {
-    api.delete(`/notifications/${id}`, {
-      headers: {
-        'x-user-id': currentUser?.id || 1,
-        'x-user-type': currentUser?.role || 'admin'
-      }
-    }).then(() => {
+    api.delete(`/notifications/${id}`).then(() => {
       setNotifications((prev) => prev.filter(n => n.id !== id));
       setUnreadCount((prev) => prev - 1 >= 0 ? prev - 1 : 0);
     });

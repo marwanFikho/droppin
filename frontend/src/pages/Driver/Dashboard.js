@@ -467,6 +467,9 @@ const DriverDashboard = () => {
   const [deliveryModalPackage, setDeliveryModalPackage] = useState(null);
   const [deliveredQuantities, setDeliveredQuantities] = useState({});
   const [isPartial, setIsPartial] = useState(false);
+  const [showDriverRejectModal, setShowDriverRejectModal] = useState(false);
+  const [driverRejectAmount, setDriverRejectAmount] = useState('');
+  const [driverRejectPaymentMethod, setDriverRejectPaymentMethod] = useState('CASH');
 
   const handleMarkDelivered = async (pkg) => {
     // open modal, load latest items (selectedPackage already fetches details, but ensure items are present)
@@ -513,6 +516,26 @@ const DriverDashboard = () => {
       setError('Failed to mark package as delivered with payment. Please try again.');
       console.error('Error updating package with payment:', err);
     }
+  };
+
+  const openDriverRejectModal = (pkg) => {
+    setSelectedPackage(pkg);
+    setDriverRejectAmount('');
+    setDriverRejectPaymentMethod('CASH');
+    setShowDriverRejectModal(true);
+  };
+
+  const confirmDriverReject = async () => {
+    if (!selectedPackage) return;
+    const deliveryCost = parseFloat(selectedPackage.deliveryCost || 0) || 0;
+    const raw = driverRejectAmount !== '' ? parseFloat(driverRejectAmount) : 0;
+    const amount = Math.max(0, Math.min(raw, deliveryCost));
+    await updatePackageStatus(selectedPackage.id, 'rejected-awaiting-return', {
+      rejectionShippingPaidAmount: amount,
+      paymentMethod: driverRejectPaymentMethod
+    });
+    setShowDriverRejectModal(false);
+    setSelectedPackage(null);
   };
   
   // Stats calculation (from driverStats)
@@ -944,6 +967,52 @@ const DriverDashboard = () => {
     );
   };
 
+  const DriverRejectModal = () => {
+    if (!showDriverRejectModal || !selectedPackage) return null;
+    const invalid = (driverRejectAmount === '' || isNaN(parseFloat(driverRejectAmount)) || parseFloat(driverRejectAmount) < 0);
+    const max = parseFloat(selectedPackage.deliveryCost || 0) || 0;
+    return (
+      <div className="confirmation-overlay">
+        <div className="confirmation-dialog warning-dialog">
+          <h3>Reject Package</h3>
+          <p>Enter the shipping fees paid by the customer and payment method.</p>
+          <div style={{ margin: '12px 0' }}>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              value={driverRejectAmount}
+              onChange={(e) => setDriverRejectAmount(e.target.value)}
+              placeholder="Amount paid by customer (EGP)"
+              style={{ width: '100%', padding: '8px', borderRadius: 6, border: '1px solid #ccc' }}
+            />
+            <div style={{ color: '#555', fontSize: 12, marginTop: 6 }}>Max allowed: EGP {max.toFixed(2)}</div>
+            {invalid && (
+              <div style={{ color: '#c62828', fontSize: 12, marginTop: 6 }}>
+                Please enter a valid non-negative amount (0 allowed if none was paid).
+              </div>
+            )}
+          </div>
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ display: 'block', marginBottom: 6 }}>Payment Method</label>
+            <select
+              value={driverRejectPaymentMethod}
+              onChange={(e) => setDriverRejectPaymentMethod(e.target.value)}
+              style={{ width: '100%', padding: '8px', borderRadius: 6, border: '1px solid #ccc' }}
+            >
+              <option value="CASH">CASH</option>
+              <option value="VISA">VISA</option>
+            </select>
+          </div>
+          <div className="confirmation-buttons">
+            <button className="btn-secondary" onClick={() => { setShowDriverRejectModal(false); setDriverRejectAmount(''); setDriverRejectPaymentMethod('CASH'); }}>Cancel</button>
+            <button className="btn-primary danger" onClick={confirmDriverReject} disabled={invalid}>Confirm Reject</button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // Driver Profile Component
   const DriverProfile = React.memo(({ driverData, loading, error, onAvailabilityChange, onRequestToggleAvailability }) => {
     const [isToggling, setIsToggling] = React.useState(false);
@@ -1314,6 +1383,7 @@ const DriverDashboard = () => {
       )}
 
       <PackageDetailsModal />
+      <DriverRejectModal />
 
       {/* Delivery Modal */}
       {showDeliveryModal && deliveryModalPackage && (

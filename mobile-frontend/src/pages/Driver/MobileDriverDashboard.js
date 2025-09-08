@@ -220,7 +220,7 @@ const MobileDriverDashboard = () => {
   };
 
   const handleRejectPackage = (pkg) => {
-    setConfirmAction({ type: 'reject', pkg });
+    setConfirmAction({ type: 'reject', pkg, shippingPaidAmount: '', paymentMethod: 'CASH' });
   };
 
   const doStatusAction = async (pkg, nextStatus) => {
@@ -260,7 +260,11 @@ const MobileDriverDashboard = () => {
   const doRejectPackage = async (pkg) => {
     setStatusUpdating((prev) => ({ ...prev, [pkg.id]: true }));
     try {
-      await packageService.updatePackageStatus(pkg.id, { status: 'rejected', rejectionShippingPaidAmount: (confirmAction?.shippingPaidAmount != null ? parseFloat(confirmAction.shippingPaidAmount) : undefined) });
+      const deliveryCost = parseFloat(pkg.deliveryCost || 0) || 0;
+      const raw = confirmAction?.shippingPaidAmount != null ? parseFloat(confirmAction.shippingPaidAmount) : undefined;
+      const amount = raw !== undefined ? Math.max(0, Math.min(raw, deliveryCost)) : undefined;
+      const method = (confirmAction?.paymentMethod === 'CASH' || confirmAction?.paymentMethod === 'VISA') ? confirmAction.paymentMethod : undefined;
+      await packageService.updatePackageStatus(pkg.id, { status: 'rejected', rejectionShippingPaidAmount: amount, paymentMethod: method });
       // Refresh packages
       const packagesRes = await packageService.getPackages({ assignedToMe: true, page: 1, limit: 10000 });
       const fetched = packagesRes.data.packages || packagesRes.data || [];
@@ -913,6 +917,17 @@ const MobileDriverDashboard = () => {
                        {t('driver.dashboard.amountRequired')}
                      </div>
                    )}
+                  </div>
+                  <div style={{ textAlign: 'left', margin: '10px 0' }}>
+                    <div style={{ fontWeight: 600, marginBottom: 6 }}>{t('driver.dashboard.paymentMethod') || 'Payment Method'}</div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button type="button" onClick={() => setConfirmAction(prev => ({ ...prev, paymentMethod: 'CASH' }))} className={`btn ${confirmAction?.paymentMethod === 'CASH' ? 'btn-primary' : 'btn-secondary'}`}>
+                        CASH
+                      </button>
+                      <button type="button" onClick={() => setConfirmAction(prev => ({ ...prev, paymentMethod: 'VISA' }))} className={`btn ${confirmAction?.paymentMethod === 'VISA' ? 'btn-primary' : 'btn-secondary'}`}>
+                        VISA
+                      </button>
+                    </div>
                   </div>
                   <button
                     className="btn btn-danger"

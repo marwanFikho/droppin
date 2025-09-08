@@ -71,6 +71,9 @@ const MobileAdminDashboard = () => {
   const [adjustTotalCollectedReason, setAdjustTotalCollectedReason] = useState('');
   const [adjustingTotalCollected, setAdjustingTotalCollected] = useState(false);
   const [adjustTotalCollectedStatus, setAdjustTotalCollectedStatus] = useState(null);
+  const [adminRejectShippingPaidAmount, setAdminRejectShippingPaidAmount] = useState('');
+  const [adminRejectPaymentMethod, setAdminRejectPaymentMethod] = useState('CASH');
+  const [adminRejectDeductShipping, setAdminRejectDeductShipping] = useState(true);
   
   // Define Alert alias to satisfy any usages expecting a capitalized Alert function
   const Alert = (message) => window.alert(message);
@@ -2978,17 +2981,71 @@ const MobileAdminDashboard = () => {
               <button className="mobile-modal-close" onClick={() => setShowRejectConfirmation(false)}>&times;</button>
             </div>
             <div className="mobile-modal-body">
-              <p>Are you sure you want to reject this package?</p>
+              <p>Enter the shipping fees paid by the customer (if any), choose payment method, and whether to reduce shipping fees.</p>
+              <div style={{ textAlign: 'left', margin: '10px 0' }}>
+                <label style={{ display: 'block', fontSize: 12, marginBottom: 4 }}>Customer paid shipping amount (EGP)</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={adminRejectShippingPaidAmount ?? ''}
+                  onChange={(e) => setAdminRejectShippingPaidAmount(e.target.value)}
+                  placeholder={'Enter amount'}
+                  style={{ width: '100%', padding: '8px', borderRadius: 6, border: '1px solid #ccc' }}
+                />
+                <div style={{ color: '#555', fontSize: 12, marginTop: 6 }}>
+                  Max allowed: EGP {(parseFloat(packageToReject?.deliveryCost || 0) || 0).toFixed(2)}
+                </div>
+                {(
+                  adminRejectShippingPaidAmount === '' ||
+                  adminRejectShippingPaidAmount === undefined ||
+                  isNaN(parseFloat(adminRejectShippingPaidAmount)) ||
+                  parseFloat(adminRejectShippingPaidAmount) < 0
+                ) && (
+                  <div style={{ color: '#c62828', fontSize: 12, marginTop: 6 }}>
+                    Please enter a valid non-negative amount (0 allowed if none was paid).
+                  </div>
+                )}
+              </div>
+              <div style={{ marginBottom: 12, textAlign: 'left' }}>
+                <label style={{ display: 'block', marginBottom: 6 }}>Payment Method</label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button type="button" onClick={() => setAdminRejectPaymentMethod('CASH')} className={`btn ${adminRejectPaymentMethod === 'CASH' ? 'btn-primary' : 'btn-secondary'}`}>
+                    CASH
+                  </button>
+                  <button type="button" onClick={() => setAdminRejectPaymentMethod('VISA')} className={`btn ${adminRejectPaymentMethod === 'VISA' ? 'btn-primary' : 'btn-secondary'}`}>
+                    VISA
+                  </button>
+                </div>
+              </div>
+              <div style={{ marginBottom: 12, textAlign: 'left' }}>
+                <label style={{ display: 'block', marginBottom: 6 }}>Reduce shipping fees for this rejection?</label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button type="button" className={`btn ${adminRejectDeductShipping ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setAdminRejectDeductShipping(true)}>Yes</button>
+                  <button type="button" className={`btn ${!adminRejectDeductShipping ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setAdminRejectDeductShipping(false)}>No</button>
+                </div>
+              </div>
               <div className="mobile-modal-actions">
                 <button
                   className="mobile-modal-close-btn"
                   onClick={async () => {
                     try {
-                      // The backend will automatically handle the status transition based on current status
-                      await packageService.updatePackageStatus(packageToReject.id, { status: 'rejected' });
+                      const deliveryCost = parseFloat(packageToReject?.deliveryCost || 0) || 0;
+                      const raw = adminRejectShippingPaidAmount !== '' ? parseFloat(adminRejectShippingPaidAmount) : undefined;
+                      const amount = raw !== undefined ? Math.max(0, Math.min(raw, deliveryCost)) : undefined;
+                      const payload = { status: 'rejected' };
+                      if (amount !== undefined) payload.rejectionShippingPaidAmount = amount;
+                      if (adminRejectPaymentMethod && (adminRejectPaymentMethod === 'CASH' || adminRejectPaymentMethod === 'VISA')) {
+                        payload.paymentMethod = adminRejectPaymentMethod;
+                      }
+                      payload.rejectionDeductShipping = !!adminRejectDeductShipping;
+                      await packageService.updatePackageStatus(packageToReject.id, payload);
                       fetchPackages();
                       setShowRejectConfirmation(false);
                       setPackageToReject(null);
+                      setAdminRejectShippingPaidAmount('');
+                      setAdminRejectPaymentMethod('CASH');
+                      setAdminRejectDeductShipping(true);
                     } catch (error) {
                       console.error('Error rejecting package:', error);
                     }

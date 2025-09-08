@@ -5,12 +5,10 @@ import './App.css';
 import './Dashboard.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
-import createDefaultUsers from './components/DefaultUsers';
 import createMockPackages from './components/MockData';
 import 'antd/dist/reset.css';
 
-// Initialize default test users and mock data
-createDefaultUsers();
+// Initialize mock data only (no default users in production bundles)
 createMockPackages();
 
 const root = ReactDOM.createRoot(document.getElementById('root'));

@@ -3,7 +3,7 @@
 client_id = "204d55c4dc34850c3820d421098f101b"
 name = "Droppin EG"
 handle = "droppin-eg-2"
-application_url = "https://complexity-etc-ws-gore.trycloudflare.com"
+application_url = "https://successfully-vocational-important-prophet.trycloudflare.com"
 embedded = true
 
 [build]
@@ -43,7 +43,7 @@ uri = "/webhooks/shop/redact"
 scopes = "write_products, read_orders, read_customers"
 
 [auth]
-redirect_urls = ["https://complexity-etc-ws-gore.trycloudflare.com/auth/callback", "https://complexity-etc-ws-gore.trycloudflare.com/auth/shopify/callback", "https://complexity-etc-ws-gore.trycloudflare.com/api/auth/callback"]
+redirect_urls = ["https://successfully-vocational-important-prophet.trycloudflare.com/auth/callback", "https://successfully-vocational-important-prophet.trycloudflare.com/auth/shopify/callback", "https://successfully-vocational-important-prophet.trycloudflare.com/api/auth/callback"]
 
 [pos]
 embedded = false

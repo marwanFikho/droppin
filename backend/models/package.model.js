@@ -195,6 +195,10 @@ const Package = sequelize.define('Package', {
 		allowNull: true,
 		unique: false
 	},
+	shopifyOrderName: {
+		type: DataTypes.STRING,
+		allowNull: true
+	},
 	// New: return request details and refund amount for returns
 	returnDetails: {
 		type: DataTypes.JSON,
@@ -228,6 +232,12 @@ const Package = sequelize.define('Package', {
 		type: DataTypes.FLOAT,
 		allowNull: true,
 		defaultValue: 0
+	},
+	// New: admin choice whether to deduct shipping fees on rejection
+	rejectionDeductShipping: {
+		type: DataTypes.BOOLEAN,
+		allowNull: true,
+		defaultValue: true
 	}
 }, {
 	hooks: {

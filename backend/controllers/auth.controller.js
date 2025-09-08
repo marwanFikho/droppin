@@ -8,16 +8,35 @@ const generateToken = (id) => {
   });
 };
 
+// Add strong password validation for registrations
+const isPasswordStrong = (password) => {
+  if (typeof password !== 'string') return false;
+  const hasMinLength = password.length >= 8;
+  const hasUppercase = /[A-Z]/.test(password);
+  const hasLowercase = /[a-z]/.test(password);
+  const hasNumber = /[0-9]/.test(password);
+  const hasSpecial = /[^A-Za-z0-9]/.test(password);
+  const commonWeak = ['password', '123456', '12345678', 'qwerty', '111111', '123123'];
+  const isCommon = commonWeak.includes(password.toLowerCase());
+  return hasMinLength && hasUppercase && hasLowercase && hasNumber && hasSpecial && !isCommon;
+};
+
 // Register a new user
 exports.register = async (req, res) => {
-  // Log the request body for debugging
-  console.log('User Registration Request:', JSON.stringify(req.body, null, 2));
   
   // Start a transaction
   const transaction = await User.sequelize.transaction();
   
   try {
-    const { name, email, password, phone, role, address } = req.body;
+    const { name, email, password, phone, address } = req.body;
+
+    // Enforce strong password policy
+    if (!isPasswordStrong(password)) {
+      await transaction.rollback();
+      return res.status(400).json({
+        message: 'Password must be at least 8 characters and include uppercase, lowercase, number, and special character; avoid common passwords.'
+      });
+    }
 
     // Check if email already exists
     const userExists = await User.findOne({ 
@@ -30,8 +49,11 @@ exports.register = async (req, res) => {
       return res.status(400).json({ message: 'Email already registered' });
     }
 
-    // For regular users, approve automatically
-    const isApproved = role === 'user' || role === 'admin';
+    // Public registration must always create a basic user
+    const role = 'user';
+
+    // Approve only basic users on self-registration (business decision)
+    const isApproved = true;
 
     // Create user
     const user = await User.create({
@@ -39,7 +61,7 @@ exports.register = async (req, res) => {
       email,
       password,
       phone,
-      role: role || 'user',
+      role,
       isApproved,
       street: address?.street,
       city: address?.city,

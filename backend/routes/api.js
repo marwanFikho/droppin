@@ -4,20 +4,13 @@ const apiKeyAuth = require('../middleware/apiKeyAuth');
 const { Package } = require('../models');
 const { formatDateTimeToDDMMYYYY, getCairoDateTime } = require('../utils/dateUtils');
 const notificationController = require('../controllers/notification.controller');
-
-// Middleware to mock userId and userType for demonstration (replace with real auth in production)
-router.use((req, res, next) => {
-  // Example: set userId and userType from headers or session
-  req.userId = req.headers['x-user-id'] || 1; // Replace with real user ID
-  req.userType = req.headers['x-user-type'] || 'admin'; // Replace with real user type
-  next();
-});
+const { authenticate, authorize } = require('../middleware/auth.middleware');
 
 // Notification routes
-router.get('/notifications', notificationController.getNotifications);
-router.post('/notifications/:id/read', notificationController.markAsRead);
-router.post('/notifications/mark-all-read', notificationController.markAllAsRead);
-router.delete('/notifications/:id', notificationController.deleteNotification);
-router.delete('/notifications', notificationController.deleteAllNotifications);
+router.get('/notifications', authenticate, notificationController.getNotifications);
+router.post('/notifications/:id/read', authenticate, notificationController.markAsRead);
+router.post('/notifications/mark-all-read', authenticate, notificationController.markAllAsRead);
+router.delete('/notifications/:id', authenticate, notificationController.deleteNotification);
+router.delete('/notifications', authenticate, notificationController.deleteAllNotifications);
 
 module.exports = router; 

@@ -58,6 +58,10 @@ export const loader = async ({ request }) => {
                     title
                     quantity
                     originalUnitPriceSet { shopMoney { amount } }
+                    variantTitle
+                    variant {
+                      selectedOptions { name value }
+                    }
                   }
                 }
               }
@@ -72,11 +76,28 @@ export const loader = async ({ request }) => {
       const shipping = node.shippingAddress || {};
       const billing = node.billingAddress || {};
       const customer = node.customer || {};
-      const items = (node.lineItems?.edges || []).map(e => ({
-        title: e.node.title,
-        quantity: e.node.quantity,
-        price: Number(e.node.originalUnitPriceSet.shopMoney.amount)
-      }));
+      const items = (node.lineItems?.edges || []).map(e => {
+        const baseTitle = e.node.title;
+        const selectedOptions = e.node?.variant?.selectedOptions || [];
+        const sizeOption = selectedOptions.find(opt => (opt.name || '').toLowerCase() === 'size');
+        let size = sizeOption?.value || null;
+        if (!size && e.node?.variantTitle) {
+          // Fallback: try to infer size from variantTitle like "Black / L" or "L"
+          const parts = String(e.node.variantTitle).split('/').map(s => s.trim());
+          if (parts.length > 0) {
+            const guess = parts.find(p => /^([XSML]{1,3}|\d{2,3}([.-]?\d{1,2})?)$/i.test(p)) || parts[parts.length - 1];
+            size = guess || null;
+          }
+        }
+        const titleWithSize = size ? `${baseTitle} (Size: ${size})` : baseTitle;
+        return {
+          title: titleWithSize,
+          quantity: e.node.quantity,
+          price: Number(e.node.originalUnitPriceSet.shopMoney.amount),
+          _size: size || undefined,
+          _baseTitle: baseTitle
+        };
+      });
       const itemsString = items.map(item => `${item.quantity}x ${item.title}`).join(", ");
       const weight = (node.totalWeight || 0) / 1000; // grams to kg
       // Get real shipping fees and taxes from Shopify order
@@ -259,20 +280,26 @@ export default function Index() {
     // Prepare selected orders
     const selectedOrders = orders.filter((o) => selected.includes(o.id));
     // Map to Droppin package fields
-    const packages = selectedOrders.map((o) => ({
-      shopifyOrderId: o.id, // Shopify order ID
-      packageDescription: (descriptions[o.id] && descriptions[o.id].trim()) ? descriptions[o.id].trim() : "coming from Shopify",
-      items: o.items.map(item => ({ description: item.title, quantity: item.quantity, codAmount: item.price })),
-      itemsNo: o.items.length,
-      weight: o.weight,
-      deliveryAddress: [o.address, o.city, o.province, o.zip, o.country].filter(Boolean).join(', '),
-      deliveryContactName: o.customer,
-      deliveryContactPhone: o.phone,
-      schedulePickupTime: "ASAP",
-      codAmount: o.total,
-      shownDeliveryCost: o.deliveryFee + o.taxAmount, // Send Shopify shipping fees + taxes
-      shopNotes: shopNotes[o.id] || "",
-    }));
+    const packages = selectedOrders.map((o) => {
+      const userDesc = (descriptions[o.id] && descriptions[o.id].trim()) ? descriptions[o.id].trim() : '';
+      const itemsSummary = o.itemsString || '';
+      const mergedDescription = userDesc ? `${userDesc} | ${itemsSummary}` : (itemsSummary || "coming from Shopify");
+      return {
+        shopifyOrderId: o.id, // Shopify order ID
+        shopifyOrderName: o.name || o.order_number || undefined, // Human-readable Shopify order number like #1003
+        packageDescription: mergedDescription,
+        items: o.items.map(item => ({ description: item.title, quantity: item.quantity, codAmount: item.price })),
+        itemsNo: o.items.length,
+        weight: o.weight,
+        deliveryAddress: [o.address, o.city, o.province, o.zip, o.country].filter(Boolean).join(', '),
+        deliveryContactName: o.customer,
+        deliveryContactPhone: o.phone,
+        schedulePickupTime: "ASAP",
+        codAmount: o.total,
+        shownDeliveryCost: o.deliveryFee + o.taxAmount, // Send Shopify shipping fees + taxes
+        shopNotes: shopNotes[o.id] || "",
+      };
+    });
     try {
       const res = await fetch("https://api.droppin-eg.com/api/packages/shopify", {
         method: "POST",

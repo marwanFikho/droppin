@@ -611,6 +611,7 @@ const ShopPackages = () => {
                     <span class="awb-row"><b class="awb-recipient">Recipient: ${awbPkg.deliveryContactName || '-'}</b></span><br/>
                     <span class="awb-row"><b class="awb-phone">Phone: ${awbPkg.deliveryContactPhone || '-'}</b></span><br/>
                     <span class="awb-row"><b class="awb-address">Address: ${awbPkg.deliveryAddress || '-'}</b></span>
+                    ${isShopify ? `<div><b>Shopify Order:</b> ${awbPkg.shopifyOrderName || awbPkg.shopifyOrderId}</div>` : ''}
                   </td>
                 </tr>
               </table>
@@ -1345,309 +1346,271 @@ const ShopPackages = () => {
                   </div>
                 </div>
               )}
-              <div className="details-grid">
-                <div className="detail-item">
-                  <span className="label">Tracking #</span>
-                  <span>{selectedPackage.trackingNumber}</span>
-                </div>
-                <div className="detail-item">
-                  <span className="label">Status</span>
-                  <span>{getStatusBadge(selectedPackage.status)}</span>
-                </div>
-                <div className="detail-item">
-                  <span className="label">Created</span>
-                  <span>{new Date(selectedPackage.createdAt).toLocaleString()}</span>
-                </div>
-                <div className="detail-item full-width">
-                  <span className="label">Description</span>
-                  <span>{selectedPackage.packageDescription || 'No description'}</span>
-                </div>
-                <div className="detail-item">
-                  <span className="label">Recipient</span>
-                  <span>{selectedPackage.deliveryContactName || 'N/A'}</span>
-                </div>
-                {selectedPackage.deliveryContactPhone && (
+
+              {!isEditingDetails && (
+                <div className="details-grid">
                   <div className="detail-item">
-                    <span className="label">Recipient Phone</span>
-                    <span>{selectedPackage.deliveryContactPhone}</span>
+                    <span className="label">Tracking #</span>
+                    <span>{selectedPackage.trackingNumber}</span>
                   </div>
-                )}
-                {selectedPackage.deliveryAddress && (
-                  <div className="detail-item full-width">
-                    <span className="label">Delivery Address</span>
-                    <span>{selectedPackage.deliveryAddress}</span>
-                  </div>
-                )}
-                <div className="detail-item">
-                  <span className="label">COD</span>
-                  <span>EGP {parseFloat(selectedPackage.codAmount || 0).toFixed(2)} {getCodBadge(selectedPackage.isPaid)}</span>
-                </div>
-                <div className="detail-item">
-                  <span className="label">Type</span>
-                  <span>{selectedPackage.type === 'return' ? 'Return' : (selectedPackage.type || 'new')}</span>
-                </div>
-                <div className="detail-item">
-                  <span className="label">Delivery Cost</span>
-                  <span>EGP {parseFloat(selectedPackage.deliveryCost || 0).toFixed(2)}</span>
-                </div>
-                {Array.isArray(selectedPackage.returnDetails) && selectedPackage.returnDetails.length > 0 && (
-                  <div className="detail-item full-width">
-                    <span className="label">Returned Items</span>
-                    <div className="nested-details">
-                      {selectedPackage.returnDetails.map((it, idx) => (
-                        <div key={idx} className="nested-detail">
-                          <span className="nested-label">{it.description || `Item ${it.itemId}`}:</span>
-                          <span>Qty: {it.quantity}</span>
-                        </div>
-                      ))}
+                  {selectedPackage.shopifyOrderId && (
+                    <div className="detail-item">
+                      <span className="label">Shopify Order</span>
+                      <span>{selectedPackage.shopifyOrderName}</span>
                     </div>
-                  </div>
-                )}
-                {(selectedPackage.returnRefundAmount !== null && selectedPackage.returnRefundAmount !== undefined) && (
+                  )}
                   <div className="detail-item">
-                    <span className="label">Return Refund</span>
-                    <span>EGP {parseFloat(selectedPackage.returnRefundAmount || 0).toFixed(2)}</span>
+                    <span className="label">Status</span>
+                    <span>{getStatusBadge(selectedPackage.status)}</span>
                   </div>
-                )}
-                {selectedPackage.shownDeliveryCost !== undefined && selectedPackage.shownDeliveryCost !== null && (
                   <div className="detail-item">
-                    <span className="label">Shown Delivery Cost</span>
-                    {editingShownDeliveryCost ? (
-                      <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <input
-                          type="number"
-                          value={newShownDeliveryCost}
-                          onChange={e => {
-                            setNewShownDeliveryCost(e.target.value);
-                            if (parseFloat(e.target.value) > parseFloat(selectedPackage.deliveryCost)) {
-                              setShownDeliveryCostError('Shown Delivery Cost cannot be greater than Delivery Cost.');
-                            } else {
-                              setShownDeliveryCostError('');
-                            }
-                          }}
-                          style={{ width: 80, padding: '6px 10px', borderRadius: 4, border: '1px solid #ccc', fontSize: '1em' }}
-                          min="0"
-                        />
-                        {shownDeliveryCostError && (
-                          <span style={{ color: '#dc3545', fontSize: 13, marginLeft: 4 }}>{shownDeliveryCostError}</span>
-                        )}
-                        <button
-                          onClick={async () => {
-                            if (parseFloat(newShownDeliveryCost) > parseFloat(selectedPackage.deliveryCost)) {
-                              setShownDeliveryCostError('Shown Delivery Cost cannot be greater than Delivery Cost.');
-                              return;
-                            }
-                            setSavingShownDeliveryCost(true);
-                            try {
-                              await packageService.updatePackage(selectedPackage.id, { shownDeliveryCost: newShownDeliveryCost === '' ? null : parseFloat(newShownDeliveryCost) });
-                              // Store the package ID to reopen modal after refresh
-                              localStorage.setItem('reopenPackageModal', selectedPackage.id);
-                              // Refresh the entire page to get fresh data
-                              window.location.reload();
-                            } catch (err) {
-                              alert('Failed to update shown delivery cost');
-                            } finally {
-                              setSavingShownDeliveryCost(false);
-                            }
-                          }}
-                          disabled={savingShownDeliveryCost || newShownDeliveryCost === '' || shownDeliveryCostError}
-                          style={{ background: '#28a745', color: 'white', border: 'none', borderRadius: 4, padding: '6px 16px', fontWeight: 'bold', cursor: savingShownDeliveryCost ? 'not-allowed' : 'pointer', marginRight: 4 }}
-                        >
-                          {savingShownDeliveryCost ? 'Saving...' : 'Save'}
-                        </button>
-                        <button
-                          onClick={() => setEditingShownDeliveryCost(false)}
-                          style={{ background: '#f5f5f5', color: '#333', border: '1px solid #ccc', borderRadius: 4, padding: '6px 16px', fontWeight: 'bold', cursor: 'pointer' }}
-                        >
-                          Cancel
-                        </button>
-                      </span>
-                    ) : (
-                      <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ fontWeight: 500 }}>EGP {parseFloat(selectedPackage.shownDeliveryCost).toFixed(2)}</span>
-                        {(['awaiting_schedule','scheduled_for_pickup'].includes((selectedPackage.status || '').toLowerCase())) && (
-                          <button
-                            style={{ background: '#fff', border: '1px solid #007bff', color: '#007bff', borderRadius: 4, padding: '4px 12px', marginLeft: 4, cursor: 'pointer', fontWeight: 'bold' }}
-                            onClick={() => {
-                              setEditingShownDeliveryCost(true);
-                              setNewShownDeliveryCost(selectedPackage.shownDeliveryCost !== undefined && selectedPackage.shownDeliveryCost !== null ? String(selectedPackage.shownDeliveryCost) : '');
+                    <span className="label">Created</span>
+                    <span>{new Date(selectedPackage.createdAt).toLocaleString()}</span>
+                  </div>
+                  <div className="detail-item full-width">
+                    <span className="label">Description</span>
+                    <span>{selectedPackage.packageDescription || 'No description'}</span>
+                  </div>
+                  <div className="detail-item">
+                    <span className="label">Recipient</span>
+                    <span>{selectedPackage.deliveryContactName || 'N/A'}</span>
+                  </div>
+                  {selectedPackage.deliveryContactPhone && (
+                    <div className="detail-item">
+                      <span className="label">Recipient Phone</span>
+                      <span>{selectedPackage.deliveryContactPhone}</span>
+                    </div>
+                  )}
+                  {selectedPackage.deliveryAddress && (
+                    <div className="detail-item full-width">
+                      <span className="label">Delivery Address</span>
+                      <span>{selectedPackage.deliveryAddress}</span>
+                    </div>
+                  )}
+                  <div className="detail-item">
+                    <span className="label">COD</span>
+                    <span>EGP {parseFloat(selectedPackage.codAmount || 0).toFixed(2)} {getCodBadge(selectedPackage.isPaid)}</span>
+                  </div>
+                  <div className="detail-item">
+                    <span className="label">Type</span>
+                    <span>{selectedPackage.type === 'return' ? 'Return' : (selectedPackage.type || 'new')}</span>
+                  </div>
+                  <div className="detail-item">
+                    <span className="label">Delivery Cost</span>
+                    <span>EGP {parseFloat(selectedPackage.deliveryCost || 0).toFixed(2)}</span>
+                  </div>
+                  {Array.isArray(selectedPackage.returnDetails) && selectedPackage.returnDetails.length > 0 && (
+                    <div className="detail-item full-width">
+                      <span className="label">Returned Items</span>
+                      <div className="nested-details">
+                        {selectedPackage.returnDetails.map((it, idx) => (
+                          <div key={idx} className="nested-detail">
+                            <span className="nested-label">{it.description || `Item ${it.itemId}`}:</span>
+                            <span>Qty: {it.quantity}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {(selectedPackage.returnRefundAmount !== null && selectedPackage.returnRefundAmount !== undefined) && (
+                    <div className="detail-item">
+                      <span className="label">Return Refund</span>
+                      <span>EGP {parseFloat(selectedPackage.returnRefundAmount || 0).toFixed(2)}</span>
+                    </div>
+                  )}
+                  {selectedPackage.shownDeliveryCost !== undefined && selectedPackage.shownDeliveryCost !== null && (
+                    <div className="detail-item">
+                      <span className="label">Shown Delivery Cost</span>
+                      {editingShownDeliveryCost ? (
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <input
+                            type="number"
+                            value={newShownDeliveryCost}
+                            onChange={e => {
+                              setNewShownDeliveryCost(e.target.value);
+                              if (parseFloat(e.target.value) > parseFloat(selectedPackage.deliveryCost)) {
+                                setShownDeliveryCostError('Shown Delivery Cost cannot be greater than Delivery Cost.');
+                              } else {
+                                setShownDeliveryCostError('');
+                              }
                             }}
+                            style={{ width: 80, padding: '6px 10px', borderRadius: 4, border: '1px solid #ccc', fontSize: '1em' }}
+                            min="0"
+                          />
+                          {shownDeliveryCostError && (
+                            <span style={{ color: '#dc3545', fontSize: 13, marginLeft: 4 }}>{shownDeliveryCostError}</span>
+                          )}
+                          <button
+                            onClick={async () => {
+                              if (parseFloat(newShownDeliveryCost) > parseFloat(selectedPackage.deliveryCost)) {
+                                setShownDeliveryCostError('Shown Delivery Cost cannot be greater than Delivery Cost.');
+                                return;
+                              }
+                              setSavingShownDeliveryCost(true);
+                              try {
+                                await packageService.updatePackage(selectedPackage.id, { shownDeliveryCost: newShownDeliveryCost === '' ? null : parseFloat(newShownDeliveryCost) });
+                                // Store the package ID to reopen modal after refresh
+                                localStorage.setItem('reopenPackageModal', selectedPackage.id);
+                                // Refresh the entire page to get fresh data
+                                window.location.reload();
+                              } catch (err) {
+                                alert('Failed to update shown delivery cost');
+                              } finally {
+                                setSavingShownDeliveryCost(false);
+                              }
+                            }}
+                            disabled={savingShownDeliveryCost || newShownDeliveryCost === '' || shownDeliveryCostError}
+                            style={{ background: '#28a745', color: 'white', border: 'none', borderRadius: 4, padding: '6px 16px', fontWeight: 'bold', cursor: savingShownDeliveryCost ? 'not-allowed' : 'pointer', marginRight: 4 }}
                           >
-                            Edit
+                            {savingShownDeliveryCost ? 'Saving...' : 'Save'}
                           </button>
-                        )}
-                      </span>
-                    )}
-                  </div>
-                )}
-                {selectedPackage.weight && (
-                  <div className="detail-item">
-                    <span className="label">Weight</span>
-                    <span>{selectedPackage.weight} kg</span>
-                  </div>
-                )}
-                {selectedPackage.dimensions && (
-                  <div className="detail-item">
-                    <span className="label">Dimensions</span>
-                    <span>{selectedPackage.dimensions}</span>
-                  </div>
-                )}
-                <div className="detail-item">
-                  <span className="label">Number of Items</span>
-                  <span>{selectedPackage.itemsNo ?? '-'}</span>
-                </div>
-
-                {/* Exchange Details */}
-                {(selectedPackage.type === 'exchange' || (selectedPackage.status || '').startsWith('exchange-')) && selectedPackage.exchangeDetails && (
-                  <div className="detail-item full-width">
-                    <span className="label">Exchange Details</span>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                      <div>
-                        <div style={{ fontWeight: 600, marginBottom: 6 }}>Items to take from customer</div>
-                        {Array.isArray(selectedPackage.exchangeDetails.takeItems) && selectedPackage.exchangeDetails.takeItems.length > 0 ? (
-                          <ul style={{ margin: 0, paddingLeft: 18 }}>
-                            {selectedPackage.exchangeDetails.takeItems.map((it, idx) => (
-                              <li key={`shop-xtake-${idx}`}>{(it.description || '-')} x {(parseInt(it.quantity) || 0)}</li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <div style={{ color: '#666', fontSize: 12 }}>No items</div>
-                        )}
-                      </div>
-                      <div>
-                        <div style={{ fontWeight: 600, marginBottom: 6 }}>Items to give to customer</div>
-                        {Array.isArray(selectedPackage.exchangeDetails.giveItems) && selectedPackage.exchangeDetails.giveItems.length > 0 ? (
-                          <ul style={{ margin: 0, paddingLeft: 18 }}>
-                            {selectedPackage.exchangeDetails.giveItems.map((it, idx) => (
-                              <li key={`shop-xgive-${idx}`}>{(it.description || '-')} x {(parseInt(it.quantity) || 0)}</li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <div style={{ color: '#666', fontSize: 12 }}>No items</div>
-                        )}
-                      </div>
-                    </div>
-                    {selectedPackage.exchangeDetails.cashDelta && (
-                      <div style={{ marginTop: 8 }}>
-                        <span style={{ fontWeight: 600 }}>Money: </span>
-                        <span>
-                          {(selectedPackage.exchangeDetails.cashDelta.type === 'take' ? 'Take from customer' : 'Give to customer')} · EGP {parseFloat(selectedPackage.exchangeDetails.cashDelta.amount || 0).toFixed(2)}
+                          <button
+                            onClick={() => setEditingShownDeliveryCost(false)}
+                            style={{ background: '#f5f5f5', color: '#333', border: '1px solid #ccc', borderRadius: 4, padding: '6px 16px', fontWeight: 'bold', cursor: 'pointer' }}
+                          >
+                            Cancel
+                          </button>
                         </span>
+                      ) : (
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ fontWeight: 500 }}>EGP {parseFloat(selectedPackage.shownDeliveryCost).toFixed(2)}</span>
+                          {(['awaiting_schedule','scheduled_for_pickup'].includes((selectedPackage.status || '').toLowerCase())) && (
+                            <button
+                              style={{ background: '#fff', border: '1px solid #007bff', color: '#007bff', borderRadius: 4, padding: '4px 12px', marginLeft: 4, cursor: 'pointer', fontWeight: 'bold' }}
+                              onClick={() => {
+                                setEditingShownDeliveryCost(true);
+                                setNewShownDeliveryCost(selectedPackage.shownDeliveryCost !== undefined && selectedPackage.shownDeliveryCost !== null ? String(selectedPackage.shownDeliveryCost) : '');
+                              }}
+                            >
+                              Edit
+                            </button>
+                          )}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  {selectedPackage.weight && (
+                    <div className="detail-item">
+                      <span className="label">Weight</span>
+                      <span>{selectedPackage.weight} kg</span>
+                    </div>
+                  )}
+                  {selectedPackage.dimensions && (
+                    <div className="detail-item">
+                      <span className="label">Dimensions</span>
+                      <span>{selectedPackage.dimensions}</span>
+                    </div>
+                  )}
+                  <div className="detail-item">
+                    <span className="label">Number of Items</span>
+                    <span>{selectedPackage.itemsNo ?? '-'}</span>
+                  </div>
+
+                  {/* Exchange Details */}
+                  {(selectedPackage.type === 'exchange' || (selectedPackage.status || '').startsWith('exchange-')) && selectedPackage.exchangeDetails && (
+                    <div className="detail-item full-width">
+                      <span className="label">Exchange Details</span>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                        <div>
+                          <div style={{ fontWeight: 600, marginBottom: 6 }}>Items to take from customer</div>
+                          {Array.isArray(selectedPackage.exchangeDetails.takeItems) && selectedPackage.exchangeDetails.takeItems.length > 0 ? (
+                            <ul style={{ margin: 0, paddingLeft: 18 }}>
+                              {selectedPackage.exchangeDetails.takeItems.map((it, idx) => (
+                                <li key={`shop-xtake-${idx}`}>{(it.description || '-')} x {(parseInt(it.quantity) || 0)}</li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <div style={{ color: '#666', fontSize: 12 }}>No items</div>
+                          )}
+                        </div>
+                        <div>
+                          <div style={{ fontWeight: 600, marginBottom: 6 }}>Items to give to customer</div>
+                          {Array.isArray(selectedPackage.exchangeDetails.giveItems) && selectedPackage.exchangeDetails.giveItems.length > 0 ? (
+                            <ul style={{ margin: 0, paddingLeft: 18 }}>
+                              {selectedPackage.exchangeDetails.giveItems.map((it, idx) => (
+                                <li key={`shop-xgive-${idx}`}>{(it.description || '-')} x {(parseInt(it.quantity) || 0)}</li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <div style={{ color: '#666', fontSize: 12 }}>No items</div>
+                          )}
+                        </div>
                       </div>
-                    )}
-                  </div>
-                )}
-                
-                {/* Items Section */}
-                {selectedPackage.Items && selectedPackage.Items.length > 0 && (
-                  <div className="detail-item full-width">
-                    <span className="label">Items</span>
-                    <div style={{ 
-                      backgroundColor: '#f8f9fa', 
-                      padding: '1rem', 
-                      borderRadius: '8px',
-                      border: '1px solid #e0e0e0',
-                      marginTop: '0.5rem'
-                    }}>
-                      {selectedPackage.Items.map((item, index) => {
-                        return (
-                          <div key={item.id} style={{ 
-                            border: '1px solid #ddd', 
-                            padding: '0.75rem', 
-                            marginBottom: '0.5rem', 
-                            borderRadius: '4px',
-                            backgroundColor: 'white'
-                          }}>
-                            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '1rem', alignItems: 'center' }}>
-                              <div>
-                                <strong>Description:</strong> {item.description}
-                              </div>
-                              <div>
-                                <strong>Quantity:</strong> {item.quantity}
-                              </div>
-                              <div>
-                                <strong>COD Per Unit:</strong> EGP {item.codAmount && item.quantity 
-                                  ? (parseFloat(item.codAmount) / parseInt(item.quantity)).toFixed(2) 
-                                  : '0.00'}
-                              </div>
-                            </div>
-                            <div style={{ 
-                              marginTop: '0.5rem', 
-                              fontSize: '0.9em', 
-                              color: '#666',
-                              textAlign: 'right'
+                      {selectedPackage.exchangeDetails.cashDelta && (
+                        <div style={{ marginTop: 8 }}>
+                          <span style={{ fontWeight: 600 }}>Money: </span>
+                          <span>
+                            {(selectedPackage.exchangeDetails.cashDelta.type === 'take' ? 'Take from customer' : 'Give to customer')} · EGP {parseFloat(selectedPackage.exchangeDetails.cashDelta.amount || 0).toFixed(2)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
+                  {/* Items Section */}
+                  {selectedPackage.Items && selectedPackage.Items.length > 0 && (
+                    <div className="detail-item full-width">
+                      <span className="label">Items</span>
+                      <div style={{ 
+                        backgroundColor: '#f8f9fa', 
+                        padding: '1rem', 
+                        borderRadius: '8px',
+                        border: '1px solid #e0e0e0',
+                        marginTop: '0.5rem'
+                      }}>
+                        {selectedPackage.Items.map((item, index) => {
+                          return (
+                            <div key={item.id} style={{ 
+                              border: '1px solid #ddd', 
+                              padding: '0.75rem', 
+                              marginBottom: '0.5rem', 
+                              borderRadius: '4px',
+                              backgroundColor: 'white'
                             }}>
-                              <strong>Total COD:</strong> EGP {parseFloat(item.codAmount || 0).toFixed(2)}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {/* Delivered Items Section */}
-                {selectedPackage?.deliveredItems && Array.isArray(selectedPackage.deliveredItems) && selectedPackage.deliveredItems.length > 0 && (
-                  <div className="detail-item full-width">
-                    <span className="label">Delivered Items</span>
-                    <div style={{ 
-                      backgroundColor: '#f8f9fa', 
-                      padding: '1rem', 
-                      borderRadius: '8px',
-                      border: '1px solid #e0e0e0',
-                      marginTop: '0.5rem'
-                    }}>
-                      {selectedPackage.deliveredItems.map((di, idx) => {
-                        const match = (selectedPackage.Items || []).find(it => String(it.id) === String(di.itemId));
-                        const label = match?.description || `Item ${di.itemId}`;
-                        return (
-                          <div key={idx} style={{ 
-                            border: '1px solid #ddd', 
-                            padding: '0.75rem', 
-                            marginBottom: '0.5rem', 
-                            borderRadius: '4px',
-                            backgroundColor: 'white'
-                          }}>
-                            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1rem', alignItems: 'center' }}>
-                              <div>
-                                <strong>Description:</strong> {label}
+                              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '1rem', alignItems: 'center' }}>
+                                <div>
+                                  <strong>Description:</strong> {item.description}
+                                </div>
+                                <div>
+                                  <strong>Quantity:</strong> {item.quantity}
+                                </div>
+                                <div>
+                                  <strong>COD Per Unit:</strong> EGP {item.codAmount && item.quantity 
+                                    ? (parseFloat(item.codAmount) / parseInt(item.quantity)).toFixed(2) 
+                                    : '0.00'}
+                                </div>
                               </div>
-                              <div>
-                                <strong>Delivered Quantity:</strong> {di.deliveredQuantity}
+                              <div style={{ 
+                                marginTop: '0.5rem', 
+                                fontSize: '0.9em', 
+                                color: '#666',
+                                textAlign: 'right'
+                              }}>
+                                <strong>Total COD:</strong> EGP {parseFloat(item.codAmount || 0).toFixed(2)}
                               </div>
                             </div>
-                          </div>
-                        );
-                      })}
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {/* Returning Items Section */}
-                {Array.isArray(selectedPackage.Items) && selectedPackage.Items.length > 0 && Array.isArray(selectedPackage.deliveredItems) && selectedPackage.deliveredItems.length > 0 && (
-                  (() => {
-                    const dmap = new Map(selectedPackage.deliveredItems.map(di => [di.itemId, parseInt(di.deliveredQuantity, 10) || 0]));
-                    const remaining = selectedPackage.Items
-                      .map(it => {
-                        const total = parseInt(it.quantity, 10) || 0;
-                        const delivered = dmap.get(it.id) || 0;
-                        const remain = Math.max(0, total - delivered);
-                        return { id: it.id, description: it.description, quantity: remain };
-                      })
-                      .filter(r => r.quantity > 0);
-                    
-                    return remaining.length > 0 ? (
-                      <div className="detail-item full-width">
-                        <span className="label">Returning Items</span>
-                        <div style={{ 
-                          backgroundColor: '#f8f9fa', 
-                          padding: '1rem', 
-                          borderRadius: '8px',
-                          border: '1px solid #e0e0e0',
-                          marginTop: '0.5rem'
-                        }}>
-                          {remaining.map((r, idx) => (
-                            <div key={`ret-${idx}`} style={{ 
+                  {/* Delivered Items Section */}
+                  {selectedPackage?.deliveredItems && Array.isArray(selectedPackage.deliveredItems) && selectedPackage.deliveredItems.length > 0 && (
+                    <div className="detail-item full-width">
+                      <span className="label">Delivered Items</span>
+                      <div style={{ 
+                        backgroundColor: '#f8f9fa', 
+                        padding: '1rem', 
+                        borderRadius: '8px',
+                        border: '1px solid #e0e0e0',
+                        marginTop: '0.5rem'
+                      }}>
+                        {selectedPackage.deliveredItems.map((di, idx) => {
+                          const match = (selectedPackage.Items || []).find(it => String(it.id) === String(di.itemId));
+                          const label = match?.description || `Item ${di.itemId}`;
+                          return (
+                            <div key={idx} style={{ 
                               border: '1px solid #ddd', 
                               padding: '0.75rem', 
                               marginBottom: '0.5rem', 
@@ -1656,42 +1619,87 @@ const ShopPackages = () => {
                             }}>
                               <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1rem', alignItems: 'center' }}>
                                 <div>
-                                  <strong>Description:</strong> {r.description || `Item ${r.id}`}
+                                  <strong>Description:</strong> {label}
                                 </div>
                                 <div>
-                                  <strong>Returning Quantity:</strong> {r.quantity}
+                                  <strong>Delivered Quantity:</strong> {di.deliveredQuantity}
                                 </div>
                               </div>
                             </div>
-                          ))}
-                        </div>
+                          );
+                        })}
                       </div>
-                    ) : null;
-                  })()
-                )}
+                    </div>
+                  )}
 
-                <div className="detail-item">
-                  <span className="label">Paid Amount</span>
-                  <span>EGP {parseFloat(selectedPackage.paidAmount || 0).toFixed(2)}</span>
+                  {/* Returning Items Section */}
+                  {Array.isArray(selectedPackage.Items) && selectedPackage.Items.length > 0 && Array.isArray(selectedPackage.deliveredItems) && selectedPackage.deliveredItems.length > 0 && (
+                    (() => {
+                      const dmap = new Map(selectedPackage.deliveredItems.map(di => [di.itemId, parseInt(di.deliveredQuantity, 10) || 0]));
+                      const remaining = selectedPackage.Items
+                        .map(it => {
+                          const total = parseInt(it.quantity, 10) || 0;
+                          const delivered = dmap.get(it.id) || 0;
+                          const remain = Math.max(0, total - delivered);
+                          return { id: it.id, description: it.description, quantity: remain };
+                        })
+                        .filter(r => r.quantity > 0);
+                      
+                      return remaining.length > 0 ? (
+                        <div className="detail-item full-width">
+                          <span className="label">Returning Items</span>
+                          <div style={{ 
+                            backgroundColor: '#f8f9fa', 
+                            padding: '1rem', 
+                            borderRadius: '8px',
+                            border: '1px solid #e0e0e0',
+                            marginTop: '0.5rem'
+                          }}>
+                            {remaining.map((r, idx) => (
+                              <div key={`ret-${idx}`} style={{ 
+                                border: '1px solid #ddd', 
+                                padding: '0.75rem', 
+                                marginBottom: '0.5rem', 
+                                borderRadius: '4px',
+                                backgroundColor: 'white'
+                              }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1rem', alignItems: 'center' }}>
+                                  <div>
+                                    <strong>Description:</strong> {r.description || `Item ${r.id}`}
+                                  </div>
+                                  <div>
+                                    <strong>Returning Quantity:</strong> {r.quantity}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null;
+                    })()
+                  )}
+
+                  <div className="detail-item">
+                    <span className="label">Paid Amount</span>
+                    <span>EGP {parseFloat(selectedPackage.paidAmount || 0).toFixed(2)}</span>
+                  </div>
+                  
+                  <div className="detail-item">
+                    <span className="label">COD</span>
+                    <span>EGP {parseFloat(selectedPackage.codAmount || 0).toFixed(2)} {getCodBadge(selectedPackage.isPaid)}</span>
+                  </div>
+                  
+                  <div className="detail-item">
+                    <span className="label">Type</span>
+                    <span>{selectedPackage.type === 'return' ? 'Return' : (selectedPackage.type || 'new')}</span>
+                  </div>
+                  
+                  <div className="detail-item">
+                    <span className="label">Delivery Cost</span>
+                    <span>EGP {parseFloat(selectedPackage.deliveryCost || 0).toFixed(2)}</span>
+                  </div>
                 </div>
-                
-                <div className="detail-item">
-                  <span className="label">COD</span>
-                  <span>EGP {parseFloat(selectedPackage.codAmount || 0).toFixed(2)} {getCodBadge(selectedPackage.isPaid)}</span>
-                </div>
-                
-                <div className="detail-item">
-                  <span className="label">Type</span>
-                  <span>{selectedPackage.type === 'return' ? 'Return' : (selectedPackage.type || 'new')}</span>
-                </div>
-                
-                <div className="detail-item">
-                  <span className="label">Delivery Cost</span>
-                  <span>EGP {parseFloat(selectedPackage.deliveryCost || 0).toFixed(2)}</span>
-                </div>
-                
-                {/* Remove the separate Delivered Items and Returning Items sections */}
-              </div>
+              )}
               
               {/* Notes Log Section - moved above Close button and improved UI */}
               <div className="package-notes-log-section" style={{marginTop:'2rem', marginBottom:'1.5rem'}}>

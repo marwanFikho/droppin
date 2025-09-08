@@ -125,6 +125,9 @@ const AdminDashboard = () => {
   const [showForwardPackageModal, setShowForwardPackageModal] = useState(false);
   const [showRejectPackageModal, setShowRejectPackageModal] = useState(false);
   const [packageToAction, setPackageToAction] = useState(null);
+  const [rejectShippingPaidAmount, setRejectShippingPaidAmount] = useState('');
+  const [adminRejectionPaymentMethod, setAdminRejectionPaymentMethod] = useState('CASH');
+  const [adminRejectionDeductShipping, setAdminRejectionDeductShipping] = useState(true);
   const [adjustTotalCollectedInput, setAdjustTotalCollectedInput] = useState('');
   const [adjustTotalCollectedReason, setAdjustTotalCollectedReason] = useState('');
   const [adjustingTotalCollected, setAdjustingTotalCollected] = useState(false);
@@ -220,6 +223,7 @@ const AdminDashboard = () => {
       { label: 'Exchange Requested', value: 'exchange-requests' },
       { label: 'Cancelled Awaiting Return', value: 'cancelled-awaiting-return' },
       { label: 'Rejected Awaiting Return', value: 'rejected-awaiting-return' },
+      { label: 'Delivered Awaiting Return', value: 'delivered-awaiting-return' },
       { label: 'Exchange Completed', value: 'exchange-completed' }
     ]
   };
@@ -239,16 +243,38 @@ const AdminDashboard = () => {
   };
   
   // Place this at the top of the AdminDashboard component, after useState/useEffect/hooks, before any render/JSX code that uses it
-  const forwardPackageStatus = async (pkg) => {
-    setForwardingPackageId(pkg.id);
-    // Define the status flow
-    const statusFlow = ['assigned', 'pickedup', 'in-transit', 'delivered'];
-    const currentIndex = statusFlow.indexOf(pkg.status);
-    if (currentIndex === -1 || currentIndex === statusFlow.length - 1) {
-      setForwardingPackageId(null);
-      return;
-    }
-    const nextStatus = statusFlow[currentIndex + 1];
+     const forwardPackageStatus = async (pkg) => {
+     setForwardingPackageId(pkg.id);
+     // Define the status flow
+     const statusFlow = ['assigned', 'pickedup', 'in-transit', 'delivered'];
+     const currentIndex = statusFlow.indexOf(pkg.status);
+     if (currentIndex === -1 || currentIndex === statusFlow.length - 1) {
+       setForwardingPackageId(null);
+       return;
+     }
+     const nextStatus = statusFlow[currentIndex + 1];
+ 
+     // If next status is delivered, open admin pre-delivery confirmation modal instead of immediate update
+     if (nextStatus === 'delivered') {
+       try {
+         // Ensure we have the latest package details including Items
+         let pkgForModal = pkg;
+         try {
+           const res = await packageService.getPackageById(pkg.id);
+           if (res && res.data) pkgForModal = res.data;
+         } catch {}
+         // Normalize Items key for modal
+         const itemsArr = Array.isArray(pkgForModal.Items) ? pkgForModal.Items : (Array.isArray(pkgForModal.items) ? pkgForModal.items : []);
+         setAdminDeliveryModalPackage({ ...pkgForModal, Items: itemsArr });
+         setAdminIsPartialDelivery(false);
+         setAdminDeliveredQuantities({});
+         setAdminPaymentMethodChoice('CASH');
+         setShowAdminDeliveryModal(true);
+       } finally {
+         setForwardingPackageId(null);
+       }
+       return;
+     }
 
     // --- Optimistically update UI ---
     setPackages(prev => prev.map(p => p.id === pkg.id ? { ...p, status: nextStatus } : p));
@@ -271,10 +297,24 @@ const AdminDashboard = () => {
   // Add reject package function
   const rejectPackage = async (pkg) => {
     try {
-      await packageService.updatePackageStatus(pkg.id, { status: 'rejected' });
+      const rawAmount = rejectShippingPaidAmount !== '' ? parseFloat(rejectShippingPaidAmount) : undefined;
+      const deliveryCost = parseFloat(pkg.deliveryCost || 0) || 0;
+      const amount = rawAmount !== undefined ? Math.max(0, Math.min(rawAmount, deliveryCost)) : undefined;
+      const payload = { status: 'rejected-awaiting-return' };
+      if (amount !== undefined) payload.rejectionShippingPaidAmount = amount;
+      if (adminRejectionPaymentMethod && (adminRejectionPaymentMethod === 'CASH' || adminRejectionPaymentMethod === 'VISA')) {
+        payload.paymentMethod = adminRejectionPaymentMethod;
+      }
+      if (typeof adminRejectionDeductShipping === 'boolean') {
+        payload.rejectionDeductShipping = adminRejectionDeductShipping;
+      }
+      await packageService.updatePackageStatus(pkg.id, payload);
       // Refresh the packages list to get the correct status from backend
       fetchPackages(packagePage, searchTerm);
       setShowRejectPackageModal(false);
+      setRejectShippingPaidAmount('');
+      setAdminRejectionPaymentMethod('CASH');
+      setAdminRejectionDeductShipping(true);
       setPackageToAction(null);
       setShowDetailsModal(false);
       setStatusMessage({
@@ -1195,7 +1235,11 @@ const AdminDashboard = () => {
           }
           if (!Array.isArray(normalizedDelivered)) normalizedDelivered = [];
 
-          setSelectedEntity({ ...response.data, deliveredItems: normalizedDelivered, notes: fetchedNotesArr, entityType: type });
+          // Normalize Items (ensure always present as Items)
+          let normalizedItems = response.data.Items ?? response.data.items ?? [];
+          if (!Array.isArray(normalizedItems)) normalizedItems = [];
+
+          setSelectedEntity({ ...response.data, deliveredItems: normalizedDelivered, Items: normalizedItems, notes: fetchedNotesArr, entityType: type });
         } else {
           // Also normalize deliveredItems from the entity if present
           let normalizedDelivered = entity.deliveredItems ?? entity.delivereditems ?? null;
@@ -1653,7 +1697,15 @@ const AdminDashboard = () => {
                 {packagesTab === 'return-to-shop' && pkg.status === 'delivered-awaiting-return' && (
                   <button
                     className="action-btn return-btn"
-                    onClick={() => handleMarkAsReturned(pkg)}
+                    onClick={() => {
+                      setConfirmationDialogTitle('Mark as Delivered Returned');
+                      setConfirmationDialogText('Are you sure you want to mark this package as Delivered Returned? This will update the status and perform any required money transactions.');
+                      setConfirmAction(() => async () => {
+                        await handleMarkAsReturned(pkg);
+                        setShowConfirmationDialog(false);
+                      });
+                      setShowConfirmationDialog(true);
+                    }}
                     title="Mark as Delivered Returned"
                   >
                     <FontAwesomeIcon icon={faCheck} />
@@ -2197,23 +2249,6 @@ const AdminDashboard = () => {
                   </div>
                 </div>
 
-                {selectedEntity && selectedEntity.deliveredItems && Array.isArray(selectedEntity.deliveredItems) && selectedEntity.deliveredItems.length > 0 && (
-                  <div className="detail-item full-width">
-                    <span className="label">Delivered Items</span>
-                    <ul style={{ margin: '6px 0 0 18px', padding: 0 }}>
-                      {selectedEntity.deliveredItems.map((di, idx) => {
-                        const match = (selectedEntity.Items || []).find(it => String(it.id) === String(di.itemId));
-                        const label = match?.description || `Item ${di.itemId}`;
-                        return (
-                          <li key={idx}>
-                            {label}: delivered qty {di.deliveredQuantity}
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </div>
-                )}
-
                 {/* Returning Items (derived from Items - deliveredItems) */}
                 {selectedEntity && Array.isArray(selectedEntity.Items) && selectedEntity.Items.length > 0 && Array.isArray(selectedEntity.deliveredItems) && selectedEntity.deliveredItems.length > 0 && (
                   (() => {
@@ -2618,6 +2653,12 @@ const AdminDashboard = () => {
                 <span className="label">Tracking Number:</span>
                 <span style={{ fontWeight: 'bold', color: '#007bff' }}>{selectedEntity.trackingNumber}</span>
               </div>
+              {selectedEntity.shopifyOrderId && (
+                <div className="detail-item">
+                  <span className="label">Shopify Order:</span>
+                  <span>{selectedEntity.shopifyOrderName || selectedEntity.shopifyOrderId}</span>
+                </div>
+              )}
               <div className="detail-item">
                 <span className="label">Created:</span>
                 <span>{selectedEntity.createdAt ? new Date(selectedEntity.createdAt).toLocaleDateString() : 'N/A'}</span>
@@ -2794,6 +2835,7 @@ const AdminDashboard = () => {
                 <span>{selectedEntity.paidAmount ? `${selectedEntity.paidAmount} EGP` : 'N/A'}</span>
               </div>
 
+              {selectedEntity.paymentNotes !== null && selectedEntity.paymentNotes !== undefined && selectedEntity.paymentNotes !== '' && (
               <div className="detail-item full-width">
                 <span className="label">Payment Notes:</span>
                 {isEditingPackage ? (
@@ -2807,36 +2849,20 @@ const AdminDashboard = () => {
                   <span>{selectedEntity.paymentNotes || 'N/A'}</span>
                 )}
               </div>
-
-              <div className="detail-item full-width">
-                <span className="label">Shop Notes:</span>
-                {isEditingPackage ? (
-                  <textarea
-                    value={editingPackageData.shopNotes || selectedEntity.shopNotes || ''}
-                    onChange={(e) => setEditingPackageData(prev => ({ ...prev, shopNotes: e.target.value }))}
-                    style={{ width: '100%', padding: '8px', borderRadius: 4, border: '1px solid #ccc', fontSize: '1em', minHeight: '60px' }}
-                    placeholder="Shop notes"
-                  />
-                ) : (
-                  <span>{selectedEntity.shopNotes || 'N/A'}</span>
-                )}
-              </div>
-              {selectedEntity.shownDeliveryCost !== undefined && selectedEntity.shownDeliveryCost !== null && (
-                <div className="detail-item">
-                  <span className="label">Shown Delivery Cost:</span>
-                  <span>{selectedEntity.shownDeliveryCost} EGP</span>
-                </div>
               )}
-              {selectedEntity.rejectionShippingPaidAmount !== undefined && selectedEntity.rejectionShippingPaidAmount !== null && (
+
+              {selectedEntity.rejectionShippingPaidAmount !== undefined && selectedEntity.rejectionShippingPaidAmount !== null && selectedEntity.rejectionShippingPaidAmount > 0 && (
                 <div className="detail-item">
                   <span className="label">Rejection Shipping Fees Paid:</span>
                   <span>{parseFloat(selectedEntity.rejectionShippingPaidAmount || 0).toFixed(2)} EGP</span>
                 </div>
               )}
-              <div className="detail-item full-width">
-                <span className="label">Shop Notes:</span>
-                <span>{selectedEntity.shopNotes}</span>
-              </div>
+              {selectedEntity.shopNotes !== null && selectedEntity.shopNotes !== undefined && selectedEntity.shopNotes !== '' && (
+                <div className="detail-item full-width">
+                  <span className="label">Shop Notes:</span>
+                  <span>{selectedEntity.shopNotes}</span>
+                </div>
+              )}
               {/* Pickup address */}
               <div className="detail-item full-width">
                 <span className="label">Pickup Details:</span>
@@ -3006,41 +3032,50 @@ const AdminDashboard = () => {
                   </ul>
                 </div>
               )}
-              {(() => {
-                let returnedItems = [];
-                // First, check if there are formal return details
-                if (Array.isArray(selectedEntity.returnDetails) && selectedEntity.returnDetails.length > 0) {
-                  returnedItems = selectedEntity.returnDetails;
-                } 
-                // For partially delivered packages, calculate returned items as total - delivered
-                else if (selectedEntity.status === 'delivered-awaiting-return' && Array.isArray(selectedEntity.deliveredItems) && selectedEntity.deliveredItems.length > 0 && Array.isArray(selectedEntity.Items)) {
-                  const deliveredMap = new Map(selectedEntity.deliveredItems.map(di => [String(di.itemId), di.deliveredQuantity]));
-                  selectedEntity.Items.forEach(item => {
-                    const deliveredQty = deliveredMap.get(String(item.id)) || 0;
-                    const returnedQty = item.quantity - deliveredQty;
-                    if (returnedQty > 0) {
-                      returnedItems.push({
-                        itemId: item.id,
-                        description: item.description,
-                        quantity: returnedQty
-                      });
-                    }
-                  });
-                }
-                return returnedItems.length > 0 && (
-                  <div className="detail-item full-width">
-                    <span className="label">Returned Items:</span>
-                    <div className="nested-details">
-                      {returnedItems.map((it, idx) => (
-                        <div key={idx} className="nested-detail">
-                          <span className="nested-label">{it.description || `Item ${it.itemId}`}:</span>
-                          <span>Qty: {it.quantity}</span>
-                        </div>
-                      ))}
+
+              {Array.isArray(selectedEntity.Items) && selectedEntity.Items.length > 0 && Array.isArray(selectedEntity.deliveredItems) && selectedEntity.deliveredItems.length > 0 && (
+                (() => {
+                  const dmap = new Map(selectedEntity.deliveredItems.map(di => [di.itemId, parseInt(di.deliveredQuantity, 10) || 0]));
+                  const remaining = selectedEntity.Items
+                    .map(it => {
+                      const total = parseInt(it.quantity, 10) || 0;
+                      const delivered = dmap.get(it.id) || 0;
+                      const remain = Math.max(0, total - delivered);
+                      return { id: it.id, description: it.description, quantity: remain };
+                    })
+                    .filter(r => r.quantity > 0);
+                  return remaining.length > 0 ? (
+                    <div className="detail-item full-width">
+                      <span className="label">Returning Items</span>
+                      <div style={{ 
+                        backgroundColor: '#f8f9fa', 
+                        padding: '1rem',
+                        border: '1px solid #e0e0e0',
+                        marginTop: '0.5rem'
+                      }}>
+                        {remaining.map((r, idx) => (
+                          <div key={`ret-${idx}`} style={{ 
+                            border: '1px solid #ddd', 
+                            padding: '0.75rem', 
+                            marginBottom: '0.5rem', 
+                            backgroundColor: 'white'
+                          }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '0.5fr 1fr', alignItems: 'center' }}>
+                              <div>
+                                <strong>Description:</strong> {r.description || `Item ${r.id}`}
+                              </div>
+                              <div>
+                                <strong>Returning Quantity:</strong> {r.quantity}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                );
-              })()}
+                  ) : null;
+                })()
+              )}
+
               {/* Delivery address */}
               <div className="detail-item full-width">
                 <span className="label">Delivery Details:</span>
@@ -3160,7 +3195,7 @@ const AdminDashboard = () => {
                 </div>
               </div>
               
-              {(selectedEntity.returnRefundAmount !== null && selectedEntity.returnRefundAmount !== undefined) && (
+              {(selectedEntity.returnRefundAmount !== null && selectedEntity.returnRefundAmount !== undefined && selectedEntity.returnRefundAmount > 0) && (
                 <div className="detail-item">
                   <span className="label">Return Refund:</span>
                   <span>EGP {parseFloat(selectedEntity.returnRefundAmount || 0).toFixed(2)}</span>
@@ -3257,11 +3292,14 @@ const AdminDashboard = () => {
                 )}
                 
                 {/* Only show Forward Status button for packages that are not cancelled, rejected, or delivered */}
-                {!['cancelled','pending', 'cancelled-awaiting-return', 'cancelled-returned', 'rejected', 'rejected-returned', 'delivered', 'awaiting_schedule', 'awaiting_pickup', 'scheduled_for_pickup'].includes(selectedEntity.status) && (
+                {!['cancelled','cancelled-awaiting-return', 'cancelled-returned', 'rejected', 'rejected-returned', 'delivered', 'awaiting_schedule', 'awaiting_pickup', 'scheduled_for_pickup'].includes(selectedEntity.status) && (
                   <button
                     className="btn btn-primary"
                     disabled={forwardingPackageId === selectedEntity.id}
-                    onClick={() => forwardPackageStatus(selectedEntity)}
+                    onClick={() => {
+                      // ensure latest package details and open flow
+                      handleForwardFromDetails(selectedEntity);
+                    }}
                     style={{
                       padding: '10px 32px',
                       borderRadius: 8,
@@ -3287,6 +3325,7 @@ const AdminDashboard = () => {
                     className="btn btn-danger"
                     onClick={() => {
                       setPackageToAction(selectedEntity);
+                      setRejectShippingPaidAmount('');
                       setShowRejectPackageModal(true);
                     }}
                     style={{
@@ -3386,18 +3425,58 @@ const AdminDashboard = () => {
   // Render reject package confirmation modal
   const renderRejectPackageModal = () => {
     if (!showRejectPackageModal || !packageToAction) return null;
-    
+    const invalid = (rejectShippingPaidAmount === '' || isNaN(parseFloat(rejectShippingPaidAmount)) || parseFloat(rejectShippingPaidAmount) < 0);
     return (
       <div className="confirmation-overlay">
         <div className="confirmation-dialog warning-dialog">
           <h3>Reject Package</h3>
-          <p>Are you sure you want to reject this package? This will mark it as <strong>rejected-awaiting-return</strong>.</p>
+          <p>Enter the shipping fees paid by the customer (if any). This will be saved with the rejection.</p>
+          <div style={{ margin: '12px 0' }}>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              value={rejectShippingPaidAmount}
+              onChange={(e) => setRejectShippingPaidAmount(e.target.value)}
+              placeholder="Amount paid by customer (EGP)"
+              style={{ width: '100%', padding: '8px', borderRadius: 6, border: '1px solid #ccc' }}
+            />
+            <div style={{ color: '#555', fontSize: 12, marginTop: 6 }}>
+              Max allowed: EGP {(parseFloat(packageToAction.deliveryCost || 0) || 0).toFixed(2)}
+            </div>
+            {invalid && (
+              <div style={{ color: '#c62828', fontSize: 12, marginTop: 6 }}>
+                Please enter a valid non-negative amount (0 allowed if none was paid).
+              </div>
+            )}
+          </div>
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ display: 'block', marginBottom: 6 }}>Payment Method</label>
+            <select
+              value={adminRejectionPaymentMethod}
+              onChange={(e) => setAdminRejectionPaymentMethod(e.target.value)}
+              style={{ width: '100%', padding: '8px', borderRadius: 6, border: '1px solid #ccc' }}
+            >
+              <option value="CASH">CASH</option>
+              <option value="VISA">VISA</option>
+            </select>
+          </div>
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ display: 'block', marginBottom: 6 }}>Reduce shipping fees for this rejection?</label>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button type="button" className={`btn ${adminRejectionDeductShipping ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setAdminRejectionDeductShipping(true)}>Yes</button>
+              <button type="button" className={`btn ${!adminRejectionDeductShipping ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setAdminRejectionDeductShipping(false)}>No</button>
+            </div>
+          </div>
           <div className="confirmation-buttons">
             <button 
               className="btn-secondary"
               onClick={() => {
                 setShowRejectPackageModal(false);
                 setPackageToAction(null);
+                setRejectShippingPaidAmount('');
+                setAdminRejectionPaymentMethod('CASH');
+                setAdminRejectionDeductShipping(true);
               }}
             >
               Cancel
@@ -3405,8 +3484,9 @@ const AdminDashboard = () => {
             <button 
               className="btn-primary danger"
               onClick={() => rejectPackage(packageToAction)}
+              disabled={invalid}
             >
-              Reject
+              Confirm Reject
             </button>
           </div>
         </div>
@@ -4176,37 +4256,41 @@ const AdminDashboard = () => {
   const handleMarkAsReturned = async (pkg) => {
     try {
       let newStatus = '';
-      
+      let moneyTransactionNeeded = false;
       // Determine the new status based on current status
       switch (pkg.status) {
         case 'cancelled-awaiting-return':
           newStatus = 'cancelled-returned';
+          moneyTransactionNeeded = true;
           break;
         case 'rejected-awaiting-return':
           newStatus = 'rejected-returned';
+          moneyTransactionNeeded = true;
           break;
         case 'delivered-awaiting-return':
           newStatus = 'delivered-returned';
+          moneyTransactionNeeded = true;
           break;
         default:
           console.error('Unknown status for return:', pkg.status);
           return;
       }
-      
       await packageService.updatePackageStatus(pkg.id, { status: newStatus });
-      
-      // Update local state
       setPackages(prev => prev.map(p => p.id === pkg.id ? { ...p, status: newStatus } : p));
-      
-      // Show success message
       setStatusMessage({
         type: 'success',
         text: `Package ${pkg.trackingNumber} has been marked as returned.`
       });
-      
-      // Refresh packages to get updated data
       fetchPackagesWithMainTab(packagesTab, packagesSubTab, packagePage);
-      
+      // Optionally, fetch and show money transaction details if needed
+      if (moneyTransactionNeeded) {
+        // You can add logic here to fetch and display money transaction details or confirmation
+        // For now, just show a message
+        setStatusMessage({
+          type: 'success',
+          text: `Money transactions for package ${pkg.trackingNumber} have been processed.`
+        });
+      }
     } catch (error) {
       console.error('Error marking package as returned:', error);
       setStatusMessage({
@@ -5200,6 +5284,7 @@ const AdminDashboard = () => {
                       <div><b>Recipient:</b> ${awbPkg.deliveryContactName || '-'}</div>
                       <div><b>Phone:</b> ${awbPkg.deliveryContactPhone || '-'}</div>
                       <div><b>Address:</b> ${awbPkg.deliveryAddress || '-'}</div>
+                      ${isShopify ? `<div><b>Shopify Order:</b> ${awbPkg.shopifyOrderName || awbPkg.shopifyOrderId}</div>` : ''}
                     </td>
                   </tr>
                 </table>
@@ -5280,9 +5365,121 @@ const AdminDashboard = () => {
   const [moneyTotalPages, setMoneyTotalPages] = useState(1);
   const [moneyTotal, setMoneyTotal] = useState(0);
 
+  // Admin delivery confirmation modal (mirror of driver mobile pre-delivery)
+  const [showAdminDeliveryModal, setShowAdminDeliveryModal] = useState(false);
+  const [adminDeliveryModalPackage, setAdminDeliveryModalPackage] = useState(null);
+  const [adminIsPartialDelivery, setAdminIsPartialDelivery] = useState(false);
+  const [adminDeliveredQuantities, setAdminDeliveredQuantities] = useState({});
+  const [adminPaymentMethodChoice, setAdminPaymentMethodChoice] = useState('CASH');
+
+  // Render admin delivery confirmation modal (mirror of mobile driver)
+  const renderAdminDeliveryModal = () => {
+    if (!showAdminDeliveryModal || !adminDeliveryModalPackage) return null;
+    const items = Array.isArray(adminDeliveryModalPackage.Items) ? adminDeliveryModalPackage.Items : [];
+    return (
+      <div className={`modal-overlay show`} onClick={() => setShowAdminDeliveryModal(false)} style={{ zIndex: 3000 }}>
+        <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 520 }}>
+          <div className="modal-header">
+            <h3>Mark as Delivered</h3>
+            <button className="modal-close" onClick={() => setShowAdminDeliveryModal(false)}>
+              <FontAwesomeIcon icon={faClose} />
+            </button>
+          </div>
+          <div className="modal-body">
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+              <input type="checkbox" checked={adminIsPartialDelivery} onChange={(e) => setAdminIsPartialDelivery(e.target.checked)} />
+              Partial delivery
+            </label>
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontWeight: 600, marginBottom: 6 }}>Payment Method</div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button type="button" onClick={() => setAdminPaymentMethodChoice('CASH')} className={`btn ${adminPaymentMethodChoice === 'CASH' ? 'btn-primary' : 'btn-secondary'}`}>
+                  CASH
+                </button>
+                <button type="button" onClick={() => setAdminPaymentMethodChoice('VISA')} className={`btn ${adminPaymentMethodChoice === 'VISA' ? 'btn-primary' : 'btn-secondary'}`}>
+                  VISA
+                </button>
+              </div>
+            </div>
+            {adminIsPartialDelivery ? (
+              items.length > 0 ? (
+                <div>
+                  {items.map((it) => {
+                    const maxQty = parseInt(it.quantity, 10) || 0;
+                    return (
+                      <div key={it.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                        <div style={{ flex: 1, marginRight: 8 }}>{it.description} (max {maxQty})</div>
+                        <input
+                          type="number"
+                          min="0"
+                          max={maxQty}
+                          value={adminDeliveredQuantities[it.id] ?? ''}
+                          onChange={(e) => setAdminDeliveredQuantities(prev => ({ ...prev, [it.id]: e.target.value }))}
+                          placeholder="0"
+                          style={{ width: 100, padding: 6 }}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div style={{ color: '#666' }}>No items available for partial selection.</div>
+              )
+            ) : (
+              <div style={{ color: '#444' }}>Deliver package completely to the customer.</div>
+            )}
+          </div>
+          <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+            <button className="btn-secondary" onClick={() => setShowAdminDeliveryModal(false)}>Cancel</button>
+            <button
+              className="btn-primary"
+              onClick={async () => {
+                try {
+                  if (!adminDeliveryModalPackage) return;
+                  if (!adminIsPartialDelivery) {
+                    await packageService.updatePackageStatus(adminDeliveryModalPackage.id, { status: 'delivered', paymentMethod: adminPaymentMethodChoice });
+                  } else {
+                    const itemsForCalc = Array.isArray(adminDeliveryModalPackage.Items) ? adminDeliveryModalPackage.Items : [];
+                    const deliveredItems = itemsForCalc
+                      .map(it => {
+                        const maxQty = parseInt(it.quantity, 10) || 0;
+                        const qty = parseInt(adminDeliveredQuantities[it.id], 10) || 0;
+                        const clamped = Math.min(Math.max(0, qty), maxQty);
+                        return clamped > 0 ? { itemId: it.id, deliveredQuantity: clamped } : null;
+                      })
+                      .filter(Boolean);
+                    await packageService.updatePackageStatus(adminDeliveryModalPackage.id, { status: 'delivered-awaiting-return', deliveredItems, paymentMethod: adminPaymentMethodChoice });
+                  }
+                  setShowAdminDeliveryModal(false);
+                  setAdminDeliveryModalPackage(null);
+                  // Refresh data
+                  await fetchPackagesWithMainTab(packagesTab, packagesSubTab, packagePage);
+                } catch (e) {
+                  setStatusMessage({ type: 'error', text: e?.response?.data?.message || 'Failed to update package status.' });
+                }
+              }}
+            >
+              Confirm
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Wrapper used from within details modal button to ensure consistent behavior
+  const handleForwardFromDetails = async (pkg) => {
+    try {
+      await forwardPackageStatus(pkg);
+    } catch (e) {
+      setStatusMessage({ type: 'error', text: e?.response?.data?.message || 'Failed to forward status.' });
+    }
+  };
+
   return (
     <div className="admin-dashboard">
       {renderStatusMessage()}
+      {renderAdminDeliveryModal()}
       {renderConfirmationDialog()}
       {renderForwardPackageModal()}
       {renderRejectPackageModal()}

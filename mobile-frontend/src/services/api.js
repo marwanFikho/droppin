@@ -1,8 +1,8 @@
 import axios from 'axios';
 import { getToken } from '../utils/auth';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
-// const API_URL = process.env.REACT_APP_API_URL || 'https://api.droppin-eg.com/api';
+// const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const API_URL = process.env.REACT_APP_API_URL || 'https://api.droppin-eg.com/api';
 
 // Create axios instance
 const api = axios.create({
@@ -188,34 +188,10 @@ export const pickupService = {
 
 // Add notification API methods
 export const notificationService = {
-  getNotifications: (userId, userType) =>
-    api.get('/notifications', {
-      headers: {
-        'x-user-id': userId,
-        'x-user-type': userType,
-      },
-    }),
-  markAllRead: (userId, userType) =>
-    api.post('/notifications/mark-all-read', {}, {
-      headers: {
-        'x-user-id': userId,
-        'x-user-type': userType,
-      },
-    }),
-  deleteNotification: (id, userId, userType) =>
-    api.delete(`/notifications/${id}`, {
-      headers: {
-        'x-user-id': userId,
-        'x-user-type': userType,
-      },
-    }),
-  deleteAll: (userId, userType) =>
-    api.delete('/notifications', {
-      headers: {
-        'x-user-id': userId,
-        'x-user-type': userType,
-      },
-    }),
+  getNotifications: () => api.get('/notifications'),
+  markAllRead: () => api.post('/notifications/mark-all-read', {}),
+  deleteNotification: (id) => api.delete(`/notifications/${id}`),
+  deleteAll: () => api.delete('/notifications'),
 };
 
 export default api;

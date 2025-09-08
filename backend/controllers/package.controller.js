@@ -236,7 +236,7 @@ exports.getPackages = async (req, res) => {
         'codAmount', 'deliveryCost', 'shownDeliveryCost', 'isPaid', 'paymentDate', 'notes', 'shopNotes',
         'paymentMethod',
         'returnDetails', 'returnRefundAmount', 'exchangeDetails',
-        'itemsNo', 'shopifyOrderId', 'rejectionShippingPaidAmount',
+        'itemsNo', 'shopifyOrderId', 'shopifyOrderName', 'rejectionShippingPaidAmount',
         'paidAmount', 'deliveredItems'
       ],
       where,
@@ -280,7 +280,7 @@ exports.getPackageById = async (req, res) => {
       attributes: [
         'id', 'trackingNumber', 'packageDescription', 'weight', 'dimensions',
         'type',
-        'status', 'shopId', 'userId', 'driverId', 'shopifyOrderId',
+        'status', 'shopId', 'userId', 'driverId', 'shopifyOrderId', 'shopifyOrderName',
         'pickupContactName', 'pickupContactPhone', 'pickupAddress',
         'deliveryContactName', 'deliveryContactPhone', 'deliveryAddress',
         'schedulePickupTime', 'estimatedDeliveryTime',
@@ -289,7 +289,7 @@ exports.getPackageById = async (req, res) => {
         'codAmount', 'deliveryCost', 'shownDeliveryCost', 'isPaid', 'paymentDate', 'notes', 'shopNotes',
         'paymentMethod',
         'returnDetails', 'returnRefundAmount', 'exchangeDetails',
-        'itemsNo', 'paidAmount', 'deliveredItems',
+        'itemsNo', 'paidAmount', 'deliveredItems', 'shopifyOrderName',
         // New field
         'rejectionShippingPaidAmount'
       ],
@@ -520,6 +520,36 @@ exports.updatePackageStatus = async (req, res) => {
       const maxPayable = parseFloat(package.deliveryCost || 0);
       package.rejectionShippingPaidAmount = Math.min(normalized, isNaN(maxPayable) ? normalized : maxPayable);
     }
+    // Store admin choice for shipping deduction on rejection if provided
+    if (nextStatus === 'rejected' || nextStatus === 'rejected-awaiting-return') {
+      if (req.body.rejectionDeductShipping !== undefined) {
+        package.rejectionDeductShipping = Boolean(req.body.rejectionDeductShipping);
+      }
+    }
+
+    // Recalculate COD on rejection to be (items COD total + rejectionShippingPaidAmount) and plan ToCollect delta
+    let codRecalc = null;
+    if (nextStatus === 'rejected' || nextStatus === 'rejected-awaiting-return') {
+      try {
+        let itemsCodTotal = 0;
+        const items = await Item.findAll({ where: { packageId: package.id }, transaction: t });
+        for (const it of items) {
+          itemsCodTotal += parseFloat(it.codAmount || 0) || 0;
+        }
+        const paidReject = parseFloat(package.rejectionShippingPaidAmount || 0) || 0;
+        const oldCod = parseFloat(package.codAmount || 0) || 0;
+        const newCod = itemsCodTotal + paidReject;
+        const delta = newCod - oldCod;
+        const wasCodAddedAtPickup = ['pending','assigned','pickedup','in-transit','rejected','rejected-awaiting-return'].includes((originalStatus || '').toLowerCase());
+        if (Math.abs(delta) > 0.000001) {
+          // Set new COD now so it is saved with the package save below
+          package.codAmount = newCod;
+          codRecalc = { delta, oldCod, newCod, wasCodAddedAtPickup };
+        }
+      } catch (e) {
+        console.warn('Failed to recalc COD on rejection:', e.message);
+      }
+    }
     // --- BEGIN: Set actualPickupTime and actualDeliveryTime based on status change ---
     // If status is being set to 'pickedup', set actualPickupTime
     if (nextStatus === 'pickedup' && package.actualPickupTime == null) {
@@ -561,6 +591,28 @@ exports.updatePackageStatus = async (req, res) => {
       transaction: t,
       lock: true // Add row-level locking
     });
+
+    // If COD was recalculated on rejection and COD was previously added to ToCollect, adjust ToCollect by the delta and log
+    if (shop && codRecalc && codRecalc.wasCodAddedAtPickup && Math.abs(codRecalc.delta) > 0.000001) {
+      const currentToCollect = parseFloat(shop.ToCollect || 0) || 0;
+      const newToCollect = currentToCollect + codRecalc.delta;
+      await sequelize.query(
+        'UPDATE Shops SET ToCollect = :newToCollect WHERE id = :shopId',
+        {
+          replacements: { newToCollect, shopId: shop.id },
+          type: sequelize.QueryTypes.UPDATE,
+          transaction: t
+        }
+      );
+      await logMoneyTransaction(
+        shop.id,
+        Math.abs(codRecalc.delta),
+        'ToCollect',
+        codRecalc.delta >= 0 ? 'increase' : 'decrease',
+        `COD adjusted due to rejection for ${package.trackingNumber}: ${codRecalc.oldCod.toFixed(2)} -> ${codRecalc.newCod.toFixed(2)}.`,
+        t
+      );
+    }
     
     // === Partial delivery flow: delivered-awaiting-return ===
     if (
@@ -623,7 +675,7 @@ exports.updatePackageStatus = async (req, res) => {
       const currentToCollect = parseFloat(shop.ToCollect || 0) || 0;
       const currentTotalCollected = parseFloat(shop.TotalCollected || 0) || 0;
 
-      const newToCollect = Math.max(0, currentToCollect - codAmount);
+      const newToCollect = currentToCollect - codAmount;
       // Apply: increase by full COD + shippingIncrease, then decrease by not delivered
       const newTotalCollected = currentTotalCollected + initialIncrease + shippingIncrease - notDeliveredItemsCod;
 
@@ -786,7 +838,7 @@ exports.updatePackageStatus = async (req, res) => {
       const currentToCollect = parseFloat(shop.ToCollect || 0);
       const currentTotalCollected = parseFloat(shop.TotalCollected || 0);
       // Subtract from ToCollect, add to TotalCollected
-      const newToCollect = Math.max(0, currentToCollect - codAmount);
+      const newToCollect = currentToCollect - codAmount;
       const newTotalCollected = currentTotalCollected + codAmount;
       // Update shop
       await sequelize.query(
@@ -959,7 +1011,7 @@ exports.updatePackageStatus = async (req, res) => {
       const currentToCollect = parseFloat(shop.ToCollect || 0);
       // Only subtract if the package had its COD added previously
       const wasCodAdded = ['pending','assigned','pickedup','in-transit','delivered','cancelled-awaiting-return'].includes(originalStatus.toLowerCase());
-      const newToCollect = wasCodAdded ? Math.max(0, currentToCollect - codAmount) : currentToCollect;
+      const newToCollect = wasCodAdded ? (currentToCollect - codAmount) : currentToCollect;
       if (wasCodAdded && codAmount > 0) {
         await sequelize.query(
           'UPDATE Shops SET ToCollect = :newToCollect WHERE id = :shopId',
@@ -973,7 +1025,7 @@ exports.updatePackageStatus = async (req, res) => {
       }
     }
     
-    // 3. If admin marks a package as rejected-returned, subtract COD from shop's ToCollect
+    // 3. If admin marks a package as rejected-returned, subtract items COD from shop's ToCollect and deduct delivery cost from ToCollect
     if (
       nextStatus === 'rejected-returned' &&
       req.user.role === 'admin' &&
@@ -981,24 +1033,89 @@ exports.updatePackageStatus = async (req, res) => {
       shop &&
       package.type !== 'exchange'
     ) {
-      const codAmount = parseFloat(package.codAmount || 0);
-      const currentToCollect = parseFloat(shop.ToCollect || 0);
-      // Only subtract if the package had its COD added previously
-      const wasCodAdded = ['pending','assigned','pickedup','in-transit','delivered','rejected-awaiting-return'].includes(originalStatus.toLowerCase());
-      const newToCollect = wasCodAdded ? Math.max(0, currentToCollect - codAmount) : currentToCollect;
+      const codAmount = parseFloat(package.codAmount || 0) || 0;
+      const rsPaid = parseFloat(package.rejectionShippingPaidAmount || 0) || 0;
+      const itemsCodOnly = Math.max(0, codAmount - rsPaid);
+      let currentToCollect = parseFloat(shop.ToCollect || 0) || 0;
+      let currentTotalCollected = parseFloat(shop.TotalCollected || 0) || 0;
+      // Only move COD if it had been added previously
+      const wasCodAdded = ['pending','assigned','pickedup','in-transit','delivered','rejected-awaiting-return'].includes((originalStatus || '').toLowerCase());
+
+      // Step 1: Move total COD: ToCollect -= codAmount, TotalCollected += codAmount
       if (wasCodAdded && codAmount > 0) {
+        const newToCollect1 = currentToCollect - codAmount;
+        const newTotalCollected1 = currentTotalCollected + codAmount;
         await sequelize.query(
-          'UPDATE Shops SET ToCollect = :newToCollect WHERE id = :shopId',
+          'UPDATE Shops SET ToCollect = :newToCollect, TotalCollected = :newTotalCollected WHERE id = :shopId',
           {
-            replacements: { newToCollect, shopId: shop.id },
+            replacements: { newToCollect: newToCollect1, newTotalCollected: newTotalCollected1, shopId: shop.id },
             type: sequelize.QueryTypes.UPDATE,
             transaction: t
           }
         );
-        await logMoneyTransaction(shop.id, codAmount, 'ToCollect', 'decrease', `Package ${package.trackingNumber} rejected and returned to shop`, t);
+        await logMoneyTransaction(shop.id, codAmount, 'ToCollect', 'decrease', `Package ${package.trackingNumber} rejected and returned: moved total COD from ToCollect`, t);
+        await logMoneyTransaction(shop.id, codAmount, 'TotalCollected', 'increase', `Package ${package.trackingNumber} rejected and returned: total COD added to TotalCollected`, t);
+        currentToCollect = newToCollect1;
+        currentTotalCollected = newTotalCollected1;
       }
-      // Note: Shipping fees are NOT deducted from TotalCollected when marking as rejected-returned
-      // This is to avoid double deduction since the shop already paid for shipping
+
+      // Step 2: Remove items COD only from TotalCollected, keeping the rejection shipping paid amount
+      if (itemsCodOnly > 0) {
+        const newTotalCollected2 = currentTotalCollected - itemsCodOnly;
+        await sequelize.query(
+          'UPDATE Shops SET TotalCollected = :newTotalCollected WHERE id = :shopId',
+          {
+            replacements: { newTotalCollected: newTotalCollected2, shopId: shop.id },
+            type: sequelize.QueryTypes.UPDATE,
+            transaction: t
+          }
+        );
+        await logMoneyTransaction(shop.id, itemsCodOnly, 'TotalCollected', 'decrease', `Package ${package.trackingNumber} rejected and returned: items COD reversed`, t);
+        currentTotalCollected = newTotalCollected2;
+      }
+
+      // Step 3: Deduct delivery cost from TotalCollected and recognize revenue
+      const deliveryCost = parseFloat(package.deliveryCost || 0) || 0;
+      if (deliveryCost > 0 && package.rejectionDeductShipping !== false) {
+        const newTotalCollected3 = currentTotalCollected - deliveryCost;
+        await sequelize.query(
+          'UPDATE Shops SET TotalCollected = :newTotalCollected WHERE id = :shopId',
+          {
+            replacements: { newTotalCollected: newTotalCollected3, shopId: shop.id },
+            type: sequelize.QueryTypes.UPDATE,
+            transaction: t
+          }
+        );
+        await logMoneyTransaction(shop.id, deliveryCost, 'TotalCollected', 'decrease', `Package ${package.trackingNumber} rejected and returned (delivery cost deducted)`, t);
+        await sequelize.query(
+          'UPDATE Stats SET profit = profit + :amount',
+          {
+            replacements: { amount: deliveryCost },
+            type: sequelize.QueryTypes.UPDATE,
+            transaction: t
+          }
+        );
+        let adminShop = await Shop.findOne({ where: { businessName: 'ADMIN_SYSTEM' }, transaction: t });
+        if (!adminShop) {
+          adminShop = await Shop.create({
+            userId: 1,
+            businessName: 'ADMIN_SYSTEM',
+            businessType: 'System',
+            address: 'System Address',
+            ToCollect: 0,
+            TotalCollected: 0,
+            settelled: 0
+          }, { transaction: t });
+        }
+        await logMoneyTransaction(
+          adminShop.id,
+          deliveryCost,
+          'Revenue',
+          'increase',
+          `Rejected and returned ${package.trackingNumber} (delivery cost revenue)`,
+          t
+        );
+      }
     }
 
     // === Handle Exchange: when driver marks as exchange-awaiting-return, adjust driver's cash if applicable ===
@@ -1657,7 +1774,7 @@ exports.cancelPackage = async (req, res) => {
 
     // Only subtract if the package had its COD added previously. We assume this is true for packages that have status after pickup phase (pending/assigned/in-transit/delivered)
     const wasCodAdded = ['pending','assigned','pickedup','in-transit'].includes(pkg.status.toLowerCase());
-    const newToCollect = wasCodAdded ? Math.max(0, currentToCollect - codAmount) : currentToCollect;
+    const newToCollect = wasCodAdded ? (currentToCollect - codAmount) : currentToCollect;
 
     console.log('DEBUG - Calculation:', {
       currentToCollect,
