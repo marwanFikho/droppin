@@ -1,0 +1,490 @@
+    Droppin Shop Management System - Business Documentation
+                   Comprehensive User Stories and Business Requirements
+
+
+                                   Droppin Development Team
+
+                                                2025
+
+
+Contents
+1 Executive Summary                                                                                 3
+  1.1 Key Features Overview . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .   3
+
+2 User Stories by Feature Category                                                                   4
+  2.1 1. SHOP PROFILE MANAGEMENT . . . . . . . . . . . . . . . . . . . . . . . . . .                 4
+       2.1.1 US-001: Shop Profile Setup and Management . . . . . . . . . . . . . . . . . .           4
+  2.2 2. PACKAGE CREATION AND MANAGEMENT . . . . . . . . . . . . . . . . . . .                       4
+       2.2.1 US-002: Package Creation . . . . . . . . . . . . . . . . . . . . . . . . . . . . .      4
+       2.2.2 US-003: Package Status Management . . . . . . . . . . . . . . . . . . . . . .           5
+  2.3 3. SEARCH AND FILTERING . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .            6
+       2.3.1 US-004: Advanced Package Search . . . . . . . . . . . . . . . . . . . . . . . .         6
+  2.4 4. AWB (AIR WAYBILL) MANAGEMENT . . . . . . . . . . . . . . . . . . . . . . .                  6
+       2.4.1 US-005: AWB Generation and Printing . . . . . . . . . . . . . . . . . . . . .           6
+  2.5 5. PICKUP SCHEDULING . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .           7
+       2.5.1 US-006: Pickup Scheduling and Management . . . . . . . . . . . . . . . . . .            7
+  2.6 6. FINANCIAL MANAGEMENT . . . . . . . . . . . . . . . . . . . . . . . . . . . .                8
+       2.6.1 US-007: Financial Tracking and Management . . . . . . . . . . . . . . . . . .           8
+  2.7 7. API INTEGRATION . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .         8
+       2.7.1 US-008: API Integration and Automation . . . . . . . . . . . . . . . . . . . .          8
+  2.8 8. MOBILE OPTIMIZATION . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .             9
+       2.8.1 US-009: Mobile Shop Management . . . . . . . . . . . . . . . . . . . . . . . .          9
+  2.9 9. ANALYTICS AND REPORTING . . . . . . . . . . . . . . . . . . . . . . . . . . .              10
+       2.9.1 US-010: Business Analytics and Reporting . . . . . . . . . . . . . . . . . . .         10
+  2.10 10. SUPPORT AND HELP . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .         10
+       2.10.1 US-011: Integrated Support System . . . . . . . . . . . . . . . . . . . . . . .       10
+
+3 Technical Integration Points                                                                     12
+  3.1 System Architecture . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 12
+  3.2 Key Integrations . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 12
+
+4 Business Benefits                                                                                13
+  4.1 1. Operational Eﬀiciency . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 13
+  4.2 2. Customer Satisfaction . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 13
+
+
+                                                  1
+Droppin Shop Management System                                                Business Documentation
+
+
+  4.3 3. Financial Control . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .     13
+  4.4 4. Scalability . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .   13
+  4.5 5. Data-Driven Decisions . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .       13
+  4.6 6. Professional Image . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .    13
+
+
+
+
+                                                  2
+Droppin Shop Management System                                             Business Documentation
+
+
+1 Executive Summary
+The Droppin Shop Management System is a comprehensive delivery management platform
+that enables shop owners to create, manage, and track delivery packages throughout the entire
+delivery lifecycle. The system provides both web and mobile interfaces, real-time tracking, financial
+management, and seamless integration capabilities.
+
+1.1   Key Features Overview
+  • Complete Package Lifecycle Management - From creation to delivery
+  • Real-time Status Tracking - Live updates across all delivery stages
+
+  • Professional AWB Generation - Branded shipping labels with QR codes
+  • Financial Management - COD tracking, settlements, and revenue analytics
+  • Mobile Optimization - Full functionality on smartphones and tablets
+  • API Integration - Seamless connection with existing business systems
+  • Advanced Analytics - Data-driven insights for business optimization
+
+
+
+
+                                                 3
+Droppin Shop Management System                                          Business Documentation
+
+
+2 User Stories by Feature Category
+2.1   1. SHOP PROFILE MANAGEMENT
+2.1   US-001: Shop Profile Setup and Management
+User Story:
+As a shop owner
+I want to manage my shop profile information
+So that I can ensure accurate business representation and proper branding on all
+customer-facing materials
+Business Value: Establishes professional brand identity and ensures accurate contact information
+for delivery operations
+
+2.1.1.1 Detailed Requirements Business Information Management: - Update business
+name (displayed on AWBs and customer communications) - Set business type/category - Manage
+contact person details (name, phone, email) - Configure business address for pickup operations
+Financial Configuration: - Set default shipping fees for packages - Configure shown shipping
+fees (customer-facing pricing) - Manage settlement preferences - Track financial metrics (amounts
+to collect, total collected, settled amounts)
+Branding and Customization: - Upload and manage business logo - Configure AWB appearance
+and branding - Set default pickup contact information
+
+2.1.1.2   Acceptance Criteria
+  • Shop profile can be updated in real-time
+  • Changes reflect immediately on AWBs and customer communications
+  • Financial calculations update automatically based on profile settings
+  • Profile validation ensures required fields are completed
+  • Historical data integrity maintained during profile updates
+
+
+
+2.2   2. PACKAGE CREATION AND MANAGEMENT
+2.2   US-002: Package Creation
+User Story:
+As a shop owner
+I want to create delivery packages with comprehensive details
+So that I can eﬀiciently process customer orders and ensure accurate delivery informa-
+tion
+Business Value: Streamlines order processing and reduces delivery errors through detailed pack-
+age information
+
+2.2.1.1 Detailed Requirements Package Information: - Generate unique tracking num-
+bers (DP prefix format) - Set package description and contents - Specify weight and dimensions -
+Set priority level (normal, high, urgent) - Add package notes and special instructions
+
+                                               4
+Droppin Shop Management System                                           Business Documentation
+
+
+Recipient Management: - Capture recipient name and contact information - Set delivery address
+with validation - Configure delivery preferences and time windows - Add delivery notes and special
+instructions
+Pickup Configuration: - Set pickup contact information (defaults to shop profile) - Specify
+pickup address (defaults to shop address) - Schedule pickup time and date - Add pickup notes and
+special requirements
+Financial Setup: - Set COD (Cash on Delivery) amount - Configure delivery cost and shown
+delivery cost - Set payment method preferences - Add payment notes and special instructions
+Item Management: - Add multiple items per package - Set item descriptions and quantities -
+Configure individual item COD amounts - Track total number of items
+
+2.2.1.2   Acceptance Criteria
+   • All required fields validated before package creation
+   • Tracking number generated automatically and uniquely
+   • Default values populated from shop profile where applicable
+   • Package status set to “awaiting_schedule” upon creation
+   • Real-time validation of addresses and contact information
+   • Support for both single and bulk package creation
+
+2.2   US-003: Package Status Management
+User Story:
+As a shop owner
+I want to view and manage packages across different status stages
+So that I can track delivery progress and take appropriate actions at each stage
+Business Value: Provides complete visibility into delivery pipeline and enables proactive man-
+agement
+
+2.2.2.1 Detailed Requirements Status Categories: - All Packages: Complete view of
+all packages regardless of status - Awaiting Schedule: Packages created but not yet scheduled
+for pickup - Scheduled for Pickup: Packages with confirmed pickup appointments - Pending:
+Packages accepted and awaiting driver handover - In Transit: Packages with assigned drivers
+(includes assigned, picked up, on the way) - Delivered: Successfully completed deliveries - Return
+to Shop: Packages in return process - Cancelled/Rejected: Packages not proceeding forward
+Status Tracking: - Real-time status updates and notifications - Status change history and times-
+tamps - Driver assignment tracking - Delivery confirmation and proof of delivery
+Package Actions: - Cancel packages (before delivery completion) - Request returns on delivered
+packages - Request exchanges on delivered packages - Update package notes and special instructions
+- Reschedule pickups when necessary
+
+2.2.2.2   Acceptance Criteria
+   • Status counts displayed prominently for each category
+   • Real-time updates without page refresh
+   • Status change notifications and alerts
+
+                                                5
+Droppin Shop Management System                                           Business Documentation
+
+
+   • Audit trail for all status changes
+   • Appropriate actions available based on current status
+   • Bulk operations supported where applicable
+
+
+
+2.3   3. SEARCH AND FILTERING
+2.3   US-004: Advanced Package Search
+User Story:
+As a shop owner
+I want to search and filter packages using multiple criteria
+So that I can quickly locate specific packages and analyze delivery patterns
+Business Value: Improves operational eﬀiciency and enables data-driven decision making
+
+2.3.1.1 Detailed Requirements Search Capabilities: - Search by tracking number (exact
+match) - Search by recipient name (partial match) - Search by package description (keyword search)
+- Search by delivery address (location-based) - Search by status (filter by current status)
+Filtering Options: - Date range filtering (creation date, delivery date) - Status-based filtering -
+Priority level filtering - COD amount range filtering - Driver assignment filtering
+Sorting Options: - Sort by creation date (newest/oldest first) - Sort by delivery date - Sort by
+COD amount - Sort by status priority - Sort by tracking number
+
+2.3.1.2   Acceptance Criteria
+   • Search results returned in real-time
+   • Multiple search criteria can be combined
+   • Search history maintained for quick access
+   • Results paginated for large datasets
+   • Export functionality for search results
+   • Search performance optimized for large package volumes
+
+
+
+2.4   4. AWB (AIR WAYBILL) MANAGEMENT
+2.4   US-005: AWB Generation and Printing
+User Story:
+As a shop owner
+I want to generate and print professional AWBs for packages
+So that I can provide proper labeling and documentation for delivery operations
+Business Value: Ensures professional package presentation and accurate delivery information
+
+2.4.1.1 Detailed Requirements AWB Content: - Shop logo and business name - Unique
+tracking number with QR code - Recipient details (name, phone, address) - Package description
+
+
+
+                                                6
+Droppin Shop Management System                                          Business Documentation
+
+
+and item summary - COD amount and shipping fees breakdown - Total amount calculation - Pickup
+and delivery addresses - Special instructions and notes
+Printing Options: - Individual AWB printing - Bulk AWB printing (multiple packages) - Print
+preview functionality - Mobile-optimized printing (iOS/Android) - Print dialog customization
+AWB Management: - Reprint AWBs at any stage - AWB version control and updates - Print
+history tracking - AWB template customization
+
+2.4.1.2   Acceptance Criteria
+   • AWBs display all required information clearly
+   • QR codes scan correctly for tracking
+   • Print functionality works on all devices
+   • Bulk printing processes multiple AWBs eﬀiciently
+   • AWB layout optimized for standard label sizes
+   • Print quality consistent across different printers
+
+
+
+2.5   5. PICKUP SCHEDULING
+2.5   US-006: Pickup Scheduling and Management
+User Story:
+As a shop owner
+I want to schedule and manage package pickups
+So that I can coordinate with drivers and ensure timely package collection
+Business Value: Optimizes delivery operations and improves customer service through eﬀicient
+pickup coordination
+
+2.5.1.1 Detailed Requirements Scheduling Features: - View available pickup time slots
+- Schedule single or multiple package pickups - Reschedule existing pickup appointments - Cancel
+pickup appointments when necessary - Set pickup preferences and time windows
+Pickup Management: - View scheduled pickups calendar - Track pickup status and driver assign-
+ments - Receive pickup notifications and reminders - Manage pickup notes and special instructions
+- Handle pickup conflicts and rescheduling
+Driver Coordination: - View assigned drivers for pickups - Communicate with drivers through
+the system - Track driver arrival and pickup completion - Handle driver changes and reassignments
+
+2.5.1.2   Acceptance Criteria
+   • Pickup slots available based on service plan and region
+   • Real-time pickup status updates
+   • Notification system for pickup reminders
+   • Conflict resolution for overlapping pickups
+   • Integration with driver management system
+   • Pickup history and analytics available
+
+
+
+                                                7
+Droppin Shop Management System                                          Business Documentation
+
+
+2.6   6. FINANCIAL MANAGEMENT
+2.6   US-007: Financial Tracking and Management
+User Story:
+As a shop owner
+I want to track and manage all financial aspects of my delivery operations
+So that I can monitor cash flow, COD collections, and shipping costs
+Business Value: Provides complete financial visibility and control over delivery operations
+
+2.6.1.1 Detailed Requirements Financial Overview: - Total amount to collect (pending
+COD) - Total amount collected (completed COD) - Settled amounts (processed payments) - Ship-
+ping fees earned and paid - Net profit calculations
+Transaction Management: - View detailed money transaction history - Filter transactions by
+date range - Search transactions by description - Sort transactions by amount, date, or type -
+Export transaction data for accounting
+Payment Tracking: - Track COD collection status - Monitor payment confirmations - Handle
+payment disputes and adjustments - Process refunds and returns - Generate payment reports
+Settlement Management: - View settlement history - Track settlement status - Process settle-
+ment requests - Handle settlement disputes
+
+2.6.1.2   Acceptance Criteria
+  • Real-time financial calculations
+  • Accurate transaction recording and tracking
+  • Comprehensive financial reporting
+  • Integration with accounting systems
+  • Audit trail for all financial transactions
+  • Automated settlement processing where applicable
+
+
+
+2.7   7. API INTEGRATION
+2.7   US-008: API Integration and Automation
+User Story:
+As a shop owner
+I want to integrate my shop systems with Droppin through APIs
+So that I can automate package creation and management processes
+Business Value: Enables seamless integration with existing business systems and reduces manual
+data entry
+
+2.7.1.1 Detailed Requirements API Key Management: - Generate and manage API keys
+- Secure API key storage and rotation - API usage monitoring and limits - API key permissions
+and access control
+
+
+
+                                               8
+Droppin Shop Management System                                         Business Documentation
+
+
+Package Creation API: - Bulk package creation via API - Shopify integration support - Custom
+order management integration - Automated tracking number generation - API response handling
+and error management
+Data Synchronization: - Real-time data sync with external systems - Order status synchroniza-
+tion - Inventory management integration - Customer data synchronization
+
+2.7.1.2   Acceptance Criteria
+  • Secure API authentication and authorization
+  • Comprehensive API documentation provided
+  • Error handling and retry mechanisms
+  • Rate limiting and usage monitoring
+  • Webhook support for real-time updates
+  • API versioning and backward compatibility
+
+
+
+2.8   8. MOBILE OPTIMIZATION
+2.8   US-009: Mobile Shop Management
+User Story:
+As a shop owner
+I want to manage my shop operations from mobile devices
+So that I can handle deliveries eﬀiciently while away from my computer
+Business Value: Enables flexible shop management and improves operational eﬀiciency
+
+2.8.1.1 Detailed Requirements Mobile Dashboard: - Optimized mobile interface - Touch-
+friendly navigation - Quick action buttons - Real-time status updates - Offline capability where
+applicable
+Mobile Features: - Package creation and editing - AWB printing on mobile devices - Pickup
+scheduling - Status updates and notifications - Financial overview and tracking
+Mobile-Specific Optimizations: - Responsive design for all screen sizes - Touch-optimized input
+fields - Mobile printing support (iOS/Android) - GPS integration for address validation - Camera
+integration for package photos
+
+2.8.1.2   Acceptance Criteria
+  • Full feature parity with desktop version
+  • Optimized performance on mobile devices
+  • Intuitive mobile user interface
+  • Reliable mobile printing functionality
+  • Offline data synchronization
+  • Mobile-specific security measures
+
+
+
+
+                                               9
+Droppin Shop Management System                                            Business Documentation
+
+
+2.9   9. ANALYTICS AND REPORTING
+2.9   US-010: Business Analytics and Reporting
+User Story:
+As a shop owner
+I want to access comprehensive analytics and reports about my delivery operations
+So that I can make data-driven business decisions and optimize operations
+Business Value: Provides insights for business optimization and performance improvement
+
+2.9.1.1 Detailed Requirements Performance Metrics: - Delivery success rates - Average
+delivery times - Package volume trends - Revenue and profit analysis - Customer satisfaction metrics
+Operational Reports: - Daily, weekly, monthly summaries - Status distribution reports - Driver
+performance analytics - Geographic delivery analysis - Peak time and seasonal trends
+Financial Reports: - Revenue breakdown by period - COD collection rates - Shipping cost
+analysis - Profit margin calculations - Settlement reports
+
+2.9.1.2   Acceptance Criteria
+  • Real-time analytics dashboard
+  • Customizable report parameters
+  • Export functionality for all reports
+  • Visual charts and graphs
+  • Historical data comparison
+  • Automated report generation and delivery
+
+
+
+2.10 10. SUPPORT AND HELP
+2.10 US-011: Integrated Support System
+User Story:
+As a shop owner
+I want to access help and support resources within the system
+So that I can quickly resolve issues and learn how to use features effectively
+Business Value: Reduces support costs and improves user satisfaction through self-service capa-
+bilities
+
+2.10.1.1 Detailed Requirements Help Documentation: - Comprehensive user guides -
+Feature tutorials and walkthroughs - FAQ sections - Video tutorials and demos - Best practices
+and tips
+Support Features: - In-app help and tooltips - Context-sensitive help - Support ticket system -
+Live chat support - Knowledge base search
+Training Resources: - Onboarding tutorials - Feature-specific training - Advanced usage guides
+- Integration tutorials - Troubleshooting guides
+
+
+
+                                                10
+Droppin Shop Management System                             Business Documentation
+
+
+2.10.1.2   Acceptance Criteria
+  • Easy-to-find help resources
+  • Searchable knowledge base
+  • Contextual help throughout the interface
+  • Multiple support channels available
+  • Regular content updates and maintenance
+  • User feedback integration for continuous improvement
+
+
+
+
+                                            11
+Droppin Shop Management System                                      Business Documentation
+
+
+3 Technical Integration Points
+3.1   System Architecture
+Frontend: React-based web application with mobile-responsive design
+Backend: Node.js/Express API with SQLite database
+Mobile: React Native mobile application
+Authentication: JWT-based authentication with role-based access control
+API: RESTful API with API key authentication for integrations
+
+3.2   Key Integrations
+  • Shopify Integration: Direct API integration for e-commerce platforms
+  • Payment Systems: COD tracking and settlement management
+  • Driver Management: Real-time driver assignment and tracking
+  • Notification Systems: Email and SMS notifications for status updates
+  • Printing Systems: Cross-platform printing support for AWBs
+
+
+
+
+                                            12
+Droppin Shop Management System                                         Business Documentation
+
+
+4 Business Benefits
+4.1   1. Operational Eﬀiciency
+Streamlined package management reduces manual work and errors
+
+4.2   2. Customer Satisfaction
+Real-time tracking and professional AWBs improve customer experience
+
+4.3   3. Financial Control
+Comprehensive financial tracking ensures accurate revenue management
+
+4.4   4. Scalability
+API integration and mobile optimization support business growth
+
+4.5   5. Data-Driven Decisions
+Analytics and reporting enable informed business decisions
+
+4.6   6. Professional Image
+Branded AWBs and professional interface enhance business credibility
+
+
+This comprehensive business documentation provides the foundation for understanding the imple-
+mented Droppin Shop Management System and serves as a reference for stakeholders, developers,
+and business users.
+Document Version: 1.0
+Last Updated: 2025
+Prepared by: Droppin Development Team
+
+
+
+
+                                               13
+

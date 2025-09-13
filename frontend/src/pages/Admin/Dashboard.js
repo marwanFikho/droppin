@@ -19,6 +19,7 @@ import {
 } from 'chart.js';
 import { Card, Statistic, Flex, Row, Col, Spin } from 'antd';
 import QRCode from 'qrcode';
+import { toArabicName } from '../../utils/arabicTransliteration';
 
 ChartJS.register(
   CategoryScale,
@@ -5214,6 +5215,9 @@ const AdminDashboard = () => {
         + `<tr><td>Shipping:</td><td>${deliveryFees.toFixed(2)} EGP</td></tr>`
         + `<tr><td><b>Total:</b></td><td><b>${total.toFixed(2)} EGP</b></td></tr>`;
       const shopName = awbPkg.Shop?.businessName || awbPkg.shop?.businessName;
+      const shopNameAr = toArabicName(shopName || '-');
+      const recipientNameAr = toArabicName(awbPkg.deliveryContactName || '-');
+      const addressAr = toArabicName(awbPkg.deliveryAddress || '-');
       const isExchange = (awbPkg.type === 'exchange');
       const exch = awbPkg.exchangeDetails || {};
       const takeItems = Array.isArray(exch.takeItems) ? exch.takeItems : [];
@@ -5275,15 +5279,16 @@ const AdminDashboard = () => {
                   <tr>
                     <td>
                       <div class="awb-tracking">Tracking #: ${awbPkg.trackingNumber || '-'}</div>
-                      <div class="awb-shop-name">Shop Name: ${shopName}</div>
+                      <div class="awb-shop-name">Shop Name: ${shopName || '-'} | ${shopNameAr}</div>
                     </td>
                     <td><b>Date:</b> ${awbPkg.createdAt ? new Date(awbPkg.createdAt).toLocaleDateString() : '-'}</td>
                   </tr>
                   <tr>
                     <td colspan="2">
-                      <div><b>Recipient:</b> ${awbPkg.deliveryContactName || '-'}</div>
+                      <div><b>Recipient:</b> ${awbPkg.deliveryContactName || '-'} | ${recipientNameAr}</div>
+                      <div><b>Email:</b> ${awbPkg.deliveryContactEmail || '-'}</div>
                       <div><b>Phone:</b> ${awbPkg.deliveryContactPhone || '-'}</div>
-                      <div><b>Address:</b> ${awbPkg.deliveryAddress || '-'}</div>
+                      <div><b>Address:</b> ${awbPkg.deliveryAddress || '-'} | ${addressAr}</div>
                       ${isShopify ? `<div><b>Shopify Order:</b> ${awbPkg.shopifyOrderName || awbPkg.shopifyOrderId}</div>` : ''}
                     </td>
                   </tr>

@@ -1,0 +1,281 @@
+ Droppin Admin Management System - Business
+               Documentation
+      Comprehensive User Stories and Business Requirements
+
+                       Droppin Development Team
+
+                                     2025
+
+
+Contents
+1 Executive Summary                                                            2
+  1.1 Key Features Overview . . . . . . . . . . . . . . . . . . . . . . . .    2
+
+2 User Stories by Feature Category                                            2
+  2.1 1. USER AND ROLE MANAGEMENT . . . . . . . . . . . . . .                 2
+       2.1.1 US-ADM-001: User and Role Administration . . . . . . .           2
+  2.2 2. SHOP MANAGEMENT . . . . . . . . . . . . . . . . . . . . .            3
+       2.2.1 US-ADM-002: Shop Onboarding and Configuration . . .              3
+  2.3 3. DRIVER MANAGEMENT . . . . . . . . . . . . . . . . . . . .            3
+       2.3.1 US-ADM-003: Driver Approval and Assignment Controls              3
+  2.4 4. PACKAGES, PICKUPS, AND DELIVERIES . . . . . . . . .                  4
+       2.4.1 US-ADM-004: Operational Status and Exceptions Man-
+              agement . . . . . . . . . . . . . . . . . . . . . . . . . . . . 4
+  2.5 5. SEARCH AND FILTERING . . . . . . . . . . . . . . . . . . .           4
+       2.5.1 US-ADM-005: Advanced Search . . . . . . . . . . . . . .          4
+  2.6 6. FINANCIAL MANAGEMENT . . . . . . . . . . . . . . . . .               5
+       2.6.1 US-ADM-006: Financial Oversight (COD, Fees, Settlements) 5
+  2.7 7. API INTEGRATION . . . . . . . . . . . . . . . . . . . . . . .        5
+       2.7.1 US-ADM-007: API Keys and Integrations Governance . .             5
+  2.8 8. MOBILE OPTIMIZATION . . . . . . . . . . . . . . . . . . .            5
+       2.8.1 US-ADM-008: Admin Mobile Dashboards . . . . . . . . .            5
+  2.9 9. ANALYTICS AND REPORTING . . . . . . . . . . . . . . . .              6
+       2.9.1 US-ADM-009: Operational and Financial Reporting . . .            6
+  2.10 10. SUPPORT AND HELP . . . . . . . . . . . . . . . . . . . . .         6
+       2.10.1 US-ADM-010: Support Workflows . . . . . . . . . . . . .         6
+
+3 Technical Integration Points                                                 7
+  3.1 System Architecture . . . . . . . . . . . . . . . . . . . . . . . . .    7
+  3.2 Key Integrations . . . . . . . . . . . . . . . . . . . . . . . . . . .   7
+
+
+                                       1
+4 Business Benefits                                                                  7
+  4.1 1. Operational Efficiency . . . . . . . . . . . . . . . . . . . . . . .        7
+  4.2 2. Customer Satisfaction . . . . . . . . . . . . . . . . . . . . . . .         7
+  4.3 3. Financial Control . . . . . . . . . . . . . . . . . . . . . . . . .         7
+  4.4 4. Scalability . . . . . . . . . . . . . . . . . . . . . . . . . . . . .       7
+  4.5 5. Data-Driven Decisions . . . . . . . . . . . . . . . . . . . . . .           7
+  4.6 6. Professional Image . . . . . . . . . . . . . . . . . . . . . . . . .        7
+
+
+1       Executive Summary
+The Droppin Admin Management System provides platform administrators
+with comprehensive control over users (shops, drivers), operations (packages,
+pickups, deliveries), configurations, and financials. It ensures robust governance,
+auditability, security, and real-time operational visibility across the entire delivery
+lifecycle.
+
+1.1     Key Features Overview
+    • Complete User and Role Administration (approve/reject/activate/deactivate)
+    • Shop and Driver Management, including fees and availability
+    • Operational Control over packages, pickups, deliveries, and exceptions
+    • Financial Oversight: COD, fees, shop wallet, and settlements
+    • Advanced Search, Filtering, and Reporting
+    • Notifications configuration and delivery controls
+    • API Integrations and keys lifecycle management
+    • Mobile-friendly administration experiences
+
+
+2       User Stories by Feature Category
+2.1     1. USER AND ROLE MANAGEMENT
+2.1.1     US-ADM-001: User and Role Administration
+User Story: As an admin I want to create, approve, and manage users and their
+roles So that platform access is controlled and compliant with business policies
+Business Value: Ensures only vetted, approved users operate under correct
+permissions, reducing risk and maintaining compliance.
+
+2.1.1.1    Detailed Requirements
+    • Create user accounts; edit profile details; reset passwords
+    • Approve/reject shops and drivers; toggle isActive and isApproved
+    • Assign roles (admin, shop, driver); enforce role-based access control
+    • Localize user language via lang; enforce email uniqueness
+    • View and filter users by role, status, and approval state
+
+
+                                          2
+2.1.1.2    Acceptance Criteria
+  • Deactivated users cannot sign in or perform any action
+  • Role-gated endpoints and views are inaccessible to unauthorized roles
+  • Profile updates validate required fields; email uniqueness enforced
+  • Audit records exist for approvals and status changes
+
+2.2     2. SHOP MANAGEMENT
+2.2.1     US-ADM-002: Shop Onboarding and Configuration
+User Story: As an admin I want to verify, configure, and maintain shop profiles
+and fees So that shops operate with correct branding, pricing, and compliance
+Business Value: Accurate configuration enables consistent pricing, branding, and
+financial correctness.
+
+2.2.1.1    Detailed Requirements
+  • Review shop profile details and verification status
+  • Configure shippingFees and shownShippingFees
+  • Manage wallet counters: ToCollect, TotalCollected, settelled
+  • Issue, rotate, and revoke shop apiKey; ensure uniqueness
+  • Edit contact person and pickup address metadata
+
+2.2.1.2    Acceptance Criteria
+  • Fee changes apply to new jobs and affect financial calculations
+  • Wallet counters update on COD collection and settlements
+  • API keys are unique, revocable, and audited
+  • Changes reflect immediately in UI and downstream calculations
+
+2.3     3. DRIVER MANAGEMENT
+2.3.1     US-ADM-003: Driver Approval and Assignment Controls
+User Story: As an admin I want to approve drivers and manage their assignments
+and performance So that deliveries are executed effectively and safely
+Business Value: Ensures reliable operations and traceable performance.
+
+2.3.1.1    Detailed Requirements
+  • Approve/reject drivers and toggle availability
+  • Assign/unassign deliveries and pickups to drivers
+  • View driver performance metrics and history
+  • Prevent double-booking and conflicting assignments
+
+
+
+
+                                       3
+2.3.1.2    Acceptance Criteria
+  • Only assigned tasks appear in driver views
+  • Unassigned tasks are no longer visible to the driver
+  • Assignment conflicts are prevented and surfaced clearly
+
+2.4     4. PACKAGES, PICKUPS, AND DELIVERIES
+2.4.1     US-ADM-004: Operational Status and Exceptions Management
+User Story: As an admin I want to search, view, and manage operational statuses
+and exceptions So that I can ensure on-time delivery and handle issues promptly
+Business Value: Reduces SLA breaches and improves customer satisfaction.
+
+2.4.1.1    Detailed Requirements
+  • Filter by status, date, shop, driver, and destination
+  • Update statuses (picked up, out for delivery, delivered, failed, returned)
+  • Record reasons for failures/returns; reschedule or reassign
+  • View full lifecycle history and timestamps for audit
+
+2.4.1.2    Acceptance Criteria
+  • Status transitions are validated and ordered
+  • Timestamps recorded for each change; operator identity captured
+  • Notifications are triggered on key transitions
+
+2.5     5. SEARCH AND FILTERING
+2.5.1     US-ADM-005: Advanced Search
+User Story: As an admin I want advanced search and filtering across users and
+operations So that I can quickly locate records and take action
+Business Value: Improves operational speed and accuracy.
+
+2.5.1.1    Detailed Requirements
+  • Global search by AWB/tracking, package ID, user, phone, email
+  • Faceted filters with saved views
+  • Export search results to CSV/Excel where permitted
+
+2.5.1.2    Acceptance Criteria
+  • Searches return results under expected performance budgets
+  • Exports reflect applied filters accurately
+
+
+
+
+                                      4
+2.6     6. FINANCIAL MANAGEMENT
+2.6.1     US-ADM-006: Financial Oversight (COD, Fees, Settlements)
+User Story: As an admin I want accurate financial tracking and settlement
+management So that COD and fees are reconciled correctly with shops
+Business Value: Ensures financial integrity and trust with partners.
+
+2.6.1.1    Detailed Requirements
+  • Track COD amounts, collected totals, and settled balances
+  • Configure fees and shop settlement preferences
+  • Generate settlement statements and exports
+
+2.6.1.2    Acceptance Criteria
+  • Money fields validate precision and currency format
+  • Settlement actions update counters consistently and are auditable
+
+2.7     7. API INTEGRATION
+2.7.1     US-ADM-007: API Keys and Integrations Governance
+User Story: As an admin I want to manage API keys and monitor integration
+usage So that external systems connect securely and reliably
+Business Value: Protects platform stability and data.
+
+2.7.1.1    Detailed Requirements
+  • Create/revoke/rotate API keys; scope by shop
+  • Rate-limit and monitor usage (where supported)
+  • Surface integration errors with actionable logs
+
+2.7.1.2    Acceptance Criteria
+  • Revoked keys cease to authenticate immediately
+  • Integration failures are logged and discoverable by admins
+
+2.8     8. MOBILE OPTIMIZATION
+2.8.1     US-ADM-008: Admin Mobile Dashboards
+User Story: As an admin I want mobile-friendly dashboards So that I can monitor
+and act while on the move
+Business Value: Faster responses and continuity of operations.
+
+
+
+
+                                       5
+2.8.1.1    Detailed Requirements
+  • Responsive dashboards; quick status updates
+  • Role-gated actions; secure session handling
+
+2.8.1.2    Acceptance Criteria
+  • Mobile views meet performance budgets and security requirements
+
+2.9      9. ANALYTICS AND REPORTING
+2.9.1     US-ADM-009: Operational and Financial Reporting
+User Story: As an admin I want analytics and reports So that I can make
+data-driven decisions
+Business Value: Drives continuous improvement.
+
+2.9.1.1    Detailed Requirements
+  • Operational KPIs: volumes, success rate, SLA breaches
+  • Financial summaries: COD, fees, balances, settlement deltas
+  • Downloadable reports with applied filters
+
+2.9.1.2    Acceptance Criteria
+  • Reports reflect latest persisted data; exports are accurate
+
+2.10      10. SUPPORT AND HELP
+2.10.1     US-ADM-010: Support Workflows
+User Story: As an admin I want integrated support workflows So that I can
+resolve issues and guide users
+Business Value: Reduces downtime and improves user satisfaction.
+
+2.10.1.1    Detailed Requirements
+  • Access knowledge base and playbooks
+  • Triage exceptions and escalate with context
+
+2.10.1.2    Acceptance Criteria
+  • Response and resolution SLAs are measurable
+
+
+
+
+                                      6
+3     Technical Integration Points
+3.1     System Architecture
+    • Modular services for auth, operations, and financials
+    • RBAC enforced across UI and API layers
+
+3.2     Key Integrations
+    • Notification providers (email/SMS/push)
+    • External commerce/ERP via API keys
+
+
+4     Business Benefits
+4.1     1. Operational Efficiency
+    • Faster triage, assignment, and resolution
+
+4.2     2. Customer Satisfaction
+    • Fewer SLA breaches; proactive communication
+
+4.3     3. Financial Control
+    • Accurate COD and settlements with audit trail
+
+4.4     4. Scalability
+    • Configurable rules support growth and new regions
+
+4.5     5. Data-Driven Decisions
+    • KPIs and reports inform continuous improvement
+
+4.6     6. Professional Image
+    • Consistent branding and reliable operations
+
+
+
+
+                                       7
+

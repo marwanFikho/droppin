@@ -6,6 +6,7 @@ import './MobileAdminDashboard.css';
 import { useTranslation } from 'react-i18next';
 import { FaTrashAlt } from 'react-icons/fa';
 import QRCode from 'qrcode';
+import { toArabicName } from '../../utils/arabicTransliteration';
 
 const MobileAdminDashboard = () => {
   const { currentUser } = useAuth();
@@ -861,6 +862,9 @@ const MobileAdminDashboard = () => {
       
       const shopName = packageForAwb.Shop?.businessName || packageForAwb.shop?.businessName || '-';
       const awbPkg = packageForAwb;
+      const shopNameAr = toArabicName(shopName);
+      const recipientNameAr = toArabicName(awbPkg.deliveryContactName || '-');
+      const addressAr = toArabicName(awbPkg.deliveryAddress || '-');
       const totalsRows = isShopify
         ? `<tr><td>Sub Total:</td><td>${subTotal.toFixed(2)} EGP</td></tr>`
           + `<tr><td>Delivery fees & Taxes:</td><td>${deliveryFees.toFixed(2)} EGP</td></tr>`
@@ -935,15 +939,15 @@ const MobileAdminDashboard = () => {
                 <table class="awb-info-table">
                   <tr>
                     <td><span class="awb-row"><b class="awb-tracking">Tracking #:</b><span class="awb-tracking awb-data">${awbPkg.trackingNumber || '-'}</span></span>
-                    <div class="awb-shop-name">Shop Name: ${shopName}</div>
+                    <div class="awb-shop-name">Shop Name: ${shopName} | ${shopNameAr}</div>
                     </td>
                     <td><b>Date:</b> ${awbPkg.createdAt ? new Date(awbPkg.createdAt).toLocaleDateString() : '-'}</td>
                   </tr>
                   <tr>
                     <td colspan="2">
-                      <span class="awb-row"><b class="awb-recipient">Recipient:</b><span class="awb-recipient awb-data">${awbPkg.deliveryContactName || '-'}</span></span><br/>
+                      <span class="awb-row"><b class="awb-recipient">Recipient:</b><span class="awb-recipient awb-data">${awbPkg.deliveryContactName || '-'} | ${recipientNameAr}</span></span><br/>
                       <span class="awb-row"><b class="awb-phone">Phone:</b><span class="awb-phone awb-data">${awbPkg.deliveryContactPhone || '-'}</span></span><br/>
-                      <span class="awb-row"><b class="awb-address">Address:</b><span class="awb-address awb-data">${awbPkg.deliveryAddress || '-'}</span></span>
+                      <span class="awb-row"><b class="awb-address">Address:</b><span class="awb-address awb-data">${awbPkg.deliveryAddress || '-'} | ${addressAr}</span></span>
                     </td>
                   </tr>
                 </table>

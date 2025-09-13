@@ -5,6 +5,7 @@ import './ShopDashboard.css';
 import QRCode from 'qrcode';
 import { useAuth } from '../../context/AuthContext';
 import { notification } from 'antd';
+import { toArabicName } from '../../utils/arabicTransliteration';
 
 const TABS = [
   { label: 'All', value: 'all' },
@@ -473,6 +474,9 @@ const ShopPackages = () => {
         + `<tr><td>Shipping:</td><td>${deliveryFees.toFixed(2)} EGP</td></tr>`
         + `<tr><td><b>Total:</b></td><td><b>${total.toFixed(2)} EGP</b></td></tr>`;
     const shopName = shopFees.businessName || '-';
+    const shopNameAr = toArabicName(shopName);
+    const recipientNameAr = toArabicName(awbPkg.deliveryContactName || '-');
+    const addressAr = toArabicName(awbPkg.deliveryAddress || '-');
     // Build content depending on package type
     const isExchange = (awbPkg.type === 'exchange');
     // Normalize exchange details
@@ -602,15 +606,15 @@ const ShopPackages = () => {
               <table class="awb-info-table">
                 <tr>
                   <td><span class="awb-row"><b class="awb-tracking">Tracking #:</b><span class="awb-tracking awb-data">${awbPkg.trackingNumber || '-'}</span></span>
-                  <div class="awb-shop-name">Shop Name: ${shopName}</div>
+                  <div class="awb-shop-name">Shop Name: ${shopName} | ${shopNameAr}</div>
                 </td>
                   <td><b>Date:</b> ${awbPkg.createdAt ? new Date(awbPkg.createdAt).toLocaleDateString() : '-'}</td>
                 </tr>
                 <tr>
                   <td colspan="2">
-                    <span class="awb-row"><b class="awb-recipient">Recipient: ${awbPkg.deliveryContactName || '-'}</b></span><br/>
+                    <span class="awb-row"><b class="awb-recipient">Recipient: ${awbPkg.deliveryContactName || '-'} | ${recipientNameAr}</b></span><br/>
                     <span class="awb-row"><b class="awb-phone">Phone: ${awbPkg.deliveryContactPhone || '-'}</b></span><br/>
-                    <span class="awb-row"><b class="awb-address">Address: ${awbPkg.deliveryAddress || '-'}</b></span>
+                    <span class="awb-row"><b class="awb-address">Address: ${awbPkg.deliveryAddress || '-'} | ${addressAr}</b></span>
                     ${isShopify ? `<div><b>Shopify Order:</b> ${awbPkg.shopifyOrderName || awbPkg.shopifyOrderId}</div>` : ''}
                   </td>
                 </tr>
@@ -697,6 +701,7 @@ const ShopPackages = () => {
           + `<tr><td><b>Total:</b></td><td><b>${total.toFixed(2)} EGP</b></td></tr>`;
 
       const shopName = shopFees.businessName || '-';
+      const shopNameAr = toArabicName(shopName);
       const breakStyle = (i < pkgsToPrint.length - 1) ? 'page-break-after: always; break-after: page;' : '';
 
       const isExchange = (packageData.type === 'exchange');
@@ -800,15 +805,15 @@ const ShopPackages = () => {
               <tr>
                 <td>
                   <span class="awb-row"><b class="awb-tracking">Tracking #:</b><span class="awb-tracking awb-data">${packageData.trackingNumber || pkg.trackingNumber || '-'}</span></span>
-                  <div class="awb-shop-name">Shop Name: ${shopName}</div>
+                  <div class="awb-shop-name">Shop Name: ${shopName} | ${shopNameAr}</div>
                 </td>
                 <td><b>Date:</b> ${packageData.createdAt ? new Date(packageData.createdAt).toLocaleDateString() : (pkg.createdAt ? new Date(pkg.createdAt).toLocaleDateString() : '-')}</td>
               </tr>
               <tr>
                 <td colspan="2">
-                  <span class="awb-row"><b class="awb-recipient">Recipient:</b><span class="awb-recipient awb-data">${packageData.deliveryContactName || '-'}</span></span><br/>
+                  <span class="awb-row"><b class="awb-recipient">Recipient:</b><span class="awb-recipient awb-data">${packageData.deliveryContactName || '-'} | ${toArabicName(packageData.deliveryContactName || '-')}</span></span><br/>
                   <span class="awb-row"><b class="awb-phone">Phone:</b><span class="awb-phone awb-data">${packageData.deliveryContactPhone || '-'}</span></span><br/>
-                  <span class="awb-row"><b class="awb-address">Address:</b><span class="awb-address awb-data">${packageData.deliveryAddress || '-'}</span></span>
+                  <span class="awb-row"><b class="awb-address">Address:</b><span class="awb-address awb-data">${packageData.deliveryAddress || '-'} | ${toArabicName(packageData.deliveryAddress || '-')}</span></span>
                 </td>
               </tr>
             </table>
