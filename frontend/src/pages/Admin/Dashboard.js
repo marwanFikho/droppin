@@ -168,6 +168,131 @@ const AdminDashboard = () => {
     }
   }, [autoScrollToSettle, showDetailsModal]);
 
+  // --- Mobile detection ---
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const updateIsMobile = () => setIsMobile(typeof window !== 'undefined' && window.innerWidth <= 768);
+    updateIsMobile();
+    window.addEventListener('resize', updateIsMobile);
+    return () => window.removeEventListener('resize', updateIsMobile);
+  }, []);
+
+  // Prevent background scroll when details modal is open on mobile for better UX
+  useEffect(() => {
+    if (isMobile && showDetailsModal) {
+      document.body.classList.add('no-scroll');
+    } else {
+      document.body.classList.remove('no-scroll');
+    }
+    return () => document.body.classList.remove('no-scroll');
+  }, [isMobile, showDetailsModal]);
+
+  // Swipe-down-to-close (mobile): refs and handlers for details modal
+  const detailsModalContentRef = useRef(null);
+  const detailsTouchStartY = useRef(0);
+  const detailsTouchMoveY = useRef(0);
+  const detailsScrollAtTop = useRef(false);
+  const onDetailsTouchStart = (e) => {
+    if (!isMobile) return;
+    const y = e.touches?.[0]?.clientY ?? 0;
+    detailsTouchStartY.current = y;
+    detailsTouchMoveY.current = y;
+    const scTop = detailsModalContentRef.current ? detailsModalContentRef.current.scrollTop : 0;
+    detailsScrollAtTop.current = scTop <= 0;
+  };
+  const onDetailsTouchMove = (e) => {
+    if (!isMobile) return;
+    const y = e.touches?.[0]?.clientY ?? 0;
+    detailsTouchMoveY.current = y;
+  };
+
+  // Mobile: support Android back button (history back) to close details modal
+  const detailsHistoryPushed = useRef(false);
+  useEffect(() => {
+    if (!isMobile) return;
+    if (showDetailsModal) {
+      try {
+        window.history.pushState({ detailsModal: true }, '');
+        detailsHistoryPushed.current = true;
+      } catch {}
+      const onPop = () => {
+        if (showDetailsModal) {
+          // Close without pushing another history event
+          setShowDetailsModal(false);
+          setSelectedEntity(null);
+          setIsEditingPackage(false);
+          detailsHistoryPushed.current = false;
+        }
+      };
+      window.addEventListener('popstate', onPop);
+      return () => window.removeEventListener('popstate', onPop);
+    }
+  }, [isMobile, showDetailsModal]);
+
+  // --- Mobile sidebar state & swipe handling (match Shop UX) ---
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const adminContainerRef = useRef(null);
+  const touchStartX = useRef(0);
+  const touchEndX = useRef(0);
+  const touchEligibleForOpen = useRef(false);
+  const EDGE_SWIPE_THRESHOLD = 300; // px from left edge
+  const MIN_OPEN_DISTANCE = 160; // swipe right distance to open
+  const MIN_CLOSE_DISTANCE = 140; // swipe left distance to close
+
+  const handleTouchStart = (e) => {
+    const startX = e.targetTouches?.[0]?.clientX ?? 0;
+    touchStartX.current = startX;
+    touchEndX.current = startX;
+
+    // Avoid opening when a modal is open or starting on interactive lists
+    const modalOpen = Boolean(document.querySelector('.modal-overlay, .confirmation-overlay'));
+    const target = e.target;
+    const blockedSelectors = [
+      '.admin-table',
+      '.packages-table',
+      '.money-table',
+      '.modal-content',
+      '.confirmation-dialog'
+    ];
+    const startedInBlockedArea = blockedSelectors.some((selector) => target.closest?.(selector));
+
+    touchEligibleForOpen.current = !isMenuOpen && !modalOpen && !startedInBlockedArea && startX <= EDGE_SWIPE_THRESHOLD;
+  };
+
+  const handleTouchMove = (e) => {
+    touchEndX.current = e.targetTouches?.[0]?.clientX ?? 0;
+  };
+
+  const handleTouchEnd = () => {
+    if (touchStartX.current === 0 && touchEndX.current === 0) return;
+    const diffX = touchStartX.current - touchEndX.current;
+    const openedByEdgeSwipe = touchEligibleForOpen.current && diffX < -MIN_OPEN_DISTANCE;
+    const closedBySwipe = diffX > MIN_CLOSE_DISTANCE;
+
+    if (!isMenuOpen && openedByEdgeSwipe) setIsMenuOpen(true);
+    else if (isMenuOpen && closedBySwipe) setIsMenuOpen(false);
+
+    touchStartX.current = 0;
+    touchEndX.current = 0;
+    touchEligibleForOpen.current = false;
+  };
+
+  // Close menu on outside click
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        adminContainerRef.current &&
+        !adminContainerRef.current.contains(event.target) &&
+        !event.target.closest?.('.menu-toggle-btn') &&
+        isMenuOpen
+      ) {
+        setIsMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isMenuOpen]);
+
   useEffect(() => {
     if (selectedEntity && selectedEntity.shippingFees !== undefined) {
       setShippingFeesInput(selectedEntity.shippingFees);
@@ -1071,8 +1196,8 @@ const AdminDashboard = () => {
     );
 
     return (
-      <div className="modal-overlay show" style={{ zIndex: 3000 }}>
-        <div className="modal-content">
+      <div className="modal-overlay show" onClick={() => setShowAssignDriverModal(false)}>
+        <div className="modal-content" onClick={(e) => e.stopPropagation()}>
           <div className="modal-header">
             <h3>{selectedPackage.driverId ? 'Change Driver for Package' : 'Assign Driver to Package'}</h3>
             <button 
@@ -1912,7 +2037,7 @@ const AdminDashboard = () => {
 
   // Render details modal
   const renderDetailsModal = (settlementRef) => {
-    if (!selectedEntity) return null;
+    if (!showDetailsModal || !selectedEntity) return null;
 
     const entityType = selectedEntity.entityType;
     const isUser = entityType === 'user';
@@ -1975,13 +2100,80 @@ const AdminDashboard = () => {
       setShowConfirmationDialog(true);
     };
 
+    const closeDetails = () => {
+      if (isMobile && detailsHistoryPushed.current) {
+        // Pop our injected history state first so back behaves naturally
+        detailsHistoryPushed.current = false;
+        try { window.history.back(); } catch {}
+      }
+      setShowDetailsModal(false);
+      setSelectedEntity(null);
+      setIsEditingPackage(false);
+    };
+
+    // Helpers for mobile UX enhancements
+    const toTel = (s) => {
+      if (!s) return '';
+      const cleaned = String(s).replace(/[^+\d]/g, '');
+      return `tel:${cleaned}`;
+    };
+    const copyToClipboard = async (text) => {
+      try {
+        await navigator.clipboard?.writeText?.(String(text));
+        setStatusMessage({ type: 'success', text: 'Copied to clipboard' });
+      } catch (e) {
+        setStatusMessage({ type: 'error', text: 'Copy failed' });
+      }
+    };
+    const shareTracking = async (pkg) => {
+      const title = `Package ${pkg?.trackingNumber || ''}`.trim();
+      const text = `${title}${pkg?.packageDescription ? ` – ${pkg.packageDescription}` : ''}`;
+      const url = typeof window !== 'undefined' ? window.location.href : undefined;
+      if (navigator.share) {
+        try { await navigator.share({ title, text, url }); return; } catch {}
+      }
+      copyToClipboard(title);
+    };
+
     return (
       <div
         className={`modal-overlay ${showDetailsModal ? 'show' : ''}`}
-        style={{ zIndex: 2000 }}
-        onClick={() => setShowDetailsModal(false)}
+        onClick={closeDetails}
       >
-        <div className="modal-content" onClick={e => e.stopPropagation()}>
+        {/* Mobile floating close button for details modal */}
+        {isMobile && (
+          <button
+            className="modal-close-fab"
+            aria-label="Close"
+            onClick={(e) => { e.stopPropagation(); closeDetails(); }}
+          >
+            ×
+          </button>
+        )}
+        <div
+          className="modal-content details-modal"
+          role="dialog"
+          aria-modal="true"
+          ref={detailsModalContentRef}
+          onClick={e => e.stopPropagation()}
+          onTouchStart={onDetailsTouchStart}
+          onTouchMove={onDetailsTouchMove}
+          onTouchEnd={() => {
+            if (!isMobile) return;
+            const dy = detailsTouchMoveY.current - detailsTouchStartY.current;
+            if (detailsScrollAtTop.current && dy > 90) {
+              closeDetails();
+            }
+            detailsTouchStartY.current = 0;
+            detailsTouchMoveY.current = 0;
+            detailsScrollAtTop.current = false;
+          }}
+          onTouchCancel={() => {
+            detailsTouchStartY.current = 0;
+            detailsTouchMoveY.current = 0;
+            detailsScrollAtTop.current = false;
+          }}
+        >
           <div className="modal-header" style={{ 
             display: 'flex', 
             alignItems: 'center', 
@@ -2020,7 +2212,7 @@ const AdminDashboard = () => {
               )}
               <button
                 className="modal-close"
-                onClick={() => setShowDetailsModal(false)}
+                onClick={(e) => { e.stopPropagation(); closeDetails(); }}
                 style={{ background: 'none', border: 'none', fontSize: 28, cursor: 'pointer', color: '#888', marginLeft: 16 }}
                 title="Close"
               >
@@ -2592,7 +2784,7 @@ const AdminDashboard = () => {
           )}
 
           {/* Package details */}
-          {isPackage && (
+          {isPackage && !isMobile && (
             <div className="details-grid">
               {/* Edit/View Mode Toggle */}
               <div className="detail-item full-width" style={{ marginBottom: 20, padding: '16px', backgroundColor: '#f8f9fa', borderRadius: '8px', border: '1px solid #e9ecef' }}>
@@ -3244,6 +3436,182 @@ const AdminDashboard = () => {
               )}
             </div>
           )}
+          {isPackage && isMobile && (
+            <div className="package-details-mobile">
+              <div className="summary-card">
+                <div className="summary-title">
+                  <div className="tracking">#{selectedEntity.trackingNumber}</div>
+                  <div className={`chip status ${selectedEntity.status}`}>{selectedEntity.status?.split('-').join(' ')}</div>
+                </div>
+                <div className="summary-grid">
+                  <div className="pair"><span className="k">Shop</span><span className="v">{selectedEntity.shop?.businessName || 'N/A'}</span></div>
+                  <div className="pair"><span className="k">COD</span><span className="v">EGP {parseFloat(selectedEntity.codAmount || 0).toFixed(2)}</span></div>
+                  <div className="pair"><span className="k">Payment</span><span className={`v chip payment ${selectedEntity.isPaid ? 'paid' : 'unpaid'}`}>{selectedEntity.isPaid ? 'Paid' : 'Unpaid'}</span></div>
+                  <div className="pair"><span className="k">Driver</span><span className="v">{(() => { const d = drivers.find(dr => dr.driverId === selectedEntity.driverId || dr.id === selectedEntity.driverId); return d ? d.name : 'Unassigned'; })()}</span></div>
+                  <div className="pair"><span className="k">Type</span><span className="v">{selectedEntity.type || 'new'}</span></div>
+                  <div className="pair"><span className="k">Created</span><span className="v">{selectedEntity.createdAt ? new Date(selectedEntity.createdAt).toLocaleDateString() : 'N/A'}</span></div>
+                </div>
+                <div className="summary-quick">
+                  <button className="btn btn-secondary" onClick={() => copyToClipboard(selectedEntity.trackingNumber)}>Copy ID</button>
+                  <button className="btn btn-secondary" onClick={() => shareTracking(selectedEntity)}>Share</button>
+                </div>
+                <div className="summary-actions">
+                  {!isEditingPackage ? (
+                    <>
+                      <button className="btn btn-primary" onClick={() => startEditingPackage(selectedEntity)}>Edit</button>
+                      <button className="btn btn-danger" onClick={() => deletePackage(selectedEntity)}>Delete</button>
+                    </>
+                  ) : (
+                    <>
+                      <button className="btn btn-success" onClick={savePackageEdits} disabled={savingPackage}>{savingPackage ? 'Saving...' : 'Save'}</button>
+                      <button className="btn btn-secondary" onClick={cancelPackageEditing} disabled={savingPackage}>Cancel</button>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              <details className="m-section" open>
+                <summary>Delivery Details</summary>
+                <div className="section-body">
+                  <div className="pair"><span className="k">Contact</span><span className="v">{selectedEntity.deliveryContactName || 'N/A'}</span></div>
+                  <div className="pair"><span className="k">Phone</span><span className="v">{selectedEntity.deliveryContactPhone ? (<a className="link" href={toTel(selectedEntity.deliveryContactPhone)}>{selectedEntity.deliveryContactPhone}</a>) : 'N/A'}</span></div>
+                  <div className="pair multiline"><span className="k">Address</span><span className="v">{selectedEntity.deliveryAddress || 'N/A'}</span></div>
+                  <div className="actions-inline">
+                    <button className="btn btn-secondary" onClick={() => copyToClipboard(selectedEntity.deliveryAddress || '')}>Copy Address</button>
+                  </div>
+                  <div className="pair"><span className="k">Delivery Time</span><span className="v">{selectedEntity.actualDeliveryTime ? selectedEntity.actualDeliveryTime : 'Not delivered yet'}</span></div>
+                </div>
+              </details>
+
+              <details className="m-section">
+                <summary>Pickup Details</summary>
+                <div className="section-body">
+                  <div className="pair"><span className="k">Contact</span><span className="v">{selectedEntity.pickupContactName || 'N/A'}</span></div>
+                  <div className="pair"><span className="k">Phone</span><span className="v">{selectedEntity.pickupContactPhone ? (<a className="link" href={toTel(selectedEntity.pickupContactPhone)}>{selectedEntity.pickupContactPhone}</a>) : 'N/A'}</span></div>
+                  <div className="pair multiline"><span className="k">Address</span><span className="v">{selectedEntity.pickupAddress || 'N/A'}</span></div>
+                  <div className="actions-inline">
+                    <button className="btn btn-secondary" onClick={() => copyToClipboard(selectedEntity.pickupAddress || '')}>Copy Address</button>
+                  </div>
+                  <div className="pair"><span className="k">Picked up</span><span className="v">{selectedEntity.actualPickupTime ? selectedEntity.actualPickupTime : 'Not picked up yet'}</span></div>
+                </div>
+              </details>
+
+              <details className="m-section" open>
+                <summary>Items {Array.isArray(selectedEntity.Items) ? `(${selectedEntity.Items.length})` : ''}</summary>
+                <div className="section-body">
+                  {Array.isArray(selectedEntity.Items) && selectedEntity.Items.length > 0 ? (
+                    <div className="item-list">
+                      {selectedEntity.Items.map((item) => (
+                        <div key={item.id} className="item-card">
+                          <div className="line"><span className="k">Description</span><span className="v">{item.description || '-'}</span></div>
+                          <div className="line"><span className="k">Qty</span><span className="v">{item.quantity || 0}</span></div>
+                          <div className="line"><span className="k">COD/unit</span><span className="v">EGP {item.codAmount && item.quantity ? (item.codAmount / item.quantity).toFixed(2) : '0.00'}</span></div>
+                          <div className="line"><span className="k">Total COD</span><span className="v">EGP {parseFloat(item.codAmount || 0).toFixed(2)}</span></div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="empty">No items in this package.</div>
+                  )}
+                  {Array.isArray(selectedEntity.deliveredItems) && selectedEntity.deliveredItems.length > 0 && (
+                    <div className="sub-section">
+                      <div className="sub-title">Delivered Items</div>
+                      <ul>
+                        {selectedEntity.deliveredItems.map((di, idx) => {
+                          const match = (selectedEntity.Items || []).find(it => String(it.id) === String(di.itemId));
+                          const label = match?.description || `Item ${di.itemId}`;
+                          return (
+                            <li key={`delivered-mobile-${idx}`}>{label}: {di.deliveredQuantity}</li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </details>
+
+              <details className="m-section">
+                <summary>Payment & Costs</summary>
+                <div className="section-body">
+                  <div className="pair"><span className="k">Payment</span><span className={`v chip payment ${selectedEntity.isPaid ? 'paid' : 'unpaid'}`}>{selectedEntity.isPaid ? 'Paid' : 'Unpaid'}</span></div>
+                  <div className="pair"><span className="k">Method</span><span className="v">{selectedEntity.paymentMethod ? String(selectedEntity.paymentMethod).toUpperCase() : 'N/A'}</span></div>
+                  <div className="pair"><span className="k">COD</span><span className="v">EGP {parseFloat(selectedEntity.codAmount || 0).toFixed(2)}</span></div>
+                  <div className="pair"><span className="k">Delivery Cost</span><span className="v">EGP {parseFloat(selectedEntity.deliveryCost || 0).toFixed(2)}</span></div>
+                  {selectedEntity.shownDeliveryCost !== undefined && (
+                    <div className="pair"><span className="k">Shown Cost</span><span className="v">EGP {parseFloat(selectedEntity.shownDeliveryCost || 0).toFixed(2)}</span></div>
+                  )}
+                  {selectedEntity.paidAmount !== undefined && (
+                    <div className="pair"><span className="k">Amount Paid</span><span className="v">EGP {parseFloat(selectedEntity.paidAmount || 0).toFixed(2)}</span></div>
+                  )}
+                  {selectedEntity.rejectionShippingPaidAmount > 0 && (
+                    <div className="pair"><span className="k">Rejection Shipping Paid</span><span className="v">EGP {parseFloat(selectedEntity.rejectionShippingPaidAmount || 0).toFixed(2)}</span></div>
+                  )}
+                  {selectedEntity.paymentNotes && (
+                    <div className="pair multiline"><span className="k">Payment Notes</span><span className="v">{selectedEntity.paymentNotes}</span></div>
+                  )}
+                </div>
+              </details>
+
+              {selectedEntity && (Array.isArray(selectedEntity.notes) || typeof selectedEntity.notes === 'string') && (
+                <details className="m-section">
+                  <summary>Notes</summary>
+                  <div className="section-body">
+                    <div className="notes-log-list">
+                      {(() => {
+                        let notesArr = [];
+                        if (Array.isArray(selectedEntity?.notes)) notesArr = selectedEntity.notes;
+                        else if (typeof selectedEntity?.notes === 'string') { try { notesArr = JSON.parse(selectedEntity.notes); } catch { notesArr = []; } }
+                        notesArr = notesArr.filter(n => n && typeof n.text === 'string' && n.text.trim()).sort((a,b)=>new Date(a.createdAt||0)-new Date(b.createdAt||0));
+                        return notesArr.length > 0 ? (
+                          notesArr.map((n, idx) => (
+                            <div key={`mnote-${idx}`} className="notes-log-entry">
+                              <div className="meta">{n.createdAt ? new Date(n.createdAt).toLocaleString() : 'Unknown date'}</div>
+                              <div className="text">{n.text}</div>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="empty">No notes yet.</div>
+                        );
+                      })()}
+                    </div>
+                    <div className="add-note">
+                      <textarea rows={2} value={editingNotes} onChange={e=>setEditingNotes(e.target.value)} placeholder="Add a note for this package..."></textarea>
+                      <button className="btn btn-primary" disabled={notesSaving || !editingNotes.trim()} onClick={async ()=>{
+                        if (!editingNotes.trim()) return; setNotesSaving(true); setNotesError(null);
+                        try { const res = await packageService.updatePackageNotes(selectedEntity.id, editingNotes); setSelectedEntity(prev=>({...prev, notes: res.data.notes})); setEditingNotes(''); }
+                        catch(err){ setNotesError(err.response?.data?.message || 'Failed to save note.'); }
+                        finally{ setNotesSaving(false); }
+                      }}>{notesSaving ? 'Saving...' : 'Add Note'}</button>
+                      {notesError && <div className="error">{notesError}</div>}
+                    </div>
+                  </div>
+                </details>
+              )}
+
+              {(selectedEntity?.type === 'exchange' || (selectedEntity?.status || '').startsWith('exchange-')) && selectedEntity?.exchangeDetails && (
+                <details className="m-section">
+                  <summary>Exchange Details</summary>
+                  <div className="section-body">
+                    <div className="sub-section">
+                      <div className="sub-title">Take from customer</div>
+                      {Array.isArray(selectedEntity.exchangeDetails.takeItems) && selectedEntity.exchangeDetails.takeItems.length > 0 ? (
+                        <ul>{selectedEntity.exchangeDetails.takeItems.map((it,idx)=>(<li key={`xtake-m-${idx}`}>{(it.description||'-')} x {(parseInt(it.quantity)||0)}</li>))}</ul>
+                      ) : (<div className="empty">None</div>)}
+                    </div>
+                    <div className="sub-section">
+                      <div className="sub-title">Give to customer</div>
+                      {Array.isArray(selectedEntity.exchangeDetails.giveItems) && selectedEntity.exchangeDetails.giveItems.length > 0 ? (
+                        <ul>{selectedEntity.exchangeDetails.giveItems.map((it,idx)=>(<li key={`xgive-m-${idx}`}>{(it.description||'-')} x {(parseInt(it.quantity)||0)}</li>))}</ul>
+                      ) : (<div className="empty">None</div>)}
+                    </div>
+                    {selectedEntity.exchangeDetails.cashDelta && (
+                      <div className="pair"><span className="k">Money</span><span className="v">{(selectedEntity.exchangeDetails.cashDelta.type === 'take' ? 'Take from customer' : 'Give to customer')} · EGP {parseFloat(selectedEntity.exchangeDetails.cashDelta.amount || 0).toFixed(2)}</span></div>
+                    )}
+                  </div>
+                </details>
+              )}
+            </div>
+          )}
           {/* Package details: Forward Status button for admin */}
           {isPackage && (
             <>
@@ -3258,6 +3626,7 @@ const AdminDashboard = () => {
                   background: '#fff',
                   borderTop: '1px solid #eee',
                   padding: '16px 24px',
+                  paddingBottom: 'calc(16px + env(safe-area-inset-bottom, 0px))',
                   boxShadow: '0 -2px 8px rgba(0,0,0,0.04)',
                   display: 'flex',
                   justifyContent: 'flex-end',
@@ -3839,8 +4208,8 @@ const AdminDashboard = () => {
     console.log('filteredDrivers:', filteredDrivers);
 
     return (
-      <div className={`modal-overlay ${showBulkAssignModal ? 'show' : ''}`}>
-        <div className="modal-content">
+      <div className={`modal-overlay ${showBulkAssignModal ? 'show' : ''}`} onClick={() => setShowBulkAssignModal(false)}>
+        <div className="modal-content" onClick={(e) => e.stopPropagation()}>
           <div className="modal-header">
             <h3>Bulk Assign Driver</h3>
             <button 
@@ -5382,7 +5751,7 @@ const AdminDashboard = () => {
     if (!showAdminDeliveryModal || !adminDeliveryModalPackage) return null;
     const items = Array.isArray(adminDeliveryModalPackage.Items) ? adminDeliveryModalPackage.Items : [];
     return (
-      <div className={`modal-overlay show`} onClick={() => setShowAdminDeliveryModal(false)} style={{ zIndex: 3000 }}>
+      <div className={`modal-overlay show`} onClick={() => setShowAdminDeliveryModal(false)}>
         <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 520 }}>
           <div className="modal-header">
             <h3>Mark as Delivered</h3>
@@ -5482,13 +5851,37 @@ const AdminDashboard = () => {
   };
 
   return (
-    <div className="admin-dashboard">
+    <div
+      className={`admin-dashboard admin-dashboard-container ${isMenuOpen ? 'menu-open' : 'menu-closed'}`}
+      ref={adminContainerRef}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
       {renderStatusMessage()}
       {renderAdminDeliveryModal()}
       {renderConfirmationDialog()}
       {renderForwardPackageModal()}
       {renderRejectPackageModal()}
       {renderShippingFeesModal()}
+      {/* Mobile sidebar (shown only on small screens via CSS) */}
+      <div className="admin-sidebar">
+        <div className="sidebar-header">
+          <h2>Droppin</h2>
+          <p>Admin Portal</p>
+        </div>
+        <div className="sidebar-menu">
+          <button className={`menu-item${activeTab === 'dashboard' ? ' active' : ''}`} onClick={() => { setActiveTab('dashboard'); setIsMenuOpen(false); }}>Dashboard</button>
+          <button className={`menu-item${activeTab === 'pending' ? ' active' : ''}`} onClick={() => { setActiveTab('pending'); setIsMenuOpen(false); }}>Pending Approvals</button>
+          <button className={`menu-item${activeTab === 'shops' ? ' active' : ''}`} onClick={() => { setActiveTab('shops'); setIsMenuOpen(false); }}>Shops</button>
+          <button className={`menu-item${activeTab === 'drivers' ? ' active' : ''}`} onClick={() => { setActiveTab('drivers'); setIsMenuOpen(false); }}>Drivers</button>
+          <button className={`menu-item${activeTab === 'pickups' ? ' active' : ''}`} onClick={() => { setActiveTab('pickups'); setIsMenuOpen(false); }}>Pickups</button>
+          <button className={`menu-item${activeTab === 'packages' ? ' active' : ''}`} onClick={() => { setActiveTab('packages'); setIsMenuOpen(false); }}>Packages</button>
+          <button className={`menu-item${activeTab === 'money' ? ' active' : ''}`} onClick={() => { setActiveTab('money'); setIsMenuOpen(false); }}>Money</button>
+        </div>
+      </div>
+
+      <div className="admin-main">
       <div className="dashboard-header">
         <h1 style={{color: 'white'}}>Admin Dashboard</h1>
         <div className="header-actions">
@@ -5603,12 +5996,12 @@ const AdminDashboard = () => {
         )}
       </div>
 
-      {renderDetailsModal(settlementRef)}
-      {renderAssignDriverModal()}
-      {renderPickupModal()}
-      {renderAssignPickupDriverModal()}
-      {renderBulkAssignModal()}
-      {renderDriverPackagesModal()}
+  {renderDetailsModal(settlementRef)}
+  {renderAssignDriverModal()}
+  {renderPickupModal()}
+  {renderAssignPickupDriverModal()}
+  {renderBulkAssignModal()}
+  {renderDriverPackagesModal()}
       {activeTab === 'driver-packages' && selectedDriverForPackages && (
         <div className="driver-packages-tab">
           <button className="btn btn-secondary" onClick={() => setActiveTab('drivers')} style={{marginBottom: 16}}>
@@ -5718,8 +6111,8 @@ const AdminDashboard = () => {
         </div>
       )}
       {showSettleAmountModal && (
-        <div className="modal-overlay" style={{ zIndex: 9999, display: 'block' }}>
-          <div className="modal-content">
+        <div className="modal-overlay show" onClick={() => setShowSettleAmountModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <h3>Settle Money</h3>
             <p>Enter the amount to settle for this shop:</p>
             <input
@@ -5737,6 +6130,7 @@ const AdminDashboard = () => {
           </div>
         </div>
       )}
+      </div>{/* /.admin-main */}
     </div>
   );
 };

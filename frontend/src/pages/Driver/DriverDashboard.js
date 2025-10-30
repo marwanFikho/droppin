@@ -1,0 +1,1103 @@
+import React, { useEffect, useState, useCallback } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
+import { driverService, packageService, pickupService } from '../../services/api';
+import { Doughnut } from 'react-chartjs-2';
+import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
+import './DriverDashboard.css';
+import { useTranslation } from 'react-i18next';
+import { useLocation } from 'react-router-dom';
+
+ChartJS.register(ArcElement, Tooltip, Legend);
+
+const packageCategories = {
+  current: ['assigned', 'pickedup', 'in-transit', 'return-in-transit', 'return-pending', 'exchange-in-transit'],
+  past: ['delivered', 'cancelled', 'returned', 'return-completed'],
+  delivered: ['delivered'],
+  cancelled: ['cancelled'],
+  all: ['assigned', 'pickedup', 'in-transit', 'return-in-transit', 'return-pending', 'delivered', 'cancelled', 'returned', 'return-completed', 'exchange-in-transit']
+};
+
+const pickupCategories = {
+  notPickedUp: ['scheduled', 'pending', 'in_storage'],
+  pickedUp: ['picked_up', 'completed'],
+  all: ['scheduled', 'pending', 'in_storage', 'picked_up', 'completed', 'cancelled']
+};
+
+const getStatusBadge = (status) => (
+  <span className={`status-badge status-${status}`}>{status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ')}</span>
+);
+
+const getStatusColorHex = (status) => {
+  switch (status) {
+    case 'assigned': return '#ff8c00';
+    case 'pickedup': return '#ffd600';
+    case 'in-transit': return '#ff9800';
+    case 'delivered': return '#43a047';
+    case 'cancelled': return '#dc3545';
+    default: return '#bdbdbd';
+  }
+};
+
+// Updated to support return flow as well
+const getNextStatus = (status, type) => {
+  if (type === 'return' || (status && status.startsWith('return-'))) {
+    switch (status) {
+      case 'assigned':
+      case 'return-requested':
+        return { next: 'return-in-transit', labelKey: 'driver.dashboard.markReturnPickedUp' };
+      case 'return-in-transit':
+        return { next: 'return-pending', labelKey: 'driver.dashboard.markReturnPickedUp' };
+      default:
+        return null;
+    }
+  }
+  if (type === 'exchange' || (status && status.startsWith('exchange-'))) {
+    switch (status) {
+      case 'exchange-awaiting-pickup':
+        return { next: 'exchange-in-transit', labelKey: 'driver.dashboard.markExchangePickedUp' };
+      case 'exchange-in-transit':
+        return { next: 'exchange-awaiting-return', labelKey: 'driver.dashboard.markExchangeAwaitingReturn' };
+      case 'exchange-awaiting-return':
+        return { next: 'exchange-returned', labelKey: 'driver.dashboard.markExchangeCompleted' };
+      default:
+        return null;
+    }
+  }
+  switch (status) {
+    case 'assigned': return { next: 'pickedup', labelKey: 'driver.dashboard.markAsPickedUp' };
+    case 'pickedup': return { next: 'in-transit', labelKey: 'driver.dashboard.markInTransit' };
+    case 'in-transit': return { next: 'delivered', labelKey: 'driver.dashboard.markAsDelivered' };
+    default: return null;
+  }
+};
+
+const DriverDashboard = () => {
+  const { currentUser } = useAuth();
+  const location = useLocation();
+  const [driverProfile, setDriverProfile] = useState(null);
+  const [driverStats, setDriverStats] = useState(null);
+  const [packages, setPackages] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [activeTab, setActiveTab] = useState('current');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
+  const [showProfile, setShowProfile] = useState(false);
+  const [availabilityLoading, setAvailabilityLoading] = useState(false);
+  const [statusUpdating, setStatusUpdating] = useState({});
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedPackage, setSelectedPackage] = useState(null);
+  const [modalLoading, setModalLoading] = useState(false);
+  const [modalError, setModalError] = useState(null);
+  const [editingNotes, setEditingNotes] = useState('');
+  const [notesSaving, setNotesSaving] = useState(false);
+  const [notesError, setNotesError] = useState(null);
+  const [confirmAction, setConfirmAction] = useState(null);
+  const { t, i18n } = useTranslation();
+  const [lang, setLang] = useState(i18n.language || 'en');
+  const [savingLang, setSavingLang] = useState(false);
+  const [langError, setLangError] = useState(null);
+  const [pickups, setPickups] = useState([]);
+  const [pickupModalOpen, setPickupModalOpen] = useState(false);
+  const [selectedPickup, setSelectedPickup] = useState(null);
+  const [pickupActionLoading, setPickupActionLoading] = useState(false);
+  const [pickupModalError, setPickupModalError] = useState(null);
+  const [activePickupTab, setActivePickupTab] = useState('notPickedUp');
+  // Delivery modal state for partial/complete flow
+  const [deliveryModalOpen, setDeliveryModalOpen] = useState(false);
+  const [deliveryModalPackage, setDeliveryModalPackage] = useState(null);
+  const [isPartialDelivery, setIsPartialDelivery] = useState(false);
+  const [deliveredQuantities, setDeliveredQuantities] = useState({});
+  const [paymentMethodChoice, setPaymentMethodChoice] = useState('CASH');
+
+  const handleToggleLanguage = async () => {
+    const newLang = lang === 'en' ? 'ar' : 'en';
+    setSavingLang(true);
+    setLangError(null);
+    try {
+      i18n.changeLanguage(newLang);
+      setLang(newLang);
+      localStorage.setItem('selectedLanguage', newLang);
+      await driverService.updateLanguage(newLang);
+    } catch (err) {
+      setLangError(t('profile.languageSaveError') || 'Failed to save language preference.');
+    } finally {
+      setSavingLang(false);
+    }
+  };
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const profileRes = await driverService.getDriverProfile();
+        setDriverProfile(profileRes.data);
+        setDriverStats(profileRes.data);
+        // Set language from profile
+        const userLang = (profileRes.data.User?.lang || profileRes.data.user?.lang || 'en').toLowerCase();
+        if (userLang === 'ar' || userLang === 'AR') {
+          i18n.changeLanguage('ar');
+          setLang('ar');
+          localStorage.setItem('selectedLanguage', 'ar');
+        } else {
+          i18n.changeLanguage('en');
+          setLang('en');
+          localStorage.setItem('selectedLanguage', 'en');
+        }
+        const packagesRes = await packageService.getPackages({ assignedToMe: true, page: 1, limit: 10000 });
+        const fetched = packagesRes.data.packages || packagesRes.data || [];
+        const filtered = Array.isArray(fetched) ? fetched.filter(p => p.status !== 'return-pending') : [];
+        setPackages(filtered);
+      } catch (err) {
+        setError('Failed to load driver data.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearchQuery(searchQuery), 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    // Fetch assigned pickups for this driver
+    const fetchDriverPickups = async () => {
+      try {
+        const res = await pickupService.getDriverPickups();
+        setPickups(res.data || []);
+      } catch (err) {
+        setPickups([]);
+      }
+    };
+    fetchDriverPickups();
+  }, []);
+
+  // Handler to open pickup modal
+  const openPickupModal = (pickup) => {
+    setSelectedPickup(pickup);
+    setPickupModalOpen(true);
+    setPickupModalError(null);
+  };
+  const closePickupModal = () => {
+    setPickupModalOpen(false);
+    setSelectedPickup(null);
+    setPickupModalError(null);
+  };
+  // Handler to mark pickup as picked up
+  const handleMarkPickupAsPickedUp = async (pickupId) => {
+    setPickupActionLoading(true);
+    setPickupModalError(null);
+    try {
+      await pickupService.markPickupAsPickedUp(pickupId);
+      // Refresh pickups
+      const res = await pickupService.getDriverPickups();
+      setPickups(res.data || []);
+      closePickupModal();
+    } catch (err) {
+      setPickupModalError('Failed to mark pickup as picked up.');
+    } finally {
+      setPickupActionLoading(false);
+    }
+  };
+
+  const handleToggleAvailability = async () => {
+    if (!driverProfile) return;
+    setAvailabilityLoading(true);
+    try {
+      await driverService.updateAvailability(!driverProfile.isAvailable);
+      setDriverProfile(prev => ({ ...prev, isAvailable: !prev.isAvailable }));
+    } catch (err) {
+      setError('Failed to update availability.');
+    } finally {
+      setAvailabilityLoading(false);
+    }
+  };
+
+  const handleStatusAction = (pkg, nextStatus) => {
+    setConfirmAction({ type: 'status', pkg, nextStatus });
+  };
+
+  const handleRejectPackage = (pkg) => {
+    setConfirmAction({ type: 'reject', pkg, shippingPaidAmount: '', paymentMethod: 'CASH' });
+  };
+
+  const doStatusAction = async (pkg, nextStatus) => {
+    // Intercept delivered to show partial/complete modal
+    if (nextStatus === 'delivered') {
+      setConfirmAction(null);
+      try {
+        // Load full package with items for quantity selection
+        const res = await packageService.getPackageById(pkg.id);
+        setDeliveryModalPackage(res.data || pkg);
+      } catch (_) {
+        setDeliveryModalPackage(pkg);
+      }
+      setIsPartialDelivery(false);
+      setDeliveredQuantities({});
+      setPaymentMethodChoice('CASH');
+      setDeliveryModalOpen(true);
+      return;
+    }
+    setStatusUpdating((prev) => ({ ...prev, [pkg.id]: true }));
+    try {
+      await packageService.updatePackageStatus(pkg.id, { status: nextStatus });
+      // Refresh packages
+      const packagesRes = await packageService.getPackages({ assignedToMe: true, page: 1, limit: 10000 });
+      const fetched = packagesRes.data.packages || packagesRes.data || [];
+      const filtered = Array.isArray(fetched) ? fetched.filter(p => p.status !== 'return-pending') : [];
+      setPackages(filtered);
+    } catch (err) {
+      setError('Failed to update package status.');
+    } finally {
+      setStatusUpdating((prev) => ({ ...prev, [pkg.id]: false }));
+      setConfirmAction(null);
+    }
+  };
+
+  const doRejectPackage = async (pkg) => {
+    setStatusUpdating((prev) => ({ ...prev, [pkg.id]: true }));
+    try {
+      const deliveryCost = parseFloat(pkg.deliveryCost || 0) || 0;
+      const raw = confirmAction?.shippingPaidAmount != null ? parseFloat(confirmAction.shippingPaidAmount) : undefined;
+      const amount = raw !== undefined ? Math.max(0, Math.min(raw, deliveryCost)) : undefined;
+      const method = (confirmAction?.paymentMethod === 'CASH' || confirmAction?.paymentMethod === 'VISA') ? confirmAction.paymentMethod : undefined;
+      await packageService.updatePackageStatus(pkg.id, { status: 'rejected', rejectionShippingPaidAmount: amount, paymentMethod: method });
+      // Refresh packages
+      const packagesRes = await packageService.getPackages({ assignedToMe: true, page: 1, limit: 10000 });
+      const fetched = packagesRes.data.packages || packagesRes.data || [];
+      const filtered = Array.isArray(fetched) ? fetched.filter(p => p.status !== 'return-pending') : [];
+      setPackages(filtered);
+    } catch (err) {
+      setError('Failed to cancel package.');
+    } finally {
+      setStatusUpdating((prev) => ({ ...prev, [pkg.id]: false }));
+      setConfirmAction(null);
+    }
+  };
+
+  const openPackageDetailsModal = async (pkg) => {
+    setModalLoading(true);
+    setModalError(null);
+    setSelectedPackage(pkg);
+    setIsModalOpen(true);
+    setEditingNotes('');
+    try {
+      const response = await packageService.getPackageById(pkg.id);
+      console.log('Driver - Fetched package details:', response.data);
+      console.log('Driver - Items data:', response.data.Items);
+      if (response.data.Items && response.data.Items.length > 0) {
+        console.log('Driver - First item details:', response.data.Items[0]);
+      }
+      setSelectedPackage(response.data);
+      setEditingNotes('');
+    } catch (err) {
+      setModalError('Could not fetch complete package details.');
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  const closePackageDetailsModal = () => {
+    setIsModalOpen(false);
+    setSelectedPackage(null);
+  };
+
+  const handleSaveNotes = async () => {
+    if (!selectedPackage) return;
+    setNotesSaving(true);
+    setNotesError(null);
+    try {
+      const res = await packageService.updatePackageNotes(selectedPackage.id, editingNotes);
+      setSelectedPackage(prev => ({ ...prev, notes: res.data.notes }));
+      setEditingNotes('');
+    } catch (err) {
+      setNotesError('Failed to save notes.');
+    } finally {
+      setNotesSaving(false);
+    }
+  };
+
+  const getFilteredPackages = useCallback(() => {
+    let filtered = packages;
+    if (activeTab !== 'all') {
+      filtered = filtered.filter(pkg => packageCategories[activeTab].includes(pkg.status));
+    }
+    if (debouncedSearchQuery.trim()) {
+      const query = debouncedSearchQuery.toLowerCase().trim();
+      filtered = filtered.filter(pkg =>
+        (pkg.trackingNumber || '').toLowerCase().includes(query) ||
+        (pkg.packageDescription || '').toLowerCase().includes(query) ||
+        (pkg.deliveryAddress || '').toLowerCase().includes(query) ||
+        (pkg.status || '').toLowerCase().includes(query)
+      );
+    }
+    return filtered;
+  }, [packages, activeTab, debouncedSearchQuery]);
+
+  // Helper to filter pickups by tab
+  const getFilteredPickups = useCallback(() => {
+    let filtered = pickups;
+    if (activePickupTab !== 'all') {
+      filtered = filtered.filter(pickup => pickupCategories[activePickupTab].includes(pickup.status));
+    }
+    return filtered;
+  }, [pickups, activePickupTab]);
+
+  // Chart Data
+  const chartData = {
+    labels: ['Active Assigned', 'Delivered', 'Cancelled'],
+    datasets: [
+      {
+        data: [driverStats?.activeAssign || 0, driverStats?.totalDeliveries || 0, driverStats?.totalCancelled || 0],
+        backgroundColor: ['#ffd700', '#43a047', '#e53935'],
+        borderColor: ['#ffd700', '#43a047', '#e53935'],
+        borderWidth: 1,
+      },
+    ],
+  };
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'bottom',
+        labels: {
+          boxWidth: 12,
+          padding: 8,
+          font: { size: 11 }
+        }
+      }
+    }
+  };
+
+  // Sync editingNotes with selectedPackage.notes when modal opens or selectedPackage changes
+  useEffect(() => {
+    if (isModalOpen && selectedPackage) {
+      setEditingNotes('');
+    }
+  }, [isModalOpen, selectedPackage]);
+
+  // Add/remove modal-open class to body when any modal is open to prevent scrolling
+  useEffect(() => {
+    const isAnyModalOpen = isModalOpen || pickupModalOpen || deliveryModalOpen || confirmAction;
+    
+    if (isAnyModalOpen) {
+      document.body.classList.add('modal-open');
+    } else {
+      document.body.classList.remove('modal-open');
+    }
+    
+    // Cleanup function to remove class when component unmounts
+    return () => {
+      document.body.classList.remove('modal-open');
+    };
+  }, [isModalOpen, pickupModalOpen, deliveryModalOpen, confirmAction]);
+
+  if (loading) return <div className="driver-dashboard-loading">{t('driver.dashboard.loading')}</div>;
+  if (error) return <div className="driver-dashboard-error">{t('driver.dashboard.error')}</div>;
+
+  return (
+    <div className="driver-dashboard">
+      <div className="driver-dashboard-container" style={{ padding: '0.5rem 1rem', marginLeft: 0 }}>
+        {/* Action Buttons Header - Mark as Pickup + Profile */}
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'center', 
+          alignItems: 'center', 
+          gap: '1rem', 
+          marginBottom: '1.5rem',
+          flexWrap: 'wrap'
+        }}>
+          <button
+            className="btn btn-primary"
+            style={{ 
+              fontSize: 18, 
+              padding: '12px 32px', 
+              borderRadius: 24,
+              minWidth: '200px'
+            }}
+            onClick={() => window.open('/driver/scan-pickup', '_blank')}
+          >
+            {t('driver.dashboard.markAsPickup')}
+          </button>
+          <Link 
+            to="/driver/profile" 
+            style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '0.5rem',
+              background: 'linear-gradient(135deg, #f36325 0%, #004b6f 100%)',
+              color: 'white',
+              padding: '12px 20px',
+              borderRadius: 24,
+              textDecoration: 'none',
+              fontWeight: '500',
+              fontSize: 16,
+              boxShadow: '0 4px 12px rgba(243, 99, 37, 0.3)',
+              transition: 'all 0.3s ease',
+              border: 'none',
+              cursor: 'pointer',
+              minWidth: '120px',
+              justifyContent: 'center'
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.background = 'linear-gradient(135deg, #e55a1f 0%, #003d5a 100%)';
+              e.target.style.boxShadow = '0 6px 20px rgba(243, 99, 37, 0.4)';
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.background = 'linear-gradient(135deg, #f36325 0%, #004b6f 100%)';
+              e.target.style.boxShadow = '0 4px 12px rgba(243, 99, 37, 0.3)';
+            }}
+          >
+            <span style={{ fontSize: '18px' }}>👤</span>
+            Profile
+          </Link>
+        </div>
+
+        {/* Stats Overview - Now First Content */}
+        <div className="driver-dashboard-stats-row">
+          {[
+            { label: t('driver.dashboard.assignedToday'), value: driverStats?.assignedToday|| 0, color: '#007bff', icon: '📦' },
+            { label: t('driver.dashboard.totalAssigned'), value: driverStats?.totalAssigned || 0, color: '#28a745', icon: '📋' },
+            { label: t('driver.dashboard.totalDeliveries'), value: driverStats?.totalDeliveries || 0, color: '#4caf50', icon: '✅' },
+            { label: t('driver.dashboard.activeAssignments'), value: driverStats?.activeAssign || 0, color: '#ffc107', icon: '⏳' },
+            { label: t('driver.dashboard.cancelled'), value: driverStats?.totalCancelled || 0, color: '#dc3545', icon: '❌' },
+          ].map((stat, idx) => (
+            <div key={idx} className="driver-dashboard-stat-card" style={{ background: stat.color }}>
+              <span className="driver-dashboard-stat-icon">{stat.icon}</span>
+              <div className="driver-dashboard-stat-value">{stat.value}</div>
+              <div className="driver-dashboard-stat-label">{stat.label}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Assigned Pickups Section with Tabs */}
+        <div className="driver-dashboard-section">
+          <h2 className="driver-dashboard-section-title">Assigned Pickups</h2>
+          <div className="driver-dashboard-tabs-modern" style={{ marginBottom: 12 }}>
+            {Object.keys(pickupCategories).map(tab => (
+              <button
+                key={tab}
+                className={`driver-dashboard-tab-modern${activePickupTab === tab ? ' active' : ''}`}
+                onClick={() => setActivePickupTab(tab)}
+              >
+                {t(`driver.dashboard.pickupTab_${tab}`, tab === 'notPickedUp' ? 'Not Picked Up' : tab === 'pickedUp' ? 'Picked Up' : 'All')}
+                <span className="driver-dashboard-tab-count">
+                  {pickups.filter(pickup => tab === 'all' ? true : pickupCategories[tab].includes(pickup.status)).length}
+                </span>
+              </button>
+            ))}
+          </div>
+          {getFilteredPickups().length === 0 ? (
+            <div style={{ color: '#888', textAlign: 'center', padding: '1rem' }}>No assigned pickups.</div>
+          ) : (
+            getFilteredPickups().map(pickup => (
+              <div key={pickup.id} className="driver-dashboard-pickup-card" style={{marginBottom: 16, background: '#fff', borderRadius: 12, boxShadow: '0 2px 4px rgba(0,0,0,0.07)', padding: 16}}>
+                <div><strong>Shop:</strong> {pickup.Shop?.businessName || 'N/A'}</div>
+                <div><strong>Scheduled:</strong> {pickup.scheduledTime ? new Date(pickup.scheduledTime).toLocaleString() : '-'}</div>
+                <div><strong>Status:</strong> {pickup.status}</div>
+                <div><strong>Packages:</strong> {pickup.Packages?.length || 0}</div>
+                <button className="btn btn-primary" style={{marginTop: 8}} onClick={() => openPickupModal(pickup)}>
+                  View Details
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Stats & Chart */}
+        <div className="driver-dashboard-section" style={{ marginBottom: 16 }}>
+          <h2 className="driver-dashboard-section-title">{t('driver.dashboard.deliveryStats')}</h2>
+          <div style={{ width: '100%', maxWidth: 260, margin: '0 auto', height: 180 }}>
+            <Doughnut data={chartData} options={chartOptions} />
+          </div>
+        </div>
+
+        {/* Package Tabs & Search */}
+        <div className="driver-dashboard-section" style={{ marginBottom: 16 }}>
+          <div className="driver-dashboard-tabs-modern">
+            {Object.keys(packageCategories).map(tab => (
+              <button
+                key={tab}
+                className={`driver-dashboard-tab-modern${activeTab === tab ? ' active' : ''}`}
+                onClick={() => setActiveTab(tab)}
+              >
+                {t(`driver.dashboard.tab_${tab}`)}
+                <span className="driver-dashboard-tab-count">
+                  {packages.filter(pkg => tab === 'all' ? true : packageCategories[tab].includes(pkg.status)).length}
+                </span>
+              </button>
+            ))}
+          </div>
+          <div className="driver-dashboard-search-bar">
+            <input
+              type="text"
+              placeholder={t('driver.dashboard.searchPlaceholder')}
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+            />
+          </div>
+        </div>
+
+        {/* Packages List */}
+        <div className="driver-dashboard-section">
+          <h2 className="driver-dashboard-section-title">{t('driver.dashboard.myPackages')}</h2>
+          <div className="driver-dashboard-deliveries">
+            {getFilteredPackages().length === 0 ? (
+              <div style={{ color: '#888', textAlign: 'center', padding: '1rem' }}>{t('driver.dashboard.noPackages')}</div>
+            ) : (
+              getFilteredPackages().map(pkg => {
+                const nextStatus = getNextStatus(pkg.status, pkg.type);
+                const currentColor = getStatusColorHex(pkg.status);
+                const nextColor = nextStatus ? getStatusColorHex(nextStatus.next) : '#bdbdbd';
+                const gradient = `linear-gradient(90deg, ${currentColor} 0%, ${nextColor} 100%)`;
+                return (
+                  <div key={pkg.id} className="driver-dashboard-delivery">
+                    <div className="driver-dashboard-delivery-header">
+                      <div className="driver-dashboard-delivery-id">{pkg.trackingNumber}{pkg.type === 'return' && (<span style={{ marginLeft: 6, padding: '2px 6px', fontSize: 10, borderRadius: 10, background: '#ffe8cc', color: '#b45309' }}>Return</span>)}</div>
+                      <div className="driver-dashboard-delivery-status" style={{ background: currentColor, color: '#fff' }}>
+                        {pkg.status.charAt(0).toUpperCase() + pkg.status.slice(1).replace('_', ' ')}
+                      </div>
+                    </div>
+                    <div className="driver-dashboard-delivery-details">
+                      <div className="driver-dashboard-delivery-tracking">
+                        <strong>{t('driver.dashboard.description')}:</strong> {pkg.packageDescription || '-'}
+                      </div>
+                      <div className="driver-dashboard-delivery-address">
+                        <strong>{t('driver.dashboard.address')}:</strong> {pkg.deliveryAddress || '-'}
+                      </div>
+                      {pkg.status === 'return-in-transit' && Array.isArray(pkg.returnDetails) && pkg.returnDetails.length > 0 && (
+                        <div className="driver-dashboard-return-details" style={{ marginTop: 6 }}>
+                          <div style={{ fontSize: 12, color: '#555' }}>
+                            Returned Items ({pkg.returnDetails.length})
+                          </div>
+                          <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
+                            {pkg.returnDetails.map((it, idx) => (
+                              <li key={idx} style={{ fontSize: 12, color: '#555' }}>
+                                {(it.description || '-') + ' x ' + (parseInt(it.quantity) || 0)}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      <div className="driver-dashboard-delivery-time">
+                        {(pkg.status === 'return-in-transit' || pkg.status === 'return-pending') ? (
+                          <>
+                            <strong>{t('driver.dashboard.returnRefundAmount')}:</strong> EGP {parseFloat(pkg.returnRefundAmount || 0).toFixed(2)}
+                          </>
+                        ) : ((pkg.type === 'exchange' || (pkg.status || '').startsWith('exchange-')) ? (
+                          null
+                        ) : (
+                          <>
+                            <strong>{t('driver.dashboard.cod')}:</strong> EGP {parseFloat(pkg.codAmount || 0).toFixed(2)}
+                          </>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="driver-dashboard-delivery-actions">
+                      <button
+                        className="driver-dashboard-delivery-track-btn"
+                        onClick={() => openPackageDetailsModal(pkg)}
+                      >
+                        {t('driver.dashboard.viewDetails')}
+                      </button>
+                      {nextStatus && (
+                        <button
+                          className="driver-dashboard-delivery-start-btn"
+                          onClick={() => handleStatusAction(pkg, nextStatus.next)}
+                          disabled={statusUpdating[pkg.id]}
+                        >
+                          {t(nextStatus.labelKey)}
+                        </button>
+                      )}
+                      {/* Reject button: only show if not delivered, cancelled, or rejected */}
+                      {![ 'delivered', 'cancelled', 'cancelled-awaiting-return', 'cancelled-returned', 'rejected' ].includes(pkg.status) && (
+                        <button
+                          className="driver-dashboard-delivery-reject-btn"
+                          style={{ background: '#e53935', color: '#fff', border: 'none', marginLeft: 8, borderRadius: 18, padding: '7px 18px', fontWeight: 600, fontSize: 14, cursor: 'pointer' }}
+                          onClick={() => handleRejectPackage(pkg)}
+                          disabled={statusUpdating[pkg.id]}
+                        >
+                          {statusUpdating[pkg.id] ? t('driver.dashboard.cancelling') : t('driver.dashboard.cancel')}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      </div>
+      {/* Rest of the modals and other content remain the same */}
+      {isModalOpen && (
+        <div className="modal-overlay" onClick={closePackageDetailsModal}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>{t('driver.dashboard.packageDetails')}</h3>
+              <button className="modal-close" onClick={closePackageDetailsModal}>&times;</button>
+            </div>
+            <div className="modal-body">
+              {modalLoading ? (
+                <div className="loading-spinner-container"><div className="loading-spinner"></div></div>
+              ) : modalError ? (
+                <div className="error-message">{modalError}</div>
+              ) : selectedPackage ? (
+                <div className="modal-details-grid">
+                  <div className="modal-detail-item"><span className="label">{t('driver.dashboard.trackingNumber')}</span><span>{selectedPackage.trackingNumber}</span></div>
+                  <div className="modal-detail-item"><span className="label">{t('driver.dashboard.status')}</span><span className={`status-badge status-${selectedPackage.status}`}>{selectedPackage.status}</span></div>
+                  <div className="modal-detail-item"><span className="label">{t('driver.dashboard.description')}</span><span>{selectedPackage.packageDescription}</span></div>
+                  <div className="modal-detail-item"><span className="label">{t('driver.dashboard.pickupAddress')}</span><span>{selectedPackage.pickupAddress}</span></div>
+                  <div className="modal-detail-item"><span className="label">{t('driver.dashboard.deliveryAddress')}</span><span>{selectedPackage.deliveryAddress}</span></div>
+                  <div className="modal-detail-item"><span className="label">{t('driver.dashboard.codAmount')}</span><span>EGP {parseFloat(selectedPackage.codAmount || 0).toFixed(2)}</span></div>
+                  {selectedPackage.paymentMethod && (
+                    <div className="modal-detail-item"><span className="label">Payment Method</span><span>{String(selectedPackage.paymentMethod).toUpperCase()}</span></div>
+                  )}
+                  <div className="modal-detail-item"><span className="label">{t('driver.dashboard.deliveryCost')}</span><span>EGP {parseFloat(selectedPackage.deliveryCost || 0).toFixed(2)}</span></div>
+                  <div className="modal-detail-item"><span className="label">{t('driver.dashboard.recipientName')}</span><span>{selectedPackage.deliveryContactName}</span></div>
+                  <div className="modal-detail-item"><span className="label">{t('driver.dashboard.recipientPhone')}</span><span>{selectedPackage.deliveryContactPhone}</span></div>
+                  <div className="modal-detail-item"><span className="label">{t('driver.dashboard.itemsNo')}</span><span>{selectedPackage.itemsNo ?? '-'}</span></div>
+                  {Array.isArray(selectedPackage.returnDetails) && selectedPackage.returnDetails.length > 0 && (
+                    <div className="modal-detail-item full-width">
+                      <span className="label">{t('driver.dashboard.returnDetails')}</span>
+                      <div style={{ backgroundColor: '#f9f9f9', padding: '0.5rem', borderRadius: '4px', border: '1px solid #e0e0e0', marginTop: '0.5rem' }}>
+                        {selectedPackage.returnDetails.map((it, idx) => (
+                          <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 8px', background: '#fff', border: '1px solid #eaeaea', borderRadius: 6, marginBottom: 6 }}>
+                            <span>{it.description || `Item ${it.itemId}`}</span>
+                            <span>Qty: {it.quantity}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {(selectedPackage.returnRefundAmount !== null && selectedPackage.returnRefundAmount !== undefined) && (
+                    <div className="modal-detail-item"><span className="label">{t('driver.dashboard.returnRefundAmount')}</span><span>EGP {parseFloat(selectedPackage.returnRefundAmount || 0).toFixed(2)}</span></div>
+                  )}
+                  
+                  {/* Items Section */}
+                  {selectedPackage.Items && selectedPackage.Items.length > 0 && (
+                    <div className="modal-detail-item full-width">
+                      <span className="label">{t('driver.dashboard.itemsDetails')} ({selectedPackage.Items.length})</span>
+                      <div style={{ 
+                        backgroundColor: '#f9f9f9', 
+                        padding: '0.5rem', 
+                        borderRadius: '4px',
+                        border: '1px solid #e0e0e0',
+                        marginTop: '0.5rem'
+                      }}>
+                        {selectedPackage.Items.map((item, index) => (
+                          <div key={index} style={{ 
+                            border: '1px solid #ddd', 
+                            padding: '0.75rem', 
+                            marginBottom: '0.5rem', 
+                            borderRadius: '4px',
+                            backgroundColor: 'white'
+                          }}>
+                            <div style={{ fontWeight: 'bold', marginBottom: '0.5rem', color: '#333' }}>
+                              {t('driver.dashboard.itemNumber', { number: index + 1 })}
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.9rem' }}>
+                              <div>
+                                <strong>{t('driver.dashboard.description')}:</strong> {item.description || t('driver.dashboard.noDescription')}
+                              </div>
+                              <div>
+                                <strong>{t('driver.dashboard.quantity')}:</strong> {item.quantity || 1}
+                              </div>
+                              <div>
+                                <strong>{t('driver.dashboard.codPerUnit')}:</strong> EGP {item.codAmount && item.quantity ? (parseFloat(item.codAmount) / parseInt(item.quantity)).toFixed(2) : '0.00'}
+                              </div>
+                              <div>
+                                <strong>{t('driver.dashboard.totalCod')}:</strong> EGP {parseFloat(item.codAmount || 0).toFixed(2)}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Returned Items Section */}
+                  {Array.isArray(selectedPackage.returnDetails) && selectedPackage.returnDetails.length > 0 && (
+                    <div className="modal-detail-item full-width">
+                      <span className="label">{t('driver.dashboard.returnedItems')} ({selectedPackage.returnDetails.length})</span>
+                      <div style={{ backgroundColor: '#f9f9f9', padding: '0.5rem', borderRadius: '4px', border: '1px solid #e0e0e0', marginTop: '0.5rem' }}>
+                        {selectedPackage.returnDetails.map((it, idx) => (
+                          <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 8px', background: '#fff', border: '1px solid #eaeaea', borderRadius: 6, marginBottom: 6 }}>
+                            <span>{it.description || `Item ${it.itemId}`}</span>
+                            <span>Qty: {it.quantity}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {(selectedPackage.returnRefundAmount !== null && selectedPackage.returnRefundAmount !== undefined) && (
+                    <div className="modal-detail-item"><span className="label">{t('driver.dashboard.returnRefundAmount')}</span><span>EGP {parseFloat(selectedPackage.returnRefundAmount || 0).toFixed(2)}</span></div>
+                  )}
+                  
+                  {/* Exchange Details Section */}
+                  {(selectedPackage?.type === 'exchange' || (selectedPackage?.status || '').startsWith('exchange-')) && selectedPackage?.exchangeDetails && (
+                    <div className="modal-detail-item full-width">
+                      <span className="label">{t('driver.dashboard.exchangeDetails')}</span>
+                      <div style={{ backgroundColor: '#f9f9f9', padding: '0.5rem', borderRadius: '4px', border: '1px solid #e0e0e0', marginTop: '0.5rem' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                          <div>
+                            <div style={{ fontWeight: 600, marginBottom: 6 }}>{t('driver.dashboard.takeFromCustomer')}</div>
+                            {Array.isArray(selectedPackage.exchangeDetails.takeItems) && selectedPackage.exchangeDetails.takeItems.length > 0 ? (
+                              <ul style={{ margin: 0, paddingLeft: 18 }}>
+                                {selectedPackage.exchangeDetails.takeItems.map((it, idx) => (
+                                  <li key={`xtake-${idx}`}>{(it.description || '-') + ' x ' + (parseInt(it.quantity) || 0)}</li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <div style={{ color: '#666', fontSize: 12 }}>{t('driver.dashboard.none') || 'No items'}</div>
+                            )}
+                          </div>
+                          <div>
+                            <div style={{ fontWeight: 600, marginBottom: 6 }}>{t('driver.dashboard.giveToCustomer')}</div>
+                            {Array.isArray(selectedPackage.exchangeDetails.giveItems) && selectedPackage.exchangeDetails.giveItems.length > 0 ? (
+                              <ul style={{ margin: 0, paddingLeft: 18 }}>
+                                {selectedPackage.exchangeDetails.giveItems.map((it, idx) => (
+                                  <li key={`xgive-${idx}`}>{(it.description || '-') + ' x ' + (parseInt(it.quantity) || 0)}</li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <div style={{ color: '#666', fontSize: 12 }}>{t('driver.dashboard.none') || 'No items'}</div>
+                            )}
+                          </div>
+                        </div>
+                        {selectedPackage.exchangeDetails.cashDelta && (
+                          <div style={{ marginTop: 8 }}>
+                            <strong>{t('driver.dashboard.money')}:</strong>{' '}
+                            {(selectedPackage.exchangeDetails.cashDelta.type === 'take' ? t('driver.dashboard.takeFromCustomer') : t('driver.dashboard.giveToCustomer'))}
+                            {' · EGP '}{parseFloat(selectedPackage.exchangeDetails.cashDelta.amount || 0).toFixed(2)}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Exchange Action for driver */}
+                  {(selectedPackage && (selectedPackage.type === 'exchange' || (selectedPackage.status || '').startsWith('exchange-')) && selectedPackage.status !== 'exchange-awaiting-return' && selectedPackage.status !== 'exchange-returned') && (
+                    <div className="modal-detail-item full-width">
+                      <button
+                        className="driver-dashboard-delivery-start-btn"
+                        style={{ background: '#7b1fa2', color: '#fff', border: 'none' }}
+                        onClick={async () => {
+                          const confirmed = window.confirm(t('driver.dashboard.confirmMarkExchangeDone') || 'Are you sure you want to mark the exchange as done?');
+                          if (!confirmed) return;
+                          try {
+                            await packageService.updatePackageStatus(selectedPackage.id, { status: 'exchange-awaiting-return' });
+                            // Refresh package in modal
+                            const refreshed = await packageService.getPackageById(selectedPackage.id);
+                            setSelectedPackage(refreshed.data);
+                            // Refresh list
+                            const packagesRes = await packageService.getPackages({ assignedToMe: true, page: 1, limit: 10000 });
+                            const fetched = packagesRes.data.packages || packagesRes.data || [];
+                            const filtered = Array.isArray(fetched) ? fetched.filter(p => p.status !== 'return-pending') : [];
+                            setPackages(filtered);
+                          } catch (err) {
+                            setModalError(t('driver.dashboard.failedMarkExchange') || 'Failed to mark exchange as done.');
+                          }
+                        }}
+                      >
+                        {t('driver.dashboard.markExchangeDone')}
+                      </button>
+                    </div>
+                  )}
+                  
+                  <div className="modal-detail-item full-width">
+                    <span className="label">{t('driver.dashboard.notesLog')}</span>
+                    <div className="notes-log-list">
+                      {(() => {
+                        let notesArr = [];
+                        if (Array.isArray(selectedPackage?.notes)) {
+                          notesArr = selectedPackage.notes;
+                        } else if (typeof selectedPackage?.notes === 'string') {
+                          try {
+                            notesArr = JSON.parse(selectedPackage.notes);
+                          } catch {
+                            notesArr = [];
+                          }
+                        }
+                        return (notesArr.length > 0) ? (
+                          notesArr.map((n, idx) => (
+                            <div key={idx} className="notes-log-entry">
+                              <div className="notes-log-meta">
+                                <span className="notes-log-date">{new Date(n.createdAt).toLocaleString()}</span>
+                              </div>
+                              <div className="notes-log-text">{n.text}</div>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="notes-log-empty">{t('driver.dashboard.noNotes')}</div>
+                        );
+                      })()}
+                    </div>
+                    <textarea
+                      value={editingNotes}
+                      onChange={e => setEditingNotes(e.target.value)}
+                      placeholder={t('driver.dashboard.addNotePlaceholder')}
+                      rows={2}
+                      style={{ width: '100%', marginTop: 4 }}
+                    />
+                    <button
+                      className="modal-save-notes-btn"
+                      onClick={async () => {
+                        if (!editingNotes.trim()) return;
+                        setNotesSaving(true);
+                        setNotesError(null);
+                        try {
+                          const res = await packageService.updatePackageNotes(selectedPackage.id, editingNotes);
+                          setSelectedPackage(prev => ({ ...prev, notes: res.data.notes }));
+                          setEditingNotes('');
+                        } catch (err) {
+                          setNotesError(t('driver.dashboard.failedSaveNote'));
+                        } finally {
+                          setNotesSaving(false);
+                        }
+                      }}
+                      disabled={notesSaving || !editingNotes.trim()}
+                      style={{ marginTop: 8 }}
+                    >
+                      {notesSaving ? t('driver.dashboard.saving') : t('driver.dashboard.addNote')}
+                    </button>
+                    {notesError && <div className="error-message">{notesError}</div>}
+                  </div>
+                  {selectedPackage.shopNotes && (
+                    <div className="modal-detail-item full-width"><span className="label">{t('driver.dashboard.shopNotes')}</span><span>{selectedPackage.shopNotes}</span></div>
+                  )}
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      )}
+      {pickupModalOpen && selectedPickup && (
+        <div className="modal-overlay" onClick={closePickupModal}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{maxWidth: 340}}>
+            <div className="modal-header">
+              <h3>Pickup Details</h3>
+              <button className="modal-close" onClick={closePickupModal}>&times;</button>
+            </div>
+            <div className="modal-body">
+              <div><strong>Shop:</strong> {selectedPickup.Shop?.businessName || 'N/A'}</div>
+              <div><strong>Scheduled:</strong> {selectedPickup.scheduledTime ? new Date(selectedPickup.scheduledTime).toLocaleString() : '-'}</div>
+              <div><strong>Status:</strong> {selectedPickup.status}</div>
+              <div><strong>Packages:</strong> {selectedPickup.Packages?.length || 0}</div>
+              <div style={{marginTop: 12}}>
+                <strong>Packages in this Pickup:</strong>
+                {selectedPickup.Packages && selectedPickup.Packages.length > 0 ? (
+                  <ul style={{margin: 0, padding: 0, listStyle: 'none'}}>
+                    {selectedPickup.Packages.map(pkg => (
+                      <li key={pkg.id} style={{marginBottom: 6, fontSize: 14}}>
+                        #{pkg.trackingNumber} - {pkg.packageDescription} - <span className={`status-badge status-${pkg.status}`}>{pkg.status}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <div style={{fontSize: 14, color: '#888'}}>No packages in this pickup.</div>
+                )}
+              </div>
+              {selectedPickup.status !== 'picked_up' && (
+                <button className="btn btn-primary" style={{marginTop: 16, width: '100%'}} onClick={() => handleMarkPickupAsPickedUp(selectedPickup.id)} disabled={pickupActionLoading}>
+                  {pickupActionLoading ? 'Marking...' : 'Mark as Picked Up'}
+                </button>
+              )}
+              {pickupModalError && <div className="error-message" style={{marginTop: 8}}>{pickupModalError}</div>}
+            </div>
+          </div>
+        </div>
+      )}
+      {confirmAction && (
+        <div className="modal-overlay" onClick={() => setConfirmAction(null)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{maxWidth: 340, textAlign: 'center'}}>
+            <div className="modal-header">
+              <h3>{t('driver.dashboard.confirmAction')}</h3>
+              <button className="modal-close" onClick={() => setConfirmAction(null)}>&times;</button>
+            </div>
+            <div className="modal-body">
+              {confirmAction.type === 'status' ? (
+                <>
+                  <p dangerouslySetInnerHTML={{ __html: t('driver.dashboard.confirmStatus', {
+                    status:
+                      confirmAction.nextStatus === 'pickedup'
+                        ? t('driver.dashboard.markAsPickedUp')
+                        : confirmAction.nextStatus === 'in-transit'
+                          ? t('driver.dashboard.markInTransit')
+                          : confirmAction.nextStatus === 'delivered'
+                            ? t('driver.dashboard.markAsDelivered')
+                            : confirmAction.nextStatus === 'return-in-transit'
+                              ? t('driver.dashboard.markReturnPickedUp')
+                              : confirmAction.nextStatus === 'return-pending'
+                                ? t('driver.dashboard.markReturnPickedUp')
+                                : confirmAction.nextStatus === 'exchange-in-transit'
+                                  ? t('driver.dashboard.markExchangePickedUp')
+                                  : confirmAction.nextStatus === 'exchange-awaiting-return'
+                                    ? t('driver.dashboard.markExchangeAwaitingReturn')
+                                    : confirmAction.nextStatus === 'exchange-returned'
+                                      ? t('driver.dashboard.markExchangeCompleted')
+                                      : t('driver.dashboard.noActions')
+                  }) }} />
+                  <button className="btn btn-primary" style={{marginRight: 10}} onClick={() => doStatusAction(confirmAction.pkg, confirmAction.nextStatus)}>{t('driver.dashboard.yesConfirm')}</button>
+                </>
+              ) : (
+                <>
+                  <p>{t('driver.dashboard.confirmCancel')}</p>
+                  <div style={{ textAlign: 'left', margin: '10px 0' }}>
+                    <label style={{ display: 'block', fontSize: 12, marginBottom: 4 }}>{t('driver.dashboard.customerPaidShippingQuestion') || 'How much did the customer pay for the shop shipping fees?'}</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={confirmAction.shippingPaidAmount ?? ''}
+                      onChange={(e) => setConfirmAction(prev => ({ ...prev, shippingPaidAmount: e.target.value }))}
+                      placeholder={t('driver.dashboard.enterAmount') || 'Enter amount'}
+                      style={{ width: '100%', padding: '8px', borderRadius: 6, border: '1px solid #ccc' }}
+                    />
+                   {(
+                     confirmAction.shippingPaidAmount === '' ||
+                     confirmAction.shippingPaidAmount === undefined ||
+                     isNaN(parseFloat(confirmAction.shippingPaidAmount)) ||
+                     parseFloat(confirmAction.shippingPaidAmount) < 0
+                   ) && (
+                     <div style={{ color: '#c62828', fontSize: 12, marginTop: 6 }}>
+                       {t('driver.dashboard.amountRequired')}
+                     </div>
+                   )}
+                  </div>
+                  <div style={{ textAlign: 'left', margin: '10px 0' }}>
+                    <div style={{ fontWeight: 600, marginBottom: 6 }}>{t('driver.dashboard.paymentMethod') || 'Payment Method'}</div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button type="button" onClick={() => setConfirmAction(prev => ({ ...prev, paymentMethod: 'CASH' }))} className={`btn ${confirmAction?.paymentMethod === 'CASH' ? 'btn-primary' : 'btn-secondary'}`}>
+                        CASH
+                      </button>
+                      <button type="button" onClick={() => setConfirmAction(prev => ({ ...prev, paymentMethod: 'VISA' }))} className={`btn ${confirmAction?.paymentMethod === 'VISA' ? 'btn-primary' : 'btn-secondary'}`}>
+                        VISA
+                      </button>
+                    </div>
+                  </div>
+                  <button
+                    className="btn btn-danger"
+                    style={{marginRight: 10}}
+                    onClick={() => doRejectPackage(confirmAction.pkg)}
+                    disabled={
+                      confirmAction.shippingPaidAmount === '' ||
+                      confirmAction.shippingPaidAmount === undefined ||
+                      isNaN(parseFloat(confirmAction.shippingPaidAmount)) ||
+                      parseFloat(confirmAction.shippingPaidAmount) < 0
+                    }
+                  >
+                    {t('driver.dashboard.yesCancel')}
+                  </button>
+                </>
+              )}
+              <button className="btn btn-secondary" onClick={() => setConfirmAction(null)}>{t('driver.dashboard.cancelBtn')}</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {deliveryModalOpen && deliveryModalPackage && (
+        <div className="modal-overlay" onClick={() => setDeliveryModalOpen(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{maxWidth: 360}}>
+            <div className="modal-header">
+              <h3>{t('driver.dashboard.markAsDelivered')}</h3>
+              <button className="modal-close" onClick={() => setDeliveryModalOpen(false)}>&times;</button>
+            </div>
+            <div className="modal-body">
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                <input type="checkbox" checked={isPartialDelivery} onChange={(e) => setIsPartialDelivery(e.target.checked)} />
+                {t('driver.dashboard.partialDelivery') || 'Partial delivery'}
+              </label>
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontWeight: 600, marginBottom: 6 }}>{t('driver.dashboard.paymentMethod') || 'Payment Method'}</div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button type="button" onClick={() => setPaymentMethodChoice('CASH')} className={`btn ${paymentMethodChoice === 'CASH' ? 'btn-primary' : 'btn-secondary'}`}>
+                    CASH
+                  </button>
+                  <button type="button" onClick={() => setPaymentMethodChoice('VISA')} className={`btn ${paymentMethodChoice === 'VISA' ? 'btn-primary' : 'btn-secondary'}`}>
+                    VISA
+                  </button>
+                </div>
+              </div>
+              {isPartialDelivery ? (
+                Array.isArray(deliveryModalPackage.Items) && deliveryModalPackage.Items.length > 0 ? (
+                  <div>
+                    {deliveryModalPackage.Items.map((it) => {
+                      const maxQty = parseInt(it.quantity, 10) || 0;
+                      return (
+                        <div key={it.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                          <div style={{ flex: 1, marginRight: 8 }}>
+                            {it.description} (max {maxQty})
+                            {typeof it.codAmount !== 'undefined' && (
+                              <div style={{ fontSize: 12, color: '#555' }}>
+                                Price: {(() => { const qty = parseInt(it.quantity, 10) || 0; const total = parseFloat(it.codAmount || 0) || 0; return (qty > 0 ? (total / qty) : 0).toFixed(2); })()}
+                              </div>
+                            )}
+                          </div>
+                          <input
+                            type="number"
+                            min="0"
+                            max={maxQty}
+                            value={deliveredQuantities[it.id] ?? ''}
+                            onChange={(e) => setDeliveredQuantities(prev => ({ ...prev, [it.id]: e.target.value }))}
+                            placeholder="0"
+                            style={{ width: 80, padding: 6 }}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div style={{ color: '#666' }}>{t('driver.dashboard.noItemsForPartial') || 'No items available for partial selection.'}</div>
+                )
+              ) : (
+                <div style={{ color: '#444' }}>{t('driver.dashboard.completeDelivery') || 'Deliver package completely to the customer.'}</div>
+              )}
+            </div>
+            <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <button className="btn btn-secondary" onClick={() => setDeliveryModalOpen(false)}>{t('driver.dashboard.cancelBtn')}</button>
+              <button
+                className="btn btn-primary"
+                onClick={async () => {
+                  try {
+                    if (!isPartialDelivery) {
+                      await packageService.updatePackageStatus(deliveryModalPackage.id, { status: 'delivered', paymentMethod: paymentMethodChoice });
+                    } else {
+                      const items = Array.isArray(deliveryModalPackage.Items) ? deliveryModalPackage.Items : [];
+                      const deliveredItems = items
+                        .map(it => {
+                          const maxQty = parseInt(it.quantity, 10) || 0;
+                          const qty = parseInt(deliveredQuantities[it.id], 10) || 0;
+                          const clamped = Math.min(Math.max(0, qty), maxQty);
+                          return clamped > 0 ? { itemId: it.id, deliveredQuantity: clamped } : null;
+                        })
+                        .filter(Boolean);
+                      await packageService.updatePackageStatus(deliveryModalPackage.id, { status: 'delivered-awaiting-return', deliveredItems, paymentMethod: paymentMethodChoice });
+                    }
+                    setDeliveryModalOpen(false);
+                    // Refresh list
+                    const packagesRes = await packageService.getPackages({ assignedToMe: true, page: 1, limit: 10000 });
+                    const fetched = packagesRes.data.packages || packagesRes.data || [];
+                    const filtered = Array.isArray(fetched) ? fetched.filter(p => p.status !== 'return-pending') : [];
+                    setPackages(filtered);
+                  } catch (e) {
+                    setError(t('driver.dashboard.error') || 'Failed to update package status.');
+                  }
+                }}
+              >
+                {t('driver.dashboard.confirm') || 'Confirm'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default DriverDashboard; 

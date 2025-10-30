@@ -1,18 +1,92 @@
-/* Financial Stats Styling */
-.financial-stats {
-  margin-top: 1rem;
-  background-color: #f9f9f9;
+/* Update stat cards to match color scheme */
+.dashboard-stats .stat-card {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e5e7eb;
+  transition: all 0.3s ease;
+}
+
+.dashboard-stats .stat-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+}
+
+.stat-value {
+  color: #FF6B00 !important;
+}
+
+.financial-stats .stat-value {
+  color: #FF6B00 !important;
+}
+
+.status-badge {
+  border: 1px solid #e5e7eb;
+}
+
+/* Update recent packages section */
+.recent-packages {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e5e7eb;
+}
+
+.section-header {
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.package-list-item {
+  border: 1px solid #e5e7eb;
   border-radius: 8px;
+  background: #fafbfc;
+  transition: all 0.2s ease;
+}
+
+.package-list-item:hover {
+  background: #fff8f0;
+  border-color: #FF6B00;
+  transform: translateX(5px);
+}
+
+.action-button {
+  border-radius: 6px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  border: none;
+}
+
+.action-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.view-btn {
+  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+  color: white;
+}
+
+.cancel-btn {
+  background: linear-gradient(135deg, #dc3545 0%, #c82335 100%);
+  color: white;
+}
+
+.return-btn {
+  background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+  color: white;
 }
 
 .financial-stats .stat-card {
-  border-left: 4px solid #4caf50;
+  border-left: 4px solid #FF6B00;
+  background: #fff8f0;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 .financial-stats .stat-value {
   font-size: 2rem;
   font-weight: bold;
-  color: #3a9046;
+  color: #FF6B00;
   margin-bottom: 0.5rem;
 }
 
@@ -54,12 +128,94 @@
   color: #f44336;
 }
 
+.package-description .package-address {
+  color: #666;
+  margin-top: 4px;
+  word-break: break-word;
+}
+
+.package-description .package-contact {
+  font-size: 0.75rem;
+  color: #555;
+  margin-top: 4px;
+  word-break: break-word;
+}
+
+.package-cod .cod-amount {
+  font-weight: 600;
+  display: inline-block;
+  margin-right: 0.5rem;
+}
+
+/* Dashboard Container */
+.dashboard-container {
+  display: flex;
+  min-height: 100vh;
+  position: relative; /* Ensure proper positioning context */
+  overflow-x: hidden; /* Prevent horizontal scrolling */
+}
+
+.dashboard-container .dashboard-sidebar {
+  width: 260px !important;
+  background: white !important;
+  color: #1f2937 !important;
+  padding: 0 !important;
+  box-shadow: 4px 0 20px rgba(0, 0, 0, 0.15) !important;
+  position: fixed !important;
+  height: calc(100vh - 65px) !important; /* Adjust height to account for navigation */
+  overflow-y: auto !important;
+  z-index: 100 !important;
+  top: 65px !important; /* Position sidebar below the fixed navigation */
+  left: 0 !important;
+  border-right: 1px solid #e5e7eb;
+  contain: layout style; /* Isolate the sidebar's layout */
+  transform: translateX(0); /* Show sidebar by default */
+  max-width: 100vw; /* Prevent sidebar from causing horizontal overflow */
+}
+
+/* Mobile menu styles */
+@media (max-width: 768px) {
+  .dashboard-container .dashboard-sidebar {
+    transform: translateX(-100%); /* Hide sidebar by default on mobile */
+    position: fixed;
+    z-index: 1000;
+    transition: transform 0.3s ease;
+    width: 250px; /* Slightly narrower sidebar on mobile */
+  }
+  
+  .dashboard-container.menu-open .dashboard-sidebar {
+    transform: translateX(0); /* Show sidebar when menu-open class is added */
+  }
+}
+
+/* Mobile menu toggle button */
+.menu-toggle-btn {
+  display: none; /* Hidden by default, shown on mobile */
+  position: fixed;
+  top: 15px;
+  left: 15px;
+  z-index: 1001; /* Above sidebar */
+  background: #FF6B00;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  font-size: 1.2rem;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  display: none; /* Will be shown on mobile */
+}
+
 /* Dashboard Stats Container */
 .dashboard-stats-container {
   display: flex;
   flex-direction: row;
   gap: 1rem;
   margin-bottom: 2rem;
+  width: 100%; /* Ensure it doesn't overflow */
+  overflow: hidden; /* Prevent overflow */
+  box-sizing: border-box; /* Include padding in width calculation */
 }
 
 /* Stats and Chart Row */
@@ -68,6 +224,16 @@
   grid-template-columns: 1fr 1fr;
   gap: 1rem;
   align-items: start;
+  width: 100%; /* Ensure it doesn't overflow */
+  overflow: hidden; /* Prevent overflow */
+}
+
+/* On smaller screens, stack these elements */
+@media (max-width: 768px) {
+  .stats-and-chart-row {
+    grid-template-columns: 1fr; /* Stack vertically on mobile */
+    gap: 0.8rem;
+  }
 }
 
 /* Package Stats Row */
@@ -80,6 +246,17 @@
   border-radius: 0;
   box-shadow: none;
   height: 180px; /* Fixed height to match chart */
+  width: 100%; /* Ensure it doesn't overflow */
+  overflow: hidden; /* Prevent overflow */
+  box-sizing: border-box; /* Include padding in width calculation */
+}
+
+/* On smaller screens, make package stats single column */
+@media (max-width: 576px) {
+  .dashboard-stats.package-stats {
+    grid-template-columns: 1fr; /* Single column on very small screens */
+    height: auto; /* Auto height to prevent overflow */
+  }
 }
 
 /* Financial Stats Row */
@@ -87,10 +264,30 @@
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 1rem;
-  background-color: #f9f9f9;
-  padding: 1rem;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  background: white;
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e5e7eb;
+  width: 100%; /* Ensure it doesn't overflow */
+  overflow: hidden; /* Prevent overflow */
+  box-sizing: border-box; /* Include padding in width calculation */
+}
+
+/* On smaller screens, make financial stats single or two column */
+@media (max-width: 768px) {
+  .dashboard-stats.financial-stats {
+    grid-template-columns: repeat(2, 1fr); /* Two columns on medium screens */
+    padding: 1.2rem;
+  }
+}
+
+@media (max-width: 576px) {
+  .dashboard-stats.financial-stats {
+    grid-template-columns: 1fr; /* Single column on small screens */
+    padding: 1rem;
+    gap: 0.7rem;
+  }
 }
 
 /* Stat Cards */
@@ -100,6 +297,9 @@
   background-color: #ffffff;
   border-radius: 6px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  overflow: hidden; /* Prevent overflow */
+  min-width: 0; /* Allow flex items to shrink below content size */
+  word-wrap: break-word; /* Break long words if needed */
 }
 
 .stat-value {
@@ -107,20 +307,34 @@
   font-weight: bold;
   color: #333;
   margin-bottom: 0.25rem;
+  overflow: hidden; /* Prevent overflow */
+  text-overflow: ellipsis; /* Add ellipsis if text overflows */
+  white-space: nowrap; /* Prevent text overflow */
 }
 
 .stat-label {
   font-size: 0.85rem;
   color: #666;
+  overflow: hidden; /* Prevent overflow */
+  text-overflow: ellipsis; /* Add ellipsis if text overflows */
+  white-space: nowrap; /* Prevent text overflow */
 }
 
 /* Financial Stats Specific */
 .financial-stats .stat-card {
-  border-left: 4px solid #4caf50;
+  border-left: 4px solid #FF6B00;
+  background: #fff8f0;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  overflow: hidden; /* Prevent overflow */
+  min-width: 0; /* Allow flex items to shrink below content size */
 }
 
 .financial-stats .stat-value {
   color: #3a9046;
+  overflow: hidden; /* Prevent overflow */
+  text-overflow: ellipsis; /* Add ellipsis if text overflows */
+  white-space: nowrap; /* Prevent text overflow */
 }
 
 /* Chart Container */
@@ -132,12 +346,18 @@
   height: 300px;
   display: flex;
   flex-direction: column;
+  width: 100%; /* Ensure it doesn't overflow */
+  overflow: hidden; /* Prevent overflow */
+  box-sizing: border-box; /* Include padding in width calculation */
 }
 
 .chart-container h3 {
   margin: 0 0 0.5rem 0;
   color: #333;
   font-size: 1.1rem;
+  overflow: hidden; /* Prevent text overflow */
+  white-space: nowrap; /* Prevent text overflow */
+  text-overflow: ellipsis; /* Add ellipsis if text overflows */
 }
 
 .chart-wrapper {
@@ -147,6 +367,7 @@
   display: flex;
   justify-content: center;
   align-items: center;
+  overflow: hidden; /* Prevent overflow */
 }
 
 .chart-wrapper canvas {
@@ -158,11 +379,22 @@
 
 /* Shop Packages Page Layout */
 .shop-packages-page {
-  margin-left: 280px; /* match sidebar width */
-  margin-top: 80px !important; /* Add top margin to account for fixed navigation header */
-  padding: 3rem 3rem 3rem 0;
-  min-height: 100vh;
-  background: #f7f9fb;
+  margin-left: 260px; /* match sidebar width */
+  margin-top: 65px !important; /* Add top margin to account for fixed navigation header */
+  padding: 2rem;
+  min-height: calc(100vh - 65px);
+  background: #f8f9fa;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding-bottom: 2rem;
+}
+
+.shop-packages-page > div {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
 .packages-tabs {
@@ -204,16 +436,21 @@
   box-shadow: 0 2px 8px rgba(0,0,0,0.04);
   padding: 1.5rem;
   overflow-x: auto;
+  max-width: 100vw; /* Prevent overflow */
+  box-sizing: border-box; /* Include padding in width calculation */
 }
 
 .packages-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 1rem;
+  table-layout: fixed; /* Ensure table uses fixed width */
+  max-width: 100%; /* Prevent table from overflowing */
 }
 .packages-table th, .packages-table td {
   padding: 0.75rem 1rem;
   text-align: left;
+  word-wrap: break-word; /* Break words if needed */
 }
 .packages-table th {
   background: #f3f6fa;
@@ -228,19 +465,14 @@
   background: #f0f4f8;
 }
 
-@media (max-width: 900px) {
-  .shop-packages-page {
-    margin-left: 0;
-    margin-top: 70px !important; /* Adjust top margin for smaller screens */
-    padding: 1rem;
-  }
-  .packages-table th, .packages-table td {
-    padding: 0.5rem 0.5rem;
-    font-size: 0.95rem;
-  }
-  .package-search {
-    width: 120px;
-  }
+.packages-table.recent-packages-table {
+  table-layout: fixed; /* Ensure table uses fixed width */
+  max-width: 100%; /* Prevent overflow */
+}
+
+.packages-table .package-select-cell {
+  width: 55px;
+  text-align: center;
 }
 
 /* Status Badges */
@@ -345,22 +577,34 @@
 }
 
 .shop-profile-page {
-  margin-left: 280px;
-  margin-top: 80px !important; /* Add top margin to account for fixed navigation header */
-  padding: 3rem 3rem 3rem 0;
-  min-height: 100vh;
-  background: #f7f9fb;
+  margin-left: 260px;
+  margin-top: 65px !important; /* Add top margin to account for fixed navigation header */
+  padding: 2rem;
+  min-height: calc(100vh - 65px);
+  background: #f8f9fa;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding-bottom: 2rem;
+}
+
+.shop-profile-page > div {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
 .shop-profile-form {
   max-width: 500px;
   background: #fff;
   padding: 2rem;
-  border-radius: 10px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.05);
   display: flex;
   flex-direction: column;
   gap: 1.2rem;
+  border: 1px solid #e5e7eb;
 }
 
 .shop-profile-form .form-group label {
@@ -431,6 +675,9 @@
   padding: 0.8rem;
   border-radius: 8px;
   box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  width: 100%; /* Ensure it doesn't overflow */
+  overflow: hidden; /* Prevent overflow */
+  box-sizing: border-box; /* Include padding in width calculation */
 }
 
 .section-header {
@@ -954,46 +1201,17 @@
 }
 
 /* Responsive styles */
+
+/* Responsive table for mobile - stacked layout on small screens */
 @media (max-width: 768px) {
-  .stats-and-chart-row,
-  .dashboard-stats.package-stats,
-  .dashboard-stats.financial-stats {
-    grid-template-columns: 1fr;
-    gap: 1rem;
-  }
-
-  .dashboard-stats.package-stats {
-    height: auto;
-    padding: 0;
-  }
-
-  .stat-card {
-    padding: 1rem;
-  }
-
-  .packages-tabs {
-    flex-wrap: wrap;
-    justify-content: center;
-  }
-
-  .tab-btn {
-    flex-grow: 1;
-    text-align: center;
-    border-bottom: 2px solid transparent;
-  }
-
-  .package-search {
-    width: 100%;
-    margin-top: 1rem;
-  }
-
   .packages-table-wrapper {
-    overflow-x: hidden;
+    overflow-x: auto;
   }
 
   .packages-table {
     border: none;
     box-shadow: none;
+    min-width: 600px; /* Ensure minimum width for readability */
   }
 
   .packages-table thead {
@@ -1031,14 +1249,253 @@
     color: #333;
     white-space: nowrap;
   }
+  
+  .packages-table .actions-cell {
+    display: flex;
+    gap: 5px;
+    justify-content: flex-end;
+  }
+  
+  .packages-table .actions-cell button {
+    padding: 6px 10px;
+    font-size: 0.8rem;
+  }
+}
+
+/* Mobile-friendly modal styles */
+@media (max-width: 576px) {
+  .modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+    padding: 20px;
+  }
+  
+  .modal-content {
+    background: white;
+    border-radius: 12px;
+    width: 100%;
+    max-width: 500px;
+    max-height: 90vh;
+    min-height: 500px;
+    overflow-y: auto;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+    transform: translateY(0);
+    transition: transform 0.3s;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    margin: auto;
+  }
+  
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 25px 30px;
+    border-bottom: 1px solid #eee;
+    background-color: #f8f9fa;
+    border-radius: 12px 12px 0 0;
+  }
+  
+  .modal-header h2 {
+    margin: 0;
+    font-size: 24px;
+    color: #333;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-weight: 600;
+  }
+  
+  .close-btn {
+    background: none;
+    border: none;
+    font-size: 28px;
+    color: #6c757d;
+    cursor: pointer;
+    padding: 0;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+  }
+  
+  .close-btn:hover {
+    background-color: #e9ecef;
+    color: #495057;
+  }
+  
+  .modal-body {
+    padding: 30px;
+    flex: 1;
+    overflow-y: auto;
+  }
+  
+  .details-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+  }
+  
+  .detail-item {
+    padding: 20px;
+    background-color: #f8f9fa;
+    border-radius: 10px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.07);
+    border: 1px solid #e9ecef;
+  }
+  
+  .detail-item.full-width {
+    grid-column: 1 / -1;
+  }
+  
+  .label {
+    display: block;
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 8px;
+    font-size: 15px;
+  }
+  
+  /* Additional styling for detail item content */
+  .detail-item span:not(.label) {
+    font-size: 16px;
+    color: #212529;
+    line-height: 1.4;
+  }
+  
+  .modal-actions {
+    display: flex;
+    padding: 25px 30px;
+    background-color: #f8f9fa;
+    border-top: 1px solid #eee;
+    gap: 15px;
+    justify-content: flex-end;
+    border-radius: 0 0 12px 12px;
+  }
+  
+  .btn.close-btn {
+    background-color: #6c757d;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 10px 20px;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  
+  .btn.close-btn:hover {
+    background-color: #5a6268;
+  }
+  
+  .label {
+    display: block;
+    font-weight: 600;
+    color: #555;
+    margin-bottom: 8px;
+    font-size: 14px;
+  }
+  
+  .modal-actions {
+    display: flex;
+    padding: 20px 25px;
+    background-color: #f8f9fa;
+    border-top: 1px solid #eee;
+    gap: 10px;
+    justify-content: flex-end;
+  }
+  
+  .btn.close-btn {
+    background-color: #f5f5f5;
+    color: #555;
+    border: none;
+    border-radius: 5px;
+    padding: 8px 16px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 500;
+    transition: background 0.2s;
+  }
+  
+  .btn.close-btn:hover {
+    background-color: #ececec;
+  }
+  
+  /* Adjust modal for smaller mobile screens */
+  .modal-content {
+    width: 95% !important;
+    max-width: none !important;
+    margin: 20px;
+    min-height: auto;
+    max-height: 95vh;
+  }
+  
+  .modal-header {
+    padding: 20px;
+  }
+  
+  .modal-body {
+    padding: 20px;
+  }
+  
+  .details-grid {
+    grid-template-columns: 1fr !important; /* Single column on very small screens */
+    gap: 15px;
+  }
+  
+  .detail-item {
+    padding: 15px;
+  }
+  
+  .modal-actions {
+    padding: 20px;
+  }
+}
+
+/* Mobile-friendly modal styles for tablets */
+@media (max-width: 768px) and (min-width: 577px) {
+  .modal-content {
+    width: 90%;
+    max-width: 800px !important;
+  }
+  
+  .details-grid {
+    grid-template-columns: 1fr; /* Single column on tablets */
+  }
 }
 
 /* Wallet Page Styles */
 .wallet-page {
-  margin-left: 280px;
-  padding: 3rem 3rem 3rem 0;
-  min-height: 100vh;
-  background: #f7f9fb;
+  margin-left: 260px;
+  padding: 2rem;
+  min-height: calc(100vh - 65px);
+  background: #f8f9fa;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding-bottom: 2rem;
+  margin-top: 65px !important;
+}
+
+.wallet-page > div {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
 .page-header {
@@ -1181,71 +1638,155 @@
 /* Admin-style modal for package details */
 .modal-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+  inset: 0; /* Explicit full viewport coverage: top:0, left:0, right:0, bottom:0 */
+  background-color: rgba(0, 0, 0, 0.6); /* Slightly darker for better dimming */
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 1000;
+  z-index: 10000; /* Higher than sidebar (100) to ensure coverage */
   opacity: 1;
   visibility: visible;
   transition: opacity 0.3s, visibility 0.3s;
 }
 
+/* Ensure sidebar and other fixed elements are below modal when open */
+.modal-open .dashboard-sidebar {
+  z-index: 99; /* Lower than modal-overlay */
+}
+.modal-open .fixed-nav { /* If there's a fixed nav */
+  z-index: 99;
+}
+
+/* Prevent any parent containers from clipping the modal */
+.modal-overlay {
+  width: 100vw;
+  height: 100vh;
+  margin: 0;
+  padding: 0;
+}
+
 .modal-content {
   background-color: white;
-  border-radius: 10px;
+  border-radius: 12px;
   width: 90%;
-  max-width: 600px;
-  max-height: 98vh;
-  min-height: 600px;
+  max-width: 800px;
+  max-height: 90vh;
+  min-height: 500px;
   overflow-y: auto;
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
   transform: translateY(0);
   transition: transform 0.3s;
+  display: flex;
+  flex-direction: column;
+  position: relative; /* Ensure proper positioning context */
+  margin: auto; /* Auto margins for perfect centering */
 }
 
 .modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px 25px;
+  padding: 25px 30px;
   border-bottom: 1px solid #eee;
   background-color: #f8f9fa;
+  border-radius: 12px 12px 0 0;
 }
 
 .modal-header h2 {
   margin: 0;
-  font-size: 20px;
+  font-size: 24px;
   color: #333;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
+  font-weight: 600;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 28px;
+  color: #6c757d;
+  cursor: pointer;
+  padding: 0;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.close-btn:hover {
+  background-color: #e9ecef;
+  color: #495057;
 }
 
 .modal-body {
-  padding: 40px 30px 40px 30px;
+  padding: 30px;
+  flex: 1;
+  overflow-y: auto;
 }
 
 .details-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 15px;
-  margin-bottom: 25px;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+  margin-bottom: 30px;
 }
 
 .detail-item {
-  padding: 15px;
+  padding: 20px;
   background-color: #f8f9fa;
-  border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.07);
+  border-radius: 10px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.07);
+  border: 1px solid #e9ecef;
 }
 
 .detail-item.full-width {
   grid-column: 1 / -1;
+}
+
+.label {
+  display: block;
+  font-weight: 600;
+  color: #495057;
+  margin-bottom: 8px;
+  font-size: 15px;
+}
+
+/* Additional styling for detail item content */
+.detail-item span:not(.label) {
+  font-size: 16px;
+  color: #212529;
+  line-height: 1.4;
+}
+
+.modal-actions {
+  display: flex;
+  padding: 25px 30px;
+  background-color: #f8f9fa;
+  border-top: 1px solid #eee;
+  gap: 15px;
+  justify-content: flex-end;
+  border-radius: 0 0 12px 12px;
+}
+
+.btn.close-btn {
+  background-color: #6c757d;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 20px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn.close-btn:hover {
+  background-color: #5a6268;
 }
 
 .label {
@@ -1281,12 +1822,74 @@
   background-color: #ececec;
 }
 
+/* Target the main dashboard content container */
 .dashboard-content-shop {
-  margin-left: 280px;
-  margin-top: 80px; /* Add top margin to account for fixed navigation header */
+  flex: 1;
+  margin-left: 260px; /* Desktop default */
+  padding: 2rem;
+  background-color: #f8f9fa;
+  margin-top: 65px !important; /* Ensure content clears the fixed top bar */
+  min-height: calc(100vh - 65px);
+  position: relative; /* Ensure proper positioning context */
+  overflow-x: hidden; /* Prevent horizontal scrolling */
+  overflow-y: visible;
+  max-width: 100vw; /* Prevent content from causing horizontal overflow */
+  box-sizing: border-box; /* Include padding in width calculation */
 }
 
-/* Responsive adjustments for different screen sizes */
+/* Mobile-specific content adjustments */
+@media (max-width: 768px) {
+  .dashboard-content-shop {
+    margin-left: 0;
+    padding: 0.8rem;
+    overflow-x: hidden; /* Strictly prevent horizontal scrolling on mobile */
+    width: 100%; /* Ensure content fits within screen */
+    max-width: 100vw; /* Explicitly set max width to prevent overflow */
+    box-sizing: border-box; /* Include padding in width calculation */
+  }
+  
+  .dashboard-container.menu-open .dashboard-content-shop {
+    margin-left: 0; /* Don't shift content when menu is open on mobile */
+    transform: translateX(240px); /* Instead of margin, use transform */
+    transition: transform 0.3s ease;
+  }
+}
+
+/* Ensure modals are properly positioned on desktop */
+@media (min-width: 1024px) {
+  .modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 0.3s, visibility 0.3s;
+  }
+  
+  .modal-content {
+    margin: auto;
+    position: relative;
+  }
+}
+
+/* Fix for confirmation-dialog inside modal-overlay */
+.confirmation-dialog {
+  background: white;
+  border-radius: 10px;
+  padding: 2rem;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  max-width: 500px;
+  width: 90%;
+  margin: auto;
+  position: relative;
+}
 @media (max-width: 1024px) {
   .dashboard-content-shop {
     margin-top: 70px; /* Slightly less margin on medium screens */
@@ -1301,17 +1904,434 @@
 
 /* Shop Dashboard Header Styling */
 .dashboard-content-shop .dashboard-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #FF6B00 0%, #FF8C00 100%);
   border-radius: 12px;
   padding: 2rem;
-  margin-bottom: 2rem;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  margin-bottom: 1.5rem;
+  box-shadow: 0 8px 25px rgba(255, 107, 0, 0.3);
+  margin-top: 8px !important;
+  border: none;
+  width: 100%;
+  max-width: 100%; /* Prevent overflow */
+  overflow: hidden; /* Prevent content from causing overflow */
+  box-sizing: border-box; /* Include padding in width calculation */
+}
+
+.dashboard-content-shop .dashboard-header .welcome-message h1 {
+  color: white !important;
+  font-size: 2rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem 0;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  overflow: hidden; /* Prevent overflow */
+  text-overflow: ellipsis; /* Add ellipsis if text overflows */
+  white-space: nowrap; /* Prevent text overflow */
+}
+
+.dashboard-content-shop .dashboard-header .welcome-message p {
+  color: rgba(255,255,255,0.9) !important;
+  font-size: 1rem;
+  margin: 0;
+  font-weight: 400;
+  overflow: hidden; /* Prevent overflow */
+  text-overflow: ellipsis; /* Add ellipsis if text overflows */
+  white-space: nowrap; /* Prevent text overflow */
+}
+
+.dashboard-content-shop .dashboard-header .user-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+  min-width: 0; /* Allow flex items to shrink below content size */
+  overflow: hidden; /* Prevent overflow */
+}
+
+.dashboard-content-shop .dashboard-header .user-info .business-name {
+  color: white !important;
+  font-size: 1.1rem;
+  font-weight: 600;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+  overflow: hidden; /* Prevent overflow */
+  text-overflow: ellipsis; /* Add ellipsis if text overflows */
+  white-space: nowrap; /* Prevent text overflow */
+}
+
+.dashboard-content-shop .dashboard-header .user-info span:last-child {
+  color: rgba(255,255,255,0.8) !important;
+  font-size: 1rem;
+  font-weight: 500;
 }
 
 /* Ensure sidebar is properly positioned below fixed navigation */
+/* Ensure sidebar is properly positioned below fixed navigation */
+/* Ensure sidebar is properly positioned below fixed navigation */
 .dashboard-container .dashboard-sidebar {
-  top: 80px; /* Position sidebar below the fixed navigation */
-  height: calc(100vh - 80px); /* Adjust height to account for navigation */
+  width: 260px !important;
+  background: white !important;
+  color: #1f2937 !important;
+  padding: 0 !important;
+  box-shadow: 4px 0 20px rgba(0, 0, 0, 0.15) !important;
+  position: fixed !important;
+  height: calc(100vh - 65px) !important; /* Adjust height to account for navigation */
+  overflow-y: auto !important;
+  z-index: 100 !important;
+  top: 65px !important; /* Position sidebar below the fixed navigation */
+  left: 0 !important;
+  border-right: 1px solid #e5e7eb;
+  contain: layout style; /* Isolate the sidebar's layout */
+}
+
+/* Sidebar Header */
+.dashboard-container .dashboard-sidebar .sidebar-header {
+  padding: 1.5rem 1.5rem 0;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid #e5e7eb;
+  background: white;
+}
+
+.dashboard-container .dashboard-sidebar .sidebar-header h2 {
+  margin: 0 0 0.25rem 0;
+  font-size: 1.75rem;
+  color: #FF6B00;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+
+/* Mobile-focused enhancements */
+@media (max-width: 900px) {
+  .new-pickup-page {
+    padding: 2rem 1.5rem;
+  }
+
+  .new-pickup-layout {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 1.5rem !important;
+  }
+
+  .new-pickup-layout .pickup-card {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .new-pickup-page {
+    padding: 1.5rem 1rem;
+  }
+
+  .new-pickup-layout .pickup-card {
+    padding: 1.25rem !important;
+  }
+
+  .new-pickup-layout .packages-list {
+    max-height: 340px !important;
+    overflow-y: auto !important;
+  }
+
+  .new-pickup-layout .package-list-item {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 0.6rem !important;
+  }
+
+  .new-pickup-layout .package-info span {
+    white-space: normal !important;
+  }
+
+  .dashboard-content-shop .dashboard-header {
+    padding: 1.5rem;
+  }
+
+  .dashboard-content-shop .dashboard-header .welcome-message h1,
+  .dashboard-content-shop .dashboard-header .welcome-message p {
+    white-space: normal;
+  }
+
+  .dashboard-content-shop .dashboard-header .welcome-message h1 {
+    font-size: clamp(1.35rem, 5vw, 1.8rem);
+  }
+
+  .dashboard-content-shop .dashboard-header .user-info {
+    align-items: flex-start;
+  }
+
+  .shop-packages-page.create-package-layout {
+    padding: 1.5rem 1rem !important;
+  }
+
+  .create-package-form .basic-info-grid,
+  .create-package-form .item-details-grid,
+  .create-package-form .pickup-contact-grid,
+  .create-package-form .payment-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .create-package-form .dimensions-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 0.75rem !important;
+  }
+
+  .create-package-form .item-card {
+    padding: 1rem !important;
+  }
+
+  .create-package-form .form-section {
+    padding: 1.25rem !important;
+  }
+
+  .create-package-success-modal {
+    max-width: 360px;
+  }
+
+  .shop-profile-page {
+    padding: 1.5rem 1rem;
+  }
+
+  .shop-profile-form {
+    padding: 1.5rem;
+    width: 100%;
+  }
+
+  .api-key-section {
+    padding: 1rem;
+  }
+
+  .api-key-actions {
+    flex-wrap: wrap;
+    gap: 0.75rem !important;
+  }
+
+  .api-key-actions input {
+    flex: 1 1 100% !important;
+    min-width: 0 !important;
+  }
+
+  .api-key-actions button {
+    width: 100%;
+  }
+
+  .wallet-page {
+    padding: 1.5rem 1rem;
+  }
+
+  .wallet-page .filters-section {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .wallet-page .filter-group {
+    width: 100%;
+  }
+
+  .wallet-page .filter-group input,
+  .wallet-page .filter-group select {
+    width: 100%;
+  }
+
+  .wallet-page .money-table {
+    border: none;
+  }
+
+  .wallet-page .money-table thead {
+    display: none;
+  }
+
+  .wallet-page .money-table tr {
+    display: block;
+    margin-bottom: 1rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+    background: #ffffff;
+    padding: 0.75rem 1rem;
+  }
+
+  .wallet-page .money-table td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.6rem 0;
+    border-bottom: 1px solid #edf2f7;
+    position: relative;
+  }
+
+  .wallet-page .money-table td:last-child {
+    border-bottom: none;
+  }
+
+  .wallet-page .money-table td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    color: #475569;
+    margin-right: 1rem;
+    text-align: left;
+  }
+
+  .wallet-page .money-table .wallet-description {
+    text-align: right;
+  }
+}
+
+@media (max-width: 600px) {
+  .create-package-form .dimensions-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .create-package-form .form-section {
+    padding: 1rem !important;
+  }
+
+  .create-package-success-modal {
+    width: 100% !important;
+    padding: 1.5rem !important;
+  }
+
+  .shop-profile-form {
+    padding: 1.25rem;
+  }
+
+  .new-pickup-layout .packages-list {
+    max-height: 300px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .create-package-form .form-section h2 {
+    font-size: 1.05rem !important;
+  }
+
+  .create-package-form .item-card h3 {
+    font-size: 0.95rem !important;
+  }
+
+  .create-package-form button,
+  .create-package-form input,
+  .create-package-form select {
+    font-size: 1rem;
+  }
+
+  .wallet-page .money-table tr {
+    padding: 0.65rem 0.75rem;
+  }
+
+  .wallet-page .money-table td {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.35rem;
+  }
+
+  .wallet-page .money-table .wallet-description {
+    text-align: left;
+  }
+}
+
+.dashboard-container .dashboard-sidebar .sidebar-header p {
+  font-size: 0.85rem;
+  opacity: 0.7;
+  margin: 0 0 1rem 0;
+  letter-spacing: 0.025em;
+  color: #6b7280;
+}
+
+/* Sidebar Menu */
+.dashboard-container .dashboard-sidebar .sidebar-menu {
+  display: flex;
+  flex-direction: column;
+  padding: 0 0 1rem 0;
+  gap: 0;
+}
+
+/* Menu Items */
+.dashboard-container .dashboard-sidebar .menu-item {
+  padding: 1rem 1.5rem;
+  display: flex;
+  align-items: center;
+  color: #6b7280;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  text-decoration: none !important;
+  font-weight: 500;
+  font-size: 0.95rem;
+  border-left: 3px solid transparent;
+  position: relative;
+  white-space: nowrap;
+  overflow: hidden;
+  width: 100%;
+  text-align: left;
+}
+
+.dashboard-container .dashboard-sidebar .menu-item:hover {
+  background-color: #fff8f0;
+  color: #FF6B00;
+  border-left-color: #FF6B00;
+  padding-left: 2rem;
+}
+
+.dashboard-container .dashboard-sidebar .menu-item.active {
+  background-color: #fff8f0;
+  color: #FF6B00;
+  border-left-color: #FF6B00;
+  font-weight: 600;
+}
+
+.dashboard-container .dashboard-sidebar .menu-item:hover::before,
+.dashboard-container .dashboard-sidebar .menu-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: linear-gradient(90deg, #FF6B00, #ff9248);
+  opacity: 1;
+  transition: opacity 0.25s ease;
+}
+
+.dashboard-container .dashboard-sidebar .menu-item:hover::before,
+.dashboard-container .dashboard-sidebar .menu-item.active::before {
+  opacity: 1;
+}
+
+/* Menu Icons */
+.dashboard-container .dashboard-sidebar .menu-icon {
+  margin-right: 1rem;
+  font-size: 1.1rem;
+  width: 20px;
+  text-align: center;
+  flex-shrink: 0;
+  transition: transform 0.25s ease;
+  color: #9ca3af;
+}
+
+.dashboard-container .dashboard-sidebar .menu-item:hover .menu-icon,
+.dashboard-container .dashboard-sidebar .menu-item.active .menu-icon {
+  transform: scale(1.1);
+  color: #FF6B00;
+}
+
+.dashboard-container .dashboard-sidebar .menu-item.logout {
+  margin-top: auto;
+  margin-bottom: 1.5rem;
+  cursor: pointer;
+  background: none;
+  border: none;
+  border-left: 3px solid transparent;
+  text-align: left;
+  font-size: 0.95rem;
+  color: #6b7280;
+  padding: 1rem 1.5rem;
+}
+
+.dashboard-container .dashboard-sidebar .menu-item.logout:hover {
+  background-color: #fff0f0;
+  color: #dc3545;
+  border-left-color: #dc3545;
+}
+
+.dashboard-container .dashboard-sidebar .menu-item.logout:hover .menu-icon {
+  color: #dc3545;
 }
 
 /* Responsive sidebar positioning */
@@ -1323,9 +2343,433 @@
 }
 
 @media (max-width: 768px) {
+  .menu-toggle-btn {
+    display: block;
+  }
+  
   .dashboard-container .dashboard-sidebar {
     top: 60px;
     height: calc(100vh - 60px);
+    width: 220px !important; /* Slightly smaller */
+    position: fixed;
+    z-index: 1000; /* Ensure sidebar appears above content */
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+  }
+  
+  .dashboard-container.menu-open .dashboard-sidebar {
+    transform: translateX(0);
+  }
+  
+  .dashboard-content-shop,
+  .shop-packages-page,
+  .wallet-page,
+  .shop-profile-page,
+  .create-package-page {
+    margin-left: 0;
+    padding: 0.8rem; /* Slightly smaller padding */
+  }
+  
+  /* Reduce sizes of elements on mobile */
+  .stat-card {
+    padding: 0.5rem;
+  }
+  
+  .stat-value {
+    font-size: 1rem;
+  }
+  
+  .stat-label {
+    font-size: 0.7rem;
+  }
+  
+  .financial-stats .stat-value {
+    font-size: 1.2rem;
+  }
+  
+  .dashboard-header .welcome-message h1 {
+    font-size: 1.3rem;
+  }
+  
+  .dashboard-header .welcome-message p {
+    font-size: 0.8rem;
+  }
+  
+  .chart-container {
+    height: 180px; /* Smaller chart */
+  }
+  
+  .chart-wrapper {
+    height: 120px;
+  }
+  
+  /* Dashboard Stats Container - make more compact */
+  .dashboard-stats-container {
+    gap: 0.7rem;
+    margin-bottom: 1.5rem;
+  }
+  
+  /* Stats and Chart Row */
+  .stats-and-chart-row {
+    gap: 0.7rem;
+  }
+  
+  /* Package Stats Row */
+  .dashboard-stats.package-stats {
+    gap: 0.4rem;
+    height: 140px; /* Smaller height */
+  }
+  
+  /* Financial Stats Row */
+  .dashboard-stats.financial-stats {
+    gap: 0.7rem;
+    padding: 1.2rem;
+  }
+  
+  /* Section header adjustments */
+  .section-header {
+    margin-bottom: 0.6rem;
+    padding-bottom: 0.3rem;
+  }
+  
+  .section-header h2 {
+    font-size: 0.9rem;
+  }
+  
+  /* Package list items */
+  .package-list-item {
+    padding: 0.5rem;
+    font-size: 0.8rem; /* Smaller text */
+  }
+  
+  .package-description {
+    font-size: 0.75rem;
+    max-width: 100px; /* Limit width to prevent overflow */
+  }
+  
+  .recipient-name {
+    font-size: 0.65rem;
+  }
+  
+  .package-date {
+    font-size: 0.65rem;
+  }
+  
+  .package-cod {
+    font-size: 0.75rem;
+  }
+  
+  .status-badge {
+    font-size: 0.65rem;
+    padding: 0.1rem 0.5rem;
+  }
+  
+  .action-button {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.7rem;
+    margin: 0.05rem;
+  }
+  
+  /* Sidebar adjustments */
+  .dashboard-container .dashboard-sidebar .sidebar-header h2 {
+    font-size: 1.3rem;
+  }
+  
+  .dashboard-container .dashboard-sidebar .sidebar-header p {
+    font-size: 0.75rem;
+  }
+  
+  .dashboard-container .dashboard-sidebar .menu-item {
+    padding: 0.7rem 1rem;
+    font-size: 0.85rem;
+  }
+  
+  .dashboard-container .dashboard-sidebar .menu-icon {
+    margin-right: 0.7rem;
+    font-size: 0.9rem;
+  }
+  
+  /* Form adjustments */
+  .shop-profile-form {
+    padding: 1.2rem;
+    gap: 1rem;
+  }
+  
+  .shop-profile-form .form-group input {
+    padding: 0.35rem 0.5rem;
+    font-size: 0.85rem;
+  }
+  
+  .profile-save-btn {
+    padding: 0.5rem 1rem;
+    font-size: 0.85rem;
+  }
+  
+  /* Package form adjustments */
+  .form-control {
+    padding: 0.5rem;
+    font-size: 0.85rem;
+  }
+  
+  .btn {
+    padding: 0.5rem 1rem;
+    font-size: 0.85rem;
+  }
+  
+  /* Button adjustments */
+  .btn-primary {
+    padding: 0.5rem 1rem;
+    font-size: 0.85rem;
+  }
+  
+  /* Modal adjustments */
+  .modal-header {
+    padding: 15px;
+  }
+  
+  .modal-header h2 {
+    font-size: 1.1rem;
+  }
+  
+  .modal-body {
+    padding: 15px;
+  }
+  
+  .details-grid {
+    gap: 10px;
+  }
+  
+  .detail-item {
+    padding: 10px;
+  }
+  
+  .label {
+    font-size: 0.75rem;
+  }
+  
+  .detail-item span:not(.label) {
+    font-size: 0.85rem;
+  }
+  
+  /* Tabs adjustments */
+  .packages-tabs {
+    gap: 0.7rem;
+    margin-bottom: 1rem;
+  }
+  
+  .tab-btn {
+    font-size: 0.85rem;
+    padding: 0.4rem 0.8rem;
+  }
+  
+  /* Search adjustments */
+  .package-search {
+    width: 100px;
+    padding: 0.4rem 0.6rem;
+    font-size: 0.85rem;
+  }
+  
+  /* Card adjustments */
+  .recent-packages {
+    padding: 0.6rem;
+  }
+}
+
+@media (max-width: 576px) {
+  .dashboard-container .dashboard-sidebar {
+    width: 200px !important; /* Smaller on very small screens */
+    height: 100vh !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0;
+    z-index: 1000;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+  }
+  
+  .dashboard-container.menu-open .dashboard-sidebar {
+    transform: translateX(0);
+  }
+  
+  .dashboard-content-shop,
+  .shop-packages-page,
+  .wallet-page,
+  .shop-profile-page,
+  .create-package-page {
+    margin-left: 0;
+    padding: 0.7rem; /* Even smaller padding */
+  }
+  
+  .dashboard-container.menu-open {
+    overflow: hidden; /* Prevent scrolling when menu is open */
+  }
+  
+  /* Even smaller sizes for very small screens */
+  .stat-card {
+    padding: 0.4rem;
+  }
+  
+  .stat-value {
+    font-size: 0.9rem;
+  }
+  
+  .stat-label {
+    font-size: 0.65rem;
+  }
+  
+  .financial-stats .stat-value {
+    font-size: 1rem;
+  }
+  
+  .dashboard-header .welcome-message h1 {
+    font-size: 1.1rem;
+  }
+  
+  .dashboard-header .welcome-message p {
+    font-size: 0.75rem;
+  }
+  
+  .chart-container {
+    height: 150px; /* Smaller on small screens */
+  }
+  
+  .chart-wrapper {
+    height: 100px;
+  }
+  
+  .dashboard-stats-container {
+    margin-bottom: 1rem;
+  }
+  
+  .package-description {
+    font-size: 0.65rem;
+    max-width: 80px; /* Even smaller width */
+  }
+  
+  .recipient-name {
+    font-size: 0.6rem;
+  }
+  
+  .package-date {
+    font-size: 0.6rem;
+  }
+  
+  .package-cod {
+    font-size: 0.7rem;
+  }
+  
+  .status-badge {
+    font-size: 0.6rem;
+    padding: 0.08rem 0.4rem;
+  }
+  
+  .action-button {
+    padding: 0.2rem 0.4rem;
+    font-size: 0.65rem;
+  }
+  
+  /* Sidebar adjustments for smallest screens */
+  .dashboard-container .dashboard-sidebar .sidebar-header h2 {
+    font-size: 1.1rem;
+  }
+  
+  .dashboard-container .dashboard-sidebar .sidebar-header p {
+    font-size: 0.7rem;
+  }
+  
+  .dashboard-container .dashboard-sidebar .menu-item {
+    padding: 0.6rem 0.8rem;
+    font-size: 0.8rem;
+  }
+  
+  .dashboard-container .dashboard-sidebar .menu-icon {
+    margin-right: 0.6rem;
+    font-size: 0.85rem;
+  }
+  
+  /* Form adjustments for small screens */
+  .shop-profile-form {
+    padding: 1rem;
+    gap: 0.8rem;
+  }
+  
+  .shop-profile-form .form-group input {
+    padding: 0.3rem 0.4rem;
+    font-size: 0.8rem;
+  }
+  
+  .profile-save-btn {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.8rem;
+  }
+  
+  /* Package form adjustments */
+  .form-control {
+    padding: 0.4rem;
+    font-size: 0.8rem;
+  }
+  
+  .btn {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.8rem;
+  }
+  
+  /* Modal adjustments for small screens */
+  .modal-header {
+    padding: 12px;
+  }
+  
+  .modal-header h2 {
+    font-size: 1rem;
+  }
+  
+  .modal-body {
+    padding: 12px;
+  }
+  
+  .details-grid {
+    gap: 8px;
+  }
+  
+  .detail-item {
+    padding: 8px;
+  }
+  
+  .label {
+    font-size: 0.7rem;
+  }
+  
+  .detail-item span:not(.label) {
+    font-size: 0.8rem;
+  }
+  
+  /* Tabs adjustments */
+  .packages-tabs {
+    gap: 0.5rem;
+    margin-bottom: 0.8rem;
+    flex-wrap: wrap; /* Allow wrapping on small screens */
+  }
+  
+  .tab-btn {
+    font-size: 0.8rem;
+    padding: 0.3rem 0.6rem;
+    margin-bottom: 4px;
+  }
+  
+  /* Search adjustments */
+  .package-search {
+    width: 80px;
+    padding: 0.3rem 0.4rem;
+    font-size: 0.8rem;
+  }
+  
+  /* Section header adjustments */
+  .section-header h2 {
+    font-size: 0.85rem;
+  }
+  
+  .view-all {
+    font-size: 0.8rem;
   }
 }
 
@@ -1334,7 +2778,7 @@
 .wallet-page,
 .shop-profile-page,
 .dashboard-content {
-  margin-top: 80px !important; /* Add top margin to account for fixed navigation header */
+  margin-top: 65px !important; /* Add top margin to account for fixed navigation header */
 }
 
 /* Responsive adjustments for shop page containers */
@@ -1351,7 +2795,8 @@
   .shop-packages-page,
   .wallet-page,
   .shop-profile-page,
-  .dashboard-content {
+  .dashboard-content,
+  .dashboard-content-shop {
     margin-top: 60px !important;
   }
 }
@@ -1370,4 +2815,797 @@ div.dashboard-content {
 .dashboard-container .shop-profile-page,
 .dashboard-container .dashboard-content {
   margin-top: 80px !important;
+}
+
+/* Create Package Page Styles */
+.create-package-page {
+  margin-left: 260px;
+  margin-top: 65px !important;
+  padding: 2rem;
+  min-height: calc(100vh - 65px);
+  background: #f8f9fa;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding-bottom: 2rem;
+}
+
+.create-package-page > div {
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .create-package-page {
+    margin-left: 0;
+    margin-top: 60px !important;
+    padding: 1rem;
+  }
+  
+  .create-package-page > div {
+    max-width: 100%;
+  }
+  
+  .modal-content {
+    width: 95%;
+    max-width: none;
+    margin: 10px;
+    min-height: auto;
+    max-height: 95vh;
+  }
+  
+  .modal-header {
+    padding: 20px;
+  }
+  
+  .modal-body {
+    padding: 20px;
+  }
+  
+  .details-grid {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+  
+  .detail-item {
+    padding: 15px;
+  }
+  
+  .modal-actions {
+    padding: 20px;
+  }
+}
+
+@media (max-width: 992px) {
+  .shop-packages-page {
+    margin-left: 0;
+    margin-top: 70px !important; /* Adjust top margin for smaller screens */
+    padding: 1rem;
+  }
+  .packages-table th, .packages-table td {
+    padding: 0.5rem 0.5rem;
+    font-size: 0.95rem;
+  }
+  .package-search {
+    width: 120px;
+  }
+}
+
+/* Responsive table for mobile - prevent horizontal scrolling */
+@media (max-width: 768px) {
+  .packages-table-wrapper {
+    overflow-x: hidden; /* Hide horizontal scroll */
+  }
+
+  .packages-table {
+    border: none;
+    box-shadow: none;
+    width: 100%; /* Make table full width to prevent horizontal scroll */
+    table-layout: fixed; /* Fixed table layout to prevent overflow */
+  }
+  
+  .packages-table th, 
+  .packages-table td {
+    padding: 0.5rem;
+    font-size: 0.8rem; /* Smaller font */
+    word-wrap: break-word; /* Break long words to fit */
+  }
+  
+  /* Make buttons smaller */
+  .action-button {
+    padding: 0.3rem 0.6rem;
+    font-size: 0.75rem;
+    margin: 0.1rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .packages-table thead {
+    display: none;
+  }
+
+  .packages-table tr {
+    display: block;
+    margin-bottom: 1rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    background-color: white;
+    border: 1px solid #eee;
+    padding: 0;
+  }
+
+  .packages-table td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 15px;
+    border-bottom: 1px solid #eee;
+    text-align: right;
+  }
+  
+  .packages-table td:last-child {
+    border-bottom: none;
+  }
+
+  .packages-table td::before {
+    content: attr(data-label);
+    font-weight: bold;
+    text-align: left;
+    margin-right: 1rem;
+    color: #333;
+    white-space: nowrap;
+  }
+  
+  .packages-table .actions-cell {
+    display: flex;
+    gap: 5px;
+    justify-content: flex-end;
+  }
+  
+  .packages-table .actions-cell button {
+    padding: 6px 10px;
+    font-size: 0.8rem;
+  }
+  
+  /* Modal styles for the same media query */
+  .modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+    padding: 5px;
+    margin: 0;
+  }
+  
+  .modal-content {
+    width: 98% !important;
+    max-width: 98% !important; /* Nearly full width but with some margin */
+    max-height: 90vh;
+    min-height: auto;
+    margin: 0;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden; /* Prevent any overflow */
+  }
+  
+  .modal-header {
+    padding: 12px 15px;
+  }
+  
+  .modal-header h2 {
+    font-size: 1rem;
+  }
+  
+  .modal-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 15px;
+  }
+  
+  .details-grid {
+    display: grid;
+    grid-template-columns: 1fr; /* Single column on mobile */
+    gap: 10px;
+  }
+  
+  .detail-item {
+    padding: 10px;
+  }
+  
+  .modal-actions {
+    padding: 12px 15px;
+    flex-shrink: 0;
+  }
+  
+  /* Confirmation modal for mobile */
+  .confirmation-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10001;
+    padding: 10px;
+  }
+  
+  .confirmation-dialog {
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    position: relative;
+  }
+}
+
+  .modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+    padding: 5px;
+    margin: 0;
+  }
+
+/* Ensure COD badges in modal have white text like external badges */
+.modal-body .cod-badge {
+  color: #fff !important;
+}
+
+.modal-body .cod-paid {
+  background: #43a047 !important;
+}
+
+.modal-body .cod-unpaid {
+  background: #e53935 !important;
+}
+
+@media (max-width: 768px) {
+  .shop-packages-page {
+    margin-left: 0;
+    padding: 1rem 0.75rem;
+  }
+
+  .shop-packages-page > div {
+    max-width: 100%;
+  }
+
+  .shop-packages-page .packages-tabs {
+    flex-wrap: wrap;
+    gap: 0.6rem;
+  }
+
+  .shop-packages-page .package-search {
+    order: 99;
+    width: 100%;
+  }
+
+  .shop-packages-page .packages-table-wrapper {
+    padding: 1rem;
+    overflow: visible;
+  }
+
+  .shop-packages-page .packages-table {
+    width: 100%;
+    min-width: 0;
+    table-layout: auto;
+  }
+
+  .shop-packages-page .packages-table thead {
+    display: none;
+  }
+
+  .shop-packages-page .packages-table tr {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.85rem 1rem;
+    border-radius: 12px;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+    background: #ffffff;
+    margin-bottom: 1rem;
+  }
+
+  .shop-packages-page .packages-table tr:last-child {
+    margin-bottom: 0;
+  }
+
+  .shop-packages-page .packages-table td {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.3rem;
+    padding: 0.35rem 0;
+    border-bottom: 1px solid #f1f5f9;
+    text-align: left;
+  }
+
+  .shop-packages-page .packages-table td:last-child {
+    border-bottom: none;
+  }
+
+  .shop-packages-page .packages-table td::before {
+    content: attr(data-label);
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .shop-packages-page .packages-table .tracking-number {
+    font-size: 1rem;
+    font-weight: 600;
+  }
+
+  .shop-packages-page .packages-table .package-description {
+    gap: 0.2rem;
+  }
+
+  .shop-packages-page .packages-table .package-title {
+    font-weight: 600;
+    line-height: 1.35;
+  }
+
+  .shop-packages-page .packages-table .package-address,
+  .shop-packages-page .packages-table .package-contact {
+    font-size: 0.85rem;
+  }
+
+  .shop-packages-page .packages-table .package-cod {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    width: 100%;
+    gap: 0.4rem;
+  }
+
+  .shop-packages-page .packages-table .package-cod .cod-badge {
+    margin-left: 0;
+  }
+
+  .shop-packages-page .packages-table .package-cod .cod-amount {
+    font-weight: 600;
+  }
+
+  .shop-packages-page .packages-table .package-date {
+    font-size: 0.85rem;
+  }
+
+  .shop-packages-page .packages-table .package-select-cell {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.75rem;
+    padding-top: 0;
+  }
+
+  .shop-packages-page .packages-table .package-select-cell::before {
+    margin: 0;
+  }
+
+  .shop-packages-page .packages-table .actions-cell {
+    width: 100%;
+    flex-direction: row;
+    gap: 0.6rem;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .shop-packages-page .packages-table .actions-cell button {
+    margin: 0;
+  }
+
+  .shop-packages-page .action-button {
+    padding: 0.35rem 0.75rem;
+    font-size: 0.8rem;
+  }
+
+  .create-package-layout {
+    padding: 1.25rem 0.75rem !important;
+  }
+
+  .create-package-form-container {
+    padding: 0 !important;
+  }
+
+  .create-package-form .form-section {
+    padding: 0.85rem 0;
+  }
+
+  .basic-info-grid,
+  .item-details-grid,
+  .notes-grid {
+    grid-template-columns: 1fr !important;
+    gap: 0.85rem !important;
+  }
+
+  .dimensions-grid {
+    grid-template-columns: repeat(2, minmax(140px, 1fr)) !important;
+    gap: 0.75rem !important;
+  }
+
+  .pickup-contact-grid,
+  .payment-grid {
+    grid-template-columns: 1fr !important;
+    gap: 0.75rem !important;
+  }
+
+  .item-card {
+    padding: 0.85rem !important;
+  }
+
+  .item-card h3 {
+    margin-bottom: 0.6rem !important;
+  }
+
+  .new-pickup-page {
+    padding: 24px 0.75rem !important;
+  }
+
+  .new-pickup-layout {
+    flex-direction: column !important;
+    gap: 1.5rem !important;
+    align-items: stretch !important;
+  }
+
+  .new-pickup-layout .pickup-card {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .packages-list {
+    max-height: none !important;
+  }
+
+  .pickup-form .form-actions {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .pickup-form .form-actions .btn {
+    width: 100%;
+  }
+
+  .api-key-actions,
+  .shipping-fees-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.65rem !important;
+  }
+
+  .api-key-actions input,
+  .shipping-fees-actions input {
+    width: 100% !important;
+  }
+
+  .password-actions {
+    flex-direction: column;
+    gap: 0.65rem;
+  }
+
+  .password-actions .profile-save-btn {
+    width: 100%;
+  }
+
+  .money-transactions-section {
+    padding: 1rem;
+  }
+
+  .money-transactions-section .filters-section {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .money-transactions-section .filter-group {
+    width: 100%;
+  }
+
+  .money-table {
+    border: none;
+  }
+
+  .money-table thead {
+    display: none;
+  }
+
+  .money-table tbody tr {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    padding: 0.85rem 1rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+    background: #ffffff;
+  }
+
+  .money-table tbody tr:last-child {
+    margin-bottom: 0;
+  }
+
+  .money-table td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.45rem 0;
+    border-bottom: 1px solid #f1f5f9;
+  }
+
+  .money-table td:last-child {
+    border-bottom: none;
+  }
+
+  .money-table td::before {
+    content: attr(data-label);
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+}
+
+@media (max-width: 576px) {
+  .shop-packages-page {
+    padding: 0.85rem 0.6rem;
+  }
+
+  .shop-packages-page .packages-tabs {
+    gap: 0.5rem;
+  }
+
+  .shop-packages-page .packages-table tr {
+    padding: 0.75rem 0.85rem;
+  }
+
+  .shop-packages-page .packages-table td {
+    padding: 0.3rem 0;
+  }
+
+  .shop-packages-page .packages-table td::before {
+    font-size: 0.65rem;
+  }
+
+  .dimensions-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .pickup-form .form-actions {
+    gap: 0.6rem;
+  }
+
+  .money-table tbody tr {
+    padding: 0.75rem 0.85rem;
+  }
+
+  .money-table td {
+    padding: 0.4rem 0;
+    align-items: flex-start;
+  }
+
+  .money-table td::before {
+    font-size: 0.65rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .package-details-modal {
+    width: 100% !important;
+    max-width: 560px !important;
+    margin: 0 0.75rem;
+    border-radius: 16px;
+    max-height: calc(100vh - 32px);
+  }
+
+  .package-details-modal .modal-header {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    padding: 1rem 1.25rem;
+    align-items: flex-start;
+  }
+
+  .package-details-modal .modal-header h2 {
+    flex: 1 1 auto;
+  }
+
+  .package-details-modal .modal-body {
+    padding: 1rem 1.25rem;
+  }
+
+  .package-details-modal .details-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .package-details-modal .detail-item {
+    padding: 0.85rem 1rem;
+    border-radius: 12px;
+  }
+
+  .package-details-modal .modal-actions {
+    padding: 0.85rem 1.25rem;
+    justify-content: center;
+    gap: 0.75rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .package-details-modal {
+    margin: 0;
+    max-width: 100% !important;
+    border-radius: 0;
+    height: 100vh;
+    max-height: 100vh;
+  }
+
+  .package-details-modal .modal-header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+  }
+
+  .package-details-modal .modal-body {
+    padding: 1rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-main {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .dashboard-stats-container {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .stats-and-chart-row {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .dashboard-stats.package-stats {
+    grid-template-columns: repeat(2, minmax(140px, 1fr));
+    height: auto !important;
+  }
+
+  .dashboard-stats.financial-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-stats.financial-stats .stat-card,
+  .dashboard-stats.package-stats .stat-card {
+    text-align: left;
+  }
+
+  .package-description {
+    max-width: none !important;
+    white-space: normal;
+  }
+
+  .recent-packages .package-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .recent-packages-table,
+  .recent-packages-table tbody,
+  .recent-packages-table tr {
+    width: 100%;
+  }
+
+  .recent-packages-table tr {
+    padding: 0.85rem 1rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+    background: #ffffff;
+  }
+
+  .recent-packages-table td {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.35rem;
+    padding: 0.35rem 0;
+    text-align: left;
+    border-bottom: 1px solid #f1f5f9;
+  }
+
+  .recent-packages-table td:last-child {
+    border-bottom: none;
+  }
+
+  .recent-packages-table td::before {
+    content: attr(data-label);
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #6b7280;
+  }
+
+  .recent-packages-table .tracking-number {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #111827;
+  }
+
+  .recent-packages-table .package-description {
+    font-size: 0.9rem;
+    color: #1f2937;
+  }
+
+  .recent-packages-table .package-address {
+    color: #4b5563;
+    font-size: 0.85rem;
+  }
+
+  .recent-packages-table .package-contact {
+    font-size: 0.8rem;
+    color: #6b7280;
+  }
+
+  .recent-packages-table .package-cod {
+    width: 100%;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .recent-packages-table .package-cod .cod-badge {
+    margin-top: 0.15rem;
+  }
+
+  .recent-packages-table td[data-label="Created On"] {
+    font-size: 0.8rem;
+    color: #6b7280;
+  }
+}
+
+@media (max-width: 480px) {
+  .dashboard-stats.package-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-main {
+    gap: 0.75rem;
+  }
+
+  .dashboard-header .welcome-message h1 {
+    font-size: 1.1rem;
+  }
+
+  .dashboard-header .welcome-message p {
+    font-size: 0.75rem;
+  }
+
+  .recent-packages-table tr {
+    padding: 0.75rem 0.85rem;
+  }
 }

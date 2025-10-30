@@ -96,13 +96,13 @@ const NewPickup = () => {
   }
 
   return (
-    <div className="shop-packages-page" style={{ minHeight: '100vh', background: '#f7f9fb', padding: '32px 0', marginLeft:'auto', marginRight:'auto'}}>
+    <div className="shop-packages-page new-pickup-page" style={{ minHeight: '100vh', background: '#f7f9fb', padding: '32px 0', marginLeft:'auto', marginRight:'auto'}}>
       <div className="page-header" style={{ textAlign: 'center', marginBottom: '2rem' }}>
         <h1>Schedule New Pickup</h1>
       </div>
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', gap: '2.5rem', width: '100%' }}>
+      <div className="new-pickup-layout" style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', gap: '2.5rem', width: '100%' }}>
         {/* Select Packages Card (Left) */}
-        <div className="packages-section" style={{
+        <div className="packages-section pickup-card" style={{
           width: '450px',
           backgroundColor: 'white',
           borderRadius: '8px',
@@ -117,7 +117,7 @@ const NewPickup = () => {
           <button type="button" className="btn btn-select-all" onClick={handleSelectAll} style={{ marginBottom: '1rem', width: 'fit-content' }}>
             {selectedPackages.length === packages.length ? 'Deselect All' : 'Select All'}
           </button>
-          <div style={{
+          <div className="packages-list" style={{
             width: '100%',
             display: 'flex',
             flexDirection: 'column',
@@ -151,7 +151,7 @@ const NewPickup = () => {
                     onChange={() => handlePackageSelect(pkg.id)}
                     style={{ width: '20px', height: '20px' }}
                   />
-                  <div style={{ display: 'flex', flexDirection: 'column', overflow: 'visible', width: '100%' }}>
+                  <div className="package-info" style={{ display: 'flex', flexDirection: 'column', overflow: 'visible', width: '100%' }}>
                     <span style={{ fontWeight: 'bold', color: '#ff8c00' }}>{pkg.trackingNumber}</span>
                     <span>{pkg.packageDescription}</span>
                     <span className="package-cod">{pkg.deliveryAddress}</span>
@@ -168,7 +168,7 @@ const NewPickup = () => {
           </div>
         </div>
         {/* Pickup Details Card (Right) */}
-        <div className="pickup-details-section" style={{
+        <div className="pickup-details-section pickup-card" style={{
           width: '370px',
           backgroundColor: 'white',
           borderRadius: '8px',

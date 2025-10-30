@@ -1,15 +1,9 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
-import './App.css';
-import './Dashboard.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
-import createMockPackages from './components/MockData';
-import 'antd/dist/reset.css';
-
-// Initialize mock data only (no default users in production bundles)
-createMockPackages();
+import i18n from './i18n';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(

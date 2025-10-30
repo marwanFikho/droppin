@@ -187,7 +187,7 @@ const Navigation = () => {
                       <path d="M12 22C13.1046 22 14 21.1046 14 20H10C10 21.1046 10.8954 22 12 22ZM18 16V11C18 7.68629 16.2091 4.87972 13 4.18415V4C13 3.44772 12.5523 3 12 3C11.4477 3 11 3.44772 11 4V4.18415C7.79086 4.87972 6 7.68629 6 11V16L4 18V19H20V18L18 16Z" stroke="#333" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
                     {unreadCount > 0 && (
-                      <span style={{ position: 'absolute', top: 0, right: 0, background: 'red', color: 'white', borderRadius: '50%', fontSize: 12, minWidth: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 5px', fontWeight: 'bold', transform: 'translate(50%,-50%)' }}>{unreadCount}</span>
+                      <span style={{ position: 'absolute', top: 0, right: 0, background: 'red', color: 'white', borderRadius: '50%', fontSize: 12, minWidth: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 5px', fontWeight: 'bold', transform: 'translate(50%, -50%)' }}>{unreadCount}</span>
                     )}
                   </button>
                   {showNotifications && (
@@ -197,7 +197,7 @@ const Navigation = () => {
                         {(currentUser?.role === 'admin' || currentUser?.role === 'shop') && notifications.length > 0 && (
                           <button
                             onClick={handleDeleteAllNotifications}
-                            style={{ background: 'none', border: 'none', color: '#c00', marginLeft: 8, cursor: 'pointer' }}
+                            style={{ background: 'none', border: 'none', color: '#c00', marginLeft: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '24px', height: '24px' }}
                             title="Delete all notifications"
                           >
                             <FaTrashAlt size={16} />
@@ -220,7 +220,7 @@ const Navigation = () => {
                               {(currentUser?.role === 'admin' || currentUser?.role === 'shop') && (
                                 <button
                                   onClick={() => handleDeleteNotification(notif.id)}
-                                  style={{ background: 'none', border: 'none', color: '#c00', marginLeft: 8, cursor: 'pointer' }}
+                                  style={{ background: 'none', border: 'none', color: '#c00', marginLeft: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '20px', height: '20px' }}
                                   title="Delete notification"
                                 >
                                   <FaTrash size={14} />

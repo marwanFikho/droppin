@@ -218,17 +218,17 @@ const Wallet = () => {
               <tbody>
                 {moneyTransactions.map(tx => (
                   <tr key={tx.id}>
-                    <td>{new Date(tx.createdAt).toLocaleString()}</td>
-                    <td>{tx.attribute}</td>
-                    <td>
+                    <td data-label="Date" className="wallet-date">{new Date(tx.createdAt).toLocaleString()}</td>
+                    <td data-label="Attribute" className="wallet-attribute">{tx.attribute}</td>
+                    <td data-label="Type" className="wallet-type">
                       <span className={`change-type ${tx.changeType}`}>
                         {tx.changeType}
                       </span>
                     </td>
-                    <td className={`financial-cell ${tx.changeType}`}>
+                    <td data-label="Amount (EGP)" className={`financial-cell ${tx.changeType} wallet-amount`}>
             EGP {parseFloat(tx.amount).toFixed(2)}
                     </td>
-                    <td>{tx.description || '-'}</td>
+                    <td data-label="Description" className="wallet-description">{tx.description || '-'}</td>
                   </tr>
                 ))}
               </tbody>

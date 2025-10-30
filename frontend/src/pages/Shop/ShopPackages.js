@@ -6,6 +6,7 @@ import QRCode from 'qrcode';
 import { useAuth } from '../../context/AuthContext';
 import { notification } from 'antd';
 import { toArabicName } from '../../utils/arabicTransliteration';
+import ReactDOM from 'react-dom'; // Add import for createPortal
 
 const TABS = [
   { label: 'All', value: 'all' },
@@ -96,6 +97,20 @@ const ShopPackages = () => {
   const [shownDeliveryCostError, setShownDeliveryCostError] = useState('');
   const location = useLocation();
   const { currentUser } = useAuth();
+
+  const [showReturnModal, setShowReturnModal] = useState(false);
+  const [returnItems, setReturnItems] = useState({});
+  const [returnRefund, setReturnRefund] = useState('');
+  const [returnError, setReturnError] = useState('');
+  const [requestingReturn, setRequestingReturn] = useState(false);
+
+  const [showExchangeModal, setShowExchangeModal] = useState(false);
+  const [takeItems, setTakeItems] = useState([{ description: '', quantity: 1 }]);
+  const [giveItems, setGiveItems] = useState([{ description: '', quantity: 1 }]);
+  const [moneyType, setMoneyType] = useState('give'); // 'give' | 'take'
+  const [moneyAmount, setMoneyAmount] = useState('');
+  const [exchangeError, setExchangeError] = useState('');
+  const [requestingExchange, setRequestingExchange] = useState(false);
 
   // Editing package details (pre-pending only)
   const [isEditingDetails, setIsEditingDetails] = useState(false);
@@ -296,6 +311,23 @@ const ShopPackages = () => {
         .finally(() => setPickupLoading(false));
     }
   }, [activeTab]);
+
+  // Add/remove modal-open class to body when any modal is open to prevent scrolling
+  useEffect(() => {
+    const isAnyModalOpen = showCancelModal || showPickupModal || showPickupCancelModal || 
+                           showPackageDetailsModal || showReturnModal || showExchangeModal;
+    
+    if (isAnyModalOpen) {
+      document.body.classList.add('modal-open');
+    } else {
+      document.body.classList.remove('modal-open');
+    }
+    
+    // Cleanup function to remove class when component unmounts
+    return () => {
+      document.body.classList.remove('modal-open');
+    };
+  }, [showCancelModal, showPickupModal, showPickupCancelModal, showPackageDetailsModal, showReturnModal, showExchangeModal]);
 
   const handleCancel = async () => {
     if (!packageToCancel) return;
@@ -891,61 +923,6 @@ const ShopPackages = () => {
     }
   };
 
-  const [showReturnModal, setShowReturnModal] = useState(false);
-  const [returnItems, setReturnItems] = useState({});
-  const [returnRefund, setReturnRefund] = useState('');
-  const [returnError, setReturnError] = useState('');
-  const [requestingReturn, setRequestingReturn] = useState(false);
-
-  const submitReturnRequest = async () => {
-    if (!selectedPackage) return;
-    setRequestingReturn(true);
-    setReturnError('');
-    try {
-      const payload = {
-        items: Object.entries(returnItems).map(([itemId, details]) => ({
-          itemId: Number(itemId),
-          quantity: details.quantity
-        })),
-        refundAmount: parseFloat(returnRefund) || 0
-      };
-      await packageService.requestReturn(selectedPackage.id, payload);
-      setShowReturnModal(false);
-      setShowPackageDetailsModal(false);
-      setSelectedPackage(null);
-      setReturnItems({});
-      setReturnRefund('');
-      setReturnError('');
-      notification.success({ message: 'Return requested', description: 'Return request submitted successfully!', placement: 'topRight', duration: 3 });
-      // Refresh list without full page reload
-      // Prefer staying on the same tab
-      try {
-        const res = await packageService.getPackages({ page: 1, limit: 25 });
-        setPackages(res.data?.packages || res.data || []);
-      } catch (e) {
-        // Silent fallback
-      }
-      // Ensure UI reflects latest state; fallback to a hard refresh shortly after
-      setTimeout(() => {
-        try { window.location.reload(); } catch (_) {}
-      }, 800);
-    } catch (err) {
-      setReturnError(err.response?.data?.message || 'Failed to submit return request.');
-      notification.error({ message: 'Return request failed', description: err.response?.data?.message || 'Failed to submit return request.', placement: 'topRight', duration: 4 });
-    } finally {
-      setRequestingReturn(false);
-    }
-  };
-
-  // Exchange modal state
-  const [showExchangeModal, setShowExchangeModal] = useState(false);
-  const [takeItems, setTakeItems] = useState([{ description: '', quantity: 1 }]);
-  const [giveItems, setGiveItems] = useState([{ description: '', quantity: 1 }]);
-  const [moneyType, setMoneyType] = useState('give'); // 'give' | 'take'
-  const [moneyAmount, setMoneyAmount] = useState('');
-  const [exchangeError, setExchangeError] = useState('');
-  const [requestingExchange, setRequestingExchange] = useState(false);
-
   const addRow = (setter) => setter(prev => [...prev, { description: '', quantity: 1 }]);
   const updateRow = (setter, idx, key, value) => setter(prev => prev.map((r, i) => i === idx ? { ...r, [key]: value } : r));
   const removeRow = (setter, idx) => setter(prev => prev.filter((_, i) => i !== idx));
@@ -988,6 +965,46 @@ const ShopPackages = () => {
       notification.error({ message: 'Exchange request failed', description: err.response?.data?.message || 'Failed to submit exchange request.', placement: 'topRight', duration: 4 });
     } finally {
       setRequestingExchange(false);
+    }
+  };
+
+  const submitReturnRequest = async () => {
+    if (!selectedPackage) return;
+    setRequestingReturn(true);
+    setReturnError('');
+    try {
+      const payload = {
+        items: Object.entries(returnItems).map(([itemId, details]) => ({
+          itemId: Number(itemId),
+          quantity: details.quantity
+        })),
+        refundAmount: parseFloat(returnRefund) || 0
+      };
+      await packageService.requestReturn(selectedPackage.id, payload);
+      setShowReturnModal(false);
+      setShowPackageDetailsModal(false);
+      setSelectedPackage(null);
+      setReturnItems({});
+      setReturnRefund('');
+      setReturnError('');
+      notification.success({ message: 'Return requested', description: 'Return request submitted successfully!', placement: 'topRight', duration: 3 });
+      // Refresh list without full page reload
+      // Prefer staying on the same tab
+      try {
+        const res = await packageService.getPackages({ page: 1, limit: 25 });
+        setPackages(res.data?.packages || res.data || []);
+      } catch (e) {
+        // Silent fallback
+      }
+      // Ensure UI reflects latest state; fallback to a hard refresh shortly after
+      setTimeout(() => {
+        try { window.location.reload(); } catch (_) {}
+      }, 800);
+    } catch (err) {
+      setReturnError(err.response?.data?.message || 'Failed to submit return request.');
+      notification.error({ message: 'Return request failed', description: err.response?.data?.message || 'Failed to submit return request.', placement: 'topRight', duration: 4 });
+    } finally {
+      setRequestingReturn(false);
     }
   };
 
@@ -1103,7 +1120,7 @@ const ShopPackages = () => {
                     if (e.target.closest('button') || e.target.type === 'checkbox') return;
                     openDetailsModal(pkg);
                   }}>
-                    <td>
+                    <td className="package-select-cell" data-label="Select">
                       <input
                         type="checkbox"
                         checked={selectedPackages.includes(pkg.id)}
@@ -1111,18 +1128,18 @@ const ShopPackages = () => {
                         disabled={pkg.status === 'cancelled' || pkg.status === 'delivered' || pkg.status === 'cancelled-returned' || pkg.status === 'cancelled-awaiting-return' || pkg.status === 'rejected'}
                       />
                     </td>
-                    <td data-label="Tracking #">{pkg.trackingNumber}</td>
-                    <td data-label="Description">
-                      <div>{pkg.packageDescription}</div>
-                      <div style={{ color: '#666', marginTop: 4 }}>{pkg.deliveryAddress}</div>
+                    <td className="tracking-number" data-label="Tracking #">{pkg.trackingNumber}</td>
+                    <td className="package-description" data-label="Description">
+                      <div className="package-title">{pkg.packageDescription}</div>
+                      <div className="package-address" style={{ color: '#666', marginTop: 4 }}>{pkg.deliveryAddress}</div>
                       {(pkg.deliveryContactName || pkg.deliveryContactPhone) && (
-                        <div style={{ fontSize: 12, color: '#555', marginTop: 2 }}>
+                        <div className="package-contact" style={{ fontSize: 12, color: '#555', marginTop: 2 }}>
                           {pkg.deliveryContactName || 'N/A'}{pkg.deliveryContactPhone ? ` · ${pkg.deliveryContactPhone}` : ''}
                         </div>
                       )}
                     </td>
-                    <td data-label="Recipient">{pkg.deliveryContactName}</td>
-                    <td data-label="Status">
+                    <td className="recipient-name" data-label="Recipient">{pkg.deliveryContactName}</td>
+                    <td className="status-cell" data-label="Status">
                       {getStatusBadge(pkg.status)}
                       {activeTab === 'return-requests' && (
                         <span className="special-badge" style={{background: '#f55247', marginLeft: '5px'}}>Return</span>
@@ -1131,11 +1148,14 @@ const ShopPackages = () => {
                         <span className="special-badge" style={{background: '#7b1fa2', marginLeft: '5px'}}>Exchange</span>
                       )}
                     </td>
-                    <td data-label="COD">EGP {parseFloat(pkg.codAmount || 0).toFixed(2)} {getCodBadge(pkg.isPaid)}</td>
-                    <td data-label="Date">{new Date(pkg.createdAt).toLocaleDateString()}</td>
+                    <td className="package-cod" data-label="COD">
+                      <span className="cod-amount">EGP {parseFloat(pkg.codAmount || 0).toFixed(2)}</span>
+                      {getCodBadge(pkg.isPaid)}
+                    </td>
+                    <td className="package-date" data-label="Date">{new Date(pkg.createdAt).toLocaleDateString()}</td>
                     {activeTab !== 'cancelled' && (
                       <td data-label="Actions" className="actions-cell">
-                        {pkg.status !== 'cancelled' && pkg.status !== 'delivered' && pkg.status !== 'cancelled-returned' && pkg.status !== 'cancelled-awaiting-return' && pkg.status !== 'rejected' && pkg.status !== 'rejected-awaiting-return' && pkg.status !== 'rejected-returned' && pkg.status !== 'return-requested' && pkg.status !== 'return-in-transit' && pkg.status !== 'return-pending' && pkg.status !== 'return-completed' &&(
+                        {pkg.status !== 'cancelled' && pkg.status !== 'delivered' && pkg.status !== 'delivered-returned' && pkg.status !== 'cancelled-returned' && pkg.status !== 'cancelled-awaiting-return' && pkg.status !== 'rejected' && pkg.status !== 'rejected-awaiting-return' && pkg.status !== 'rejected-returned' && pkg.status !== 'return-requested' && pkg.status !== 'return-in-transit' && pkg.status !== 'return-pending' && pkg.status !== 'return-completed' &&(
                           <>
                             <button
                               className="action-button cancel-btn"
@@ -1196,9 +1216,9 @@ const ShopPackages = () => {
         </div>
       )}
       {/* Package Details Modal */}
-      {showPackageDetailsModal && selectedPackage && (
-        <div className="confirmation-overlay" onClick={() => setShowPackageDetailsModal(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
+      {showPackageDetailsModal && selectedPackage && ReactDOM.createPortal(
+        <div className="modal-overlay" onClick={() => setShowPackageDetailsModal(false)}>
+          <div className="modal-content package-details-modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h2>Package Details</h2>
               {canEditThisPackage(selectedPackage) && !isEditingDetails && (
@@ -1764,11 +1784,12 @@ const ShopPackages = () => {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {showReturnModal && selectedPackage && (
-        <div className="confirmation-overlay" onClick={() => setShowReturnModal(false)}>
+        <div className="modal-overlay" onClick={() => setShowReturnModal(false)}>
           <div className="confirmation-dialog" onClick={e => e.stopPropagation()}>
             <h3>Request Return</h3>
             <p>Select items to return and enter the refund to give to the customer (can be 0).</p>
@@ -1806,7 +1827,7 @@ const ShopPackages = () => {
       )}
 
       {showExchangeModal && selectedPackage && (
-        <div className="confirmation-overlay" onClick={() => setShowExchangeModal(false)}>
+        <div className="modal-overlay" onClick={() => setShowExchangeModal(false)}>
           <div className="confirmation-dialog" onClick={e => e.stopPropagation()} style={{ maxWidth: 900, width: '95vw', padding: 16 }}>
             <h3 style={{ marginBottom: 12 }}>Request Exchange</h3>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, alignItems: 'start' }}>

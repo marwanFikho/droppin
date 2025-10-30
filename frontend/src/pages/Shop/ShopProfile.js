@@ -165,14 +165,14 @@ const ShopProfile = () => {
   }, []);
 
   return (
-    <div className="shop-profile-page" style={{ maxWidth: '800px', margin: '0 auto', padding: '2rem' }}>
+    <div className="shop-profile-page">
       <h2>Shop Profile</h2>
       {/* API Key Section */}
       <div className="api-key-section" style={{ marginBottom: '2rem', background: '#f8f9fa', padding: '1rem', borderRadius: '8px' }}>
         <h3>Shopify Integration API Key</h3>
         <p>Use this API key to connect your Shopify app to your Droppin shop account.</p>
         {apiKey ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <div className="api-key-actions" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
             <input type="text" value={apiKey} readOnly style={{ width: '300px', fontFamily: 'monospace' }} />
             <button type="button" onClick={handleCopyApiKey} style={{ background: '#007bff', color: 'white', border: 'none', padding: '0.5rem 1rem', borderRadius: '4px' }}>Copy</button>
           </div>
@@ -235,7 +235,7 @@ const ShopProfile = () => {
         <div className="form-group">
           <label>Shown Shipping Fees (EGP)</label>
           {editingShownShippingFees ? (
-            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <div className="shipping-fees-actions" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
               <input
                 type="number"
                 value={shownShippingFeesDraft}
@@ -274,7 +274,7 @@ const ShopProfile = () => {
               >Cancel</button>
             </div>
           ) : (
-            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <div className="shipping-fees-actions" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
               <input
                 type="number"
                 value={shownShippingFees}
@@ -304,7 +304,7 @@ const ShopProfile = () => {
             <input style={{ marginBottom: '10px', width: '100%' }} type="password" placeholder="Confirm New Password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} />
             {pwError && <div className="error-message">{pwError}</div>}
             {pwSuccess && <div className="success-message">{pwSuccess}</div>}
-            <div style={{display:'flex',gap:'0.5rem'}}>
+            <div className="password-actions" style={{display:'flex',gap:'0.5rem'}}>
               <button type="button" className="profile-save-btn" style={{background:'#888'}} onClick={() => { setShowChangePassword(false); setCurrentPassword(''); setNewPassword(''); setConfirmPassword(''); setPwError(null); setPwSuccess(null); }}>Cancel</button>
               <button type="button" className="profile-save-btn" style={{background:'#007bff'}} onClick={handleChangePassword}>Change Password</button>
             </div>

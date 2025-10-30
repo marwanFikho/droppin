@@ -2,15 +2,12 @@ export const toArabicName = (input) => {
   if (input == null) return '-';
   const raw = String(input).trim();
   if (!raw) return '-';
-
-  // If already contains Arabic letters, return as-is
   if (/[ء-ي]/.test(raw)) return raw;
 
   const dictionary = {
     'droppin': 'دروبين',
     'egypt': 'مصر',
     'alexandria': 'الإسكندرية',
-    // Common Arabic names (quick wins)
     'mohamed': 'محمد',
     'mohammad': 'محمد',
     'muhammad': 'محمد',
@@ -48,7 +45,6 @@ export const toArabicName = (input) => {
   const lower = raw.toLowerCase();
   if (dictionary[lower]) return dictionary[lower];
 
-  // Transliterate each word
   return raw.split(/\s+/).map((word) => transliterateWord(word, dictionary)).join(' ');
 };
 
@@ -56,16 +52,12 @@ const transliterateWord = (word, dictionary) => {
   if (!word) return word;
   const lower = word.toLowerCase();
   if (dictionary[lower]) return dictionary[lower];
-
-  // Handle common Arabic article "al"
   if (lower.startsWith('al') && lower.length > 2) {
     return 'ال' + transliterateWord(lower.slice(2), dictionary);
   }
-
   let out = '';
   for (let i = 0; i < lower.length; ) {
     const two = lower.slice(i, i + 2);
-    // Digraphs
     if (two === 'sh') { out += 'ش'; i += 2; continue; }
     if (two === 'ch') { out += 'تش'; i += 2; continue; }
     if (two === 'th') { out += 'ث'; i += 2; continue; }
@@ -81,17 +73,13 @@ const transliterateWord = (word, dictionary) => {
 
     const ch = lower[i];
     const originalCh = word[i];
-
-    // Numbers and punctuation pass-through
     if (!/[a-z]/.test(ch)) { out += originalCh; i += 1; continue; }
 
-    // Single letter map
     const map = {
       a: 'ا', b: 'ب', c: 'ك', d: 'د', e: 'ي', f: 'ف', g: 'ج', h: 'ه', i: 'ي', j: 'ج', k: 'ك', l: 'ل', m: 'م', n: 'ن', o: 'و', p: 'ب', q: 'ق', r: 'ر', s: 'س', t: 'ت', u: 'و', v: 'ف', w: 'و', x: 'كس', y: 'ي', z: 'ز'
     };
     out += map[ch] || originalCh;
     i += 1;
   }
-
   return out;
 }; 

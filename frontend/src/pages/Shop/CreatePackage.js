@@ -316,12 +316,14 @@ const CreatePackage = () => {
   };
 
   return (
-    <div className="dashboard-content">
+  <div className="shop-packages-page create-package-layout" style={{ maxWidth: '1200px', margin: '0 auto', padding: '2rem' }}>
       {error && <div className="alert alert-error">{error}</div>}
       
       {/* Success Modal */}
       {showSuccessModal && (
-        <div style={{
+        <div
+          className="create-package-success-overlay"
+          style={{
           position: 'fixed',
           top: 0,
           left: 0,
@@ -332,8 +334,11 @@ const CreatePackage = () => {
           justifyContent: 'center',
           alignItems: 'center',
           zIndex: 1000
-        }}>
-          <div style={{
+        }}
+        >
+          <div
+            className="create-package-success-modal"
+            style={{
             backgroundColor: 'white',
             padding: '2rem',
             borderRadius: '8px',
@@ -341,7 +346,8 @@ const CreatePackage = () => {
             maxWidth: '400px',
             width: '90%',
             textAlign: 'center'
-          }}>
+          }}
+          >
             <div style={{
               fontSize: '3rem',
               color: '#4CAF50',
@@ -372,14 +378,24 @@ const CreatePackage = () => {
         </div>
       )}
 
-      <div className="form-container" style={{ maxWidth: '800px', margin: '0 auto' }}>
-        <form onSubmit={handleSubmit} className="create-package-form">
-          <div className="form-section" style={{ marginBottom: '1rem' }}>
-            <h2 style={{ fontSize: '1.2rem', marginBottom: '0.5rem', color: '#ff8c00' }}>Package Information</h2>
-            
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-              <div className="form-group">
-                <label htmlFor="packageDescription">Description*</label>
+      <div className="create-package-page">
+        <div className="form-container create-package-form-container" style={{ maxWidth: '100%', margin: '0 auto' }}>
+          <form onSubmit={handleSubmit} className="create-package-form">
+            <div className="form-section" style={{ marginBottom: '1rem' }}>
+              <h2 style={{ fontSize: '1.2rem', marginBottom: '0.5rem', color: '#ff8c00' }}>Package Information</h2>
+              
+              <div className="basic-info-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem' }}>
+                <div className="form-group" style={{ 
+                marginBottom: '1rem' 
+              }}>
+                <label htmlFor="packageDescription" style={{ 
+                  display: 'block', 
+                  marginBottom: '0.5rem', 
+                  fontWeight: '600', 
+                  color: '#333' 
+                }}>
+                  Description*
+                </label>
                 <input
                   type="text"
                   id="packageDescription"
@@ -388,17 +404,47 @@ const CreatePackage = () => {
                   onChange={handleChange}
                   placeholder="Describe contents"
                   required
+                  style={{ 
+                    width: '100%', 
+                    padding: '0.75rem', 
+                    border: '1px solid #ddd', 
+                    borderRadius: '6px', 
+                    fontSize: '1rem',
+                    transition: 'border-color 0.2s ease'
+                  }}
+                  onFocus={(e) => e.target.style.borderColor = '#ff8c00'}
+                  onBlur={(e) => e.target.style.borderColor = '#ddd'}
                 />
               </div>
 
-              <div className="form-group">
-                <label htmlFor="category">Category*</label>
+                <div className="form-group" style={{ 
+                marginBottom: '1rem' 
+              }}>
+                <label htmlFor="category" style={{ 
+                  display: 'block', 
+                  marginBottom: '0.5rem', 
+                  fontWeight: '600', 
+                  color: '#333' 
+                }}>
+                  Category*
+                </label>
                 <select
                   id="category"
                   name="category"
                   value={formData.category}
                   onChange={handleChange}
                   required
+                  style={{ 
+                    width: '100%', 
+                    padding: '0.75rem', 
+                    border: '1px solid #ddd', 
+                    borderRadius: '6px', 
+                    fontSize: '1rem',
+                    backgroundColor: 'white',
+                    transition: 'border-color 0.2s ease'
+                  }}
+                  onFocus={(e) => e.target.style.borderColor = '#ff8c00'}
+                  onBlur={(e) => e.target.style.borderColor = '#ddd'}
                 >
                   <option value="">Select category</option>
                   {CATEGORY_OPTIONS.map(opt => (
@@ -406,345 +452,365 @@ const CreatePackage = () => {
                   ))}
                 </select>
               </div>
-            </div>
+              </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)'}}>
-              <div className="form-group">
-                <label htmlFor="weight">Weight (kg)*</label>
+              <div className="dimensions-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)'}}>
+                <div className="form-group">
+                  <label htmlFor="weight">Weight (kg)*</label>
+                  <input
+                    type="number"
+                    id="weight"
+                    name="weight"
+                    value={formData.weight}
+                    onChange={handleChange}
+                    placeholder="Weight"
+                    step="0.01"
+                    min="0.01"
+                    required
+                    style={{ padding: '0.5rem' }}
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label htmlFor="dimensions.length">Length (cm)</label>
+                  <input
+                    type="number"
+                    id="dimensions.length"
+                    name="dimensions.length"
+                    value={formData.dimensions.length}
+                    onChange={handleChange}
+                    placeholder="Length"
+                    min="0"
+                    step="0.1"
+                    style={{ padding: '0.5rem' }}
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label htmlFor="dimensions.width">Width (cm)</label>
+                  <input
+                    type="number"
+                    id="dimensions.width"
+                    name="dimensions.width"
+                    value={formData.dimensions.width}
+                    onChange={handleChange}
+                    placeholder="Width"
+                    min="0"
+                    step="0.1"
+                    style={{ padding: '0.5rem' }}
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label htmlFor="dimensions.height">Height (cm)</label>
+                  <input
+                    type="number"
+                    id="dimensions.height"
+                    name="dimensions.height"
+                    value={formData.dimensions.height}
+                    onChange={handleChange}
+                    placeholder="Height"
+                    min="0"
+                    step="0.1"
+                    style={{ padding: '0.5rem' }}
+                  />
+                </div>
+              </div>
+
+              <div className="form-group" style={{ marginTop: '1rem' }}>
+                <label htmlFor="itemsNo">Number of Items in Package*</label>
                 <input
                   type="number"
-                  id="weight"
-                  name="weight"
-                  value={formData.weight}
+                  id="itemsNo"
+                  name="itemsNo"
+                  value={formData.itemsNo}
                   onChange={handleChange}
-                  placeholder="Weight"
-                  step="0.01"
-                  min="0.01"
+                  placeholder="Enter number of items"
+                  min="1"
                   required
-                  style={{ padding: '0.5rem' }}
-                />
-              </div>
-              
-              <div className="form-group">
-                <label htmlFor="dimensions.length">Length (cm)</label>
-                <input
-                  type="number"
-                  id="dimensions.length"
-                  name="dimensions.length"
-                  value={formData.dimensions.length}
-                  onChange={handleChange}
-                  placeholder="Length"
-                  min="0"
-                  step="0.1"
-                  style={{ padding: '0.5rem' }}
-                />
-              </div>
-              
-              <div className="form-group">
-                <label htmlFor="dimensions.width">Width (cm)</label>
-                <input
-                  type="number"
-                  id="dimensions.width"
-                  name="dimensions.width"
-                  value={formData.dimensions.width}
-                  onChange={handleChange}
-                  placeholder="Width"
-                  min="0"
-                  step="0.1"
-                  style={{ padding: '0.5rem' }}
-                />
-              </div>
-              
-              <div className="form-group">
-                <label htmlFor="dimensions.height">Height (cm)</label>
-                <input
-                  type="number"
-                  id="dimensions.height"
-                  name="dimensions.height"
-                  value={formData.dimensions.height}
-                  onChange={handleChange}
-                  placeholder="Height"
-                  min="0"
-                  step="0.1"
-                  style={{ padding: '0.5rem' }}
+                  style={{ padding: '0.5rem', width: '100%' }}
                 />
               </div>
             </div>
 
-            <div className="form-group" style={{ marginTop: '1rem' }}>
-              <label htmlFor="itemsNo">Number of Items in Package*</label>
-              <input
-                type="number"
-                id="itemsNo"
-                name="itemsNo"
-                value={formData.itemsNo}
-                onChange={handleChange}
-                placeholder="Enter number of items"
-                min="1"
-                required
-                style={{ padding: '0.5rem', width: '100%' }}
-              />
-            </div>
-          </div>
-
-          {/* Items Section */}
-          {items.length > 0 && (
-            <div className="form-section" style={{ marginBottom: '1rem' }}>
-              <h2 style={{ fontSize: '1.2rem', marginBottom: '0.5rem', color: '#ff8c00' }}>
-                Items Details ({items.length} items)
-              </h2>
-              <div style={{ 
-                backgroundColor: '#f9f9f9', 
-                padding: '1rem', 
-                borderRadius: '8px',
-                border: '1px solid #e0e0e0'
-              }}>
-                {items.map((item, index) => (
-                  <div key={item.id} style={{ 
-                    border: '1px solid #ddd', 
-                    padding: '1rem', 
-                    marginBottom: '1rem', 
-                    borderRadius: '4px',
-                    backgroundColor: 'white'
-                  }}>
-                    <h3 style={{ margin: '0 0 1rem 0', color: '#333', fontSize: '1rem' }}>
-                      Item {index + 1}
-                    </h3>
-                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: '1rem' }}>
-                      <div className="form-group">
-                        <label htmlFor={`item-description-${index}`}>Description*</label>
-                        <input
-                          type="text"
-                          id={`item-description-${index}`}
-                          value={item.description}
-                          onChange={(e) => handleItemChange(index, 'description', e.target.value)}
-                          placeholder="Item description"
-                          required
-                          style={{ padding: '0.5rem' }}
-                        />
-                      </div>
-                      
-                      <div className="form-group">
-                        <label htmlFor={`item-quantity-${index}`}>Quantity*</label>
-                        <input
-                          type="number"
-                          id={`item-quantity-${index}`}
-                          value={item.quantity}
-                          onChange={(e) => handleItemChange(index, 'quantity', e.target.value)}
-                          placeholder="Qty"
-                          min="1"
-                          required
-                          style={{ padding: '0.5rem' }}
-                        />
-                      </div>
-                      
-                      <div className="form-group">
-                        <label htmlFor={`item-cod-${index}`}>COD Per Unit</label>
-                        <input
-                          type="number"
-                          id={`item-cod-${index}`}
-                          value={item.codPerUnit === 0 ? '' : item.codPerUnit}
-                          onChange={(e) => handleItemChange(index, 'codPerUnit', e.target.value)}
-                          placeholder="0.00"
-                          min="0"
-                          step="0.01"
-                          style={{ padding: '0.5rem' }}
-                        />
-                      </div>
-                      
-                      <div className="form-group">
-                        <label>Total COD</label>
-                        <div style={{ 
-                          padding: '0.5rem', 
-                          backgroundColor: '#f8f9fa', 
-                          border: '1px solid #dee2e6', 
-                          borderRadius: '4px',
-                          minHeight: '38px',
-                          display: 'flex',
-                          alignItems: 'center'
-                        }}>
-                          EGP {((parseFloat(item.codPerUnit) || 0) * (parseInt(item.quantity) || 1)).toFixed(2)}
+            {/* Items Section */}
+            {items.length > 0 && (
+              <div className="form-section" style={{ marginBottom: '1rem' }}>
+                <h2 style={{ fontSize: '1.2rem', marginBottom: '0.5rem', color: '#ff8c00' }}>
+                  Items Details ({items.length} items)
+                </h2>
+                <div style={{ 
+                  backgroundColor: '#f9f9f9', 
+                  padding: '1rem', 
+                  borderRadius: '8px',
+                  border: '1px solid #e0e0e0'
+                }}>
+                  {items.map((item, index) => (
+                    <div key={item.id} className="item-card" style={{ 
+                      border: '1px solid #ddd', 
+                      padding: '1rem', 
+                      marginBottom: '1rem', 
+                      borderRadius: '4px',
+                      backgroundColor: 'white'
+                    }}>
+                      <h3 style={{ margin: '0 0 1rem 0', color: '#333', fontSize: '1rem' }}>
+                        Item {index + 1}
+                      </h3>
+                      <div className="item-details-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
+                        <div className="form-group">
+                          <label htmlFor={`item-description-${index}`}>Description*</label>
+                          <input
+                            type="text"
+                            id={`item-description-${index}`}
+                            value={item.description}
+                            onChange={(e) => handleItemChange(index, 'description', e.target.value)}
+                            placeholder="Item description"
+                            required
+                            style={{ padding: '0.5rem' }}
+                          />
+                        </div>
+                        
+                        <div className="form-group">
+                          <label htmlFor={`item-quantity-${index}`}>Quantity*</label>
+                          <input
+                            type="number"
+                            id={`item-quantity-${index}`}
+                            value={item.quantity}
+                            onChange={(e) => handleItemChange(index, 'quantity', e.target.value)}
+                            placeholder="Qty"
+                            min="1"
+                            required
+                            style={{ padding: '0.5rem' }}
+                          />
+                        </div>
+                        
+                        <div className="form-group">
+                          <label htmlFor={`item-cod-${index}`}>COD Per Unit</label>
+                          <input
+                            type="number"
+                            id={`item-cod-${index}`}
+                            value={item.codPerUnit === 0 ? '' : item.codPerUnit}
+                            onChange={(e) => handleItemChange(index, 'codPerUnit', e.target.value)}
+                            placeholder="0.00"
+                            min="0"
+                            step="0.01"
+                            style={{ padding: '0.5rem' }}
+                          />
+                        </div>
+                        
+                        <div className="form-group">
+                          <label>Total COD</label>
+                          <div style={{ 
+                            padding: '0.75rem', 
+                            backgroundColor: '#fff8f0', 
+                            border: '1px solid #ff8c00', 
+                            borderRadius: '6px',
+                            minHeight: '42px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            fontWeight: '600',
+                            color: '#ff8c00',
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+                          }}>
+                            EGP {((parseFloat(item.codPerUnit) || 0) * (parseInt(item.quantity) || 1)).toFixed(2)}
+                          </div>
                         </div>
                       </div>
                     </div>
+                  ))}
+                  
+                  {/* Total COD Display */}
+                  <div style={{ 
+                    marginTop: '1.5rem', 
+                    padding: '1.5rem', 
+                    backgroundColor: '#fff8f0', 
+                    borderRadius: '8px',
+                    border: '2px solid #ff8c00',
+                    boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
+                    textAlign: 'center'
+                  }}>
+                    <div style={{ 
+                      fontSize: '1.1rem', 
+                      color: '#ff8c00', 
+                      fontWeight: '600',
+                      marginBottom: '0.5rem'
+                    }}>
+                      Total COD Amount
+                    </div>
+                    <div style={{ 
+                      fontSize: '1.5rem', 
+                      fontWeight: '700',
+                      color: '#ff8c00'
+                    }}>
+                      EGP {calculateTotalCOD().toFixed(2)}
+                    </div>
                   </div>
-                ))}
-                
-                {/* Total COD Display */}
-                <div style={{ 
-                  marginTop: '1rem', 
-                  padding: '1rem', 
-                  backgroundColor: '#e8f5e8', 
-                  borderRadius: '4px',
-                  border: '1px solid #4CAF50'
-                }}>
-                  <strong>Total COD Amount: EGP {calculateTotalCOD().toFixed(2)}</strong>
-                </div>
 
-                {/* Shown Shipping Fees input under items list */}
-                <div className="form-group" style={{ marginTop: '1rem' }}>
-                  <label htmlFor="shownDeliveryCost">Shown Shipping Fees</label>
+                  {/* Shown Shipping Fees input under items list */}
+                  <div className="form-group" style={{ marginTop: '1rem' }}>
+                    <label htmlFor="shownDeliveryCost">Shown Shipping Fees</label>
+                    <input
+                      type="number"
+                      id="shownDeliveryCost"
+                      name="shownDeliveryCost"
+                      value={formData.shownDeliveryCost}
+                      onChange={handleChange}
+                      placeholder="Leave blank for default Shown Shipping fees"
+                      min="0"
+                      step="0.01"
+                      style={{ padding: '0.5rem', width: '100%' }}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            <div className="form-section">
+              <h2 style={{ fontSize: '1.2rem', color: '#ff8c00' }}>Delivery Information</h2>
+              
+              <div className="pickup-contact-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                <div className="form-group">
+                  <label htmlFor="deliveryAddress.contactName">Contact Name*</label>
                   <input
-                    type="number"
-                    id="shownDeliveryCost"
-                    name="shownDeliveryCost"
-                    value={formData.shownDeliveryCost}
+                    type="text"
+                    id="deliveryAddress.contactName"
+                    name="deliveryAddress.contactName"
+                    value={formData.deliveryAddress.contactName}
                     onChange={handleChange}
-                    placeholder="Leave blank for default Shown Shipping fees"
-                    min="0"
-                    step="0.01"
-                    style={{ padding: '0.5rem', width: '100%' }}
+                    placeholder="Recipient's name"
+                    required
+                    inputMode="text"
+                    autoComplete="off"
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label htmlFor="deliveryAddress.contactPhone">Contact Phone*</label>
+                  <input
+                    type="tel"
+                    id="deliveryAddress.contactPhone"
+                    name="deliveryAddress.contactPhone"
+                    value={formData.deliveryAddress.contactPhone}
+                    onChange={handleChange}
+                    placeholder="01xxxxxxxxx"
+                    required
+                    pattern="01[0-9]{9}"
+                    inputMode="numeric"
+                    maxLength={11}
+                    autoComplete="tel"
+                  />
+                </div>
+              </div>
+
+              <div className="payment-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem'}}>
+                <div className="form-group">
+                  <label htmlFor="deliveryAddress.street">Street Address*</label>
+                  <input
+                    type="text"
+                    id="deliveryAddress.street"
+                    name="deliveryAddress.street"
+                    value={formData.deliveryAddress.street}
+                    onChange={handleChange}
+                    placeholder="Street address"
+                    required
+                    style={{ padding: '0.5rem' }}
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label htmlFor="deliveryAddress.city">City*</label>
+                  <input
+                    type="text"
+                    id="deliveryAddress.city"
+                    name="deliveryAddress.city"
+                    value={formData.deliveryAddress.city}
+                    onChange={handleChange}
+                    placeholder="City"
+                    required
+                    style={{ padding: '0.5rem' }}
+                  />
+                </div>
+              </div>
+
+              <div className="notes-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginTop: '1rem' }}>
+                <div className="form-group">
+                  <label htmlFor="deliveryAddress.state">State</label>
+                  <input
+                    type="text"
+                    id="deliveryAddress.state"
+                    name="deliveryAddress.state"
+                    value={formData.deliveryAddress.state}
+                    onChange={handleChange}
+                    placeholder="State"
+                    style={{ padding: '0.5rem' }}
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label htmlFor="deliveryAddress.zipCode">Zip Code</label>
+                  <input
+                    type="text"
+                    id="deliveryAddress.zipCode"
+                    name="deliveryAddress.zipCode"
+                    value={formData.deliveryAddress.zipCode}
+                    onChange={handleChange}
+                    placeholder="Zip code"
+                    style={{ padding: '0.5rem' }}
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label htmlFor="deliveryAddress.country">Country*</label>
+                  <input
+                    type="text"
+                    id="deliveryAddress.country"
+                    name="deliveryAddress.country"
+                    value={formData.deliveryAddress.country}
+                    onChange={handleChange}
+                    placeholder="Country"
+                    required
+                    style={{ padding: '0.5rem' }}
                   />
                 </div>
               </div>
             </div>
-          )}
-          
-          <div className="form-section">
-            <h2 style={{ fontSize: '1.2rem', color: '#ff8c00' }}>Delivery Information</h2>
             
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-              <div className="form-group">
-                <label htmlFor="deliveryAddress.contactName">Contact Name*</label>
-                <input
-                  type="text"
-                  id="deliveryAddress.contactName"
-                  name="deliveryAddress.contactName"
-                  value={formData.deliveryAddress.contactName}
-                  onChange={handleChange}
-                  placeholder="Recipient's name"
-                  required
-                  inputMode="text"
-                  autoComplete="off"
-                />
-              </div>
+            <div className="form-section" style={{ marginBottom: '1rem' }}>
+              <h2 style={{ fontSize: '1.2rem', color: '#ff8c00' }}>Additional Information</h2>
               
               <div className="form-group">
-                <label htmlFor="deliveryAddress.contactPhone">Contact Phone*</label>
-                <input
-                  type="tel"
-                  id="deliveryAddress.contactPhone"
-                  name="deliveryAddress.contactPhone"
-                  value={formData.deliveryAddress.contactPhone}
+                <label htmlFor="shopNotes">Shop Notes</label>
+                <textarea
+                  id="shopNotes"
+                  name="shopNotes"
+                  value={formData.shopNotes}
                   onChange={handleChange}
-                  placeholder="01xxxxxxxxx"
-                  required
-                  pattern="01[0-9]{9}"
-                  inputMode="numeric"
-                  maxLength={11}
-                  autoComplete="tel"
-                />
+                  placeholder="Additional notes from the shop"
+                  rows="2"
+                  style={{ padding: '0.5rem', width: '100%' }}
+                ></textarea>
               </div>
             </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem'}}>
-              <div className="form-group">
-                <label htmlFor="deliveryAddress.street">Street Address*</label>
-                <input
-                  type="text"
-                  id="deliveryAddress.street"
-                  name="deliveryAddress.street"
-                  value={formData.deliveryAddress.street}
-                  onChange={handleChange}
-                  placeholder="Street address"
-                  required
-                  style={{ padding: '0.5rem' }}
-                />
-              </div>
-              
-              <div className="form-group">
-                <label htmlFor="deliveryAddress.city">City*</label>
-                <input
-                  type="text"
-                  id="deliveryAddress.city"
-                  name="deliveryAddress.city"
-                  value={formData.deliveryAddress.city}
-                  onChange={handleChange}
-                  placeholder="City"
-                  required
-                  style={{ padding: '0.5rem' }}
-                />
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem', marginTop: '0.5rem' }}>
-              <div className="form-group">
-                <label htmlFor="deliveryAddress.state">State</label>
-                <input
-                  type="text"
-                  id="deliveryAddress.state"
-                  name="deliveryAddress.state"
-                  value={formData.deliveryAddress.state}
-                  onChange={handleChange}
-                  placeholder="State"
-                  style={{ padding: '0.5rem' }}
-                />
-              </div>
-              
-              <div className="form-group">
-                <label htmlFor="deliveryAddress.zipCode">Zip Code</label>
-                <input
-                  type="text"
-                  id="deliveryAddress.zipCode"
-                  name="deliveryAddress.zipCode"
-                  value={formData.deliveryAddress.zipCode}
-                  onChange={handleChange}
-                  placeholder="Zip code"
-                  style={{ padding: '0.5rem' }}
-                />
-              </div>
-              
-              <div className="form-group">
-                <label htmlFor="deliveryAddress.country">Country*</label>
-                <input
-                  type="text"
-                  id="deliveryAddress.country"
-                  name="deliveryAddress.country"
-                  value={formData.deliveryAddress.country}
-                  onChange={handleChange}
-                  placeholder="Country"
-                  required
-                  style={{ padding: '0.5rem' }}
-                />
-              </div>
-            </div>
-          </div>
-          
-          <div className="form-section" style={{ marginBottom: '1rem' }}>
-            <h2 style={{ fontSize: '1.2rem', color: '#ff8c00' }}>Additional Information</h2>
             
-            <div className="form-group">
-              <label htmlFor="shopNotes">Shop Notes</label>
-              <textarea
-                id="shopNotes"
-                name="shopNotes"
-                value={formData.shopNotes}
-                onChange={handleChange}
-                placeholder="Additional notes from the shop"
-                rows="2"
-                style={{ padding: '0.5rem', width: '100%' }}
-              ></textarea>
-            </div>
-          </div>
-          
-          <button 
-            type="submit" 
-            className="submit-btn" 
-            disabled={isSubmitting}
-            style={{
-              width: '100%',
-              padding: '0.75rem',
-              backgroundColor: '#ff8c00',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: isSubmitting ? 'not-allowed' : 'pointer',
-              opacity: isSubmitting ? 0.7 : 1
-            }}
-          >
-            {isSubmitting ? 'Creating...' : 'Create Package'}
-          </button>
-        </form>
+            <button 
+              type="submit" 
+              className="submit-btn" 
+              disabled={isSubmitting}
+              style={{
+                width: '100%',
+                padding: '0.75rem',
+                backgroundColor: '#ff8c00',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                opacity: isSubmitting ? 0.7 : 1
+              }}
+            >
+              {isSubmitting ? 'Creating...' : 'Create Package'}
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   );

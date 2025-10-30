@@ -1,8 +1,8 @@
 import axios from 'axios';
 import { getToken } from '../utils/auth';
 
-// const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
-const API_URL = process.env.REACT_APP_API_URL || 'https://api.droppin-eg.com/api';
+const API_URL = process.env.REACT_APP_API_URL || 'http://192.168.200.169:5000/api';
+// const API_URL = process.env.REACT_APP_API_URL || 'https://api.droppin-eg.com/api';
 
 // Create axios instance
 const api = axios.create({
@@ -56,6 +56,8 @@ export const authService = {
     const response = await api.get('/auth/profile');
     return response;
   },
+  changePassword: ({ currentPassword, newPassword }) =>
+    api.post('/auth/change-password', { currentPassword, newPassword }),
 };
 
 // Package service
@@ -77,7 +79,6 @@ export const packageService = {
   },
   
   updatePackageStatus: (id, statusData) => {
-    // statusData may include: { status, deliveredItems: [{ itemId, deliveredQuantity }] }
     return api.patch(`/packages/${id}/status`, statusData);
   },
   
@@ -95,25 +96,30 @@ export const packageService = {
   getShopPickups: () => api.get('/pickups/shop'),
   getPickupById: (id) => api.get(`/pickups/${id}`),
   cancelPickup: (pickupId) => api.patch(`/pickups/${pickupId}/cancel`),
-  deletePickup: (pickupId) => api.patch(`/pickups/${pickupId}/cancel`),
   getMoneyTransactions: (params = {}) => api.get('/shops/money-transactions', { params }),
   updatePackageNotes: (id, note) => {
     return api.patch(`/packages/${id}/notes`, { note });
   },
-  // New: request return for a delivered package
+  // Request return for a delivered package
   requestReturn: (id, data) => {
     return api.post(`/packages/${id}/request-return`, data);
   },
-  // New: request exchange for a delivered package
+  // Request exchange for a delivered package
   requestExchange: (id, data) => {
     return api.post(`/packages/${id}/request-exchange`, data);
   },
+  generateShopApiKey: () => api.post('/shops/generate-api-key'),
 };
 
 // Shop service
 export const shopService = {
   getShops: () => api.get('/shops'),
   getShopById: (id) => api.get(`/shops/${id}`),
+};
+
+// User service
+export const userService = {
+  updateLanguage: (lang) => api.patch('/auth/profile/lang', { lang: lang.toUpperCase() }),
 };
 
 // Driver service
@@ -123,6 +129,7 @@ export const driverService = {
   updateLocation: (data) => api.post('/drivers/location', data),
   getDriverProfile: () => api.get('/drivers/profile'),
   updateAvailability: (isAvailable) => api.patch('/drivers/availability', { isAvailable }),
+  updateLanguage: (lang) => api.patch('/auth/profile/lang', { lang: lang.toUpperCase() }),
 };
 
 // Admin service
@@ -141,7 +148,7 @@ export const adminService = {
   // Shop management
   getShops: (filters = {}) => api.get('/admin/shops', { params: filters }),
   getShopById: (id) => api.get(`/admin/shops/${id}`),
-  approveShop: (id, approved, shippingFees) => api.patch(`/admin/shops/${id}/approve`, { approved, shippingFees }),
+  approveShop: (id, approved) => api.patch(`/admin/shops/${id}/approve`, { approved }),
   updateShop: (id, data) => api.patch(`/admin/shops/${id}`, data),
   adjustShopTotalCollected: (shopId, data) => api.post(`/admin/shops/${shopId}/adjust-total-collected`, data),
   
@@ -165,20 +172,35 @@ export const adminService = {
   markPickupAsPickedUp: (pickupId) => api.patch(`/pickups/${pickupId}/pickup`),
   assignDriverToPickup: (pickupId, driverId) => api.patch(`/pickups/admin/pickups/${pickupId}/assign-driver`, { driverId }),
   updatePickupStatus: (pickupId, status) => api.patch(`/pickups/admin/pickups/${pickupId}/status`, { status }),
+  
   // Financial management
   settleShopPayments: (shopId, data) => api.post(`/admin/shops/${shopId}/settle-payments`, data),
   updatePackagePayment: (packageId, data) => api.patch(`/admin/packages/${packageId}/payment`, data),
   getShopPackages: (shopId) => api.get(`/admin/packages`, { params: { shopId } }),
   getMoneyTransactions: (params = {}) => api.get('/admin/money', { params }),
-  // Analytics endpoints
+  getRecentActivities: () => api.get('/admin/activities'),
+  resetDriverCash: (driverId, data) => api.post(`/admin/drivers/${driverId}/reset-cash`, data),
+
+  // Admin Analytics (restored for dashboard charts)
   getPackagesPerMonth: () => api.get('/admin/analytics/packages-per-month'),
   getCodCollectedPerMonth: () => api.get('/admin/analytics/cod-per-month'),
   getPackageStatusDistribution: () => api.get('/admin/analytics/package-status-distribution'),
   getTopShops: () => api.get('/admin/analytics/top-shops'),
   getRecentPackagesData: () => api.get('/admin/analytics/recent-packages'),
   getRecentCodData: () => api.get('/admin/analytics/recent-cod'),
-  // Driver cash on hand reset
-  resetDriverCash: (driverId, data) => api.post(`/admin/drivers/${driverId}/reset-cash`, data),
+};
+
+export const pickupService = {
+  getDriverPickups: () => api.get('/pickups/driver'),
+  markPickupAsPickedUp: (pickupId) => api.patch(`/pickups/driver/${pickupId}/pickup`),
+};
+
+// Add notification API methods
+export const notificationService = {
+  getNotifications: () => api.get('/notifications'),
+  markAllRead: () => api.post('/notifications/mark-all-read', {}),
+  deleteNotification: (id) => api.delete(`/notifications/${id}`),
+  deleteAll: () => api.delete('/notifications'),
 };
 
 export default api;

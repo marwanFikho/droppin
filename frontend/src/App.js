@@ -4,23 +4,25 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import Navigation from './components/Navigation';
 import './App.css';
 
-// Pages
+// Pages (no more generic Register import)
 import Home from './pages/Home';
 import Login from './pages/Login';
-import Register from './pages/Register';
 import ShopRegister from './pages/ShopRegister';
-import DriverRegister from './pages/DriverRegister';
+import DriverRegister from './pages/Driver/Register';
 import RegistrationSuccess from './pages/RegistrationSuccess';
 import ShopDashboard from './pages/Shop/Dashboard';
-import DriverDashboard from './pages/Driver/Dashboard';
-import UserDashboard from './pages/User/Dashboard';
+import DriverDashboard from './pages/Driver/DriverDashboard';
+import DriverDeliveries from './pages/Driver/Deliveries';
+import DriverProfile from './pages/Driver/Profile';
 import AdminDashboard from './pages/Admin/Dashboard';
 import PackageTracking from './pages/PackageTracking';
+import DriverScanPickup from './pages/Driver/ScanPickup';
 import NotFound from './pages/NotFound';
 import NewPickup from './pages/Shop/NewPickup';
 import ShopPackages from './pages/Shop/ShopPackages';
 import CreatePackage from './pages/Shop/CreatePackage';
 import ShopProfile from './pages/Shop/ShopProfile';
+import ShopWallet from './pages/Shop/Wallet';
 import About from './pages/About';
 import Careers from './pages/Careers';
 import Contact from './pages/Contact';
@@ -38,11 +40,10 @@ const Unauthorized = () => (
   </div>
 );
 
-// Protected route component
+// Protected route component (no user role references)
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const { currentUser, loading } = useAuth();
   
-  // If loading, show a loading spinner
   if (loading) {
     return (
       <div className="loading-container">
@@ -51,32 +52,25 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
     );
   }
   
-  // If no user, redirect to login
   if (!currentUser) {
     return <Navigate to="/login" replace />;
   }
 
-  // Strict role checking - user must have exactly one of the allowed roles
   if (!allowedRoles.includes(currentUser.role)) {
     return <Navigate to="/unauthorized" replace />;
   }
 
-  // Additional check to prevent cross-role access
   const currentPath = window.location.pathname;
   const isAdminPath = currentPath.startsWith('/admin');
   const isShopPath = currentPath.startsWith('/shop');
   const isDriverPath = currentPath.startsWith('/driver');
-  const isUserPath = currentPath.startsWith('/user');
 
-  // Check if user is trying to access a dashboard that doesn't match their role
   if ((isAdminPath && currentUser.role !== 'admin') ||
       (isShopPath && currentUser.role !== 'shop') ||
-      (isDriverPath && currentUser.role !== 'driver') ||
-      (isUserPath && currentUser.role !== 'user')) {
+      (isDriverPath && currentUser.role !== 'driver')) {
     return <Navigate to="/unauthorized" replace />;
   }
   
-  // If authorized, render the protected content
   return children;
 };
 
@@ -156,10 +150,9 @@ function App() {
         <div className="App">
           <Navigation />
           <Routes>
-            {/* Public routes */}
+            {/* Public routes - no more /register */}
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
             <Route path="/register/shop" element={<ShopRegister />} />
             <Route path="/register/driver" element={<DriverRegister />} />
             <Route path="/registration-success" element={<RegistrationSuccess />} />
@@ -184,31 +177,29 @@ function App() {
                 </ProtectedRoute>
               }
             >
-              <Route index element={
-                // The dashboard main content (previously in ShopDashboard)
-                <DashboardHome />
-              } />
+              <Route index element={<DashboardHome />} />
               <Route path="packages" element={<ShopPackages />} />
               <Route path="create-package" element={<CreatePackage />} />
               <Route path="profile" element={<ShopProfile />} />
               <Route path="new-pickup" element={<NewPickup />} />
+              <Route path="wallet" element={<ShopWallet />} />
             </Route>
+
             <Route 
               path="/driver/*" 
               element={
                 <ProtectedRoute allowedRoles={['driver', 'admin']}>
-                  <DriverDashboard />
+                  <Routes>
+                    <Route index element={<DriverDashboard />} />
+                    <Route path="dashboard" element={<DriverDashboard />} />
+                    <Route path="deliveries" element={<DriverDeliveries />} />
+                    <Route path="profile" element={<DriverProfile />} />
+                    <Route path="scan-pickup" element={<DriverScanPickup />} />
+                  </Routes>
                 </ProtectedRoute>
               } 
             />
-            <Route 
-              path="/user/*" 
-              element={
-                <ProtectedRoute allowedRoles={['user', 'shop', 'driver', 'admin']}>
-                  <UserDashboard />
-                </ProtectedRoute>
-              } 
-            />
+
             <Route 
               path="/admin/*" 
               element={

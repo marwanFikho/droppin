@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Routes, Route, Link, useNavigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { packageService } from '../../services/api';
@@ -461,9 +461,90 @@ const ShopDashboard = () => {
     );
   };
 
+  // State for mobile menu
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  // Ref for swipe detection
+  const touchStartX = useRef(0);
+  const touchEndX = useRef(0);
+  const touchEligibleForOpen = useRef(false);
+  const dashboardContainerRef = useRef(null);
+  const EDGE_SWIPE_THRESHOLD = 300;
+  const MIN_OPEN_DISTANCE = 160;
+  const MIN_CLOSE_DISTANCE = 140;
+
+  // Handle touch start for swipe detection
+  const handleTouchStart = (e) => {
+    const startX = e.targetTouches[0].clientX;
+    touchStartX.current = startX;
+    touchEndX.current = startX;
+
+    const modalOpen = Boolean(document.querySelector('.modal-overlay, .confirmation-overlay'));
+    const target = e.target;
+    const blockedSelectors = [
+      '.packages-table',
+      '.package-list',
+      '.package-list-item',
+      '.money-table',
+      '.pickup-card',
+      '.create-package-form',
+      '.modal-content',
+      '.confirmation-dialog'
+    ];
+    const startedInBlockedArea = blockedSelectors.some((selector) => target.closest(selector));
+
+    touchEligibleForOpen.current = !isMenuOpen && !modalOpen && !startedInBlockedArea && startX <= EDGE_SWIPE_THRESHOLD;
+  };
+
+  // Handle touch move and end for swipe detection
+  const handleTouchMove = (e) => {
+    touchEndX.current = e.targetTouches[0].clientX;
+  };
+
+  const handleTouchEnd = () => {
+    if (touchStartX.current === 0 && touchEndX.current === 0) return;
+
+    const diffX = touchStartX.current - touchEndX.current;
+    const openedByEdgeSwipe = touchEligibleForOpen.current && diffX < -MIN_OPEN_DISTANCE;
+    const closedBySwipe = diffX > MIN_CLOSE_DISTANCE;
+
+    // Detect swipe right to show menu (need to swipe more than minSwipeDistance)
+    if (!isMenuOpen && openedByEdgeSwipe) {
+      setIsMenuOpen(true);
+    }
+    // Detect swipe left to hide menu (need to swipe more than minSwipeDistance)
+    else if (isMenuOpen && closedBySwipe) {
+      setIsMenuOpen(false);
+    }
+
+    touchStartX.current = 0;
+    touchEndX.current = 0;
+    touchEligibleForOpen.current = false;
+  };
+
+  // Close menu when clicking outside sidebar
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dashboardContainerRef.current && !dashboardContainerRef.current.contains(event.target) && 
+          !event.target.closest('.menu-toggle-btn') && isMenuOpen) {
+        setIsMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isMenuOpen]);
+
   return (
     <ShopDashboardContext.Provider value={{ refreshDashboard }}>
-      <div className="dashboard-container">
+      <div 
+        className={`dashboard-container ${isMenuOpen ? 'menu-open' : 'menu-closed'}`}
+        ref={dashboardContainerRef}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
         <div className="dashboard-sidebar">
           <div className="sidebar-header">
             <h2>Droppin</h2>
@@ -471,27 +552,27 @@ const ShopDashboard = () => {
           </div>
         
           <div className="sidebar-menu">
-            <Link to="/shop" className={`menu-item${location.pathname === '/shop' ? ' active' : ''}`}> 
+            <Link to="/shop" className={`menu-item${location.pathname === '/shop' ? ' active' : ''}`} onClick={() => setIsMenuOpen(false)}> 
               <i className="menu-icon">📊</i>
               Dashboard
             </Link>
-            <Link to="/shop/packages" className={`menu-item${location.pathname.startsWith('/shop/packages') ? ' active' : ''}`}> 
+            <Link to="/shop/packages" className={`menu-item${location.pathname.startsWith('/shop/packages') ? ' active' : ''}`} onClick={() => setIsMenuOpen(false)}> 
               <i className="menu-icon">📦</i>
               Packages
             </Link>
-            <Link to="/shop/create-package" className={`menu-item${location.pathname === '/shop/create-package' ? ' active' : ''}`}> 
+            <Link to="/shop/create-package" className={`menu-item${location.pathname === '/shop/create-package' ? ' active' : ''}`} onClick={() => setIsMenuOpen(false)}> 
               <i className="menu-icon">➕</i>
               New Package
             </Link>
-            <Link to="/shop/new-pickup" className={`menu-item${location.pathname === '/shop/new-pickup' ? ' active' : ''}`}> 
+            <Link to="/shop/new-pickup" className={`menu-item${location.pathname === '/shop/new-pickup' ? ' active' : ''}`} onClick={() => setIsMenuOpen(false)}> 
               <i className="menu-icon">🚚</i>
               New Pickup
             </Link>
-            <Link to="/shop/wallet" className={`menu-item${location.pathname === '/shop/wallet' ? ' active' : ''}`}> 
+            <Link to="/shop/wallet" className={`menu-item${location.pathname === '/shop/wallet' ? ' active' : ''}`} onClick={() => setIsMenuOpen(false)}> 
               <i className="menu-icon">💰</i>
               Wallet
             </Link>
-            <Link to="/shop/profile" className={`menu-item${location.pathname === '/shop/profile' ? ' active' : ''}`}> 
+            <Link to="/shop/profile" className={`menu-item${location.pathname === '/shop/profile' ? ' active' : ''}`} onClick={() => setIsMenuOpen(false)}> 
               <i className="menu-icon">👤</i>
               Profile
             </Link>
@@ -604,20 +685,23 @@ const ShopDashboard = () => {
                                   setShowPackageDetailsModal(true);
                                 }}
                               >
-                                <td className="tracking-number">{pkg.trackingNumber}</td>
-                                <td className="package-description">
-                                  <div>{pkg.packageDescription}</div>
-                                  <div style={{ color: '#666', marginTop: 4 }}>{pkg.deliveryAddress}</div>
+                                <td className="tracking-number" data-label="Tracking #">{pkg.trackingNumber || 'N/A'}</td>
+                                <td className="package-description" data-label="Package">
+                                  <div>{pkg.packageDescription || 'No description provided'}</div>
+                                  <div className="package-address">{pkg.deliveryAddress || 'No address available'}</div>
                                   {(pkg.deliveryContactName || pkg.deliveryContactPhone) && (
-                                    <div style={{ fontSize: 12, color: '#555', marginTop: 2 }}>
+                                    <div className="package-contact">
                                       {pkg.deliveryContactName || 'N/A'}{pkg.deliveryContactPhone ? ` · ${pkg.deliveryContactPhone}` : ''}
                                     </div>
                                   )}
                                 </td>
-                                <td className="recipient-name">{pkg.deliveryContactName}</td>
-                                <td>{getStatusBadge(pkg.status)}</td>
-                                <td className="package-cod">EGP {parseFloat(pkg.codAmount || 0).toFixed(2)} {getCodBadge(pkg.isPaid)}</td>
-                                <td>{new Date(pkg.createdAt).toLocaleDateString()}</td>
+                                <td className="recipient-name" data-label="Recipient">{pkg.deliveryContactName || 'N/A'}</td>
+                                <td data-label="Status">{getStatusBadge(pkg.status)}</td>
+                                <td className="package-cod" data-label="COD">
+                                  <span className="cod-amount">EGP {parseFloat(pkg.codAmount || 0).toFixed(2)}</span>
+                                  {getCodBadge(pkg.isPaid)}
+                                </td>
+                                <td data-label="Created On">{new Date(pkg.createdAt).toLocaleDateString()}</td>
                               </tr>
                             ))}
                         </tbody>
@@ -645,7 +729,7 @@ const ShopDashboard = () => {
       )}
       {/* Package Details Modal */}
       {showPackageDetailsModal && selectedPackage && (
-        <div className="confirmation-overlay" onClick={() => setShowPackageDetailsModal(false)}>
+        <div className="modal-overlay" onClick={() => setShowPackageDetailsModal(false)}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h2>Package Details</h2>

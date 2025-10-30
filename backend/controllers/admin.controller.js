@@ -1152,7 +1152,7 @@ exports.getPackages = async (req, res) => {
         'actualPickupTime', 'actualDeliveryTime',
         'priority', 'paymentStatus', 'createdAt', 'updatedAt',
         'codAmount', 'deliveryCost', 'shownDeliveryCost', 'isPaid', 'paymentDate', 'shopNotes',
-        'notes', 'exchangeDetails', 'itemsNo'
+        'notes', 'exchangeDetails', 'itemsNo', 'paidAmount'
       ],
       where: whereClause,
       include: [
@@ -2087,6 +2087,42 @@ exports.deletePackage = async (req, res) => {
     if (!pkg) {
       await transaction.rollback();
       return res.status(404).json({ message: 'Package not found' });
+    }
+
+    // If this package's COD was previously added to the shop's ToCollect via pickup, deduct it
+    try {
+      const codAmount = parseFloat(pkg.codAmount || 0) || 0;
+      const isExchange = (pkg.type === 'exchange') || ((pkg.status || '').startsWith('exchange-'));
+      const isDelivered = (pkg.status || '').startsWith('delivered');
+
+      if (codAmount > 0 && !isExchange && !isDelivered && pkg.pickupId) {
+        const pickup = await Pickup.findByPk(pkg.pickupId, { transaction });
+        if (pickup && pickup.status === 'picked_up') {
+          // Deduct COD from ToCollect
+          const shop = await Shop.findByPk(pkg.shopId, { transaction });
+          if (shop) {
+            await sequelize.query(
+              'UPDATE Shops SET ToCollect = CAST(ToCollect AS FLOAT) - :amount WHERE id = :shopId',
+              {
+                replacements: { amount: codAmount, shopId: shop.id },
+                type: QueryTypes.UPDATE,
+                transaction
+              }
+            );
+            await logMoneyTransaction(
+              shop.id,
+              codAmount,
+              'ToCollect',
+              'decrease',
+              `Package ${pkg.trackingNumber} deleted by admin (COD removed from ToCollect)`,
+              transaction
+            );
+          }
+        }
+      }
+    } catch (adjustErr) {
+      console.error('Failed to adjust ToCollect during package deletion:', adjustErr);
+      // Continue with deletion even if adjustment fails; transaction will include any successful steps
     }
     
     // Delete related items
