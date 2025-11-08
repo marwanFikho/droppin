@@ -925,6 +925,9 @@ body.no-scroll {
 .admin-dashboard-container {
   position: relative;
   overflow-x: hidden; /* prevent horizontal scroll when menu opens */
+  /* Limit touch handling to vertical panning to mitigate iOS Safari back-swipe */
+  touch-action: pan-y;
+  overscroll-behavior-x: contain;
 }
 
 /* Hide hamburger by default (desktop) */

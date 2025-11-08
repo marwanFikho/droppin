@@ -236,9 +236,10 @@ const AdminDashboard = () => {
   const touchStartX = useRef(0);
   const touchEndX = useRef(0);
   const touchEligibleForOpen = useRef(false);
-  const EDGE_SWIPE_THRESHOLD = 300; // px from left edge
-  const MIN_OPEN_DISTANCE = 160; // swipe right distance to open
-  const MIN_CLOSE_DISTANCE = 140; // swipe left distance to close
+  const EDGE_SWIPE_THRESHOLD = 240; // px from left edge allowed
+  const MIN_EDGE_GAP = 24; // gap from true edge to avoid iOS back-swipe
+  const MIN_OPEN_DISTANCE = 140; // swipe right distance to open
+  const MIN_CLOSE_DISTANCE = 120; // swipe left distance to close
 
   const handleTouchStart = (e) => {
     const startX = e.targetTouches?.[0]?.clientX ?? 0;
@@ -257,7 +258,11 @@ const AdminDashboard = () => {
     ];
     const startedInBlockedArea = blockedSelectors.some((selector) => target.closest?.(selector));
 
-    touchEligibleForOpen.current = !isMenuOpen && !modalOpen && !startedInBlockedArea && startX <= EDGE_SWIPE_THRESHOLD;
+    const inGestureZone = startX >= MIN_EDGE_GAP && startX <= EDGE_SWIPE_THRESHOLD;
+    touchEligibleForOpen.current = !isMenuOpen && !modalOpen && !startedInBlockedArea && inGestureZone;
+    if (touchEligibleForOpen.current) {
+      try { e.preventDefault(); } catch {}
+    }
   };
 
   const handleTouchMove = (e) => {

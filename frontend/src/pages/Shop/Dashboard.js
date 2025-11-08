@@ -469,9 +469,10 @@ const ShopDashboard = () => {
   const touchEndX = useRef(0);
   const touchEligibleForOpen = useRef(false);
   const dashboardContainerRef = useRef(null);
-  const EDGE_SWIPE_THRESHOLD = 300;
-  const MIN_OPEN_DISTANCE = 160;
-  const MIN_CLOSE_DISTANCE = 140;
+  const EDGE_SWIPE_THRESHOLD = 240; // max px from left where a swipe can start
+  const MIN_EDGE_GAP = 24; // avoid iOS Safari back-swipe by not using the true viewport edge
+  const MIN_OPEN_DISTANCE = 140;
+  const MIN_CLOSE_DISTANCE = 120;
 
   // Handle touch start for swipe detection
   const handleTouchStart = (e) => {
@@ -493,7 +494,12 @@ const ShopDashboard = () => {
     ];
     const startedInBlockedArea = blockedSelectors.some((selector) => target.closest(selector));
 
-    touchEligibleForOpen.current = !isMenuOpen && !modalOpen && !startedInBlockedArea && startX <= EDGE_SWIPE_THRESHOLD;
+    const inGestureZone = startX >= MIN_EDGE_GAP && startX <= EDGE_SWIPE_THRESHOLD;
+    touchEligibleForOpen.current = !isMenuOpen && !modalOpen && !startedInBlockedArea && inGestureZone;
+    // Prevent iOS Safari back-swipe if the gesture starts in our zone
+    if (touchEligibleForOpen.current) {
+      try { e.preventDefault(); } catch {}
+    }
   };
 
   // Handle touch move and end for swipe detection
