@@ -10,6 +10,7 @@ import Wallet from './Wallet';
 import { Pie } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import './ShopDashboard.css';
+import SwipeMenuHint from '../../components/SwipeMenuHint.jsx';
 
 // Register ChartJS components
 ChartJS.register(ArcElement, Tooltip, Legend);
@@ -536,6 +537,7 @@ const ShopDashboard = () => {
     };
   }, [isMenuOpen]);
 
+  // Tutorial hint for first-time mobile users (one-time overlay)
   return (
     <ShopDashboardContext.Provider value={{ refreshDashboard }}>
       <div 
@@ -713,7 +715,9 @@ const ShopDashboard = () => {
             </div>
           } />
         </Routes>
-      </div>
+  </div>
+  {/* One-time mobile swipe menu tutorial */}
+  <SwipeMenuHint isMenuOpen={isMenuOpen} />
       {showCancelModal && (
         <div className="confirmation-overlay" onClick={() => { setShowCancelModal(false); setCancelError(null); }}>
           <div className="confirmation-dialog warning-dialog" onClick={e => e.stopPropagation()}>

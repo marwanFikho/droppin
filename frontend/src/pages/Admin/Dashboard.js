@@ -5,6 +5,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faUser, faStore, faTruck, faBox, faSearch, faEye, faCheck, faTimes, faChartBar, faUserPlus, faTimes as faClose, faEdit, faSignOutAlt, faTrash, faDollarSign, faPlus } from '@fortawesome/free-solid-svg-icons';
 import { formatDate } from '../../utils/dateUtils';
 import './AdminDashboard.css';
+import SwipeMenuHint from '../../components/SwipeMenuHint.jsx';
 import { Line, Bar, Pie } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -5850,15 +5851,17 @@ const AdminDashboard = () => {
     }
   };
 
+  // Render main dashboard + one-time swipe hint for mobile users
   return (
-    <div
+  <div
       className={`admin-dashboard admin-dashboard-container ${isMenuOpen ? 'menu-open' : 'menu-closed'}`}
       ref={adminContainerRef}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
     >
-      {renderStatusMessage()}
+  {renderStatusMessage()}
+  <SwipeMenuHint isMenuOpen={isMenuOpen} />
       {renderAdminDeliveryModal()}
       {renderConfirmationDialog()}
       {renderForwardPackageModal()}
