@@ -1365,25 +1365,31 @@ const AdminDashboard = () => {
 
       // Fetch packages for this shop
       const packagesResponse = await adminService.getShopPackages(shopId);
-      // Normalize the response: accept array at root, or data.packages, or empty
+      // Normalize the response robustly: try common shapes and fall back to []
       let pkgs = [];
-      if (Array.isArray(packagesResponse?.data)) {
-        pkgs = packagesResponse.data;
-      } else if (packagesResponse?.data?.packages && Array.isArray(packagesResponse.data.packages)) {
-        pkgs = packagesResponse.data.packages;
-      } else if (packagesResponse?.packages && Array.isArray(packagesResponse.packages)) {
-        pkgs = packagesResponse.packages;
+      const candidates = [
+        packagesResponse?.data,
+        packagesResponse?.data?.packages,
+        packagesResponse?.packages,
+        packagesResponse?.data?.rows,
+        packagesResponse?.data?.data,
+        packagesResponse?.rows,
+        packagesResponse?.data?.results,
+      ];
+      for (const c of candidates) {
+        if (Array.isArray(c)) { pkgs = c; break; }
       }
+      if (!Array.isArray(pkgs)) pkgs = [];
 
       // Sort newest first (assume createdAt) and take latest 10 only for display section
       const latestTen = pkgs
         .slice()
         .sort((a,b) => new Date(b.createdAt || b.updatedAt || 0) - new Date(a.createdAt || a.updatedAt || 0))
         .slice(0,10);
-      setShopPackages(latestTen);
+  setShopPackages(latestTen);
 
       // Determine packages that still have money to settle from full set (not just top 10)
-      const packagesWithMoney = pkgs.filter(pkg => 
+      const packagesWithMoney = (Array.isArray(pkgs) ? pkgs : []).filter(pkg => 
         parseFloat(pkg.codAmount) > 0 && pkg.isPaid === true && pkg.status === 'delivered'
       );
       setShopPackagesWithUnpaidMoney(packagesWithMoney);
@@ -2469,7 +2475,7 @@ const AdminDashboard = () => {
                           </tr>
                         </thead>
                         <tbody>
-                          {shopPackages.map(pkg => (
+                          {(Array.isArray(shopPackages) ? shopPackages : []).map(pkg => (
                             <tr key={pkg.id}>
                               <td>{pkg.trackingNumber}</td>
                               <td>
