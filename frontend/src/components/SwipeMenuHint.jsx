@@ -59,29 +59,31 @@ export default function SwipeMenuHint({ isMenuOpen }) {
   if (!visible) return null;
 
   return (
-    <div className="swipe-hint-overlay" role="dialog" aria-label="Swipe from the left edge to open the menu">
+    <div className="swipe-hint-overlay" role="dialog" aria-label="Tap the menu button at the bottom left to open the side menu">
       <div className="swipe-hint-card">
-        <div className="swipe-visual">
-          <div className="edge"></div>
-          <div className="hand">
-            <div className="finger"></div>
-          </div>
-          <div className="arrow">➜</div>
+        <div className="swipe-visual button-visual">
+          <div className="button-shape">☰</div>
+          <div className="pulse-ring"></div>
+          <div className="hint-arrow">⬆</div>
         </div>
         <div className="swipe-text">
-          <h3>Tip: Swipe to open menu</h3>
-          <p>From the left edge, swipe right to reveal the side menu.</p>
+          <h3>Menu moved to a button</h3>
+          <p>Tap the round button at the bottom-left to open your side menu.</p>
         </div>
         <div className="swipe-actions">
           <button
             className="btn-primary"
             onClick={() => {
+              const btn = document.querySelector('.menu-fab');
+              if (btn) {
+                btn.click();
+              }
               try { localStorage.setItem(storageKey, 'true'); } catch {}
               setSeen(true);
               setVisible(false);
             }}
           >
-            Got it
+            Show me
           </button>
         </div>
       </div>

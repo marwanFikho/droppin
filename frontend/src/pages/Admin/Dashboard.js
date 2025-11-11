@@ -230,58 +230,9 @@ const AdminDashboard = () => {
     }
   }, [isMobile, showDetailsModal]);
 
-  // --- Mobile sidebar state & swipe handling (match Shop UX) ---
+  // --- Mobile sidebar state (button toggled only) ---
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const adminContainerRef = useRef(null);
-  const touchStartX = useRef(0);
-  const touchEndX = useRef(0);
-  const touchEligibleForOpen = useRef(false);
-  const EDGE_SWIPE_THRESHOLD = 240; // px from left edge allowed
-  const MIN_EDGE_GAP = 24; // gap from true edge to avoid iOS back-swipe
-  const MIN_OPEN_DISTANCE = 140; // swipe right distance to open
-  const MIN_CLOSE_DISTANCE = 120; // swipe left distance to close
-
-  const handleTouchStart = (e) => {
-    const startX = e.targetTouches?.[0]?.clientX ?? 0;
-    touchStartX.current = startX;
-    touchEndX.current = startX;
-
-    // Avoid opening when a modal is open or starting on interactive lists
-    const modalOpen = Boolean(document.querySelector('.modal-overlay, .confirmation-overlay'));
-    const target = e.target;
-    const blockedSelectors = [
-      '.admin-table',
-      '.packages-table',
-      '.money-table',
-      '.modal-content',
-      '.confirmation-dialog'
-    ];
-    const startedInBlockedArea = blockedSelectors.some((selector) => target.closest?.(selector));
-
-    const inGestureZone = startX >= MIN_EDGE_GAP && startX <= EDGE_SWIPE_THRESHOLD;
-    touchEligibleForOpen.current = !isMenuOpen && !modalOpen && !startedInBlockedArea && inGestureZone;
-    if (touchEligibleForOpen.current) {
-      try { e.preventDefault(); } catch {}
-    }
-  };
-
-  const handleTouchMove = (e) => {
-    touchEndX.current = e.targetTouches?.[0]?.clientX ?? 0;
-  };
-
-  const handleTouchEnd = () => {
-    if (touchStartX.current === 0 && touchEndX.current === 0) return;
-    const diffX = touchStartX.current - touchEndX.current;
-    const openedByEdgeSwipe = touchEligibleForOpen.current && diffX < -MIN_OPEN_DISTANCE;
-    const closedBySwipe = diffX > MIN_CLOSE_DISTANCE;
-
-    if (!isMenuOpen && openedByEdgeSwipe) setIsMenuOpen(true);
-    else if (isMenuOpen && closedBySwipe) setIsMenuOpen(false);
-
-    touchStartX.current = 0;
-    touchEndX.current = 0;
-    touchEligibleForOpen.current = false;
-  };
 
   // Close menu on outside click
   useEffect(() => {
@@ -1406,49 +1357,40 @@ const AdminDashboard = () => {
     setShopPackages([]);
     setShopPackagesWithUnpaidMoney([]);
     setShopUnpaidTotal(0);
-    
     try {
-      console.log(`Loading financial data for shop ID ${shopId}`);
-      
-      // Use our new direct shop endpoint to get the latest financial data
+      // Fetch shop financial snapshot
       const shopResponse = await adminService.getShopById(shopId);
-      
-      if (!shopResponse?.data) {
-        throw new Error('Failed to fetch shop financial data');
-      }
-      
-      const shopData = shopResponse.data;
-      console.log('Shop direct data retrieved:', shopData);
-      
-      // Use TotalCollected directly from database
+      const shopData = shopResponse?.data || {};
       const totalCollected = parseFloat(shopData.TotalCollected || 0);
-      console.log(`Shop TotalCollected from database: $${totalCollected.toFixed(2)}`);
-      
-      // Get packages for this shop (just to display them in the settlement dialog)
+
+      // Fetch packages for this shop
       const packagesResponse = await adminService.getShopPackages(shopId);
-      const packages = packagesResponse?.data || [];
-      console.log(`Loaded ${packages.length} packages for shop ID ${shopId}`);
-      
-      // Set all packages for display
-      setShopPackages(packages);
-      
-      // Filter packages that have money to be settled
-      const packagesWithMoney = packages.filter(pkg => 
-        pkg.codAmount > 0 && 
-        pkg.isPaid === true && 
-        pkg.status === 'delivered'
+      // Normalize the response: accept array at root, or data.packages, or empty
+      let pkgs = [];
+      if (Array.isArray(packagesResponse?.data)) {
+        pkgs = packagesResponse.data;
+      } else if (packagesResponse?.data?.packages && Array.isArray(packagesResponse.data.packages)) {
+        pkgs = packagesResponse.data.packages;
+      } else if (packagesResponse?.packages && Array.isArray(packagesResponse.packages)) {
+        pkgs = packagesResponse.packages;
+      }
+
+      // Sort newest first (assume createdAt) and take latest 10 only for display section
+      const latestTen = pkgs
+        .slice()
+        .sort((a,b) => new Date(b.createdAt || b.updatedAt || 0) - new Date(a.createdAt || a.updatedAt || 0))
+        .slice(0,10);
+      setShopPackages(latestTen);
+
+      // Determine packages that still have money to settle from full set (not just top 10)
+      const packagesWithMoney = pkgs.filter(pkg => 
+        parseFloat(pkg.codAmount) > 0 && pkg.isPaid === true && pkg.status === 'delivered'
       );
-      
-      console.log(`Found ${packagesWithMoney.length} packages with money to settle`);
-      
-      // IMPORTANT: Use the TotalCollected value from database as the settlement amount
       setShopPackagesWithUnpaidMoney(packagesWithMoney);
       setShopUnpaidTotal(totalCollected);
-      
-      console.log(`Total amount to settle (from database): $${totalCollected.toFixed(2)}`);
     } catch (error) {
-      console.error('Error loading shop data:', error);
-      alert(`Error: ${error.message}`);
+      console.error('Error loading shop packages:', error);
+      alert(`Error: ${error?.response?.data?.message || error.message || 'Failed to load packages'}`);
       setShopPackages([]);
     } finally {
       setIsLoadingShopPackages(false);
@@ -2503,10 +2445,17 @@ const AdminDashboard = () => {
                   <button 
                     className="load-packages-btn"
                     onClick={() => loadShopPackages(selectedEntity.shopId)}
+                    disabled={isLoadingShopPackages}
                   >
-                    Load Packages
+                    {isLoadingShopPackages ? 'Loading…' : 'Load Packages'}
                   </button>
                   
+                  {isLoadingShopPackages && shopPackages.length === 0 && (
+                    <div style={{ marginTop: '8px', color: '#666' }}>Fetching latest packages…</div>
+                  )}
+                  {!isLoadingShopPackages && shopPackages.length === 0 && (
+                    <div style={{ marginTop: '8px', color: '#666' }}>No recent packages found.</div>
+                  )}
                   {shopPackages.length > 0 && (
                     <div className="shop-packages-table">
                       <table>
@@ -5861,10 +5810,17 @@ const AdminDashboard = () => {
   <div
       className={`admin-dashboard admin-dashboard-container ${isMenuOpen ? 'menu-open' : 'menu-closed'}`}
       ref={adminContainerRef}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
     >
+    {/* Floating bottom-left menu toggle button */}
+    <button
+      className="menu-fab"
+      aria-label={isMenuOpen ? 'Close menu' : 'Open menu'}
+      onClick={() => setIsMenuOpen(o => !o)}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setIsMenuOpen(o => !o); } }}
+    >
+      <span className={`icon icon-arrow ${isMenuOpen ? 'hide' : 'show'}`} aria-hidden="true">→</span>
+      <span className={`icon icon-hamburger ${isMenuOpen ? 'show' : 'hide'}`} aria-hidden="true">☰</span>
+    </button>
   {renderStatusMessage()}
   <SwipeMenuHint isMenuOpen={isMenuOpen} />
       {renderAdminDeliveryModal()}

@@ -40,6 +40,7 @@ export const loader = async ({ request }) => {
               shippingAddress {
                 name
                 address1
+                address2
                 city
                 province
                 zip
@@ -108,7 +109,7 @@ export const loader = async ({ request }) => {
         id: node.id,
         name: node.name,
         customer: shipping.name || "",
-        address: shipping.address1 || "",
+        address: [shipping.address1, shipping.address2].filter(Boolean).join(", ") || "",
         city: shipping.city || "",
         province: shipping.province || "",
         zip: shipping.zip || "",

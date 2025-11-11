@@ -35,69 +35,63 @@ const returnToShopStatuses = ['cancelled-awaiting-return', 'cancelled-returned']
 
 const ShopDashboard = () => {
   const { currentUser } = useAuth();
-  const [packages, setPackages] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [refreshData, setRefreshData] = useState(Date.now()); // Add timestamp for triggering refreshes
-  const [financialStats, setFinancialStats] = useState({
-    totalToCollect: 0,
-    totalCollected: 0,
-    settelled: 0,
-    rawSettelled: '0'
-  });
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Core state
+  const [packages, setPackages] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [refreshData, setRefreshData] = useState(Date.now());
+  const refreshDashboard = () => setRefreshData(Date.now());
+
+  // UI state
+  const [selectedPackage, setSelectedPackage] = useState(null);
+  const [showPackageDetailsModal, setShowPackageDetailsModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [packageToCancel, setPackageToCancel] = useState(null);
   const [cancelError, setCancelError] = useState(null);
-  // Add search state
+  const [activeTab, setActiveTab] = useState('all');
   const [search, setSearch] = useState('');
-  // Add money transactions state
-  const [moneyTransactions, setMoneyTransactions] = useState([]);
+
+  // Responsive
+  const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth <= 768 : false);
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  // Money/Wallet state
   const [moneyFilters, setMoneyFilters] = useState({
     startDate: '',
     endDate: '',
     attribute: '',
     changeType: '',
-    search: '',
     sortBy: 'createdAt',
-    sortOrder: 'DESC'
+    sortOrder: 'DESC',
+    search: ''
   });
-  const [activeTab, setActiveTab] = useState('all');
-  const [shopCodToCollect, setShopCodToCollect] = useState(0);
-  const [sortConfig, setSortConfig] = useState({
-    field: 'createdAt',
-    order: 'DESC'
+  const [moneyTransactions, setMoneyTransactions] = useState([]);
+  const [financialStats, setFinancialStats] = useState({
+    rawToCollect: 0,
+    rawTotalCollected: 0,
+    rawSettelled: 0
   });
-  const [showPackageDetailsModal, setShowPackageDetailsModal] = useState(false);
-  const [selectedPackage, setSelectedPackage] = useState(null);
-  
-  // Function to refresh dashboard data - can be called from any child component
-  const refreshDashboard = () => {
-    console.log('Dashboard refresh requested');
-    setRefreshData(Date.now());
-  };
 
-  // Add fetchPackages function
+  // Helper to refetch packages list
   const fetchPackages = async () => {
     try {
-      const response = await packageService.getPackages({ page: 1, limit: 25 });
-      const pkgs = response.data?.packages || response.data || [];
-      setPackages(Array.isArray(pkgs) ? pkgs : []);
-    } catch (error) {
-      console.error('Error fetching packages:', error);
-      alert('Failed to fetch packages. Please try again.');
-      setPackages([]);
+      const packagesResponse = await packageService.getPackages({ page: 1, limit: 25 });
+      const pkgs = packagesResponse.data?.packages || packagesResponse.data || [];
+      setPackages(pkgs);
+    } catch (e) {
+      console.error('Error fetching packages:', e);
     }
   };
 
-  // Add useEffect to fetch packages on component mount
+  // Fetch packages, shop profile, and money transactions
   useEffect(() => {
-    fetchPackages();
-  }, []);
-
-  useEffect(() => {
-    console.log('Dashboard data refresh triggered:', refreshData);
     // Fetch packages and shop details when component mounts or refreshData changes
     const fetchData = async () => {
       try {
@@ -462,71 +456,9 @@ const ShopDashboard = () => {
     );
   };
 
-  // State for mobile menu
+  // State for menu (toggled only by button now)
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  // Ref for swipe detection
-  const touchStartX = useRef(0);
-  const touchEndX = useRef(0);
-  const touchEligibleForOpen = useRef(false);
   const dashboardContainerRef = useRef(null);
-  const EDGE_SWIPE_THRESHOLD = 240; // max px from left where a swipe can start
-  const MIN_EDGE_GAP = 24; // avoid iOS Safari back-swipe by not using the true viewport edge
-  const MIN_OPEN_DISTANCE = 140;
-  const MIN_CLOSE_DISTANCE = 120;
-
-  // Handle touch start for swipe detection
-  const handleTouchStart = (e) => {
-    const startX = e.targetTouches[0].clientX;
-    touchStartX.current = startX;
-    touchEndX.current = startX;
-
-    const modalOpen = Boolean(document.querySelector('.modal-overlay, .confirmation-overlay'));
-    const target = e.target;
-    const blockedSelectors = [
-      '.packages-table',
-      '.package-list',
-      '.package-list-item',
-      '.money-table',
-      '.pickup-card',
-      '.create-package-form',
-      '.modal-content',
-      '.confirmation-dialog'
-    ];
-    const startedInBlockedArea = blockedSelectors.some((selector) => target.closest(selector));
-
-    const inGestureZone = startX >= MIN_EDGE_GAP && startX <= EDGE_SWIPE_THRESHOLD;
-    touchEligibleForOpen.current = !isMenuOpen && !modalOpen && !startedInBlockedArea && inGestureZone;
-    // Prevent iOS Safari back-swipe if the gesture starts in our zone
-    if (touchEligibleForOpen.current) {
-      try { e.preventDefault(); } catch {}
-    }
-  };
-
-  // Handle touch move and end for swipe detection
-  const handleTouchMove = (e) => {
-    touchEndX.current = e.targetTouches[0].clientX;
-  };
-
-  const handleTouchEnd = () => {
-    if (touchStartX.current === 0 && touchEndX.current === 0) return;
-
-    const diffX = touchStartX.current - touchEndX.current;
-    const openedByEdgeSwipe = touchEligibleForOpen.current && diffX < -MIN_OPEN_DISTANCE;
-    const closedBySwipe = diffX > MIN_CLOSE_DISTANCE;
-
-    // Detect swipe right to show menu (need to swipe more than minSwipeDistance)
-    if (!isMenuOpen && openedByEdgeSwipe) {
-      setIsMenuOpen(true);
-    }
-    // Detect swipe left to hide menu (need to swipe more than minSwipeDistance)
-    else if (isMenuOpen && closedBySwipe) {
-      setIsMenuOpen(false);
-    }
-
-    touchStartX.current = 0;
-    touchEndX.current = 0;
-    touchEligibleForOpen.current = false;
-  };
 
   // Close menu when clicking outside sidebar
   useEffect(() => {
@@ -549,10 +481,17 @@ const ShopDashboard = () => {
       <div 
         className={`dashboard-container ${isMenuOpen ? 'menu-open' : 'menu-closed'}`}
         ref={dashboardContainerRef}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
       >
+        {/* Floating bottom-left menu toggle button */}
+        <button
+          className="menu-fab"
+          aria-label={isMenuOpen ? 'Close menu' : 'Open menu'}
+          onClick={() => setIsMenuOpen(o => !o)}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setIsMenuOpen(o => !o); } }}
+        >
+          <span className={`icon icon-arrow ${isMenuOpen ? 'hide' : 'show'}`} aria-hidden="true">→</span>
+          <span className={`icon icon-hamburger ${isMenuOpen ? 'show' : 'hide'}`} aria-hidden="true">☰</span>
+        </button>
         <div className="dashboard-sidebar">
           <div className="sidebar-header">
             <h2>Droppin</h2>
@@ -587,7 +526,7 @@ const ShopDashboard = () => {
           </div>
         </div>
         
-        <Routes>
+  <Routes>
           <Route path="create-package" element={<CreatePackage />} />
           <Route path="packages" element={<ShopPackages />} />
           <Route path="profile" element={<ShopProfile />} />
@@ -677,53 +616,87 @@ const ShopDashboard = () => {
                       <Link to="/shop/create-package" className="action-button">Create Package</Link>
                     </div>
                   ) : (
-                    <div className="package-list">
-                      <table className="packages-table recent-packages-table">
-                        <tbody>
-                          {packages
-                            .slice()
-                            .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-                            .slice(0, 5)
-                            .map(pkg => (
-                              <tr key={pkg.id} className="package-list-item" style={{cursor:'pointer'}}
-                                onClick={e => {
-                                  // Prevent opening modal when clicking a button
-                                  if (e.target.closest('button')) return;
-                                  setSelectedPackage(pkg);
-                                  setShowPackageDetailsModal(true);
-                                }}
-                              >
-                                <td className="tracking-number" data-label="Tracking #">{pkg.trackingNumber || 'N/A'}</td>
-                                <td className="package-description" data-label="Package">
-                                  <div>{pkg.packageDescription || 'No description provided'}</div>
-                                  <div className="package-address">{pkg.deliveryAddress || 'No address available'}</div>
-                                  {(pkg.deliveryContactName || pkg.deliveryContactPhone) && (
-                                    <div className="package-contact">
-                                      {pkg.deliveryContactName || 'N/A'}{pkg.deliveryContactPhone ? ` · ${pkg.deliveryContactPhone}` : ''}
-                                    </div>
-                                  )}
-                                </td>
-                                <td className="recipient-name" data-label="Recipient">{pkg.deliveryContactName || 'N/A'}</td>
-                                <td data-label="Status">{getStatusBadge(pkg.status)}</td>
-                                <td className="package-cod" data-label="COD">
-                                  <span className="cod-amount">EGP {parseFloat(pkg.codAmount || 0).toFixed(2)}</span>
-                                  {getCodBadge(pkg.isPaid)}
-                                </td>
-                                <td data-label="Created On">{new Date(pkg.createdAt).toLocaleDateString()}</td>
-                              </tr>
-                            ))}
-                        </tbody>
-                      </table>
-                    </div>
+                    isMobile ? (
+                      <div className="recent-packages-cards">
+                        {packages
+                          .slice()
+                          .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+                          .slice(0, 5)
+                          .map(pkg => (
+                            <div
+                              key={pkg.id}
+                              className="recent-package-card"
+                              role="button"
+                              tabIndex={0}
+                              onClick={() => { setSelectedPackage(pkg); setShowPackageDetailsModal(true); }}
+                              onKeyDown={(e) => { if (e.key === 'Enter') { setSelectedPackage(pkg); setShowPackageDetailsModal(true); } }}
+                            >
+                              <div className="card-header-row">
+                                <span className="tracking">{pkg.trackingNumber || 'N/A'}</span>
+                                <span className="status">{getStatusBadge(pkg.status)}</span>
+                              </div>
+                              <div className="card-main-text">{pkg.packageDescription || 'No description provided'}</div>
+                              <div className="card-address">{pkg.deliveryAddress || 'No address available'}</div>
+                              {(pkg.deliveryContactName || pkg.deliveryContactPhone) && (
+                                <div className="card-contact">
+                                  {pkg.deliveryContactName || 'N/A'}{pkg.deliveryContactPhone ? ` · ${pkg.deliveryContactPhone}` : ''}
+                                </div>
+                              )}
+                              <div className="card-footer-row">
+                                <span className="cod">EGP {parseFloat(pkg.codAmount || 0).toFixed(2)} {getCodBadge(pkg.isPaid)}</span>
+                                <span className="date">{new Date(pkg.createdAt).toLocaleDateString()}</span>
+                              </div>
+                            </div>
+                          ))}
+                      </div>
+                    ) : (
+                      <div className="package-list">
+                        <table className="packages-table recent-packages-table">
+                          <tbody>
+                            {packages
+                              .slice()
+                              .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+                              .slice(0, 5)
+                              .map(pkg => (
+                                <tr key={pkg.id} className="package-list-item" style={{cursor:'pointer'}}
+                                  onClick={e => {
+                                    if (e.target.closest('button')) return;
+                                    setSelectedPackage(pkg);
+                                    setShowPackageDetailsModal(true);
+                                  }}
+                                >
+                                  <td className="tracking-number" data-label="Tracking #">{pkg.trackingNumber || 'N/A'}</td>
+                                  <td className="package-description" data-label="Package">
+                                    <div>{pkg.packageDescription || 'No description provided'}</div>
+                                    <div className="package-address">{pkg.deliveryAddress || 'No address available'}</div>
+                                    {(pkg.deliveryContactName || pkg.deliveryContactPhone) && (
+                                      <div className="package-contact">
+                                        {pkg.deliveryContactName || 'N/A'}{pkg.deliveryContactPhone ? ` · ${pkg.deliveryContactPhone}` : ''}
+                                      </div>
+                                    )}
+                                  </td>
+                                  <td className="recipient-name" data-label="Recipient">{pkg.deliveryContactName || 'N/A'}</td>
+                                  <td data-label="Status">{getStatusBadge(pkg.status)}</td>
+                                  <td className="package-cod" data-label="COD">
+                                    <span className="cod-amount">EGP {parseFloat(pkg.codAmount || 0).toFixed(2)}</span>
+                                    {getCodBadge(pkg.isPaid)}
+                                  </td>
+                                  <td data-label="Created On">{new Date(pkg.createdAt).toLocaleDateString()}</td>
+                                </tr>
+                              ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )
                   )}
                 </div>
               </div>
             </div>
           } />
         </Routes>
-  </div>
-  {/* One-time mobile swipe menu tutorial */}
-  <SwipeMenuHint isMenuOpen={isMenuOpen} />
+      </div>
+      {/* One-time mobile swipe menu tutorial */}
+      <SwipeMenuHint isMenuOpen={isMenuOpen} />
       {showCancelModal && (
         <div className="confirmation-overlay" onClick={() => { setShowCancelModal(false); setCancelError(null); }}>
           <div className="confirmation-dialog warning-dialog" onClick={e => e.stopPropagation()}>

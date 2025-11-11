@@ -930,6 +930,9 @@ body.no-scroll {
   overscroll-behavior-x: contain;
 }
 
+/* Hide floating menu button on desktop; shown on mobile media query */
+.menu-fab { display: none; }
+
 /* Hide hamburger by default (desktop) */
 .menu-toggle-btn { display: none; }
 
@@ -973,6 +976,34 @@ body.no-scroll {
   .admin-dashboard-container.menu-open .admin-main {
     transform: translateX(240px);
   }
+
+  /* Floating bottom-left menu button (mobile) */
+  .menu-fab {
+    position: fixed;
+    left: max(10px, env(safe-area-inset-left));
+    bottom: max(12px, env(safe-area-inset-bottom));
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: #ff8c00;
+    color: #fff;
+    border: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.22);
+    z-index: 1101; /* Above sidebar */
+    cursor: pointer;
+    transition: background .25s ease, transform .25s ease;
+  }
+  .menu-fab:active { transform: scale(.94); }
+  .menu-fab:hover { background:#ff9c24; }
+  .menu-fab .icon { position:absolute; transition: opacity .25s ease, transform .25s ease; }
+  .menu-fab .icon-arrow.show { opacity:1; transform:translateX(0); }
+  .menu-fab .icon-arrow.hide { opacity:0; transform:translateX(-8px); }
+  .menu-fab .icon-hamburger.show { opacity:1; transform:translateX(0); }
+  .menu-fab .icon-hamburger.hide { opacity:0; transform:translateX(8px); }
 
   /* Hamburger button */
   .menu-toggle-btn {
