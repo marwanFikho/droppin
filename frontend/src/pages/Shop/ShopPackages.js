@@ -69,6 +69,7 @@ const ShopPackages = () => {
   const [packages, setPackages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth <= 768 : false);
   const [activeTab, setActiveTab] = useState('all');
   const [search, setSearch] = useState('');
   const [showCancelModal, setShowCancelModal] = useState(false);
@@ -229,10 +230,17 @@ const ShopPackages = () => {
   }
 
   useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  useEffect(() => {
     const fetchPackages = async () => {
       setLoading(true);
       try {
-        const res = await packageService.getPackages({ page: 1, limit: 25 });
+        // Fetch all packages (remove 25-items cap)
+        const res = await packageService.getPackages({ page: 1, limit: 10000 });
         setPackages(res.data?.packages || res.data || []);
         
         // Check if we need to reopen a package modal after refresh
@@ -328,6 +336,21 @@ const ShopPackages = () => {
       document.body.classList.remove('modal-open');
     };
   }, [showCancelModal, showPickupModal, showPickupCancelModal, showPackageDetailsModal, showReturnModal, showExchangeModal]);
+
+  // ESC-to-close: close the top-most open modal on this page
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (e.key !== 'Escape') return;
+      if (showPickupCancelModal) { setShowPickupCancelModal(false); return; }
+      if (showPickupModal) { setShowPickupModal(false); return; }
+      if (showExchangeModal) { setShowExchangeModal(false); return; }
+      if (showReturnModal) { setShowReturnModal(false); return; }
+      if (showCancelModal) { setShowCancelModal(false); setCancelError(null); return; }
+      if (showPackageDetailsModal) { setShowPackageDetailsModal(false); return; }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [showPickupCancelModal, showPickupModal, showExchangeModal, showReturnModal, showCancelModal, showPackageDetailsModal]);
 
   const handleCancel = async () => {
     if (!packageToCancel) return;
@@ -991,7 +1014,8 @@ const ShopPackages = () => {
       // Refresh list without full page reload
       // Prefer staying on the same tab
       try {
-        const res = await packageService.getPackages({ page: 1, limit: 25 });
+        // Refresh with full list for accuracy
+        const res = await packageService.getPackages({ page: 1, limit: 10000 });
         setPackages(res.data?.packages || res.data || []);
       } catch (e) {
         // Silent fallback
@@ -1092,91 +1116,189 @@ const ShopPackages = () => {
               </div>
             </div>
           )}
-          <div className="packages-table-wrapper">
-            <table className="packages-table">
-              <thead>
-                <tr>
-                  <th>
-                    <input
-                      type="checkbox"
-                      checked={allSelected}
-                      onChange={toggleSelectAll}
-                    />
-                  </th>
-                  <th>Tracking #</th>
-                  <th>Description</th>
-                  <th>Recipient</th>
-                  <th>Status</th>
-                  <th>COD</th>
-                  <th>Date</th>
-                  {activeTab !== 'cancelled' && activeTab !== 'return-to-shop' && <th>Action</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {filterPackages().length === 0 ? (
-                  <tr><td colSpan={8} style={{textAlign:'center'}}>No packages found.</td></tr>
-                ) : filterPackages().map(pkg => (
-                  <tr key={pkg.id} style={{cursor:'pointer'}} onClick={e => {
-                    if (e.target.closest('button') || e.target.type === 'checkbox') return;
-                    openDetailsModal(pkg);
-                  }}>
-                    <td className="package-select-cell" data-label="Select">
+          {isMobile ? (
+            <div className="packages-cards-wrapper">
+              {filterPackages().length === 0 ? (
+                <div style={{textAlign:'center', padding: '2rem', color: '#888'}}>No packages found.</div>
+              ) : (
+                <>
+                  {allSelectablePackages.length > 0 && (
+                    <div style={{ 
+                      background: '#f8f9fa', 
+                      padding: '10px 12px', 
+                      borderRadius: '6px', 
+                      marginBottom: '8px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      border: '1px solid #e9ecef'
+                    }}>
                       <input
                         type="checkbox"
-                        checked={selectedPackages.includes(pkg.id)}
-                        onChange={() => toggleSelectPackage(pkg.id)}
-                        disabled={pkg.status === 'cancelled' || pkg.status === 'delivered' || pkg.status === 'cancelled-returned' || pkg.status === 'cancelled-awaiting-return' || pkg.status === 'rejected'}
+                        checked={allSelected}
+                        onChange={toggleSelectAll}
+                        style={{ width: '16px', height: '16px' }}
                       />
-                    </td>
-                    <td className="tracking-number" data-label="Tracking #">{pkg.trackingNumber}</td>
-                    <td className="package-description" data-label="Description">
-                      <div className="package-title">{pkg.packageDescription}</div>
-                      <div className="package-address" style={{ color: '#666', marginTop: 4 }}>{pkg.deliveryAddress}</div>
+                      <span style={{ fontSize: '12px', fontWeight: '600', color: '#495057' }}>
+                        {allSelected ? 'Deselect All' : 'Select All'} ({allSelectablePackages.length})
+                      </span>
+                    </div>
+                  )}
+                  <div className="packages-cards">
+                    {filterPackages().map(pkg => (
+                    <div
+                      key={pkg.id}
+                      className="package-card recent-package-card"
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => openDetailsModal(pkg)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') openDetailsModal(pkg); }}
+                    >
+                      <div className="card-header-row">
+                        <span className="tracking">{pkg.trackingNumber || 'N/A'}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span className="status">{getStatusBadge(pkg.status)}</span>
+                          <input
+                            type="checkbox"
+                            checked={selectedPackages.includes(pkg.id)}
+                            onChange={(e) => {
+                              e.stopPropagation();
+                              toggleSelectPackage(pkg.id);
+                            }}
+                            disabled={pkg.status === 'cancelled' || pkg.status === 'delivered' || pkg.status === 'cancelled-returned' || pkg.status === 'cancelled-awaiting-return' || pkg.status === 'rejected'}
+                            style={{ width: '16px', height: '16px' }}
+                          />
+                        </div>
+                      </div>
+                      <div className="card-main-text">{pkg.packageDescription || 'No description provided'}</div>
+                      <div className="card-address">{pkg.deliveryAddress || 'No address available'}</div>
                       {(pkg.deliveryContactName || pkg.deliveryContactPhone) && (
-                        <div className="package-contact" style={{ fontSize: 12, color: '#555', marginTop: 2 }}>
+                        <div className="card-contact">
                           {pkg.deliveryContactName || 'N/A'}{pkg.deliveryContactPhone ? ` · ${pkg.deliveryContactPhone}` : ''}
                         </div>
                       )}
-                    </td>
-                    <td className="recipient-name" data-label="Recipient">{pkg.deliveryContactName}</td>
-                    <td className="status-cell" data-label="Status">
-                      {getStatusBadge(pkg.status)}
+                      <div className="card-footer-row">
+                        <span className="cod">EGP {parseFloat(pkg.codAmount || 0).toFixed(2)} {getCodBadge(pkg.isPaid)}</span>
+                        <span className="date">{new Date(pkg.createdAt).toLocaleDateString()}</span>
+                      </div>
                       {activeTab === 'return-requests' && (
-                        <span className="special-badge" style={{background: '#f55247', marginLeft: '5px'}}>Return</span>
+                        <div style={{ marginTop: '4px' }}>
+                          <span className="special-badge" style={{background: '#f55247', color: 'white', padding: '2px 6px', borderRadius: '4px', fontSize: '10px'}}>Return Request</span>
+                        </div>
                       )}
                       {activeTab === 'exchange-requests' && (
-                        <span className="special-badge" style={{background: '#7b1fa2', marginLeft: '5px'}}>Exchange</span>
+                        <div style={{ marginTop: '4px' }}>
+                          <span className="special-badge" style={{background: '#7b1fa2', color: 'white', padding: '2px 6px', borderRadius: '4px', fontSize: '10px'}}>Exchange Request</span>
+                        </div>
                       )}
-                    </td>
-                    <td className="package-cod" data-label="COD">
-                      <span className="cod-amount">EGP {parseFloat(pkg.codAmount || 0).toFixed(2)}</span>
-                      {getCodBadge(pkg.isPaid)}
-                    </td>
-                    <td className="package-date" data-label="Date">{new Date(pkg.createdAt).toLocaleDateString()}</td>
-                    {activeTab !== 'cancelled' && (
-                      <td data-label="Actions" className="actions-cell">
-                        {pkg.status !== 'cancelled' && pkg.status !== 'delivered' && pkg.status !== 'delivered-returned' && pkg.status !== 'cancelled-returned' && pkg.status !== 'cancelled-awaiting-return' && pkg.status !== 'rejected' && pkg.status !== 'rejected-awaiting-return' && pkg.status !== 'rejected-returned' && pkg.status !== 'return-requested' && pkg.status !== 'return-in-transit' && pkg.status !== 'return-pending' && pkg.status !== 'return-completed' &&(
-                          <>
-                            <button
-                              className="action-button cancel-btn"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setPackageToCancel(pkg);
-                                setShowCancelModal(true);
-                              }}
-                            >
-                              Cancel
-                            </button>
-
-                          </>
+                      {activeTab !== 'cancelled' && activeTab !== 'return-to-shop' && pkg.status !== 'cancelled' && pkg.status !== 'delivered' && pkg.status !== 'delivered-returned' && pkg.status !== 'cancelled-returned' && pkg.status !== 'cancelled-awaiting-return' && pkg.status !== 'rejected' && pkg.status !== 'rejected-awaiting-return' && pkg.status !== 'rejected-returned' && pkg.status !== 'return-requested' && pkg.status !== 'return-in-transit' && pkg.status !== 'return-pending' && pkg.status !== 'return-completed' && (
+                        <div style={{ marginTop: '6px', borderTop: '1px solid #eee', paddingTop: '6px' }}>
+                          <button
+                            className="action-button cancel-btn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPackageToCancel(pkg);
+                              setShowCancelModal(true);
+                            }}
+                            style={{ fontSize: '11px', padding: '4px 8px', backgroundColor: '#dc3545', color: 'white', border: 'none', borderRadius: '4px' }}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  </div>
+                </>
+              )}
+            </div>
+          ) : (
+            <div className="packages-table-wrapper">
+              <table className="packages-table">
+                <thead>
+                  <tr>
+                    <th>
+                      <input
+                        type="checkbox"
+                        checked={allSelected}
+                        onChange={toggleSelectAll}
+                      />
+                    </th>
+                    <th>Tracking #</th>
+                    <th>Description</th>
+                    <th>Recipient</th>
+                    <th>Status</th>
+                    <th>COD</th>
+                    <th>Date</th>
+                    {activeTab !== 'cancelled' && activeTab !== 'return-to-shop' && <th>Action</th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {filterPackages().length === 0 ? (
+                    <tr><td colSpan={8} style={{textAlign:'center'}}>No packages found.</td></tr>
+                  ) : filterPackages().map(pkg => (
+                    <tr key={pkg.id} style={{cursor:'pointer'}} onClick={e => {
+                      if (e.target.closest('button') || e.target.type === 'checkbox') return;
+                      openDetailsModal(pkg);
+                    }}>
+                      <td className="package-select-cell" data-label="Select">
+                        <input
+                          type="checkbox"
+                          checked={selectedPackages.includes(pkg.id)}
+                          onChange={() => toggleSelectPackage(pkg.id)}
+                          disabled={pkg.status === 'cancelled' || pkg.status === 'delivered' || pkg.status === 'cancelled-returned' || pkg.status === 'cancelled-awaiting-return' || pkg.status === 'rejected'}
+                        />
+                      </td>
+                      <td className="tracking-number" data-label="Tracking #">{pkg.trackingNumber}</td>
+                      <td className="package-description" data-label="Description">
+                        <div className="package-title">{pkg.packageDescription}</div>
+                        <div className="package-address" style={{ color: '#666', marginTop: 4 }}>{pkg.deliveryAddress}</div>
+                        {(pkg.deliveryContactName || pkg.deliveryContactPhone) && (
+                          <div className="package-contact" style={{ fontSize: 12, color: '#555', marginTop: 2 }}>
+                            {pkg.deliveryContactName || 'N/A'}{pkg.deliveryContactPhone ? ` · ${pkg.deliveryContactPhone}` : ''}
+                          </div>
                         )}
                       </td>
-                    )}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                      <td className="recipient-name" data-label="Recipient">{pkg.deliveryContactName}</td>
+                      <td className="status-cell" data-label="Status">
+                        {getStatusBadge(pkg.status)}
+                        {activeTab === 'return-requests' && (
+                          <span className="special-badge" style={{background: '#f55247', marginLeft: '5px'}}>Return</span>
+                        )}
+                        {activeTab === 'exchange-requests' && (
+                          <span className="special-badge" style={{background: '#7b1fa2', marginLeft: '5px'}}>Exchange</span>
+                        )}
+                      </td>
+                      <td className="package-cod" data-label="COD">
+                        <span className="cod-amount">EGP {parseFloat(pkg.codAmount || 0).toFixed(2)}</span>
+                        {getCodBadge(pkg.isPaid)}
+                      </td>
+                      <td className="package-date" data-label="Date">{new Date(pkg.createdAt).toLocaleDateString()}</td>
+                      {activeTab !== 'cancelled' && (
+                        <td data-label="Actions" className="actions-cell">
+                          {pkg.status !== 'cancelled' && pkg.status !== 'delivered' && pkg.status !== 'delivered-returned' && pkg.status !== 'cancelled-returned' && pkg.status !== 'cancelled-awaiting-return' && pkg.status !== 'rejected' && pkg.status !== 'rejected-awaiting-return' && pkg.status !== 'rejected-returned' && pkg.status !== 'return-requested' && pkg.status !== 'return-in-transit' && pkg.status !== 'return-pending' && pkg.status !== 'return-completed' &&(
+                            <>
+                              <button
+                                className="action-button cancel-btn"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setPackageToCancel(pkg);
+                                  setShowCancelModal(true);
+                                }}
+                              >
+                                Cancel
+                              </button>
+
+                            </>
+                          )}
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </>
       )}
       {/* Pickup Modal - always render so it works in any tab */}
@@ -1788,9 +1910,9 @@ const ShopPackages = () => {
         document.body
       )}
 
-      {showReturnModal && selectedPackage && (
-        <div className="modal-overlay" onClick={() => setShowReturnModal(false)}>
-          <div className="confirmation-dialog" onClick={e => e.stopPropagation()}>
+      {showReturnModal && selectedPackage && ReactDOM.createPortal(
+        <div className="modal-overlay return-overlay" onClick={() => setShowReturnModal(false)}>
+          <div className="confirmation-dialog" onClick={e => e.stopPropagation()} style={{ position: 'relative', zIndex: 12010 }}>
             <h3>Request Return</h3>
             <p>Select items to return and enter the refund to give to the customer (can be 0).</p>
             <div style={{ maxHeight: 300, overflowY: 'auto', border: '1px solid #eee', borderRadius: 8, padding: 8, marginBottom: 8 }}>
@@ -1823,12 +1945,13 @@ const ShopPackages = () => {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
-      {showExchangeModal && selectedPackage && (
-        <div className="modal-overlay" onClick={() => setShowExchangeModal(false)}>
-          <div className="confirmation-dialog" onClick={e => e.stopPropagation()} style={{ maxWidth: 900, width: '95vw', padding: 16 }}>
+      {showExchangeModal && selectedPackage && ReactDOM.createPortal(
+        <div className="modal-overlay exchange-overlay" onClick={() => setShowExchangeModal(false)}>
+          <div className="confirmation-dialog" onClick={e => e.stopPropagation()} style={{ maxWidth: 900, width: '95vw', padding: 16, position: 'relative', zIndex: 12010 }}>
             <h3 style={{ marginBottom: 12 }}>Request Exchange</h3>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, alignItems: 'start' }}>
               <div style={{ background: '#fafafa', border: '1px solid #e9ecef', borderRadius: 8, padding: 12 }}>
@@ -1920,7 +2043,8 @@ const ShopPackages = () => {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

@@ -1,21 +1,27 @@
+// Legacy standalone API key auth kept for specific endpoints (e.g. bulk Shopify creation)
+// Preferred usage for full access is now combinedAuth.js
 console.log('apiKeyAuth middleware loaded');
 const Shop = require('../models/shop.model');
+const { User } = require('../models');
 
 module.exports = async function apiKeyAuth(req, res, next) {
-  console.log('apiKeyAuth middleware called');
   const auth = req.headers.authorization;
   if (!auth || !auth.startsWith('Bearer ')) {
-    console.log('API key missing or malformed. Received header:', auth);
     return res.status(401).json({ error: 'Missing API key' });
   }
   const apiKey = auth.replace('Bearer ', '').trim();
-  console.log('Received API key:', apiKey);
   const shop = await Shop.findOne({ where: { apiKey } });
   if (!shop) {
-    console.log('No shop found for API key:', apiKey);
     return res.status(401).json({ error: 'Invalid API key' });
   }
-  console.log('Shop found for API key:', shop.id);
+  // Attach shop only (no user). Bulk routes can rely on shop context.
   req.shop = shop;
+  // Optional: attach user if exists & active; silently ignore failures.
+  try {
+    const user = await User.findByPk(shop.userId, { attributes: { exclude: ['password'] } });
+    if (user && user.role === 'shop' && user.isActive) {
+      req.user = user;
+    }
+  } catch {}
   next();
-}; 
+};

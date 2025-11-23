@@ -212,6 +212,9 @@ const Wallet = () => {
                   >
                     Amount (EGP) {renderSortIcon('amount')}
                   </th>
+                  <th>
+                    Current Amount
+                  </th>
                   <th>Description</th>
                 </tr>
               </thead>
@@ -226,7 +229,14 @@ const Wallet = () => {
                       </span>
                     </td>
                     <td data-label="Amount (EGP)" className={`financial-cell ${tx.changeType} wallet-amount`}>
-            EGP {parseFloat(tx.amount).toFixed(2)}
+                      EGP {parseFloat(tx.amount).toFixed(2)}
+                    </td>
+                    <td data-label="Current Amount" className="wallet-amount">
+                      {tx.attribute === 'ToCollect' || tx.attribute === 'TotalCollected' ? (
+                        tx.currentAmount != null ? `EGP ${parseFloat(tx.currentAmount).toFixed(2)}` : '-'
+                      ) : (
+                        '-'
+                      )}
                     </td>
                     <td data-label="Description" className="wallet-description">{tx.description || '-'}</td>
                   </tr>

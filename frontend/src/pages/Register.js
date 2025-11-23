@@ -60,6 +60,22 @@ const Register = () => {
     e.preventDefault();
     
     // Validation
+    // Enforce required fields manually (Zip/Postal Code intentionally optional)
+    const requiredFields = [
+      formData.name?.trim(),
+      formData.email?.trim(),
+      formData.phone?.trim(),
+      formData.password,
+      formData.confirmPassword,
+      formData.address?.street?.trim(),
+      formData.address?.city?.trim(),
+      formData.address?.state?.trim(),
+      formData.address?.country?.trim()
+    ];
+    if (requiredFields.some(v => !v)) {
+      setFormError('Please fill in all required fields. Zip/Postal Code is optional.');
+      return;
+    }
     if (formData.password !== formData.confirmPassword) {
       setFormError('Passwords do not match');
       return;
@@ -89,7 +105,7 @@ const Register = () => {
           <p>Sign up your shop to start managing deliveries</p>
         </div>
         {formError && <div className="auth-error">{formError}</div>}
-        <form onSubmit={handleSubmit} className="auth-form">
+  <form onSubmit={handleSubmit} noValidate className="auth-form">
           <div className="form-group">
             <label htmlFor="name">Shop Name</label>
             <input
@@ -201,15 +217,14 @@ const Register = () => {
             </div>
             <div className="form-row">
               <div className="form-group">
-                <label htmlFor="address.zipCode">Zip/Postal Code</label>
+                <label htmlFor="address.zipCode">Zip/Postal Code (optional)</label>
                 <input
                   type="text"
                   id="address.zipCode"
                   name="address.zipCode"
                   value={formData.address.zipCode}
                   onChange={handleChange}
-                  placeholder="Zip/Postal code"
-                  required
+                  placeholder="Zip/Postal code (optional)"
                 />
               </div>
               <div className="form-group">

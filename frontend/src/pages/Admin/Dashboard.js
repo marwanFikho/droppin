@@ -45,6 +45,7 @@ const AdminDashboard = () => {
   const [users, setUsers] = useState([]);
   const [packages, setPackages] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  // Removed dedicated driver filter; use global search to match driver name
   const [selectedEntity, setSelectedEntity] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -98,6 +99,9 @@ const AdminDashboard = () => {
     recentSettlements: [],
     totalCodCollected: 0
   });
+  // Recently updated packages widget (dashboard)
+  const [recentUpdatedPackages, setRecentUpdatedPackages] = useState([]);
+  const [recentUpdatedLoading, setRecentUpdatedLoading] = useState(false);
   // Add new state variables for money transactions
   const [moneyFilters, setMoneyFilters] = useState({
     startDate: '',
@@ -119,6 +123,23 @@ const AdminDashboard = () => {
     statusDistribution: [],
     topShops: { volume: [], cod: [] }
   });
+  // Per-shop operational stats
+  const [shopStats, setShopStats] = useState(null);
+  const [loadingShopStats, setLoadingShopStats] = useState(false);
+
+  // Load per-shop stats when a shop entity is selected
+  useEffect(() => {
+    if (selectedEntity && (selectedEntity.shopId || selectedEntity.id) && selectedEntity.role === 'shop') {
+      const idToUse = selectedEntity.shopId || selectedEntity.id;
+      setLoadingShopStats(true);
+      adminService.getShopStats(idToUse)
+        .then(r => setShopStats(r.data))
+        .catch(e => { console.error('Failed to fetch shop stats', e); setShopStats(null); })
+        .finally(() => setLoadingShopStats(false));
+    } else {
+      setShopStats(null);
+    }
+  }, [selectedEntity]);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   // --- Notes Log Section ---
   const [editingNotes, setEditingNotes] = useState('');
@@ -230,6 +251,8 @@ const AdminDashboard = () => {
     }
   }, [isMobile, showDetailsModal]);
 
+  
+
   // --- Mobile sidebar state (button toggled only) ---
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const adminContainerRef = useRef(null);
@@ -277,7 +300,6 @@ const AdminDashboard = () => {
       { label: 'All Ready', value: 'all' },
       { label: 'Awaiting Schedule', value: 'awaiting_schedule' },
       { label: 'Scheduled for Pickup', value: 'scheduled_for_pickup' },
-      { label: 'Pending', value: 'pending' },
       { label: 'Exchange Awaiting Schedule', value: 'exchange-awaiting-schedule' },
       { label: 'Return Requested', value: 'return-requested' }
     ],
@@ -723,10 +745,10 @@ const AdminDashboard = () => {
 
 
 
-  // Clear selected packages when switching tabs or when packages change
+  // Clear selected packages only when switching tabs (preserve selection on data refresh)
   useEffect(() => {
     setSelectedPackages([]);
-  }, [activeTab, packagesTab, packages]);
+  }, [activeTab, packagesTab]);
 
   // Handle approval or rejection of a user
   const handleApproval = async (entityId, userType, approve = true, selectedEntity = {}) => {
@@ -1628,7 +1650,7 @@ const AdminDashboard = () => {
               {tab.label}
             </button>
           ))}
-          {packagesTab === 'ready-to-assign' && selectedPackages.length > 0 && (
+          {packagesTab === 'ready-to-assign' && packagesSubTab === 'all' && selectedPackages.length > 0 && (
             <button 
               className="btn-primary bulk-assign-btn"
               onClick={openBulkAssignModal}
@@ -1636,6 +1658,27 @@ const AdminDashboard = () => {
             >
               Assign Driver to {selectedPackages.length} Selected Package{selectedPackages.length !== 1 ? 's' : ''}
             </button>
+          )}
+          {packagesTab === 'in-transit' && packagesSubTab === 'all' && selectedPackages.length > 0 && (
+            (() => {
+              const statusFlow = ['assigned', 'pickedup', 'in-transit', 'delivered'];
+              const eligibleCount = packages
+                .filter(pkg => selectedPackages.includes(pkg.id))
+                .filter(pkg => {
+                  const idx = statusFlow.indexOf(pkg.status);
+                  return idx !== -1 && idx < statusFlow.length - 1 && statusFlow[idx + 1] !== 'delivered';
+                }).length;
+              return (
+                <button
+                  className="btn-primary bulk-assign-btn"
+                  onClick={handleBulkForward}
+                  disabled={eligibleCount === 0}
+                  title={eligibleCount === 0 ? 'Only packages moving to Delivered are selected; complete individually.' : 'Forward status for selected packages'}
+                >
+                  Forward {eligibleCount} Selected
+                </button>
+              );
+            })()
           )}
         </div>
         
@@ -1666,7 +1709,7 @@ const AdminDashboard = () => {
       <table className="admin-table">
         <thead>
           <tr>
-            {packagesTab === 'ready-to-assign' && (
+            {((packagesTab === 'ready-to-assign' && packagesSubTab === 'all') || (packagesTab === 'in-transit' && packagesSubTab === 'all')) && (
               <th>
                 <input
                   type="checkbox"
@@ -1702,7 +1745,7 @@ const AdminDashboard = () => {
         <tbody>
           {filteredPackages.length === 0 ? (
             <tr>
-              <td colSpan={packagesTab === 'ready-to-assign' ? 9 : (packagesTab === 'delivered' ? 9 : 8)} style={{ textAlign: 'center', padding: '40px 20px' }}>
+              <td colSpan={(packagesTab === 'ready-to-assign' || packagesTab === 'in-transit') ? 9 : (packagesTab === 'delivered' ? 9 : 8)} style={{ textAlign: 'center', padding: '40px 20px' }}>
                 <div className="empty-state">
                   <p>No packages found{searchTerm ? ' matching your search' : ''}.</p>
                 </div>
@@ -1711,7 +1754,7 @@ const AdminDashboard = () => {
           ) : (
             filteredPackages.map(pkg => (
             <tr key={pkg.id}>
-              {packagesTab === 'ready-to-assign' && (
+              {((packagesTab === 'ready-to-assign' && packagesSubTab === 'all') || (packagesTab === 'in-transit' && packagesSubTab === 'all')) && (
                 <td data-label="Select">
                   <input
                     type="checkbox"
@@ -1794,13 +1837,10 @@ const AdminDashboard = () => {
                 {packagesTab === 'return-to-shop' && pkg.status === 'return-pending' && (
                   <button
                     className="action-btn return-btn"
-                    onClick={async () => {
-                      try {
-                        await packageService.updatePackageStatus(pkg.id, { status: 'return-completed' });
-                        await fetchPackagesWithMainTab(packagesTab, packagesSubTab, packagePage);
-                      } catch (err) {
-                        console.error('Failed to mark return completed:', err);
-                      }
+                    onClick={() => {
+                      setReturnCompletePkg(pkg);
+                      setReturnDeductShipping(true);
+                      setShowReturnCompleteDialog(true);
                     }}
                     title="Mark Return Completed"
                   >
@@ -1810,13 +1850,10 @@ const AdminDashboard = () => {
                 {packagesTab === 'return-to-shop' && pkg.status === 'exchange-awaiting-return' && (
                   <button
                     className="action-btn return-btn"
-                    onClick={async () => {
-                      try {
-                        await packageService.updatePackageStatus(pkg.id, { status: 'exchange-returned' });
-                        await fetchPackagesWithMainTab(packagesTab, packagesSubTab, packagePage);
-                      } catch (err) {
-                        console.error('Failed to mark exchange completed:', err);
-                      }
+                    onClick={() => {
+                      setExchangeCompletePkg(pkg);
+                      setExchangeDeductShipping(true);
+                      setShowExchangeCompleteDialog(true);
                     }}
                     title="Mark Exchange Completed"
                   >
@@ -2242,23 +2279,38 @@ const AdminDashboard = () => {
                             <span>EGP {netRevenue.toFixed(2)}</span>
                           </div>
                           <div className="nested-detail">
-                            <span className="nested-label">Delivered Packages:</span>
-                            <span>{deliveredPkgs.length}</span>
-                          </div>
-                          <div className="nested-detail">
-                            <span className="nested-label">Total to Collect:</span>
-                            <span>EGP {toCollect.toFixed(2)}</span>
-                          </div>
-                          <div className="nested-detail">
-                            <span className="nested-label">Total Collected:</span>
-                            <span>EGP {totalCollected.toFixed(2)}</span>
-                          </div>
-                          <div className="nested-detail">
                             <span className="nested-label">Total Settled:</span>
                             <span>EGP {parseFloat(selectedEntity.settelled || 0).toFixed(2)}</span>
                           </div>
                         </>
                       })()}
+                    </div>
+                  </div>
+                  {/* Operational Insights moved beneath Business Information for better readability */}
+                  <div className="detail-item full-width" style={{ marginTop: 12 }}>
+                    <span className="label">Operational Insights:</span>
+                    <div className="operational-insights" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(170px,1fr))', gap: 6 }}>
+                      {loadingShopStats && <span>Loading stats...</span>}
+                      {!loadingShopStats && shopStats && (
+                        <>
+                          <div className="mini-stat"><strong>Total Packages:</strong> {shopStats.totalPackages}</div>
+                          <div className="mini-stat"><strong>Delivered:</strong> {shopStats.deliveredCount}</div>
+                          <div className="mini-stat"><strong>Cancelled:</strong> {shopStats.cancelledCount}</div>
+                          <div className="mini-stat"><strong>Rejected:</strong> {shopStats.rejectedCount}</div>
+                          <div className="mini-stat"><strong>Return Req:</strong> {shopStats.returnRequestedCount}</div>
+                          <div className="mini-stat"><strong>Return Done:</strong> {shopStats.returnCompletedCount}</div>
+                          <div className="mini-stat"><strong>Exchange In-Process:</strong> {shopStats.exchangeProcessCount}</div>
+                          <div className="mini-stat"><strong>Exchange Done:</strong> {shopStats.exchangeCompletedCount}</div>
+                          <div className="mini-stat"><strong>Exchange Cancelled:</strong> {shopStats.exchangeCancelledCount}</div>
+                          <div className="mini-stat"><strong>Delivery Success %:</strong> {(shopStats.deliverySuccessRate * 100).toFixed(1)}%</div>
+                          <div className="mini-stat"><strong>Cancellation %:</strong> {(shopStats.cancellationRate * 100).toFixed(1)}%</div>
+                          <div className="mini-stat"><strong>Rejection %:</strong> {(shopStats.rejectionRate * 100).toFixed(1)}%</div>
+                          <div className="mini-stat"><strong>COD Expected:</strong> EGP {shopStats.codExpected.toFixed(2)}</div>
+                          <div className="mini-stat"><strong>COD Collected:</strong> EGP {shopStats.codCollected.toFixed(2)}</div>
+                          <div className="mini-stat"><strong>COD Collection %:</strong> {(shopStats.codCollectionRate * 100).toFixed(1)}%</div>
+                        </>
+                      )}
+                      {!loadingShopStats && !shopStats && <span style={{ fontStyle: 'italic' }}>No stats available.</span>}
                     </div>
                   </div>
                   {/* Manual Total Collected adjustment by admin */}
@@ -4129,9 +4181,9 @@ const AdminDashboard = () => {
       if (activeTab === 'packages') {
         const packagesResponse = await adminService.getPackages({ page: 1, limit: 25 });
         if (packagesTab === 'ready-to-assign') {
+          // Match the Ready to Assign 'All' filter: Pending, Return Requested, Exchange Requested (exchange-awaiting-schedule)
           const readyToAssignPackages = (packagesResponse.data?.packages || packagesResponse.data || []).filter(pkg =>
             pkg.status === 'pending' ||
-            pkg.status === 'cancelled-awaiting-return' ||
             pkg.status === 'return-requested' ||
             pkg.status === 'exchange-in-process'
           );
@@ -4152,6 +4204,46 @@ const AdminDashboard = () => {
       alert('Error assigning driver to packages. Please try again.');
     } finally {
       setBulkAssigning(false);
+    }
+  };
+
+  // Bulk forward statuses for selected packages (skip those that would require delivery modal)
+  const handleBulkForward = async () => {
+    if (selectedPackages.length === 0) return;
+    const statusFlow = ['assigned', 'pickedup', 'in-transit', 'delivered'];
+    const selected = packages.filter(p => selectedPackages.includes(p.id));
+    const toForward = selected.filter(p => {
+      const idx = statusFlow.indexOf(p.status);
+      return idx !== -1 && idx < statusFlow.length - 1 && statusFlow[idx + 1] !== 'delivered';
+    }).map(p => ({ id: p.id, next: statusFlow[statusFlow.indexOf(p.status) + 1] }));
+
+    if (toForward.length === 0) {
+      setStatusMessage({ type: 'info', text: 'Selected packages require delivery completion. Please forward them individually.' });
+      return;
+    }
+
+    try {
+      // Optimistic UI update
+      setPackages(prev => prev.map(p => {
+        const f = toForward.find(tp => tp.id === p.id);
+        return f ? { ...p, status: f.next } : p;
+      }));
+
+      for (const fwd of toForward) {
+        try {
+          await packageService.updatePackageStatus(fwd.id, { status: fwd.next });
+          // small delay to avoid DB lock contention
+          await new Promise(r => setTimeout(r, 200));
+        } catch (e) {
+          console.error('Failed to forward package', fwd.id, e);
+        }
+      }
+      // Refresh list
+      await fetchPackagesWithFilters(1, searchTerm, packageStatusFilter, packageShopFilter);
+      setStatusMessage({ type: 'success', text: `Forwarded ${toForward.length} package(s).` });
+    } catch (e) {
+      console.error('Bulk forward failed', e);
+      setStatusMessage({ type: 'error', text: 'Failed to bulk forward some packages. Please try again.' });
     }
   };
 
@@ -4356,6 +4448,7 @@ const AdminDashboard = () => {
       }));
 
               setStatusMessage({ type: 'success', text: `Settled EGP ${amount.toFixed(2)} with shop successfully` });
+              
       setSettleAmountInput('');
     } catch (error) {
       console.error('Error settling amount with shop:', error);
@@ -4505,6 +4598,7 @@ const AdminDashboard = () => {
                 <th onClick={() => handleMoneyFilterChange('sortBy', 'attribute')}>Attribute {renderSortIcon('attribute')}</th>
                 <th onClick={() => handleMoneyFilterChange('sortBy', 'changeType')}>Type {renderSortIcon('changeType')}</th>
                 <th onClick={() => handleMoneyFilterChange('sortBy', 'amount')}>Amount {renderSortIcon('amount')}</th>
+                <th>Current Amount</th>
               </tr>
             </thead>
             <tbody>
@@ -4524,7 +4618,14 @@ const AdminDashboard = () => {
                   </td>
                     <td data-label="Amount" className={`financial-cell ${tx.changeType}`}>
                       EGP {Number(tx.amount || 0).toFixed(2)}
-                  </td>
+                    </td>
+                    <td data-label="Current Amount">
+                      {tx.attribute === 'ToCollect' || tx.attribute === 'TotalCollected' ? (
+                        tx.currentAmount != null ? `EGP ${Number(tx.currentAmount).toFixed(2)}` : '-'
+                      ) : (
+                        '-'
+                      )}
+                    </td>
                 </tr>
                 ))
               )}
@@ -4649,16 +4750,51 @@ const AdminDashboard = () => {
       if (shopFilter && shopFilter !== 'All') {
         params.shopName = shopFilter;
       }
+      // Driver name is now searched via the global search term on backend
       
       // Handle status filtering based on the new system
-      // Only apply status filter if it's provided and not empty
-      if (statusFilter && statusFilter !== '') {
+      // If no explicit statusFilter is provided, derive it from current main/sub tab to avoid fetching ALL packages
+      let effectiveStatusFilter = statusFilter;
+      if (!effectiveStatusFilter || effectiveStatusFilter === '') {
+        // Compute from current tab + subtab
+        effectiveStatusFilter = (() => {
+          switch (packagesTab) {
+            case 'ready-to-assign':
+              return (packagesSubTab === 'all')
+                ? 'pending,return-requested,exchange-in-process'
+                : packagesSubTab;
+            case 'in-transit':
+              return (packagesSubTab === 'all')
+                ? 'assigned,pickedup,in-transit'
+                : packagesSubTab;
+            case 'delivered':
+              return (packagesSubTab === 'all')
+                ? 'delivered,delivered-returned'
+                : packagesSubTab;
+            case 'cancelled':
+              if (packagesSubTab === 'all') return 'cancelled,cancelled-returned,rejected,rejected-returned';
+              if (packagesSubTab === 'cancelled-group') return 'cancelled,cancelled-returned';
+              if (packagesSubTab === 'rejected-group') return 'rejected,rejected-returned';
+              return packagesSubTab;
+            case 'return-to-shop':
+              if (packagesSubTab === 'all') return 'return-requested,return-in-transit,return-pending,return-completed,exchange-requests,cancelled-awaiting-return,rejected-awaiting-return,exchange-completed';
+              if (packagesSubTab === 'exchange-requests') return 'exchange-awaiting-schedule,exchange-awaiting-pickup,exchange-in-process,exchange-in-transit,exchange-awaiting-return';
+              if (packagesSubTab === 'exchange-completed') return 'exchange-returned';
+              return packagesSubTab;
+            default:
+              return '';
+          }
+        })();
+      }
+
+      // Only apply status filter if it's now provided and not empty
+      if (effectiveStatusFilter && effectiveStatusFilter !== '') {
         // If statusFilter contains multiple statuses (comma-separated), use statusIn
-        if (statusFilter.includes(',')) {
-          params.statusIn = statusFilter;
+        if (effectiveStatusFilter.includes(',')) {
+          params.statusIn = effectiveStatusFilter;
         } else {
           // Single status, use status
-          params.status = statusFilter;
+          params.status = effectiveStatusFilter;
         }
       }
       // If no statusFilter is provided, don't add any status filtering (show all packages)
@@ -4667,9 +4803,19 @@ const AdminDashboard = () => {
       
       // Set default sorting based on tab
       if (packagesTab === 'delivered') {
+        // Delivered ordered by actual delivery time (newest first)
         params.sortBy = 'actualDeliveryTime';
         params.sortOrder = 'DESC';
+      } else if (packagesTab === 'in-transit') {
+        // In-Transit ordered by actual pickup time (newest pickups first)
+        params.sortBy = 'actualPickupTime';
+        params.sortOrder = 'DESC';
       } else if (packagesTab === 'cancelled') {
+        // Cancelled ordered by most recently changed
+        params.sortBy = 'updatedAt';
+        params.sortOrder = 'DESC';
+      } else if (packagesTab === 'ready-to-assign' || packagesTab === 'return-to-shop') {
+        // For assignment and returns views, show most recently updated at the top
         params.sortBy = 'updatedAt';
         params.sortOrder = 'DESC';
       }
@@ -4761,8 +4907,10 @@ const AdminDashboard = () => {
         adminService.getPackageStatusDistribution(),
         adminService.getTopShops(),
         adminService.getRecentPackagesData(),
-        adminService.getRecentCodData()
-      ]).then(([pkgRes, codRes, statusRes, shopsRes, recentPkgRes, recentCodRes]) => {
+        adminService.getRecentCodData(),
+        // Fetch the latest updated packages for quick actions widget
+        adminService.getPackages({ page: 1, limit: 15, sortBy: 'updatedAt', sortOrder: 'DESC' })
+      ]).then(([pkgRes, codRes, statusRes, shopsRes, recentPkgRes, recentCodRes, recentUpdatedRes]) => {
         setAnalytics({
           packagesPerMonth: pkgRes.data,
           codPerMonth: codRes.data,
@@ -4859,9 +5007,28 @@ const AdminDashboard = () => {
           recentSettlements: [],
           totalCodCollected: 0
         });
+
+        // Store recent updated packages list
+        const recentList = recentUpdatedRes?.data?.packages || recentUpdatedRes?.data || [];
+        setRecentUpdatedPackages(Array.isArray(recentList) ? recentList : []);
       }).finally(() => setAnalyticsLoading(false));
     }
   }, [activeTab]);
+
+  // Dedicated fetcher to refresh the recent updated packages widget
+  const fetchRecentUpdatedPackages = async () => {
+    try {
+      setRecentUpdatedLoading(true);
+      const res = await adminService.getPackages({ page: 1, limit: 15, sortBy: 'updatedAt', sortOrder: 'DESC' });
+      const list = res?.data?.packages || res?.data || [];
+      setRecentUpdatedPackages(Array.isArray(list) ? list : []);
+    } catch (e) {
+      console.error('Failed to fetch recent updated packages', e);
+      setRecentUpdatedPackages([]);
+    } finally {
+      setRecentUpdatedLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (activeTab === 'pickups') {
@@ -5111,6 +5278,85 @@ const AdminDashboard = () => {
             <Card title="COD Collected (Last 4 Weeks)">
               <div className="chart-wrapper">
                 <Bar data={dashboardData.codChart} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }} />
+              </div>
+            </Card>
+          </Col>
+        </Row>
+        {/* Recently Updated Packages widget */}
+        <Row gutter={[24, 24]} style={{ marginTop: '24px' }}>
+          <Col xs={24}>
+            <Card
+              title="Recently Updated Packages"
+              extra={
+                <button className="action-btn" onClick={fetchRecentUpdatedPackages} disabled={recentUpdatedLoading}>
+                  {recentUpdatedLoading ? 'Refreshing…' : 'Refresh'}
+                </button>
+              }
+            >
+              <div style={{ maxHeight: 360, overflowY: 'auto' }}>
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th>Updated</th>
+                      <th>Tracking #</th>
+                      <th>Status</th>
+                      <th>Shop</th>
+                      <th>Driver</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {recentUpdatedPackages.length === 0 ? (
+                      <tr><td colSpan={6} style={{ textAlign: 'center' }}>No recent updates.</td></tr>
+                    ) : (
+                      recentUpdatedPackages.map(pkg => {
+                        const isNew = pkg.createdAt && pkg.updatedAt && (new Date(pkg.createdAt).getTime() === new Date(pkg.updatedAt).getTime());
+                        return (
+                          <tr key={pkg.id}>
+                            <td>
+                              {new Date(pkg.updatedAt).toLocaleString()}
+                              {isNew && <span className="status-badge status-pending" style={{ marginLeft: 8 }}>New</span>}
+                            </td>
+                            <td>{pkg.trackingNumber}</td>
+                            <td>
+                              <span className={`status-badge status-${pkg.status}`}>
+                                {pkg.status}
+                              </span>
+                            </td>
+                            <td>{pkg.shop?.businessName || pkg.Shop?.businessName || '-'}</td>
+                            <td>{pkg.driver?.contact?.name || pkg.Driver?.User?.name || '-'}</td>
+                            <td>
+                              <div style={{ display: 'flex', gap: 8 }}>
+                                <button
+                                  className="action-btn view-btn"
+                                  title="View details"
+                                  onClick={() => viewDetails(pkg, 'package')}
+                                >
+                                  <FontAwesomeIcon icon={faEye} />
+                                </button>
+                                {/* Quick forward if not at final step; delivered handled via modal elsewhere */}
+                                {['assigned', 'pickedup', 'in-transit'].includes(pkg.status) && (
+                                  <button
+                                    className="action-btn"
+                                    title="Forward status"
+                                    onClick={async () => {
+                                      await forwardPackageStatus(pkg);
+                                      // Refresh the recent list to reflect new status
+                                      fetchRecentUpdatedPackages();
+                                    }}
+                                    disabled={forwardingPackageId === pkg.id}
+                                  >
+                                    {forwardingPackageId === pkg.id ? 'Forwarding…' : 'Forward'}
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
               </div>
             </Card>
           </Col>
@@ -5406,6 +5652,8 @@ const AdminDashboard = () => {
     fetchPackagesWithFilters(1, searchTerm, packageStatusFilter, newShop);
   };
 
+  // Removed driver-specific filter; driver search goes through global search
+
   // Function to handle main tab change
   const handleMainTabChange = (newTab) => {
     setPackagesTab(newTab);
@@ -5436,7 +5684,9 @@ const AdminDashboard = () => {
     switch (mainTab) {
       case 'ready-to-assign':
         if (subTab === 'all') {
-          statusFilter = 'awaiting_schedule,scheduled_for_pickup,pending,exchange-awaiting-schedule,return-requested';
+          // Show only Pending, Return Requested, and Exchange Requested under 'All Ready'
+          // Exchange requested maps to the initial exchange-request state: exchange-awaiting-schedule
+          statusFilter = 'pending,return-requested,exchange-in-process';
         } else {
           statusFilter = subTab;
         }
@@ -5706,13 +5956,45 @@ const AdminDashboard = () => {
   const [adminIsPartialDelivery, setAdminIsPartialDelivery] = useState(false);
   const [adminDeliveredQuantities, setAdminDeliveredQuantities] = useState({});
   const [adminPaymentMethodChoice, setAdminPaymentMethodChoice] = useState('CASH');
+  // Return Completed confirmation modal state
+  const [showReturnCompleteDialog, setShowReturnCompleteDialog] = useState(false);
+  const [returnCompletePkg, setReturnCompletePkg] = useState(null);
+  const [returnDeductShipping, setReturnDeductShipping] = useState(true);
+  // Exchange Completed confirmation modal state
+  const [showExchangeCompleteDialog, setShowExchangeCompleteDialog] = useState(false);
+  const [exchangeCompletePkg, setExchangeCompletePkg] = useState(null);
+  const [exchangeDeductShipping, setExchangeDeductShipping] = useState(true);
+
+  // Global ESC-to-close for admin: close the top-most modal/dialog (must be after all related state declarations)
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (e.key !== 'Escape') return;
+      // Highest priority overlays first
+      if (showReturnCompleteDialog) { setShowReturnCompleteDialog(false); setReturnCompletePkg(null); return; }
+      if (showExchangeCompleteDialog) { setShowExchangeCompleteDialog(false); setExchangeCompletePkg(null); return; }
+      if (showConfirmationDialog) { setShowConfirmationDialog(false); return; }
+      if (showAdminDeliveryModal) { setShowAdminDeliveryModal(false); return; }
+      if (showRejectPackageModal) { setShowRejectPackageModal(false); return; }
+      if (showForwardPackageModal) { setShowForwardPackageModal(false); return; }
+      if (showAssignPickupDriverModal) { setShowAssignPickupDriverModal(false); return; }
+      if (showAssignDriverModal) { setShowAssignDriverModal(false); return; }
+      if (showBulkAssignModal) { setShowBulkAssignModal(false); return; }
+      if (showSettleAmountModal) { setShowSettleAmountModal(false); return; }
+      if (showPickupModal) { setShowPickupModal(false); return; }
+      if (showWorkingAreaModal) { setShowWorkingAreaModal(false); return; }
+      if (showShippingFeesModal) { setShowShippingFeesModal(false); return; }
+      if (showDetailsModal) { setShowDetailsModal(false); setSelectedEntity(null); return; }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [showReturnCompleteDialog, showExchangeCompleteDialog, showConfirmationDialog, showAdminDeliveryModal, showRejectPackageModal, showForwardPackageModal, showAssignPickupDriverModal, showAssignDriverModal, showBulkAssignModal, showSettleAmountModal, showPickupModal, showWorkingAreaModal, showShippingFeesModal, showDetailsModal]);
 
   // Render admin delivery confirmation modal (mirror of mobile driver)
   const renderAdminDeliveryModal = () => {
     if (!showAdminDeliveryModal || !adminDeliveryModalPackage) return null;
     const items = Array.isArray(adminDeliveryModalPackage.Items) ? adminDeliveryModalPackage.Items : [];
     return (
-      <div className={`modal-overlay show`} onClick={() => setShowAdminDeliveryModal(false)}>
+      <div className={`modal-overlay show admin-delivery-overlay`} onClick={() => setShowAdminDeliveryModal(false)}>
         <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 520 }}>
           <div className="modal-header">
             <h3>Mark as Delivered</h3>
@@ -5802,6 +6084,97 @@ const AdminDashboard = () => {
     );
   };
 
+  // Render Return Completed confirmation modal
+  const renderReturnCompleteDialog = () => {
+    if (!showReturnCompleteDialog || !returnCompletePkg) return null;
+    const dc = parseFloat(returnCompletePkg.deliveryCost || 0) || 0;
+    const refund = parseFloat(returnCompletePkg.returnRefundAmount || 0) || 0;
+    return (
+      <div className="confirmation-overlay">
+        <div className="confirmation-dialog warning-dialog">
+          <h3>Complete Return</h3>
+          <p>
+            You are about to mark package <strong>#{returnCompletePkg.trackingNumber}</strong> as <strong>Return Completed</strong>.
+          </p>
+          <div style={{ marginTop: 8, marginBottom: 8, fontSize: 14, color: '#333' }}>
+            <div>Shipping Fees: <strong>EGP {dc.toFixed(2)}</strong></div>
+          </div>
+          <div style={{ marginTop: 12, marginBottom: 12 }}>
+            <label style={{ display: 'block', marginBottom: 6 }}>Reduce shipping fees from the shop?</label>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button type="button" className={`btn ${returnDeductShipping ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setReturnDeductShipping(true)}>Yes</button>
+              <button type="button" className={`btn ${!returnDeductShipping ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setReturnDeductShipping(false)}>No</button>
+            </div>
+          </div>
+          <div className="confirmation-buttons">
+            <button className="btn-secondary" onClick={() => { setShowReturnCompleteDialog(false); setReturnCompletePkg(null); }}>Cancel</button>
+            <button
+              className="btn-primary"
+              onClick={async () => {
+                try {
+                  await packageService.updatePackageStatus(returnCompletePkg.id, { status: 'return-completed', deductShippingFees: returnDeductShipping });
+                  setShowReturnCompleteDialog(false);
+                  setReturnCompletePkg(null);
+                  await fetchPackagesWithMainTab(packagesTab, packagesSubTab, packagePage);
+                } catch (err) {
+                  console.error('Failed to mark return completed:', err);
+                  setStatusMessage({ type: 'error', text: err.response?.data?.message || 'Failed to complete return' });
+                }
+              }}
+            >
+              Confirm
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Render Exchange Completed confirmation modal
+  const renderExchangeCompleteDialog = () => {
+    if (!showExchangeCompleteDialog || !exchangeCompletePkg) return null;
+    const dc = parseFloat(exchangeCompletePkg.deliveryCost || 0) || 0;
+    return (
+      <div className="confirmation-overlay">
+        <div className="confirmation-dialog warning-dialog">
+          <h3>Complete Exchange</h3>
+          <p>
+            You are about to mark package <strong>#{exchangeCompletePkg.trackingNumber}</strong> as <strong>Exchange Completed</strong>.
+          </p>
+          <div style={{ marginTop: 8, marginBottom: 8, fontSize: 14, color: '#333' }}>
+            <div>Shipping Fees (delivery cost): <strong>EGP {dc.toFixed(2)}</strong></div>
+          </div>
+          <div style={{ marginTop: 12, marginBottom: 12 }}>
+            <label style={{ display: 'block', marginBottom: 6 }}>Reduce shipping fees from the shop?</label>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button type="button" className={`btn ${exchangeDeductShipping ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setExchangeDeductShipping(true)}>Yes</button>
+              <button type="button" className={`btn ${!exchangeDeductShipping ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setExchangeDeductShipping(false)}>No</button>
+            </div>
+          </div>
+          <div className="confirmation-buttons">
+            <button className="btn-secondary" onClick={() => { setShowExchangeCompleteDialog(false); setExchangeCompletePkg(null); }}>Cancel</button>
+            <button
+              className="btn-primary"
+              onClick={async () => {
+                try {
+                  await packageService.updatePackageStatus(exchangeCompletePkg.id, { status: 'exchange-returned', deductShippingFees: exchangeDeductShipping });
+                  setShowExchangeCompleteDialog(false);
+                  setExchangeCompletePkg(null);
+                  await fetchPackagesWithMainTab(packagesTab, packagesSubTab, packagePage);
+                } catch (err) {
+                  console.error('Failed to mark exchange completed:', err);
+                  setStatusMessage({ type: 'error', text: err.response?.data?.message || 'Failed to complete exchange' });
+                }
+              }}
+            >
+              Confirm
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // Wrapper used from within details modal button to ensure consistent behavior
   const handleForwardFromDetails = async (pkg) => {
     try {
@@ -5829,7 +6202,9 @@ const AdminDashboard = () => {
     </button>
   {renderStatusMessage()}
   <SwipeMenuHint isMenuOpen={isMenuOpen} />
-      {renderAdminDeliveryModal()}
+  {renderAdminDeliveryModal()}
+  {renderReturnCompleteDialog()}
+  {renderExchangeCompleteDialog()}
       {renderConfirmationDialog()}
       {renderForwardPackageModal()}
       {renderRejectPackageModal()}

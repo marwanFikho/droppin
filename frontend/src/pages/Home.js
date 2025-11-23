@@ -1,16 +1,26 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { motion, useScroll, useTransform, useInView } from 'framer-motion';
 import '../App.css';
 
 const Home = () => {
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  
   useEffect(() => {
     window.scrollTo(0, 0);
+    
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
+  
   const { currentUser } = useAuth();
 
-  // Scroll animations
+  // Scroll animations - disabled on mobile for performance
   const { scrollYProgress } = useScroll();
   const y = useTransform(scrollYProgress, [0, 1], [0, -100]);
 
@@ -45,165 +55,167 @@ const Home = () => {
           <div className="hero-shapes">
             <motion.div
               className="shape shape-1"
-              animate={{
+              animate={!isMobile ? {
                 rotate: 360,
                 scale: [1, 1.1, 1]
-              }}
-              transition={{
+              } : {}}
+              transition={!isMobile ? {
                 rotate: { duration: 20, repeat: Infinity, ease: "linear" },
                 scale: { duration: 4, repeat: Infinity, ease: "easeInOut" }
-              }}
+              } : {}}
             ></motion.div>
             <motion.div
               className="shape shape-2"
-              animate={{
+              animate={!isMobile ? {
                 rotate: -360,
                 scale: [1, 0.9, 1]
-              }}
-              transition={{
+              } : {}}
+              transition={!isMobile ? {
                 rotate: { duration: 15, repeat: Infinity, ease: "linear" },
                 scale: { duration: 5, repeat: Infinity, ease: "easeInOut" }
-              }}
+              } : {}}
             ></motion.div>
             <motion.div
               className="shape shape-3"
-              animate={{
+              animate={!isMobile ? {
                 rotate: 360,
                 y: [0, -20, 0]
-              }}
-              transition={{
+              } : {}}
+              transition={!isMobile ? {
                 rotate: { duration: 25, repeat: Infinity, ease: "linear" },
                 y: { duration: 6, repeat: Infinity, ease: "easeInOut" }
-              }}
+              } : {}}
             ></motion.div>
           </div>
 
           {/* Jumping Delivery Emojis - Desktop Only */}
-          <div className="jumping-emojis">
-            {/* Left Side Emojis */}
-            <motion.div
-              className="emoji emoji-left-1"
-              animate={{
-                y: [0, -15, 0],
-                rotate: [0, 5, -5, 0]
-              }}
-              transition={{
-                duration: 3,
-                repeat: Infinity,
-                ease: "easeInOut",
-                delay: 0
-              }}
-            >
-              🚚
-            </motion.div>
-            <motion.div
-              className="emoji emoji-left-2"
-              animate={{
-                y: [0, -20, 0],
-                rotate: [0, -3, 3, 0]
-              }}
-              transition={{
-                duration: 2.5,
-                repeat: Infinity,
-                ease: "easeInOut",
-                delay: 0.5
-              }}
-            >
-              📦
-            </motion.div>
-            <motion.div
-              className="emoji emoji-left-3"
-              animate={{
-                y: [0, -18, 0],
-                rotate: [0, 4, -4, 0]
-              }}
-              transition={{
-                duration: 3.5,
-                repeat: Infinity,
-                ease: "easeInOut",
-                delay: 1
-              }}
-            >
-              🚛
-            </motion.div>
-            <motion.div
-              className="emoji emoji-left-4"
-              animate={{
-                y: [0, -12, 0],
-                rotate: [0, -2, 2, 0]
-              }}
-              transition={{
-                duration: 2.8,
-                repeat: Infinity,
-                ease: "easeInOut",
-                delay: 1.5
-              }}
-            >
-              📬
-            </motion.div>
+          {!isMobile && (
+            <div className="jumping-emojis">
+              {/* Left Side Emojis */}
+              <motion.div
+                className="emoji emoji-left-1"
+                animate={{
+                  y: [0, -15, 0],
+                  rotate: [0, 5, -5, 0]
+                }}
+                transition={{
+                  duration: 3,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                  delay: 0
+                }}
+              >
+                🚚
+              </motion.div>
+              <motion.div
+                className="emoji emoji-left-2"
+                animate={{
+                  y: [0, -20, 0],
+                  rotate: [0, -3, 3, 0]
+                }}
+                transition={{
+                  duration: 2.5,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                  delay: 0.5
+                }}
+              >
+                📦
+              </motion.div>
+              <motion.div
+                className="emoji emoji-left-3"
+                animate={{
+                  y: [0, -18, 0],
+                  rotate: [0, 4, -4, 0]
+                }}
+                transition={{
+                  duration: 3.5,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                  delay: 1
+                }}
+              >
+                🚛
+              </motion.div>
+              <motion.div
+                className="emoji emoji-left-4"
+                animate={{
+                  y: [0, -12, 0],
+                  rotate: [0, -2, 2, 0]
+                }}
+                transition={{
+                  duration: 2.8,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                  delay: 1.5
+                }}
+              >
+                📬
+              </motion.div>
 
-            {/* Right Side Emojis */}
-            <motion.div
-              className="emoji emoji-right-1"
-              animate={{
-                y: [0, -17, 0],
-                rotate: [0, -4, 4, 0]
-              }}
-              transition={{
-                duration: 3.2,
-                repeat: Infinity,
-                ease: "easeInOut",
-                delay: 0.8
-              }}
-            >
-              🛵
-            </motion.div>
-            <motion.div
-              className="emoji emoji-right-2"
-              animate={{
-                y: [0, -14, 0],
-                rotate: [0, 3, -3, 0]
-              }}
-              transition={{
-                duration: 2.6,
-                repeat: Infinity,
-                ease: "easeInOut",
-                delay: 0.3
-              }}
-            >
-              🚴‍♂️
-            </motion.div>
-            <motion.div
-              className="emoji emoji-right-3"
-              animate={{
-                y: [0, -19, 0],
-                rotate: [0, -5, 5, 0]
-              }}
-              transition={{
-                duration: 3.8,
-                repeat: Infinity,
-                ease: "easeInOut",
-                delay: 1.2
-              }}
-            >
-              🏍️
-            </motion.div>
-            <motion.div
-              className="emoji emoji-right-4"
-              animate={{
-                y: [0, -16, 0],
-                rotate: [0, 2, -2, 0]
-              }}
-              transition={{
-                duration: 2.9,
-                repeat: Infinity,
-                ease: "easeInOut",
-                delay: 0.7
-              }}
-            >
-              📱
-            </motion.div>
-          </div>
+              {/* Right Side Emojis */}
+              <motion.div
+                className="emoji emoji-right-1"
+                animate={{
+                  y: [0, -17, 0],
+                  rotate: [0, -4, 4, 0]
+                }}
+                transition={{
+                  duration: 3.2,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                  delay: 0.8
+                }}
+              >
+                🛵
+              </motion.div>
+              <motion.div
+                className="emoji emoji-right-2"
+                animate={{
+                  y: [0, -14, 0],
+                  rotate: [0, 3, -3, 0]
+                }}
+                transition={{
+                  duration: 2.6,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                  delay: 0.3
+                }}
+              >
+                🚴‍♂️
+              </motion.div>
+              <motion.div
+                className="emoji emoji-right-3"
+                animate={{
+                  y: [0, -19, 0],
+                  rotate: [0, -5, 5, 0]
+                }}
+                transition={{
+                  duration: 3.8,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                  delay: 1.2
+                }}
+              >
+                🏍️
+              </motion.div>
+              <motion.div
+                className="emoji emoji-right-4"
+                animate={{
+                  y: [0, -16, 0],
+                  rotate: [0, 2, -2, 0]
+                }}
+                transition={{
+                  duration: 2.9,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                  delay: 0.7
+                }}
+              >
+                📱
+              </motion.div>
+            </div>
+          )}
         </div>
 
         <motion.div

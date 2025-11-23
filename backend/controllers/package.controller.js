@@ -1213,19 +1213,22 @@ exports.updatePackageStatus = async (req, res) => {
       }
     }
     
-    // === Handle Return Completed: subtract deliveryCost and refund from TotalCollected ===
+    // === Handle Return Completed: subtract refund (always) and optionally deliveryCost from TotalCollected ===
     if (
       nextStatus === 'return-completed' &&
       shop
     ) {
       const deliveryCost = parseFloat(package.deliveryCost || 0);
       const refund = parseFloat(package.returnRefundAmount || 0);
+      // Respect admin choice whether to deduct shipping fees for return completion
+      const deductShipping = (req.body.deductShippingFees !== undefined) ? Boolean(req.body.deductShippingFees) : true;
       
       // Get current TotalCollected
       const currentTotalCollected = parseFloat(shop.TotalCollected || 0);
       
-      // Calculate new TotalCollected after deducting both amounts (allow negative)
-      const newTotalCollected = currentTotalCollected - (deliveryCost + refund);
+      // Calculate new TotalCollected after deducting refund and optionally delivery cost (allow negative)
+      const shippingToDeduct = deductShipping ? deliveryCost : 0;
+      const newTotalCollected = currentTotalCollected - (shippingToDeduct + refund);
       
       // Update shop's TotalCollected
       await sequelize.query(
@@ -1238,7 +1241,7 @@ exports.updatePackageStatus = async (req, res) => {
       );
       
       // Log individual transactions separately
-      if (deliveryCost > 0) {
+      if (deductShipping && deliveryCost > 0) {
         await logMoneyTransaction(
           shop.id,
           deliveryCost,
@@ -1261,7 +1264,7 @@ exports.updatePackageStatus = async (req, res) => {
       }
     }
 
-    // === Handle Exchange Completed: adjust TotalCollected and reduce shipping fees ===
+    // === Handle Exchange Completed: adjust TotalCollected and optionally reduce shipping fees ===
     if (
       nextStatus === 'exchange-returned' &&
       shop
@@ -1272,12 +1275,15 @@ exports.updatePackageStatus = async (req, res) => {
       const moneyType = cashDelta.type || null; // 'give' or 'take'
       const signedDelta = moneyType === 'take' ? amount : (moneyType === 'give' ? -amount : 0);
       const deliveryCost = parseFloat(package.deliveryCost || 0) || 0;
+      // Respect admin/driver choice whether to deduct shipping fees for exchange completion
+      const deductShipping = (req.body.deductShippingFees !== undefined) ? Boolean(req.body.deductShippingFees) : true;
 
       // Get current TotalCollected
       const currentTotalCollected = parseFloat(shop.TotalCollected || 0);
 
-      // Calculate new TotalCollected: apply cash delta (signed by type) and subtract shipping fee
-      const newTotalCollected = currentTotalCollected + signedDelta - (deliveryCost > 0 ? deliveryCost : 0);
+  // Calculate new TotalCollected: apply cash delta (signed by type) and optionally subtract shipping fee
+  const shippingToDeduct = deductShipping ? (deliveryCost > 0 ? deliveryCost : 0) : 0;
+  const newTotalCollected = currentTotalCollected + signedDelta - shippingToDeduct;
 
       // Update shop's TotalCollected
       await sequelize.query(
@@ -1310,8 +1316,8 @@ exports.updatePackageStatus = async (req, res) => {
         );
       }
 
-      // Always deduct shipping fee
-      if (deliveryCost > 0) {
+      // Conditionally deduct shipping fee
+      if (deductShipping && deliveryCost > 0) {
         await logMoneyTransaction(
           shop.id,
           deliveryCost,
@@ -1817,9 +1823,12 @@ exports.cancelPackage = async (req, res) => {
     }
     await pkg.save({ transaction: t });
 
-    // Update shop's ToCollect if needed
-    if (wasCodAdded && codAmount > 0) {
-      // Update shop's ToCollect using direct SQL to avoid precision issues
+    // IMPORTANT: Do NOT reduce ToCollect when moving to 'cancelled-awaiting-return'.
+    // The deduction must happen ONLY when admin marks the package as 'cancelled-returned'.
+    // We therefore skip adjusting ToCollect here entirely. (Historical logic removed to prevent double subtraction.)
+    if (pkg.status === 'cancelled' && wasCodAdded && codAmount > 0) {
+      // This branch would rarely execute because 'cancelled' status is only set for pre-pickup states
+      // where COD likely wasn't added. Kept for safety if logic changes later.
       await sequelize.query(
         'UPDATE Shops SET ToCollect = :newToCollect WHERE id = :shopId',
         {
@@ -1828,11 +1837,8 @@ exports.cancelPackage = async (req, res) => {
           transaction: t
         }
       );
-      
-      // Create money log within the transaction
-      await logMoneyTransaction(shop.id, codAmount, 'ToCollect', 'decrease', `Package ${pkg.trackingNumber} cancelled`, t);
-      
-      console.log(`Shop (${shop.id}) ToCollect updated: ${currentToCollect} -> ${newToCollect}`);
+      await logMoneyTransaction(shop.id, codAmount, 'ToCollect', 'decrease', `Package ${pkg.trackingNumber} cancelled (no return)`, t);
+      console.log(`Shop (${shop.id}) ToCollect updated (final cancel): ${currentToCollect} -> ${newToCollect}`);
     }
 
     // Commit the transaction
@@ -1930,8 +1936,8 @@ exports.updatePackageNotes = async (req, res) => {
 exports.requestReturn = async (req, res) => {
 	const t = await sequelize.transaction();
 	try {
-		const { id } = req.params;
-		const { items, refundAmount } = req.body; // items: [{ itemId, quantity }]
+    const { id } = req.params;
+    const { items } = req.body; // items: [{ itemId, quantity }]
 
 		// Auth: only shops
 		if (req.user.role !== 'shop') {
@@ -1960,8 +1966,8 @@ exports.requestReturn = async (req, res) => {
 			return res.status(400).json({ message: 'Only delivered or delivered-returned packages can be returned' });
 		}
 
-		// Validate items
-		let returnDetails = [];
+    // Validate items and build normalized return details
+    let returnDetails = [];
 		if (Array.isArray(items) && items.length > 0) {
 			const itemMap = new Map(pkg.Items.map(i => [i.id, i]));
 			for (const r of items) {
@@ -1975,15 +1981,26 @@ exports.requestReturn = async (req, res) => {
 					await t.rollback();
 					return res.status(400).json({ message: `Invalid quantity for itemId ${r.itemId}` });
 				}
-				returnDetails.push({ itemId: dbItem.id, description: dbItem.description, quantity: qty });
+        returnDetails.push({ itemId: dbItem.id, description: dbItem.description, quantity: qty });
 			}
 		}
 
-		const refund = parseFloat(refundAmount || 0) || 0;
-		if (refund < 0) {
-			await t.rollback();
-			return res.status(400).json({ message: 'Refund amount cannot be negative' });
-		}
+    // Compute refund amount server-side from items to avoid client-side manipulation
+    let computedRefund = 0;
+    if (returnDetails.length > 0) {
+      const itemMap = new Map(pkg.Items.map(i => [i.id, i]));
+      for (const rd of returnDetails) {
+        const dbItem = itemMap.get(rd.itemId);
+        if (!dbItem) continue; // already validated, safety
+        const totalItemCod = parseFloat(dbItem.codAmount || 0) || 0;
+        const totalItemQty = parseInt(dbItem.quantity, 10) || 0;
+        const perUnitCod = totalItemQty > 0 ? (totalItemCod / totalItemQty) : 0;
+        const qtyToRefund = Math.max(0, Math.min(parseInt(rd.quantity, 10) || 0, totalItemQty));
+        computedRefund += perUnitCod * qtyToRefund;
+      }
+    }
+    // Normalize to 2 decimals
+    computedRefund = Math.max(0, Number.parseFloat(computedRefund.toFixed(2)) || 0);
 
 		// If the package had a driver assigned, add a system note and clear the driver assignment
 		try {
@@ -2038,10 +2055,10 @@ exports.requestReturn = async (req, res) => {
 		}
 
 		// Update package type and status, store return details
-		pkg.type = 'return';
-		pkg.status = 'return-requested';
-		pkg.returnDetails = returnDetails;
-		pkg.returnRefundAmount = refund;
+    pkg.type = 'return';
+    pkg.status = 'return-requested';
+    pkg.returnDetails = returnDetails;
+    pkg.returnRefundAmount = computedRefund;
 		// Clear actualDeliveryTime as it will become a return flow
 		pkg.actualDeliveryTime = null;
 		await pkg.save({ transaction: t });

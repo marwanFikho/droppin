@@ -401,6 +401,76 @@ exports.getShopById = async (req, res) => {
   }
 };
 
+// Get per-shop operational stats (deliveries, cancellations, rejection, return/exchange requests, COD aggregates)
+exports.getShopStats = async (req, res) => {
+  try {
+    const { id } = req.params; // shopId
+    const shop = await Shop.findByPk(id);
+    if (!shop) {
+      return res.status(404).json({ message: 'Shop not found' });
+    }
+
+    // Base where clause
+    const baseWhere = { shopId: shop.id };
+
+    // Helper to count by status set
+    const countByStatuses = async (statuses) => {
+      return await Package.count({ where: { ...baseWhere, status: statuses.length === 1 ? statuses[0] : statuses } });
+    };
+
+    // Primary lifecycle counts
+    const totalPackages = await Package.count({ where: baseWhere });
+    const deliveredCount = await countByStatuses(['delivered', 'delivered-awaiting-return', 'delivered-returned']);
+    const cancelledCount = await countByStatuses(['cancelled', 'cancelled-awaiting-return', 'cancelled-returned']);
+    const rejectedCount = await countByStatuses(['rejected', 'rejected-awaiting-return', 'rejected-returned']);
+    const returnRequestedCount = await countByStatuses(['return-requested', 'return-in-transit', 'return-pending']);
+    const returnCompletedCount = await countByStatuses(['return-completed']);
+    const exchangeProcessCount = await countByStatuses(['exchange-awaiting-schedule', 'exchange-awaiting-pickup', 'exchange-in-process', 'exchange-in-transit']);
+    const exchangeCompletedCount = await countByStatuses(['exchange-returned']);
+    const exchangeCancelledCount = await countByStatuses(['exchange-cancelled']);
+
+    // Success metrics (exclude cancelled & rejected from success denominator if desired)
+    const attemptedDeliveries = totalPackages - cancelledCount - rejectedCount; // packages that had a chance to be delivered
+    const deliverySuccessRate = attemptedDeliveries > 0 ? (deliveredCount / attemptedDeliveries) : 0;
+    const cancellationRate = totalPackages > 0 ? (cancelledCount / totalPackages) : 0;
+    const rejectionRate = totalPackages > 0 ? (rejectedCount / totalPackages) : 0;
+
+    // COD financial aggregation (only delivered variants actually collected) - assuming codCollected stored on Package
+    const deliveredPackages = await Package.findAll({ where: { ...baseWhere, status: ['delivered', 'delivered-awaiting-return', 'delivered-returned'] } });
+    let codExpected = 0;
+    let codCollected = 0;
+    for (const p of deliveredPackages) {
+      const expected = parseFloat(p.totalCOD || p.codAmount || 0) || 0; // adapt to actual field naming if differs
+      const collected = parseFloat(p.codCollected || p.collectedAmount || 0) || 0;
+      codExpected += expected;
+      codCollected += collected;
+    }
+    const codCollectionRate = codExpected > 0 ? (codCollected / codExpected) : 0;
+
+    res.json({
+      shopId: shop.id,
+      totalPackages,
+      deliveredCount,
+      cancelledCount,
+      rejectedCount,
+      returnRequestedCount,
+      returnCompletedCount,
+      exchangeProcessCount,
+      exchangeCompletedCount,
+      exchangeCancelledCount,
+      deliverySuccessRate,
+      cancellationRate,
+      rejectionRate,
+      codExpected: parseFloat(codExpected.toFixed(2)),
+      codCollected: parseFloat(codCollected.toFixed(2)),
+      codCollectionRate
+    });
+  } catch (error) {
+    console.error('Error generating shop stats:', error);
+    res.status(500).json({ message: 'Failed to get shop stats' });
+  }
+};
+
 // Approve or reject a shop - COMPLETELY REWRITTEN to be as simple as possible
 exports.approveShop = async (req, res) => {
   try {
@@ -1067,6 +1137,7 @@ exports.getPackages = async (req, res) => {
     const {
       id,
       driverId,
+      driverName,
       status,
       statusIn, // comma-separated statuses
       shopId,
@@ -1096,6 +1167,11 @@ exports.getPackages = async (req, res) => {
       whereClause.driverId = driverId;
     }
 
+    // Filter by driver name (via joined Driver -> User)
+    if (driverName) {
+      whereClause['$Driver.User.name$'] = { [Op.like]: `%${driverName}%` };
+    }
+
     if (status && status !== 'all') {
       whereClause.status = status;
     }
@@ -1122,7 +1198,8 @@ exports.getPackages = async (req, res) => {
     if (search) {
       whereClause[Op.or] = [
         { trackingNumber: { [Op.like]: `%${search}%` } },
-        { packageDescription: { [Op.like]: `%${search}%` } }
+        { packageDescription: { [Op.like]: `%${search}%` } },
+        { '$Driver.User.name$': { [Op.like]: `%${search}%` } }
       ];
     }
 
@@ -1138,7 +1215,7 @@ exports.getPackages = async (req, res) => {
       if (deliveredBefore) whereClause.actualDeliveryTime[Op.lte] = new Date(deliveredBefore);
     }
 
-    const validSortFields = ['createdAt', 'actualDeliveryTime', 'status', 'updatedAt'];
+  const validSortFields = ['createdAt', 'actualDeliveryTime', 'actualPickupTime', 'status', 'updatedAt'];
     const orderField = validSortFields.includes(sortBy) ? sortBy : 'createdAt';
     const orderDirection = ['ASC', 'DESC'].includes(String(sortOrder).toUpperCase()) ? String(sortOrder).toUpperCase() : 'DESC';
 
@@ -1754,17 +1831,32 @@ exports.getTopShops = async (req, res) => {
 };
 
 // 5. Recent packages data (last 7 days for dashboard chart)
+// Fix: "delivered" must be counted by actual delivery date, not created date.
+// Also ensure we return all 7 days even if some have zero created/delivered.
 exports.getRecentPackagesData = async (req, res) => {
   try {
     const results = await sequelize.query(`
+      WITH RECURSIVE dates(d) AS (
+        SELECT date('now', '-6 days')
+        UNION ALL
+        SELECT date(d, '+1 day') FROM dates WHERE d < date('now')
+      )
       SELECT
-        date(createdAt) as date,
-        COUNT(*) as created,
-        SUM(CASE WHEN status = 'delivered' THEN 1 ELSE 0 END) as delivered
-      FROM Packages
-      WHERE date(createdAt) >= date('now', '-6 days')
-      GROUP BY date(createdAt)
-      ORDER BY date(createdAt) ASC
+        d AS date,
+        COALESCE((
+          SELECT COUNT(*)
+          FROM Packages
+          WHERE date(createdAt) = d
+        ), 0) AS created,
+        COALESCE((
+          SELECT COUNT(*)
+          FROM Packages
+          WHERE status = 'delivered'
+            AND actualDeliveryTime IS NOT NULL
+            AND date(actualDeliveryTime) = d
+        ), 0) AS delivered
+      FROM dates
+      ORDER BY d ASC
     `, { type: QueryTypes.SELECT });
 
     console.log('Recent packages data:', results); // Debug log

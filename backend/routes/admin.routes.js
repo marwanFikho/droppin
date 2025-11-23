@@ -21,6 +21,7 @@ router.delete('/users/:id', adminController.deleteUser);
 // Shop management
 router.get('/shops', adminController.getShops);
 router.get('/shops/:id', adminController.getShopById);
+router.get('/shops/:id/stats', adminController.getShopStats);
 router.patch('/shops/:id/approve', adminController.approveShop);
 router.patch('/shops/:id', adminController.updateShop);
 router.post('/shops/:id/adjust-total-collected', adminController.adjustShopTotalCollected);

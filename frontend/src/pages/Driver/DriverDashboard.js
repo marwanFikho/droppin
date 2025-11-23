@@ -164,6 +164,19 @@ const DriverDashboard = () => {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
+  // ESC-to-close: close the top-most open modal in the driver dashboard
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (e.key !== 'Escape') return;
+      if (deliveryModalOpen) { setDeliveryModalOpen(false); setDeliveryModalPackage(null); return; }
+      if (pickupModalOpen) { closePickupModal(); return; }
+      if (isModalOpen) { setIsModalOpen(false); setSelectedPackage(null); return; }
+      if (showProfile) { setShowProfile(false); return; }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [deliveryModalOpen, pickupModalOpen, isModalOpen, showProfile]);
+
   useEffect(() => {
     // Fetch assigned pickups for this driver
     const fetchDriverPickups = async () => {
@@ -219,7 +232,9 @@ const DriverDashboard = () => {
   };
 
   const handleStatusAction = (pkg, nextStatus) => {
-    setConfirmAction({ type: 'status', pkg, nextStatus });
+    // default deductShippingFees to true for exchange completion prompt
+    const extra = nextStatus === 'exchange-returned' ? { deductShippingFees: true } : {};
+    setConfirmAction({ type: 'status', pkg, nextStatus, ...extra });
   };
 
   const handleRejectPackage = (pkg) => {
@@ -245,7 +260,11 @@ const DriverDashboard = () => {
     }
     setStatusUpdating((prev) => ({ ...prev, [pkg.id]: true }));
     try {
-      await packageService.updatePackageStatus(pkg.id, { status: nextStatus });
+      const payload = { status: nextStatus };
+      if (nextStatus === 'exchange-returned') {
+        payload.deductShippingFees = (confirmAction?.deductShippingFees !== undefined) ? Boolean(confirmAction.deductShippingFees) : true;
+      }
+      await packageService.updatePackageStatus(pkg.id, payload);
       // Refresh packages
       const packagesRes = await packageService.getPackages({ assignedToMe: true, page: 1, limit: 10000 });
       const fetched = packagesRes.data.packages || packagesRes.data || [];
@@ -940,9 +959,22 @@ const DriverDashboard = () => {
                                   : confirmAction.nextStatus === 'exchange-awaiting-return'
                                     ? t('driver.dashboard.markExchangeAwaitingReturn')
                                     : confirmAction.nextStatus === 'exchange-returned'
-                                      ? t('driver.dashboard.markExchangeCompleted')
+                                                        ? t('driver.dashboard.markExchangeCompleted')
                                       : t('driver.dashboard.noActions')
                   }) }} />
+                                    {confirmAction.nextStatus === 'exchange-returned' && (
+                                      <div style={{ textAlign: 'left', margin: '10px 0' }}>
+                                        <div style={{ fontWeight: 600, marginBottom: 6 }}>Reduce shipping fees from the shop?</div>
+                                        <div style={{ display: 'flex', gap: 8 }}>
+                                          <button type="button" onClick={() => setConfirmAction(prev => ({ ...prev, deductShippingFees: true }))} className={`btn ${confirmAction?.deductShippingFees ? 'btn-primary' : 'btn-secondary'}`}>
+                                            Yes
+                                          </button>
+                                          <button type="button" onClick={() => setConfirmAction(prev => ({ ...prev, deductShippingFees: false }))} className={`btn ${!confirmAction?.deductShippingFees ? 'btn-primary' : 'btn-secondary'}`}>
+                                            No
+                                          </button>
+                                        </div>
+                                      </div>
+                                    )}
                   <button className="btn btn-primary" style={{marginRight: 10}} onClick={() => doStatusAction(confirmAction.pkg, confirmAction.nextStatus)}>{t('driver.dashboard.yesConfirm')}</button>
                 </>
               ) : (

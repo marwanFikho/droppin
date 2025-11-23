@@ -1,15 +1,18 @@
 /* Update stat cards to match color scheme */
 .dashboard-stats .stat-card {
   background: white;
-  border-radius: 12px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
   border: 1px solid #e5e7eb;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
 }
 
-.dashboard-stats .stat-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+/* Only apply hover effects on devices that can hover */
+@media (hover: hover) {
+  .dashboard-stats .stat-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
+  }
 }
 
 .stat-value {
@@ -43,10 +46,13 @@
   transition: all 0.2s ease;
 }
 
-.package-list-item:hover {
-  background: #fff8f0;
-  border-color: #FF6B00;
-  transform: translateX(5px);
+/* Only apply hover effects on devices that can hover */
+@media (hover: hover) {
+  .package-list-item:hover {
+    background: #fff8f0;
+    border-color: #FF6B00;
+    transform: translateX(3px);
+  }
 }
 
 .action-button {
@@ -184,7 +190,9 @@
     position: fixed;
     z-index: 1000;
     transition: transform 0.3s ease;
-    width: 250px; /* Slightly narrower sidebar on mobile */
+    width: 220px; /* Smaller sidebar for mobile */
+    top: 50px !important; /* Less margin from top */
+    height: calc(100vh - 50px) !important;
   }
   
   .dashboard-container.menu-open .dashboard-sidebar {
@@ -194,31 +202,31 @@
   /* Floating bottom-left menu button (mobile) */
   .menu-fab {
     position: fixed;
-    left: max(10px, env(safe-area-inset-left));
-    bottom: max(12px, env(safe-area-inset-bottom));
-    width: 44px;
-    height: 44px;
-    border-radius: 12px;
+    left: max(8px, env(safe-area-inset-left));
+    bottom: max(10px, env(safe-area-inset-bottom));
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
     background: #FF6B00;
     color: #fff;
     border: none;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-size: 20px;
-    box-shadow: 0 4px 14px rgba(0,0,0,0.22);
+    font-size: 18px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.18);
     z-index: 1101; /* Above sidebar (1000) and content */
     cursor: pointer;
     transition: background .25s ease, transform .25s ease;
   }
 
-  .menu-fab:active { transform: scale(.94); }
+  .menu-fab:active { transform: scale(.92); }
   .menu-fab:hover { background:#ff7d1a; }
   .menu-fab .icon { position:absolute; transition: opacity .25s ease, transform .25s ease; }
   .menu-fab .icon-arrow.show { opacity:1; transform:translateX(0); }
-  .menu-fab .icon-arrow.hide { opacity:0; transform:translateX(-8px); }
+  .menu-fab .icon-arrow.hide { opacity:0; transform:translateX(-6px); }
   .menu-fab .icon-hamburger.show { opacity:1; transform:translateX(0); }
-  .menu-fab .icon-hamburger.hide { opacity:0; transform:translateX(8px); }
+  .menu-fab .icon-hamburger.hide { opacity:0; transform:translateX(6px); }
 }
 
 /* Mobile menu toggle button */
@@ -247,8 +255,8 @@
 .dashboard-stats-container {
   display: flex;
   flex-direction: row;
-  gap: 1rem;
-  margin-bottom: 2rem;
+  gap: 0.8rem;
+  margin-bottom: 1.5rem;
   width: 100%; /* Ensure it doesn't overflow */
   overflow: hidden; /* Prevent overflow */
   box-sizing: border-box; /* Include padding in width calculation */
@@ -258,7 +266,7 @@
 .stats-and-chart-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 1rem;
+  gap: 0.8rem;
   align-items: start;
   width: 100%; /* Ensure it doesn't overflow */
   overflow: hidden; /* Prevent overflow */
@@ -266,9 +274,14 @@
 
 /* On smaller screens, stack these elements */
 @media (max-width: 768px) {
+  .dashboard-stats-container {
+    gap: 0.6rem;
+    margin-bottom: 1rem;
+  }
+  
   .stats-and-chart-row {
     grid-template-columns: 1fr; /* Stack vertically on mobile */
-    gap: 0.8rem;
+    gap: 0.6rem;
   }
 }
 
@@ -276,22 +289,35 @@
 .dashboard-stats.package-stats {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 0.5rem;
+  gap: 0.8rem;
   /* background-color: #ffffff; */
-  padding: 0.75rem;
-  border-radius: 0;
-  box-shadow: none;
-  height: 180px; /* Fixed height to match chart */
+  padding: 1rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e5e7eb;
+  height: auto; /* Allow natural height on desktop */
+  min-height: 180px; /* Ensure enough space for text */
   width: 100%; /* Ensure it doesn't overflow */
-  overflow: hidden; /* Prevent overflow */
+  overflow: visible; /* Allow content to show */
   box-sizing: border-box; /* Include padding in width calculation */
 }
 
-/* On smaller screens, make package stats single column */
+/* Mobile styles for package stats */
+@media (max-width: 768px) {
+  .dashboard-stats.package-stats {
+    grid-template-columns: repeat(2, 1fr); /* Keep 2 columns but smaller */
+    min-height: 140px; /* Smaller height for mobile */
+    padding: 0.6rem;
+    gap: 0.4rem;
+  }
+}
+
 @media (max-width: 576px) {
   .dashboard-stats.package-stats {
-    grid-template-columns: 1fr; /* Single column on very small screens */
-    height: auto; /* Auto height to prevent overflow */
+    grid-template-columns: repeat(2, 1fr); /* Keep 2 columns but smaller */
+    min-height: 100px; /* Even smaller height */
+    padding: 0.4rem;
+    gap: 0.3rem;
   }
 }
 
@@ -299,11 +325,11 @@
 .dashboard-stats.financial-stats {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 1rem;
+  gap: 0.8rem;
   background: white;
-  padding: 1.5rem;
-  border-radius: 12px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  padding: 1rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
   border: 1px solid #e5e7eb;
   width: 100%; /* Ensure it doesn't overflow */
   overflow: hidden; /* Prevent overflow */
@@ -313,84 +339,102 @@
 /* On smaller screens, make financial stats single or two column */
 @media (max-width: 768px) {
   .dashboard-stats.financial-stats {
-    grid-template-columns: repeat(2, 1fr); /* Two columns on medium screens */
-    padding: 1.2rem;
+    grid-template-columns: 1fr; /* Single column on mobile for better readability */
+    padding: 0.8rem;
+    gap: 0.5rem;
   }
 }
 
 @media (max-width: 576px) {
   .dashboard-stats.financial-stats {
     grid-template-columns: 1fr; /* Single column on small screens */
-    padding: 1rem;
-    gap: 0.7rem;
+    padding: 0.6rem;
+    gap: 0.4rem;
   }
 }
 
 /* Stat Cards */
 .stat-card {
-  padding: 0.75rem;
+  padding: 1rem;
   text-align: center;
   background-color: #ffffff;
-  border-radius: 6px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  overflow: hidden; /* Prevent overflow */
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e5e7eb;
+  overflow: visible; /* Allow content to show */
   min-width: 0; /* Allow flex items to shrink below content size */
   word-wrap: break-word; /* Break long words if needed */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 80px; /* Ensure enough height for text */
 }
 
 .stat-value {
-  font-size: 1.5rem;
+  font-size: 1.8rem;
   font-weight: bold;
-  color: #333;
-  margin-bottom: 0.25rem;
-  overflow: hidden; /* Prevent overflow */
+  color: #FF6B00 !important;
+  margin-bottom: 0.5rem;
+  overflow: visible; /* Allow content to show */
   text-overflow: ellipsis; /* Add ellipsis if text overflows */
   white-space: nowrap; /* Prevent text overflow */
 }
 
 .stat-label {
-  font-size: 0.85rem;
-  color: #666;
-  overflow: hidden; /* Prevent overflow */
+  font-size: 0.9rem;
+  color: #666666 !important;
+  font-weight: 500;
+  overflow: visible; /* Allow content to show */
   text-overflow: ellipsis; /* Add ellipsis if text overflows */
   white-space: nowrap; /* Prevent text overflow */
+  margin-top: 0.25rem;
 }
 
 /* Financial Stats Specific */
 .financial-stats .stat-card {
-  border-left: 4px solid #FF6B00;
+  border-left: 3px solid #FF6B00;
   background: #fff8f0;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
   overflow: hidden; /* Prevent overflow */
   min-width: 0; /* Allow flex items to shrink below content size */
+  padding: 0.6rem;
 }
 
 .financial-stats .stat-value {
   color: #3a9046;
+  font-size: 1rem;
   overflow: hidden; /* Prevent overflow */
   text-overflow: ellipsis; /* Add ellipsis if text overflows */
   white-space: nowrap; /* Prevent text overflow */
+}
+
+.financial-stats .stat-label {
+  font-size: 0.65rem;
+  line-height: 1.2;
+  color: #666666 !important;
 }
 
 /* Chart Container */
 .chart-container {
   /* background-color: #ffffff; */
-  padding: 0;
-  border-radius: 0;
+  padding: 0.5rem;
+  border-radius: 8px;
   box-shadow: none;
-  height: 300px;
+  height: 180px;
   display: flex;
   flex-direction: column;
   width: 100%; /* Ensure it doesn't overflow */
   overflow: hidden; /* Prevent overflow */
   box-sizing: border-box; /* Include padding in width calculation */
+  background: white;
+  border: 1px solid #e5e7eb;
 }
 
 .chart-container h3 {
-  margin: 0 0 0.5rem 0;
+  margin: 0 0 0.3rem 0;
   color: #333;
-  font-size: 1.1rem;
+  font-size: 0.9rem;
   overflow: hidden; /* Prevent text overflow */
   white-space: nowrap; /* Prevent text overflow */
   text-overflow: ellipsis; /* Add ellipsis if text overflows */
@@ -399,7 +443,7 @@
 .chart-wrapper {
   position: relative;
   width: 100%;
-  height: 240px;
+  height: 130px;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -408,7 +452,7 @@
 
 .chart-wrapper canvas {
   max-width: 100% !important;
-  max-height: 240px !important;
+  max-height: 130px !important;
   width: auto !important;
   height: auto !important;
 }
@@ -513,14 +557,14 @@
 
 /* Status Badges */
 .status-badge {
-  padding: 0.25rem 0.75rem;
-  border-radius: 20px;
-  font-size: 0.8rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 15px;
+  font-size: 0.7rem;
   font-weight: 500;
   text-transform: capitalize;
   display: inline-block;
   text-align: center;
-  min-width: 80px;
+  min-width: 60px;
 }
 
 .status-awaiting-schedule {
@@ -598,10 +642,10 @@
 /* COD Badges */
 .cod-badge {
   display: inline-block;
-  margin-left: 0.5em;
-  padding: 0.15em 0.7em;
-  border-radius: 10px;
-  font-size: 0.85em;
+  margin-left: 0.3em;
+  padding: 0.1em 0.5em;
+  border-radius: 8px;
+  font-size: 0.7em;
   font-weight: 600;
   color: #fff;
 }
@@ -708,8 +752,8 @@
 
 .recent-packages {
   background-color: white;
-  padding: 0.8rem;
-  border-radius: 8px;
+  padding: 0.6rem;
+  border-radius: 6px;
   box-shadow: 0 1px 3px rgba(0,0,0,0.1);
   width: 100%; /* Ensure it doesn't overflow */
   overflow: hidden; /* Prevent overflow */
@@ -720,20 +764,20 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 0.8rem;
-  padding-bottom: 0.4rem;
+  margin-bottom: 0.6rem;
+  padding-bottom: 0.3rem;
   border-bottom: 1px solid #eee;
 }
 
 .section-header h2 {
-  font-size: 1rem;
+  font-size: 0.9rem;
   color: #333;
   margin: 0;
 }
 
 .view-all {
   color: #ff8c00;
-  font-size: 0.85rem;
+  font-size: 0.75rem;
   text-decoration: none;
   font-weight: 600;
   transition: color 0.2s;
@@ -1685,6 +1729,11 @@
   transition: opacity 0.3s, visibility 0.3s;
 }
 
+/* Elevated overlays for nested actions (return/exchange) so they stack above details modal */
+.return-overlay, .exchange-overlay {
+  z-index: 12000; /* Above package details modal (10000) and any confirmation dialogs */
+}
+
 /* Ensure sidebar and other fixed elements are below modal when open */
 .modal-open .dashboard-sidebar {
   z-index: 99; /* Lower than modal-overlay */
@@ -1862,7 +1911,7 @@
 .dashboard-content-shop {
   flex: 1;
   margin-left: 260px; /* Desktop default */
-  padding: 2rem;
+  padding: 1.5rem;
   background-color: #f8f9fa;
   margin-top: 65px !important; /* Ensure content clears the fixed top bar */
   min-height: calc(100vh - 65px);
@@ -1880,7 +1929,8 @@
 @media (max-width: 768px) {
   .dashboard-content-shop {
     margin-left: 0;
-    padding: 0.8rem;
+    padding: 0.6rem;
+    margin-top: 50px !important;
     overflow-x: hidden; /* Strictly prevent horizontal scrolling on mobile */
     width: 100%; /* Ensure content fits within screen */
     max-width: 100vw; /* Explicitly set max width to prevent overflow */
@@ -1889,7 +1939,7 @@
   
   .dashboard-container.menu-open .dashboard-content-shop {
     margin-left: 0; /* Don't shift content when menu is open on mobile */
-    transform: translateX(240px); /* Instead of margin, use transform */
+    transform: translateX(200px); /* Smaller transform for smaller sidebar */
     transition: transform 0.3s ease;
   }
 }
@@ -1941,85 +1991,137 @@
   }
 }
 
-/* Recent Packages: Mobile card layout */
+/* Recent Packages & Packages: Mobile card layout */
 @media (max-width: 768px) {
-  .recent-packages-cards {
+  .recent-packages-cards,
+  .packages-cards {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 8px;
+  }
+  
+  .packages-cards-wrapper {
+    width: 100%;
+    padding: 0 4px; /* Small padding for mobile edge spacing */
+  }
+  
+  .shop-packages-page {
+    padding: 0.6rem; /* Consistent with dashboard mobile padding */
+  }
+  
+  .shop-packages-page h2 {
+    font-size: 1.3rem;
+    margin-bottom: 0.8rem;
+  }
+  
+  .packages-tabs {
+    gap: 4px;
+    flex-wrap: wrap;
+    margin-bottom: 0.8rem;
+  }
+  
+  .tab-btn {
+    font-size: 11px;
+    padding: 6px 8px;
+    white-space: nowrap;
+  }
+  
+  .package-search {
+    width: 100%;
+    margin-top: 6px;
+    font-size: 12px;
+    padding: 8px 10px;
   }
 
-  .recent-package-card {
+  .recent-package-card,
+  .package-card {
     background: #fff;
-    border-radius: 12px;
-    padding: 12px 14px;
-    box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+    border-radius: 8px;
+    padding: 8px 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
     border: 1px solid #eef1f4;
     transition: transform 0.15s ease, box-shadow 0.15s ease;
   }
 
+  @media (hover: hover) {
+    .recent-package-card:hover,
+    .package-card:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+  }
+
   .recent-package-card:active,
-  .recent-package-card:hover {
+  .package-card:active {
     transform: translateY(-1px);
-    box-shadow: 0 10px 24px rgba(0,0,0,0.12);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
   }
 
-  .recent-package-card:focus {
+  .recent-package-card:focus,
+  .package-card:focus {
     outline: none;
-    box-shadow: 0 0 0 3px rgba(255,107,0,0.25), 0 6px 18px rgba(0,0,0,0.08);
+    box-shadow: 0 0 0 2px rgba(255,107,0,0.25), 0 2px 8px rgba(0,0,0,0.06);
   }
 
-  .recent-package-card .card-header-row {
+  .recent-package-card .card-header-row,
+  .package-card .card-header-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 8px;
-    margin-bottom: 6px;
+    gap: 6px;
+    margin-bottom: 4px;
   }
 
-  .recent-package-card .tracking {
+  .recent-package-card .tracking,
+  .package-card .tracking {
     font-weight: 700;
     color: #111827;
-    font-size: 14px;
+    font-size: 12px;
   }
 
-  .recent-package-card .card-main-text {
-    font-size: 14px;
+  .recent-package-card .card-main-text,
+  .package-card .card-main-text {
+    font-size: 12px;
     color: #1f2937;
-    margin: 4px 0;
-    line-height: 1.35;
+    margin: 3px 0;
+    line-height: 1.3;
   }
 
-  .recent-package-card .card-address {
-    font-size: 13px;
+  .recent-package-card .card-address,
+  .package-card .card-address {
+    font-size: 11px;
     color: #6b7280;
+    margin-top: 1px;
+  }
+
+  .recent-package-card .card-contact,
+  .package-card .card-contact {
+    font-size: 10px;
+    color: #4b5563;
     margin-top: 2px;
   }
 
-  .recent-package-card .card-contact {
-    font-size: 12px;
-    color: #4b5563;
-    margin-top: 4px;
-  }
-
-  .recent-package-card .card-footer-row {
+  .recent-package-card .card-footer-row,
+  .package-card .card-footer-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-top: 8px;
+    margin-top: 5px;
   }
 
-  .recent-package-card .cod {
+  .recent-package-card .cod,
+  .package-card .cod {
     font-weight: 600;
     color: #111827;
-    font-size: 13px;
+    font-size: 11px;
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
   }
 
-  .recent-package-card .date {
-    font-size: 12px;
+  .recent-package-card .date,
+  .package-card .date {
+    font-size: 10px;
     color: #6b7280;
   }
 }
@@ -2027,11 +2129,11 @@
 /* Shop Dashboard Header Styling */
 .dashboard-content-shop .dashboard-header {
   background: linear-gradient(135deg, #FF6B00 0%, #FF8C00 100%);
-  border-radius: 12px;
-  padding: 2rem;
-  margin-bottom: 1.5rem;
-  box-shadow: 0 8px 25px rgba(255, 107, 0, 0.3);
-  margin-top: 8px !important;
+  border-radius: 8px;
+  padding: 1.2rem;
+  margin-bottom: 1rem;
+  box-shadow: 0 4px 15px rgba(255, 107, 0, 0.25);
+  margin-top: 4px !important;
   border: none;
   width: 100%;
   max-width: 100%; /* Prevent overflow */
@@ -2041,9 +2143,9 @@
 
 .dashboard-content-shop .dashboard-header .welcome-message h1 {
   color: white !important;
-  font-size: 2rem;
+  font-size: 1.4rem;
   font-weight: 700;
-  margin: 0 0 0.5rem 0;
+  margin: 0 0 0.3rem 0;
   text-shadow: 0 2px 4px rgba(0,0,0,0.1);
   overflow: hidden; /* Prevent overflow */
   text-overflow: ellipsis; /* Add ellipsis if text overflows */
@@ -2052,7 +2154,7 @@
 
 .dashboard-content-shop .dashboard-header .welcome-message p {
   color: rgba(255,255,255,0.9) !important;
-  font-size: 1rem;
+  font-size: 0.85rem;
   margin: 0;
   font-weight: 400;
   overflow: hidden; /* Prevent overflow */
@@ -2102,6 +2204,24 @@
   left: 0 !important;
   border-right: 1px solid #e5e7eb;
   contain: layout style; /* Isolate the sidebar's layout */
+  transform: translateX(0); /* Show sidebar by default */
+  transition: transform 0.3s ease; /* Add smooth transition */
+}
+
+/* Mobile menu styles for sliding animation */
+@media (max-width: 768px) {
+  .dashboard-container .dashboard-sidebar {
+    transform: translateX(-100%) !important; /* Hide sidebar by default on mobile */
+    width: 220px !important; /* Smaller sidebar for mobile */
+    top: 50px !important; /* Less margin from top */
+    height: calc(100vh - 50px) !important;
+    z-index: 1000 !important;
+    transition: transform 0.3s ease !important; /* Ensure transition works */
+  }
+  
+  .dashboard-container.menu-open .dashboard-sidebar {
+    transform: translateX(0) !important; /* Show sidebar when menu-open class is added */
+  }
 }
 
 /* Sidebar Header */
@@ -2163,7 +2283,7 @@
   }
 
   .dashboard-content-shop .dashboard-header {
-    padding: 1.5rem;
+    padding: 1rem;
   }
 
   .dashboard-content-shop .dashboard-header .welcome-message h1,
@@ -2172,11 +2292,23 @@
   }
 
   .dashboard-content-shop .dashboard-header .welcome-message h1 {
-    font-size: clamp(1.35rem, 5vw, 1.8rem);
+    font-size: clamp(1.1rem, 4vw, 1.4rem);
+  }
+
+  .dashboard-content-shop .dashboard-header .welcome-message p {
+    font-size: 0.75rem;
   }
 
   .dashboard-content-shop .dashboard-header .user-info {
     align-items: flex-start;
+  }
+
+  .dashboard-content-shop .dashboard-header .user-info .business-name {
+    font-size: 0.9rem;
+  }
+
+  .dashboard-content-shop .dashboard-header .user-info span:last-child {
+    font-size: 0.8rem;
   }
 
   .shop-packages-page.create-package-layout {
@@ -2495,14 +2627,17 @@
   /* Reduce sizes of elements on mobile */
   .stat-card {
     padding: 0.5rem;
+    min-height: 60px;
   }
   
   .stat-value {
-    font-size: 1rem;
+    font-size: 1.2rem !important;
+    margin-bottom: 0.25rem;
   }
   
   .stat-label {
-    font-size: 0.7rem;
+    font-size: 0.7rem !important;
+    margin-top: 0.1rem;
   }
   
   .financial-stats .stat-value {
@@ -2699,7 +2834,7 @@
 
 @media (max-width: 576px) {
   .dashboard-container .dashboard-sidebar {
-    width: 200px !important; /* Smaller on very small screens */
+    width: 180px !important; /* Even smaller on tiny screens */
     height: 100vh !important;
     position: fixed !important;
     top: 0 !important;
@@ -2719,11 +2854,36 @@
   .shop-profile-page,
   .create-package-page {
     margin-left: 0;
-    padding: 0.7rem; /* Even smaller padding */
+    padding: 0.5rem; /* Even smaller padding */
   }
   
   .dashboard-container.menu-open {
     overflow: hidden; /* Prevent scrolling when menu is open */
+  }
+
+  /* Make touch targets larger */
+  .recent-package-card {
+    min-height: 44px; /* Minimum touch target size */
+    padding: 10px;
+  }
+
+  .action-button {
+    min-height: 36px;
+    min-width: 60px;
+    padding: 0.3rem 0.6rem;
+  }
+
+  /* Improve spacing for very small screens */
+  .dashboard-stats-container {
+    gap: 0.4rem;
+  }
+
+  .financial-stats .stat-card {
+    padding: 0.4rem;
+  }
+
+  .recent-packages {
+    padding: 0.4rem;
   }
   
   /* Even smaller sizes for very small screens */
@@ -3203,7 +3363,7 @@ div.dashboard-content {
 @media (max-width: 768px) {
   .shop-packages-page {
     margin-left: 0;
-    padding: 1rem 0.75rem;
+    padding: 0.8rem 0.6rem;
   }
 
   .shop-packages-page > div {
@@ -3212,16 +3372,18 @@ div.dashboard-content {
 
   .shop-packages-page .packages-tabs {
     flex-wrap: wrap;
-    gap: 0.6rem;
+    gap: 0.4rem;
   }
 
   .shop-packages-page .package-search {
     order: 99;
     width: 100%;
+    padding: 0.4rem 0.6rem;
+    font-size: 0.8rem;
   }
 
   .shop-packages-page .packages-table-wrapper {
-    padding: 1rem;
+    padding: 0.6rem;
     overflow: visible;
   }
 
@@ -3238,13 +3400,13 @@ div.dashboard-content {
   .shop-packages-page .packages-table tr {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
-    padding: 0.85rem 1rem;
-    border-radius: 12px;
+    gap: 0.3rem;
+    padding: 0.6rem 0.8rem;
+    border-radius: 8px;
     border: 1px solid #e5e7eb;
-    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
     background: #ffffff;
-    margin-bottom: 1rem;
+    margin-bottom: 0.6rem;
   }
 
   .shop-packages-page .packages-table tr:last-child {
@@ -3255,8 +3417,8 @@ div.dashboard-content {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: 0.3rem;
-    padding: 0.35rem 0;
+    gap: 0.2rem;
+    padding: 0.2rem 0;
     border-bottom: 1px solid #f1f5f9;
     text-align: left;
   }
@@ -3267,10 +3429,11 @@ div.dashboard-content {
 
   .shop-packages-page .packages-table td::before {
     content: attr(data-label);
-    font-size: 0.7rem;
+    font-size: 0.65rem;
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.03em;
+    color: #6b7280;
   }
 
   .shop-packages-page .packages-table .tracking-number {
@@ -3336,8 +3499,9 @@ div.dashboard-content {
   }
 
   .shop-packages-page .action-button {
-    padding: 0.35rem 0.75rem;
-    font-size: 0.8rem;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.7rem;
+    border-radius: 4px;
   }
 
   .create-package-layout {
@@ -3643,10 +3807,10 @@ div.dashboard-content {
   }
 
   .recent-packages-table tr {
-    padding: 0.85rem 1rem;
+    padding: 0.6rem 0.8rem;
     border: 1px solid #e5e7eb;
-    border-radius: 12px;
-    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
     background: #ffffff;
   }
 
@@ -3654,8 +3818,8 @@ div.dashboard-content {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: 0.35rem;
-    padding: 0.35rem 0;
+    gap: 0.2rem;
+    padding: 0.2rem 0;
     text-align: left;
     border-bottom: 1px solid #f1f5f9;
   }
@@ -3666,10 +3830,10 @@ div.dashboard-content {
 
   .recent-packages-table td::before {
     content: attr(data-label);
-    font-size: 0.7rem;
+    font-size: 0.65rem;
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.03em;
     color: #6b7280;
   }
 

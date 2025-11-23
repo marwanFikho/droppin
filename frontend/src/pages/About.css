@@ -167,7 +167,7 @@
 
 .stat-label {
   font-size: 1rem;
-  color: var(--dark-color);
+  color: white;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;

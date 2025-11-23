@@ -33,6 +33,10 @@ const MoneyTransaction = sequelize.define('MoneyTransaction', {
   description: {
     type: DataTypes.STRING,
     allowNull: true
+  },
+  currentAmount: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: true
   }
 }, {
   timestamps: true

@@ -13,15 +13,30 @@ const { createNotification } = require('../controllers/notification.controller')
 const logMoneyTransaction = async (shopId, amount, attribute, changeType, description = null, transaction = null, opts = {}) => {
   try {
     if (!shopId || !amount) return;
+    // Compute current amount when the attribute is ToCollect or TotalCollected
+    // IMPORTANT: Callers generally update Shops first, then log transactions.
+    // Hence, currentAmount should reflect the already-updated balance, NOT prev +/- delta.
+    let currentAmount = null;
+    try {
+      if (attribute === 'ToCollect' || attribute === 'TotalCollected') {
+        const shop = await Shop.findByPk(shopId, { transaction });
+        if (shop) {
+          const raw = attribute === 'ToCollect' ? shop.ToCollect : shop.TotalCollected;
+          const asNumber = parseFloat(raw || 0) || 0;
+          currentAmount = asNumber.toFixed(2);
+        }
+      }
+    } catch {}
     const payload = {
       shopId,
       amount: parseFloat(amount).toFixed(2),
       attribute,
       changeType,
-      description
+      description,
+      currentAmount: currentAmount !== null ? currentAmount : null
     };
     if (opts && opts.driverId) payload.driverId = opts.driverId;
-    await MoneyTransaction.create(payload, transaction ? { transaction } : {});
+  await MoneyTransaction.create(payload, transaction ? { transaction } : {});
 
     // Skip notifications for Revenue to avoid exposing admin-only revenue to shops
     if (attribute === 'Revenue' || attribute === 'DriverCashOnHand') {

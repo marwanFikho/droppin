@@ -163,7 +163,17 @@ const Navigation = () => {
           {isMenuOpen ? '✕' : '☰'}
         </button>
 
-        <div className={`nav-links ${isMenuOpen ? 'open' : ''}`}>
+        <motion.div 
+          className={`nav-links ${isMenuOpen ? 'open' : ''}`}
+          initial={{ x: "100%" }}
+          animate={{ x: isMenuOpen ? "0%" : "100%" }}
+          transition={{ 
+            type: "spring", 
+            stiffness: 300, 
+            damping: 30,
+            duration: 0.5 
+          }}
+        >
           <Link to="/" className={`nav-link ${isLinkActive('/') ? 'active' : ''}`} onClick={closeMenu}>Home</Link>
           <Link to="/track" className={`nav-link ${isLinkActive('/track') ? 'active' : ''}`} onClick={closeMenu}>Track Package</Link>
           
@@ -241,7 +251,7 @@ const Navigation = () => {
               <Link to="/register/shop" className="nav-link" onClick={closeMenu}>Register</Link>
             </>
           )}
-        </div>
+        </motion.div>
       </div>
     </motion.nav>
   );

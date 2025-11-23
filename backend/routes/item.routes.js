@@ -1,10 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const itemController = require('../controllers/item.controller');
-const { authenticate, authorize } = require('../middleware/auth.middleware');
+const { authorize } = require('../middleware/auth.middleware');
+const combinedAuth = require('../middleware/combinedAuth');
 
 // Apply authentication middleware to all routes
-router.use(authenticate);
+router.use(combinedAuth);
 
 // Create a new item for a package
 router.post('/', authorize(['shop']), itemController.createItem);

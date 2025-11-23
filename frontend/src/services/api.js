@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { getToken } from '../utils/auth';
 
-// const API_URL = process.env.REACT_APP_API_URL || 'http://192.168.1.102:5000/api';
+// const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const API_URL = process.env.REACT_APP_API_URL || 'https://api.droppin-eg.com/api';
 
 // Create axios instance
@@ -148,7 +148,15 @@ export const adminService = {
   // Shop management
   getShops: (filters = {}) => api.get('/admin/shops', { params: filters }),
   getShopById: (id) => api.get(`/admin/shops/${id}`),
-  approveShop: (id, approved) => api.patch(`/admin/shops/${id}/approve`, { approved }),
+  getShopStats: (id) => api.get(`/admin/shops/${id}/stats`),
+  approveShop: (id, approved, shippingFees) => {
+    const payload = { approved };
+    // Only include shippingFees if it's provided (including 0 as valid)
+    if (shippingFees !== undefined && shippingFees !== null && shippingFees !== '') {
+      payload.shippingFees = shippingFees;
+    }
+    return api.patch(`/admin/shops/${id}/approve`, payload);
+  },
   updateShop: (id, data) => api.patch(`/admin/shops/${id}`, data),
   adjustShopTotalCollected: (shopId, data) => api.post(`/admin/shops/${shopId}/adjust-total-collected`, data),
   

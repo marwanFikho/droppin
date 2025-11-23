@@ -2,8 +2,9 @@ console.log('=== package.routes.js loaded ===');
 const express = require('express');
 const router = express.Router();
 const packageController = require('../controllers/package.controller');
-const { authenticate, authorize } = require('../middleware/auth.middleware');
+const { authorize } = require('../middleware/auth.middleware');
 const apiKeyAuth = require('../middleware/apiKeyAuth');
+const combinedAuth = require('../middleware/combinedAuth');
 const { Package, Item } = require('../models');
 const { formatDateTimeToDDMMYYYY, getCairoDateTime } = require('../utils/dateUtils');
 
@@ -154,8 +155,8 @@ router.get('/shopify/sent-ids', apiKeyAuth, async (req, res) => {
   }
 });
 
-// Protected routes (JWT auth)
-router.use(authenticate);
+// Protected routes (combined JWT or API key auth)
+router.use(combinedAuth);
 
 // Routes for shops, drivers, and admins
 router.post('/', authorize('shop', 'admin'), packageController.createPackage);

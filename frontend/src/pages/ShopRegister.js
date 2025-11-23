@@ -69,6 +69,27 @@ const ShopRegister = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
+    // Manual required fields (Zip/Postal Code is intentionally OPTIONAL)
+    const required = [
+      formData.businessName?.trim(),
+      formData.email?.trim(),
+      formData.phone?.trim(),
+      formData.password,
+      formData.confirmPassword,
+      formData.businessType?.trim(),
+      formData.contactPerson?.name?.trim(),
+      formData.contactPerson?.phone?.trim(),
+      formData.contactPerson?.email?.trim(),
+      formData.businessAddress?.street?.trim(),
+      formData.businessAddress?.city?.trim(),
+      formData.businessAddress?.state?.trim(),
+      formData.businessAddress?.country?.trim()
+    ];
+    if (required.some(v => !v)) {
+      setFormError('Please fill in all required fields. Zip/Postal Code is optional.');
+      return;
+    }
+
     // Validation
     if (formData.password !== formData.confirmPassword) {
       setFormError('Passwords do not match');
@@ -122,7 +143,7 @@ const ShopRegister = () => {
         
         {formError && <div className="auth-error">{formError}</div>}
         
-        <form onSubmit={handleSubmit} className="auth-form">
+  <form onSubmit={handleSubmit} noValidate className="auth-form">
           <h3>Business Information</h3>
           <div className="form-group">
             <label htmlFor="businessName">Business Name</label>
@@ -305,15 +326,14 @@ const ShopRegister = () => {
           
           <div className="form-row">
             <div className="form-group">
-              <label htmlFor="businessAddress.zipCode">Zip/Postal Code</label>
+              <label htmlFor="businessAddress.zipCode">Zip/Postal Code (optional)</label>
               <input
                 type="text"
                 id="businessAddress.zipCode"
                 name="businessAddress.zipCode"
                 value={formData.businessAddress.zipCode}
                 onChange={handleChange}
-                placeholder="Zip/Postal code"
-                required
+                placeholder="Zip/Postal code (optional)"
               />
             </div>
             

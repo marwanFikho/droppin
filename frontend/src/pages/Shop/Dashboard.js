@@ -82,7 +82,8 @@ const ShopDashboard = () => {
   // Helper to refetch packages list
   const fetchPackages = async () => {
     try {
-      const packagesResponse = await packageService.getPackages({ page: 1, limit: 25 });
+      // Fetch all packages for accurate stats and lists
+      const packagesResponse = await packageService.getPackages({ page: 1, limit: 10000 });
       const pkgs = packagesResponse.data?.packages || packagesResponse.data || [];
       setPackages(pkgs);
     } catch (e) {
@@ -97,8 +98,8 @@ const ShopDashboard = () => {
       try {
         setLoading(true);
 
-        // Get packages
-        const packagesResponse = await packageService.getPackages({ page: 1, limit: 25 });
+  // Get all packages (remove 25-items cap)
+  const packagesResponse = await packageService.getPackages({ page: 1, limit: 10000 });
         const packages = packagesResponse.data?.packages || packagesResponse.data || [];
         setPackages(packages);
         
@@ -164,6 +165,22 @@ const ShopDashboard = () => {
     fetchData();
   }, [refreshData, moneyFilters]); // Add moneyFilters to dependencies
 
+  // Global ESC-to-close for top-most modal on this page
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (e.key !== 'Escape') return;
+      // Priority: confirmation overlays first, then details, then others
+      if (showCancelModal) {
+        setShowCancelModal(false); setCancelError(null); return;
+      }
+      if (showPackageDetailsModal) {
+        setShowPackageDetailsModal(false); return;
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [showCancelModal, showPackageDetailsModal]);
+
   // Prepare chart data
   const getChartData = () => {
     const pending = packages.filter(p => p.status === 'pending').length;
@@ -185,15 +202,15 @@ const ShopDashboard = () => {
 
   const chartOptions = {
     responsive: true,
-    maintainAspectRatio: true,
+    maintainAspectRatio: false,
     plugins: {
       legend: {
         position: 'bottom',
         labels: {
-          boxWidth: 15,
-          padding: 10,
+          boxWidth: 12,
+          padding: 8,
           font: {
-            size: 14
+            size: 12
           }
         }
       }
@@ -571,7 +588,7 @@ const ShopDashboard = () => {
                   {/* Package Distribution Chart */}
                   <div className="chart-container">
                     <h3>Package Distribution</h3>
-                    <div>
+                    <div className="chart-wrapper">
                       <Pie data={getChartData()} options={chartOptions} />
                     </div>
                   </div>
