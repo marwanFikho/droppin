@@ -58,6 +58,20 @@ app.use('/api/info', infoRoutes);
 app.use('/api/pickups', pickupRoutes);
 app.use('/api', apiRoutes);
 
+// Serve static assets (templates, images, fonts) under /assets
+// This enables links like /assets/templates/droppin_bulk_package_import_template.xlsx
+const assetsDir = path.join(__dirname, 'assets');
+app.use('/assets', express.static(assetsDir, {
+  maxAge: '1d',
+  setHeaders: (res, filePath) => {
+    // Force download for .xlsx template specifically
+    if (filePath.endsWith('droppin_bulk_package_import_template.xlsx')) {
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', 'attachment; filename="droppin_bulk_package_import_template.xlsx"');
+    }
+  }
+}));
+
 // Default route
 app.get('/', (req, res) => {
   res.send('Welcome to Droppin Delivery API');

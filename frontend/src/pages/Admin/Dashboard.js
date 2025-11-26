@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { adminService, packageService } from '../../services/api';
+import api, { adminService, packageService } from '../../services/api';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faUser, faStore, faTruck, faBox, faSearch, faEye, faCheck, faTimes, faChartBar, faUserPlus, faTimes as faClose, faEdit, faSignOutAlt, faTrash, faDollarSign, faPlus } from '@fortawesome/free-solid-svg-icons';
 import { formatDate } from '../../utils/dateUtils';
@@ -81,6 +81,7 @@ const AdminDashboard = () => {
   const [packagesTab, setPackagesTab] = useState('all');
   const [packagesSubTab, setPackagesSubTab] = useState('all'); // New state for sub-sub-tabs
   const [selectedPackages, setSelectedPackages] = useState([]);
+  const [exportingPdf, setExportingPdf] = useState(false);
   const [showBulkAssignModal, setShowBulkAssignModal] = useState(false);
   const [bulkAssignDriverId, setBulkAssignDriverId] = useState('');
   const [bulkAssigning, setBulkAssigning] = useState(false);
@@ -1659,6 +1660,18 @@ const AdminDashboard = () => {
               Assign Driver to {selectedPackages.length} Selected Package{selectedPackages.length !== 1 ? 's' : ''}
             </button>
           )}
+          {/* Export Selected Packages to PDF (admin only, any packages tab 'all') */}
+          {packagesSubTab === 'all' && selectedPackages.length > 0 && (
+            <button
+              className="btn-secondary bulk-assign-btn"
+              onClick={handleExportSelectedPackages}
+              disabled={selectedPackages.length === 0}
+              title="Export selected packages as PDF"
+              style={{ background: '#444', marginLeft: '0.5rem' }}
+            >
+              Export {selectedPackages.length} to PDF
+            </button>
+          )}
           {packagesTab === 'in-transit' && packagesSubTab === 'all' && selectedPackages.length > 0 && (
             (() => {
               const statusFlow = ['assigned', 'pickedup', 'in-transit', 'delivered'];
@@ -1704,12 +1717,15 @@ const AdminDashboard = () => {
   const renderPackagesTable = () => {
     const filteredPackages = getFilteredPackages();
     const isAllSelected = filteredPackages.length > 0 && selectedPackages.length === filteredPackages.length;
+    const selectionEnabled = packagesSubTab === 'all' && ['ready-to-assign', 'in-transit', 'all'].includes(packagesTab);
+    const baseColCount = 8 + (packagesTab === 'delivered' ? 1 : 0);
+    const totalColSpan = baseColCount + (selectionEnabled ? 1 : 0);
 
     return (
       <table className="admin-table">
         <thead>
           <tr>
-            {((packagesTab === 'ready-to-assign' && packagesSubTab === 'all') || (packagesTab === 'in-transit' && packagesSubTab === 'all')) && (
+            {selectionEnabled && (
               <th>
                 <input
                   type="checkbox"
@@ -1745,7 +1761,7 @@ const AdminDashboard = () => {
         <tbody>
           {filteredPackages.length === 0 ? (
             <tr>
-              <td colSpan={(packagesTab === 'ready-to-assign' || packagesTab === 'in-transit') ? 9 : (packagesTab === 'delivered' ? 9 : 8)} style={{ textAlign: 'center', padding: '40px 20px' }}>
+              <td colSpan={totalColSpan} style={{ textAlign: 'center', padding: '40px 20px' }}>
                 <div className="empty-state">
                   <p>No packages found{searchTerm ? ' matching your search' : ''}.</p>
                 </div>
@@ -1754,7 +1770,7 @@ const AdminDashboard = () => {
           ) : (
             filteredPackages.map(pkg => (
             <tr key={pkg.id}>
-              {((packagesTab === 'ready-to-assign' && packagesSubTab === 'all') || (packagesTab === 'in-transit' && packagesSubTab === 'all')) && (
+              {selectionEnabled && (
                 <td data-label="Select">
                   <input
                     type="checkbox"
@@ -1899,6 +1915,31 @@ const AdminDashboard = () => {
         </tbody>
       </table>
     );
+  };
+
+  // Export selected packages to PDF
+  const handleExportSelectedPackages = async () => {
+    if (selectedPackages.length === 0 || exportingPdf) return;
+    try {
+      setExportingPdf(true);
+      // Fetch only IDs we want
+      const response = await api.post('/packages/export', { packageIds: selectedPackages }, { responseType: 'blob' });
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const stamp = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
+      a.download = `packages_export_${stamp}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Failed to export PDF:', err);
+      alert('Failed to export PDF. Please try again.');
+    } finally {
+      setExportingPdf(false);
+    }
   };
 
   // Render pickups sub-tabs

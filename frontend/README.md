@@ -1,3 +1,10 @@
+# Droppin Frontend
+
+## Recent Change: Navigation Visibility Fix (Nov 24, 2025)
+The responsive navigation previously hid the Home / Track / Login / Register links whenever the viewport width dropped below 768px (even on a desktop window resized narrower). This made those actions inaccessible unless the hamburger menu was clicked. We modified the mobile `@media (max-width: 768px)` styles in `src/App.css` so the links stay visible and the hamburger icon is hidden for these small desktop widths. If you prefer the slide‑out menu on true mobile devices only, you can reintroduce it by adjusting the breakpoint (e.g. to `@media (max-width: 600px)`).
+
+---
+
 # Getting Started with Create React App
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).

@@ -7,6 +7,8 @@ const apiKeyAuth = require('../middleware/apiKeyAuth');
 const combinedAuth = require('../middleware/combinedAuth');
 const { Package, Item } = require('../models');
 const { formatDateTimeToDDMMYYYY, getCairoDateTime } = require('../utils/dateUtils');
+const multer = require('multer');
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
 // Public tracking route (no authentication required)
 router.get('/track/:trackingNumber', packageController.getPackageByTracking);
@@ -140,6 +142,23 @@ router.post('/shopify', apiKeyAuth, async (req, res) => {
   }
 });
 
+// Shop bulk import: parse Excel and return preview
+router.post(
+  '/bulk/import/preview',
+  combinedAuth,
+  authorize('shop'),
+  upload.single('file'),
+  packageController.parseBulkImportPreview
+);
+
+// Shop bulk import: confirm and create packages from preview data
+router.post(
+  '/bulk/import/confirm',
+  combinedAuth,
+  authorize('shop'),
+  packageController.confirmBulkImport
+);
+
 // Get all Shopify Order IDs that are already sent for the current shop
 router.get('/shopify/sent-ids', apiKeyAuth, async (req, res) => {
   try {
@@ -161,6 +180,8 @@ router.use(combinedAuth);
 // Routes for shops, drivers, and admins
 router.post('/', authorize('shop', 'admin'), packageController.createPackage);
 router.get('/', authorize('shop', 'driver', 'admin'), packageController.getPackages);
+// Export selected packages to PDF (admin only)
+router.post('/export', authorize('admin'), packageController.exportPackagesPdf);
 router.get('/:id', authorize('shop', 'driver', 'admin'), packageController.getPackageById);
 router.put('/:id', authorize('shop', 'admin'), packageController.updatePackage);
 router.patch('/:id/status', authorize('shop', 'driver', 'admin'), packageController.updatePackageStatus);

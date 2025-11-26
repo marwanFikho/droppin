@@ -12,6 +12,8 @@ const Navigation = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  // Track whether we should use the mobile sliding menu based on viewport width.
+  const [isMobileMenu, setIsMobileMenu] = useState(() => window.innerWidth <= 768);
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [loadingNotifications, setLoadingNotifications] = useState(false);
@@ -129,7 +131,8 @@ const Navigation = () => {
   };
 
   const toggleMenu = () => {
-    setIsMenuOpen(!isMenuOpen);
+    if (!isMobileMenu) return; // Ignore toggles when mobile menu disabled
+    setIsMenuOpen(prev => !prev);
   };
 
   const closeMenu = () => {
@@ -143,6 +146,19 @@ const Navigation = () => {
     }
     return location.pathname.startsWith(path);
   };
+
+  // Update mobile menu state on resize and auto-close if leaving mobile
+  useEffect(() => {
+    const handleResize = () => {
+      const nowMobile = window.innerWidth <= 768;
+      setIsMobileMenu(nowMobile);
+      if (!nowMobile) {
+        setIsMenuOpen(false); // ensure links are visible in desktop mode
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   return (
     <motion.nav
@@ -159,20 +175,17 @@ const Navigation = () => {
           </Link>
         </div>
 
-        <button className="hamburger-menu" onClick={toggleMenu}>
-          {isMenuOpen ? '✕' : '☰'}
-        </button>
+        {isMobileMenu && (
+          <button className="hamburger-menu" onClick={toggleMenu} aria-label={isMenuOpen ? 'Close menu' : 'Open menu'}>
+            {isMenuOpen ? '✕' : '☰'}
+          </button>
+        )}
 
-        <motion.div 
-          className={`nav-links ${isMenuOpen ? 'open' : ''}`}
-          initial={{ x: "100%" }}
-          animate={{ x: isMenuOpen ? "0%" : "100%" }}
-          transition={{ 
-            type: "spring", 
-            stiffness: 300, 
-            damping: 30,
-            duration: 0.5 
-          }}
+        <motion.div
+          className={`nav-links ${isMobileMenu && isMenuOpen ? 'open' : ''}`}
+          initial={false}
+          animate={isMobileMenu ? { x: isMenuOpen ? 0 : '100%' } : { x: 0 }}
+          transition={isMobileMenu ? { type: 'spring', stiffness: 300, damping: 30, duration: 0.45 } : { duration: 0 }}
         >
           <Link to="/" className={`nav-link ${isLinkActive('/') ? 'active' : ''}`} onClick={closeMenu}>Home</Link>
           <Link to="/track" className={`nav-link ${isLinkActive('/track') ? 'active' : ''}`} onClick={closeMenu}>Track Package</Link>

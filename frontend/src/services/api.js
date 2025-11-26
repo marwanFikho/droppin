@@ -65,6 +65,20 @@ export const packageService = {
   createPackage: (packageData) => {
     return api.post('/packages', packageData);
   },
+
+  // Bulk import for shop: upload Excel and get preview
+  bulkImportPreview: (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post('/packages/bulk/import/preview', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+
+  // Bulk import for shop: confirm and create packages from preview data
+  bulkImportConfirm: (packages) => {
+    return api.post('/packages/bulk/import/confirm', { packages });
+  },
   
   getPackages: (filters = {}) => {
     return api.get('/packages', { params: filters });

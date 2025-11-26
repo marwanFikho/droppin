@@ -1034,7 +1034,16 @@ const ShopPackages = () => {
 
   return (
     <div className="shop-packages-page">
-      <h2>Packages</h2>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', marginBottom: '0.5rem' }}>
+        <h2 style={{ margin: 0 }}>Packages</h2>
+        <button
+          className="btn btn-primary"
+          onClick={() => window.open('/shop/packages/bulk-import', '_blank')}
+          style={{ whiteSpace: 'nowrap' }}
+        >
+          Import Packages (Excel)
+        </button>
+      </div>
       {/* Print AWB for selected packages button at the top */}
       {selectedPackages.length > 0 && (
         <button className="btn btn-primary" style={{marginBottom:'1rem'}} onClick={handleBulkPrintAWB}>

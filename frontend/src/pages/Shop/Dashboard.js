@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { packageService } from '../../services/api';
 import CreatePackage from './CreatePackage';
 import ShopPackages, { getStatusBadge, getCodBadge } from './ShopPackages';
+import BulkImportPackages from './BulkImportPackages';
 import ShopProfile from './ShopProfile';
 import NewPickup from './NewPickup';
 import Wallet from './Wallet';
@@ -545,7 +546,8 @@ const ShopDashboard = () => {
         
   <Routes>
           <Route path="create-package" element={<CreatePackage />} />
-          <Route path="packages" element={<ShopPackages />} />
+    <Route path="packages" element={<ShopPackages />} />
+    <Route path="packages/bulk-import" element={<BulkImportPackages />} />
           <Route path="profile" element={<ShopProfile />} />
           <Route path="new-pickup" element={<NewPickup />} />
           <Route path="wallet" element={<Wallet />} />

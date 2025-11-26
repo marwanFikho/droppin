@@ -4,6 +4,480 @@ const { sequelize } = require('../config/db.config');
 const { getCairoDateTime, formatDateTimeToDDMMYYYY } = require('../utils/dateUtils');
 const { logMoneyTransaction } = require('../utils/moneyLogger');
 const { createNotification } = require('./notification.controller');
+const PDFDocument = require('pdfkit');
+const path = require('path');
+const fs = require('fs');
+const { ArabicShaper } = require('arabic-persian-reshaper');
+const bidiFactory = require('bidi-js');
+const XLSX = require('xlsx');
+
+const bidiEngine = bidiFactory();
+const containsArabicChars = (text = '') => /[\u0600-\u06FF]/.test(text);
+
+const reorderBidiText = (text) => {
+  if (!text) return '';
+  const bidiInfo = bidiEngine.getEmbeddingLevels(text);
+  const chars = Array.from(text);
+  const segments = bidiEngine.getReorderSegments(text, bidiInfo);
+  segments.forEach(([start, end]) => {
+    const reversed = chars.slice(start, end + 1).reverse();
+    for (let i = 0; i < reversed.length; i += 1) {
+      chars[start + i] = reversed[i];
+    }
+  });
+  const mirrored = bidiEngine.getMirroredCharactersMap(text, bidiInfo);
+  if (mirrored && mirrored.size) {
+    mirrored.forEach((char, index) => {
+      chars[index] = char;
+    });
+  }
+  return chars.join('');
+};
+
+const prepareBilingualText = (value, useUnifiedFont = false) => {
+  if (value === null || value === undefined || value === '') {
+    return { text: '—', hasArabic: false, isMixed: false };
+  }
+  const stringValue = String(value);
+  const hasArabic = containsArabicChars(stringValue);
+  const hasLatin = /[A-Za-z]/.test(stringValue);
+  const isMixed = hasArabic && hasLatin;
+  
+  if (!hasArabic) {
+    return { text: stringValue, hasArabic: false, isMixed: false };
+  }
+  
+  // For mixed text with unified font, process runs separately
+  if (useUnifiedFont && isMixed) {
+    const runs = splitArabicRuns(stringValue);
+    const processedRuns = runs.map(run => {
+      if (run.isArabic) {
+        return ArabicShaper.convertArabic(run.text);
+      }
+      return run.text;
+    });
+    return { text: processedRuns.join(''), hasArabic: true, isMixed: true };
+  }
+  
+  // Pure Arabic text - just shape it
+  const reshaped = ArabicShaper.convertArabic(stringValue);
+  return { text: reshaped, hasArabic: true, isMixed: false };
+};
+
+// Split into contiguous runs of Arabic vs non-Arabic
+const splitArabicRuns = (text) => {
+  if (!text) return [];
+  const chars = Array.from(text);
+  const runs = [];
+  let current = '';
+  let currentIsArabic = containsArabicChars(chars[0] || '');
+  for (const ch of chars) {
+    const isAr = containsArabicChars(ch);
+    if (isAr !== currentIsArabic) {
+      runs.push({ text: current, isArabic: currentIsArabic });
+      current = ch;
+      currentIsArabic = isAr;
+    } else {
+      current += ch;
+    }
+  }
+  if (current) runs.push({ text: current, isArabic: currentIsArabic });
+  return runs;
+};
+
+// Render mixed-language text with per-run font selection; lets PDFKit wrap across runs
+const renderMixedText = (doc, fonts, text, x, y, width) => {
+  const runs = splitArabicRuns(text).map(r => {
+    if (r.isArabic) {
+      const shaped = ArabicShaper.convertArabic(r.text);
+      return { text: reorderBidiText(shaped), font: fonts.arabic };
+    }
+    return { text: r.text, font: fonts.latin };
+  });
+  if (runs.length === 0) return;
+  // First run uses absolute position; subsequent runs continue
+  doc.font(runs[0].font).text(runs[0].text, x, y, { width, lineGap: 3, continued: runs.length > 1 });
+  for (let i = 1; i < runs.length; i += 1) {
+    const last = i === runs.length - 1;
+    doc.font(runs[i].font).text(runs[i].text, { width, lineGap: 3, continued: !last });
+  }
+};
+
+// Helper: parse bulk Excel for shop imports
+const BULK_HEADERS = [
+  'PACKAGE_REFERENCE',
+  'PACKAGE_DESCRIPTION',
+  'WEIGHT_KG',
+  'CUSTOMER_NAME',
+  'CUSTOMER_PHONE',
+  'DELIVERY_ADDRESS',
+  'SHOP_NOTE',
+  'ITEM_DESCRIPTION',
+  'ITEM_QUANTITY',
+  'ITEM_UNIT_PRICE'
+];
+
+// Validate and normalize a single row from the Excel sheet
+function parseBulkRow(row, rowIndex) {
+  const errors = [];
+
+  const pkgRef = (row.PACKAGE_REFERENCE || '').toString().trim();
+  const pkgDesc = (row.PACKAGE_DESCRIPTION || '').toString().trim();
+  const weightStr = row.WEIGHT_KG;
+  const customerName = (row.CUSTOMER_NAME || '').toString().trim();
+  const customerPhone = (row.CUSTOMER_PHONE || '').toString().trim();
+  const deliveryAddress = (row.DELIVERY_ADDRESS || '').toString().trim();
+  const shopNote = (row.SHOP_NOTE || '').toString();
+  const itemDesc = (row.ITEM_DESCRIPTION || '').toString().trim();
+  const itemQtyStr = row.ITEM_QUANTITY;
+  const itemUnitPriceStr = row.ITEM_UNIT_PRICE;
+
+  if (!pkgRef) errors.push('PACKAGE_REFERENCE is required');
+  // Package-level fields are now optional (will be filled from first row in grouping)
+  // Only item fields are required for every row
+  if (!itemDesc) errors.push('ITEM_DESCRIPTION is required');
+
+  const quantity = parseInt(itemQtyStr, 10);
+  if (!Number.isFinite(quantity) || quantity <= 0) {
+    errors.push('ITEM_QUANTITY must be a positive number');
+  }
+
+  const unitPrice = parseFloat(itemUnitPriceStr);
+  if (!Number.isFinite(unitPrice) || unitPrice < 0) {
+    errors.push('ITEM_UNIT_PRICE must be a non-negative number');
+  }
+
+  let weight = null;
+  if (weightStr !== undefined && weightStr !== null && weightStr !== '') {
+    const parsedWeight = parseFloat(weightStr);
+    if (!Number.isFinite(parsedWeight) || parsedWeight <= 0) {
+      errors.push('WEIGHT_KG must be a positive number when provided');
+    } else {
+      weight = parsedWeight;
+    }
+  }
+
+  if (errors.length > 0) {
+    return { ok: false, rowIndex, errors };
+  }
+
+  return {
+    ok: true,
+    rowIndex,
+    pkgRef,
+    pkgDesc,
+    weight,
+    customerName,
+    customerPhone,
+    deliveryAddress,
+    shopNote: shopNote || '',
+    item: {
+      description: itemDesc,
+      quantity,
+      codPerUnit: unitPrice
+    }
+  };
+}
+
+// Group parsed rows by PACKAGE_REFERENCE into packages with items
+function groupBulkPackages(parsedRows) {
+  const byRef = new Map();
+  const errors = [];
+
+  for (const row of parsedRows) {
+    if (!row.ok) {
+      errors.push({ rowIndex: row.rowIndex, errors: row.errors });
+      continue;
+    }
+
+    const {
+      pkgRef,
+      pkgDesc,
+      weight,
+      customerName,
+      customerPhone,
+      deliveryAddress,
+      shopNote,
+      item
+    } = row;
+
+    if (!byRef.has(pkgRef)) {
+      // First row for this package reference - require package details
+      if (!pkgDesc || !customerName || !customerPhone || !deliveryAddress) {
+        errors.push({
+          rowIndex: row.rowIndex,
+          errors: ['First row for each PACKAGE_REFERENCE must contain all package details (PACKAGE_DESCRIPTION, CUSTOMER_NAME, CUSTOMER_PHONE, DELIVERY_ADDRESS)']
+        });
+        continue;
+      }
+
+      byRef.set(pkgRef, {
+        packageReference: pkgRef,
+        packageDescription: pkgDesc,
+        weight,
+        deliveryContactName: customerName,
+        deliveryContactPhone: customerPhone,
+        deliveryAddress,
+        shopNotes: shopNote,
+        items: [item]
+      });
+    } else {
+      // Subsequent rows for this package reference - only add items
+      const existing = byRef.get(pkgRef);
+      
+      // If package-level fields are provided in subsequent rows, validate they match
+      if (pkgDesc && pkgDesc !== existing.packageDescription) {
+        errors.push({
+          rowIndex: row.rowIndex,
+          errors: ['PACKAGE_DESCRIPTION does not match first row for this PACKAGE_REFERENCE']
+        });
+        continue;
+      }
+      if (customerName && customerName !== existing.deliveryContactName) {
+        errors.push({
+          rowIndex: row.rowIndex,
+          errors: ['CUSTOMER_NAME does not match first row for this PACKAGE_REFERENCE']
+        });
+        continue;
+      }
+      if (customerPhone && customerPhone !== existing.deliveryContactPhone) {
+        errors.push({
+          rowIndex: row.rowIndex,
+          errors: ['CUSTOMER_PHONE does not match first row for this PACKAGE_REFERENCE']
+        });
+        continue;
+      }
+      if (deliveryAddress && deliveryAddress !== existing.deliveryAddress) {
+        errors.push({
+          rowIndex: row.rowIndex,
+          errors: ['DELIVERY_ADDRESS does not match first row for this PACKAGE_REFERENCE']
+        });
+        continue;
+      }
+
+      // Update weight and shopNotes if provided and not already set
+      if (weight && !existing.weight) existing.weight = weight;
+      if (shopNote && !existing.shopNotes) existing.shopNotes = shopNote;
+
+      existing.items.push(item);
+    }
+  }
+
+  return {
+    packages: Array.from(byRef.values()),
+    rowErrors: errors
+  };
+}
+
+// Parse uploaded Excel file into previewable packages for a shop
+exports.parseBulkImportPreview = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file uploaded' });
+    }
+
+    if (req.user.role !== 'shop') {
+      return res.status(403).json({ message: 'Only shops can import packages' });
+    }
+
+    const shop = await Shop.findOne({ where: { userId: req.user.id } });
+    if (!shop) {
+      return res.status(404).json({ message: 'Shop profile not found' });
+    }
+
+    const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
+    const sheet = workbook.Sheets['Packages'] || workbook.Sheets[workbook.SheetNames[0]];
+    if (!sheet) {
+      return res.status(400).json({ message: 'Packages sheet not found in workbook' });
+    }
+
+    const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+    if (!rows || rows.length === 0) {
+      return res.status(400).json({ message: 'No data rows found in Packages sheet' });
+    }
+
+    const parsedRows = rows.map((row, index) => parseBulkRow(row, index + 2)); // +2 to account for header row
+    const { packages, rowErrors } = groupBulkPackages(parsedRows);
+
+    // Build preview payload
+    const preview = packages.map((p) => {
+      const itemsTotal = p.items.reduce((sum, it) => {
+        const q = parseInt(it.quantity, 10) || 0;
+        const u = parseFloat(it.codPerUnit) || 0;
+        return sum + q * u;
+      }, 0);
+
+      return {
+        reference: p.packageReference,
+        packageDescription: p.packageDescription,
+        weight: p.weight || null,
+        deliveryContactName: p.deliveryContactName,
+        deliveryContactPhone: p.deliveryContactPhone,
+        deliveryAddress: p.deliveryAddress,
+        shopNotes: p.shopNotes || '',
+        codAmount: itemsTotal,
+        items: p.items.map((it) => ({
+          description: it.description,
+          quantity: it.quantity,
+          codPerUnit: it.codPerUnit
+        }))
+      };
+    });
+
+    res.json({
+      preview,
+      errors: rowErrors
+    });
+  } catch (error) {
+    console.error('Error parsing bulk import preview:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Confirm and actually create packages from bulk preview data
+exports.confirmBulkImport = async (req, res) => {
+  const t = await sequelize.transaction();
+  try {
+    if (req.user.role !== 'shop') {
+      await t.rollback();
+      return res.status(403).json({ message: 'Only shops can import packages' });
+    }
+
+    const shop = await Shop.findOne({ where: { userId: req.user.id }, transaction: t });
+    if (!shop) {
+      await t.rollback();
+      return res.status(404).json({ message: 'Shop profile not found' });
+    }
+
+    const { packages: incomingPackages } = req.body;
+    if (!Array.isArray(incomingPackages) || incomingPackages.length === 0) {
+      await t.rollback();
+      return res.status(400).json({ message: 'No packages provided' });
+    }
+
+    const created = [];
+
+    for (const p of incomingPackages) {
+      const items = Array.isArray(p.items) ? p.items : [];
+      if (items.length === 0) continue;
+
+      // Build items array for createPackage
+      const payloadItems = items.map((it) => ({
+        description: it.description,
+        quantity: parseInt(it.quantity, 10) || 1,
+        codPerUnit: parseFloat(it.codPerUnit) || 0
+      }));
+
+      // Build deliveryAddress object from flat string
+      const deliveryAddress = {
+        contactName: p.deliveryContactName,
+        contactPhone: p.deliveryContactPhone,
+        street: p.deliveryAddress,
+        city: '',
+        state: '',
+        zipCode: '',
+        country: ''
+      };
+
+      // For pickupAddress, reuse shop address string if available
+      const pickupAddressStr = shop.address || '';
+      const [street = '', city = '', state = '', zipCode = '', country = ''] = pickupAddressStr.split(',').map((s) => s.trim());
+      const pickupAddress = {
+        contactName: shop.contactPersonName || req.user.name,
+        contactPhone: shop.contactPersonPhone || req.user.phone,
+        street,
+        city,
+        state,
+        zipCode,
+        country
+      };
+
+      const packageData = {
+        packageDescription: p.packageDescription,
+        weight: p.weight || 1,
+        dimensions: null,
+        pickupAddress,
+        deliveryAddress,
+        schedulePickupTime: getCairoDateTime(),
+        priority: 'normal',
+        codAmount: 0,
+        deliveryCost: shop.shippingFees != null ? parseFloat(shop.shippingFees) : 0,
+        paymentMethod: null,
+        paymentNotes: null,
+        shopNotes: p.shopNotes || '',
+        itemsNo: items.reduce((sum, it) => sum + (parseInt(it.quantity, 10) || 0), 0),
+        items: payloadItems,
+        shownDeliveryCost: shop.shownShippingFees != null ? parseFloat(shop.shownShippingFees) : null
+      };
+
+      // Generate tracking number manually (same logic as createPackage)
+      const prefix = 'DP'; // Droppin prefix
+      const timestamp = Math.floor(Date.now() / 1000).toString(16); // Unix timestamp in hex
+      const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+      const trackingNumber = `${prefix}${timestamp}${random}`.toUpperCase();
+
+      // Manually call create logic but under this transaction
+      const createdPkg = await Package.create({
+        shopId: shop.id,
+        userId: req.user.id,
+        trackingNumber: trackingNumber,
+        packageDescription: packageData.packageDescription,
+        weight: packageData.weight,
+        dimensions: null,
+        status: 'awaiting_schedule',
+        pickupContactName: pickupAddress.contactName,
+        pickupContactPhone: pickupAddress.contactPhone,
+        pickupAddress: `${pickupAddress.street}${pickupAddress.city ? ', ' + pickupAddress.city : ''}`,
+        deliveryContactName: deliveryAddress.contactName,
+        deliveryContactPhone: deliveryAddress.contactPhone,
+        deliveryAddress: deliveryAddress.street,
+        schedulePickupTime: formatDateTimeToDDMMYYYY(getCairoDateTime()),
+        priority: 'normal',
+        type: 'new',
+        codAmount: 0,
+        deliveryCost: packageData.deliveryCost,
+        shownDeliveryCost: packageData.shownDeliveryCost,
+        paymentMethod: null,
+        paymentNotes: null,
+        shopNotes: packageData.shopNotes,
+        itemsNo: packageData.itemsNo,
+        isPaid: false,
+        paymentStatus: 'pending'
+      }, { transaction: t });
+
+      // Create items
+      const itemsToCreate = payloadItems.map((it) => {
+        const quantity = parseInt(it.quantity, 10) || 1;
+        const codPerUnit = parseFloat(it.codPerUnit) || 0;
+        return {
+          packageId: createdPkg.id,
+          description: it.description,
+          quantity,
+          codAmount: codPerUnit * quantity
+        };
+      });
+
+      await Item.bulkCreate(itemsToCreate, { transaction: t });
+
+      // Recalculate codAmount from items + shownDeliveryCost
+      const itemsCodSum = itemsToCreate.reduce((sum, it) => sum + (parseFloat(it.codAmount) || 0), 0);
+      const shown = packageData.shownDeliveryCost || 0;
+      const codToSave = itemsCodSum + shown;
+      createdPkg.codAmount = codToSave;
+      await createdPkg.save({ transaction: t });
+
+      created.push(createdPkg);
+    }
+
+    await t.commit();
+
+    res.status(201).json({ success: true, createdCount: created.length });
+  } catch (error) {
+    await t.rollback();
+    console.error('Error confirming bulk import:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
 
 // Create a new package
 exports.createPackage = async (req, res) => {
@@ -270,6 +744,275 @@ exports.getPackages = async (req, res) => {
   } catch (error) {
     console.error('Error fetching packages:', error);
     res.status(500).json({ message: error.message });
+  }
+};
+
+// Export selected packages to PDF (admin only)
+exports.exportPackagesPdf = async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Only admin can export packages' });
+    }
+    const { packageIds } = req.body;
+    if (!Array.isArray(packageIds) || packageIds.length === 0) {
+      return res.status(400).json({ message: 'packageIds array required' });
+    }
+    // Fetch packages with required fields including shipping cost
+    const pkgs = await Package.findAll({
+      where: { id: packageIds },
+      attributes: [
+        'id','trackingNumber','deliveryAddress','deliveryContactName','deliveryContactPhone','status','codAmount','shownDeliveryCost'
+      ],
+      include: [{ model: Shop, attributes: ['businessName'] }]
+    });
+    if (!pkgs || pkgs.length === 0) {
+      return res.status(404).json({ message: 'No matching packages found' });
+    }
+    // Prepare PDF
+  const doc = new PDFDocument({ margin: 20, size: 'A4' });
+    const timestamp = new Date();
+    const fileName = `packages_export_${timestamp.toISOString().slice(0,19).replace(/[:T]/g,'-')}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+
+    doc.pipe(res);
+
+    const assetsBase = path.resolve(__dirname, '../assets');
+  const arabicFontPath = path.join(assetsBase, 'fonts', 'NotoSansArabic-Regular.ttf');
+  const unifiedFontPath = path.join(assetsBase, 'fonts', 'DejaVuSans.ttf');
+    const logoPath = path.join(assetsBase, 'images', 'logo.jpg');
+
+    // Prefer unified bilingual font (DejaVuSans) if present; else fall back to separate Arabic font then system Helvetica
+    let unifiedFontName = null;
+    if (fs.existsSync(unifiedFontPath)) {
+      try { doc.registerFont('UnifiedBilingual', unifiedFontPath); unifiedFontName = 'UnifiedBilingual'; } catch(e){ console.error('Failed to register unified font:', e); }
+    }
+    let arabicFontName = 'Helvetica';
+    if (!unifiedFontName && fs.existsSync(arabicFontPath)) {
+      try { doc.registerFont('DroppinArabic', arabicFontPath); arabicFontName = 'DroppinArabic'; } catch(e){ console.error('Failed to register arabic font:', e); }
+    }
+    const headerFontName = unifiedFontName || 'Helvetica-Bold';
+    const baseLatin = unifiedFontName || 'Helvetica';
+    const fonts = {
+      unified: unifiedFontName,
+      latin: baseLatin,
+      arabic: unifiedFontName || arabicFontName,
+      header: headerFontName
+    };
+
+    const usableWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+    const startX = doc.page.margins.left;
+
+    const headerStartY = doc.y;
+    if (fs.existsSync(logoPath)) {
+      doc.image(logoPath, startX, headerStartY - 6, { width: 70 });
+    }
+
+    doc.font(fonts.header).fontSize(20).fillColor('#0f172a');
+    doc.text('Droppin Packages Export', startX + 90, headerStartY, {
+      width: usableWidth - 90,
+      align: 'left'
+    });
+    doc.moveDown(0.2);
+    doc.font(fonts.latin).fontSize(10).fillColor('#475569').text(`Generated: ${timestamp.toLocaleString()}`, startX + 90, doc.y, {
+      width: usableWidth - 90,
+      align: 'left'
+    });
+    doc.moveDown(2);
+
+    // Helper to format Arabic text properly
+    const formatText = (text) => {
+      if (!text) return '';
+      const stringValue = String(text);
+      if (!containsArabicChars(stringValue)) return stringValue;
+      
+      // Split by spaces, reverse word order, then shape each word
+      const words = stringValue.split(' ');
+      const reversedWords = words.reverse();
+      const shapedWords = reversedWords.map(word => ArabicShaper.convertArabic(word));
+      return shapedWords.join(' ');
+    };
+
+    // Card-based layout
+    const cardWidth = usableWidth;
+    const cardMarginBottom = 12;
+    const cardPadding = 12;
+    let cursorY = doc.y;
+
+    const ensureSpace = (height) => {
+      if (cursorY + height > doc.page.height - doc.page.margins.bottom - 30) {
+        doc.addPage();
+        cursorY = doc.y;
+        return true;
+      }
+      return false;
+    };
+
+    // Helper to render mixed Arabic/English text with proper directionality
+    const renderBidiText = (doc, text, x, y, options = {}) => {
+      if (!text || !containsArabicChars(text)) {
+        // Pure English - render left to right
+        doc.text(text, x, y, { ...options, align: 'left' });
+        return;
+      }
+      
+      // Check if it's mixed content
+      const hasEnglish = /[A-Za-z0-9]/.test(text);
+      
+      if (!hasEnglish) {
+        // Pure Arabic - shape and render right to left
+        const shapedText = formatText(text);
+        doc.text(shapedText, x, y, { ...options, align: 'right' });
+        return;
+      }
+      
+      // Mixed content - split into segments and render each with proper direction
+      const segments = [];
+      let currentSegment = '';
+      let currentIsArabic = containsArabicChars(text[0]);
+      
+      for (let i = 0; i < text.length; i++) {
+        const char = text[i];
+        const charIsArabic = containsArabicChars(char);
+        
+        if (charIsArabic === currentIsArabic) {
+          currentSegment += char;
+        } else {
+          segments.push({ text: currentSegment, isArabic: currentIsArabic });
+          currentSegment = char;
+          currentIsArabic = charIsArabic;
+        }
+      }
+      segments.push({ text: currentSegment, isArabic: currentIsArabic });
+      
+      // Render segments from right to left (Arabic order)
+      const width = options.width || 300;
+      let currentX = x + width;
+      
+      // Process segments in reverse for RTL layout
+      for (let i = segments.length - 1; i >= 0; i--) {
+        const segment = segments[i];
+        const textToRender = segment.isArabic ? formatText(segment.text) : segment.text;
+        const textWidth = doc.widthOfString(textToRender);
+        currentX -= textWidth;
+        doc.text(textToRender, currentX, y, { ...options, width: textWidth + 5, align: 'left' });
+      }
+    };
+
+    const drawCard = (pkg, index) => {
+      const codWithoutShipping = parseFloat(pkg.codAmount || 0) - parseFloat(pkg.shownDeliveryCost || 0);
+      const codWithShipping = parseFloat(pkg.codAmount || 0);
+      
+      // Estimate card height - increased for bigger notes section
+      const estimatedHeight = 180;
+      ensureSpace(estimatedHeight);
+
+      const cardY = cursorY;
+      
+      // Card background with shadow effect
+      doc.save();
+      doc.rect(startX, cardY, cardWidth, estimatedHeight).fill('#ffffff');
+      doc.restore();
+      doc.strokeColor('#cbd5e1').lineWidth(1.5).roundedRect(startX, cardY, cardWidth, estimatedHeight, 4).stroke();
+
+      // Inner content positioning - LEFT side for COD, RIGHT side for main info
+      let contentY = cardY + cardPadding;
+      const leftColX = startX + cardPadding; // COD column
+      const leftColWidth = 180;
+      const rightColX = leftColX + leftColWidth + 20; // Main info column
+      const rightColWidth = cardWidth - leftColWidth - cardPadding * 2 - 20;
+
+      // Tracking number - prominent at top right
+      doc.font(fonts.header).fontSize(14).fillColor('#0f172a');
+      doc.text(`${pkg.trackingNumber}`, rightColX, contentY, { align: 'right', width: rightColWidth });
+      contentY += 22;
+
+      // RIGHT COLUMN - Main info aligned to the right
+      let rightContentY = contentY;
+      doc.font(fonts.unified || fonts.latin).fontSize(10).fillColor('#1e293b');
+      
+      // Customer name
+      const customerLabel = formatText('العميل:');
+      const customerName = formatText(pkg.deliveryContactName || 'N/A');
+      const rightEdge = rightColX + rightColWidth;
+      doc.text(customerLabel, rightEdge - 60, rightContentY, { align: 'right', width: 60 });
+      doc.text(customerName, rightColX, rightContentY, { align: 'right', width: rightColWidth - 65 });
+      rightContentY += 16;
+      
+      // Phone number
+      const phoneLabel = formatText('الهاتف:');
+      const phoneNumber = pkg.deliveryContactPhone || 'N/A';
+      doc.text(phoneLabel, rightEdge - 60, rightContentY, { align: 'right', width: 60 });
+      doc.text(phoneNumber, rightColX, rightContentY, { align: 'right', width: rightColWidth - 65 });
+      rightContentY += 16;
+      
+      // Brand name
+      const brandLabel = formatText('المحل:');
+      const brandName = formatText(pkg.Shop ? pkg.Shop.businessName : 'N/A');
+      doc.text(brandLabel, rightEdge - 80, rightContentY, { align: 'right', width: 80 });
+      doc.text(brandName, rightColX, rightContentY, { align: 'right', width: rightColWidth - 85 });
+      rightContentY += 20;
+
+      // Address section
+      doc.font(fonts.unified || fonts.latin).fontSize(9).fillColor('#475569');
+      const destinationLabel = formatText('الوجهة:');
+      doc.text(destinationLabel, rightEdge - 60, rightContentY, { align: 'right', width: 60 });
+      rightContentY += 14;
+      
+      const addressText = formatText(pkg.deliveryAddress || 'N/A');
+      doc.font(fonts.unified || fonts.arabic).fontSize(9).fillColor('#1e293b');
+      doc.text(addressText, rightColX, rightContentY, { align: 'right', width: rightColWidth, lineGap: 2 });
+
+      // LEFT COLUMN - Financial info in Arabic
+      let leftContentY = contentY;
+      doc.font(fonts.header).fontSize(9).fillColor('#475569');
+      const codNoShippingLabel = formatText('بدون شحن');
+      doc.text(codNoShippingLabel, leftColX, leftContentY, { align: 'left', width: leftColWidth });
+      leftContentY += 14;
+      doc.font(fonts.unified || fonts.latin).fontSize(11).fillColor('#059669');
+      doc.text(`EGP ${codWithoutShipping.toFixed(2)}`, leftColX, leftContentY, { align: 'left' });
+      leftContentY += 20;
+
+      doc.font(fonts.header).fontSize(9).fillColor('#475569');
+      const codWithShippingLabel = formatText('مع الشحن');
+      doc.text(codWithShippingLabel, leftColX, leftContentY, { align: 'left', width: leftColWidth });
+      leftContentY += 14;
+      doc.font(fonts.unified || fonts.latin).fontSize(11).fillColor('#dc2626');
+      doc.text(`EGP ${codWithShipping.toFixed(2)}`, leftColX, leftContentY, { align: 'left' });
+
+      // Driver notes section at bottom - much bigger for writing
+      const notesY = cardY + estimatedHeight - 70;
+      doc.font(fonts.header).fontSize(9).fillColor('#64748b');
+      const notesLabel = formatText('');
+      doc.text(notesLabel, leftColX, notesY, { align: 'right', width: cardWidth - cardPadding * 2 });
+      
+      // Draw multiple lines for writing space
+      doc.strokeColor('#e2e8f0').lineWidth(0.8);
+      for (let i = 0; i < 4; i++) {
+        const lineY = notesY + 15 + (i * 12);
+        doc.moveTo(leftColX, lineY)
+          .lineTo(startX + cardWidth - cardPadding, lineY)
+          .stroke();
+      }
+
+      cursorY = cardY + estimatedHeight + cardMarginBottom;
+    };
+
+    // Draw all package cards
+    pkgs.forEach((pkg, idx) => drawCard(pkg, idx));
+
+    // Footer in Arabic
+    cursorY += 10;
+    if (cursorY > doc.page.height - doc.page.margins.bottom - 30) {
+      doc.addPage();
+      cursorY = doc.y;
+    }
+    const totalLabel = formatText('إجمالي الطرود:');
+    doc.font(fonts.header, 10).fillColor('#475569').text(`${totalLabel} ${pkgs.length}`, startX, cursorY, { align: 'right', width: usableWidth });
+    doc.end();
+  } catch (err) {
+    console.error('Error exporting packages PDF:', err);
+    res.status(500).json({ message: 'Failed to generate PDF', error: err.message });
   }
 };
 
