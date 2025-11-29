@@ -1,4 +1,9 @@
 /* Update stat cards to match color scheme */
+/* Percentage-based responsive layout variables */
+:root {
+  --sidebar-width: 16vw;
+  --content-max-width: calc(100vw - var(--sidebar-width));
+}
 .dashboard-stats .stat-card {
   background: white;
   border-radius: 8px;
@@ -166,7 +171,7 @@
 }
 
 .dashboard-container .dashboard-sidebar {
-  width: 260px !important;
+  width: var(--sidebar-width) !important;
   background: white !important;
   color: #1f2937 !important;
   padding: 0 !important;
@@ -459,7 +464,7 @@
 
 /* Shop Packages Page Layout */
 .shop-packages-page {
-  margin-left: 260px; /* match sidebar width */
+  margin-left: var(--sidebar-width); /* match sidebar width (percentage-based) */
   margin-top: 65px !important; /* Add top margin to account for fixed navigation header */
   padding: 2rem;
   min-height: calc(100vh - 65px);
@@ -474,7 +479,7 @@
 
 .shop-packages-page > div {
   width: 100%;
-  max-width: 1200px;
+  max-width: var(--content-max-width);
   margin: 0 auto;
 }
 
@@ -510,7 +515,7 @@
   .chart-container h3 { font-size: 0.85rem; }
 
   /* Packages grid/cards */
-  .packages-grid { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 0.8rem; }
+  .packages-grid { grid-template-columns: repeat(auto-fill, minmax(18vw, 1fr)); gap: 0.8vw; }
   .package-card { padding: 0.75rem; border-radius: 8px; }
   .package-info h4 { font-size: 1rem; }
   .package-info p { font-size: 0.85rem; }
@@ -718,7 +723,7 @@
 }
 
 .shop-profile-page {
-  margin-left: 260px;
+  margin-left: var(--sidebar-width);
   margin-top: 65px !important; /* Add top margin to account for fixed navigation header */
   padding: 2rem;
   min-height: calc(100vh - 65px);
@@ -732,7 +737,7 @@
 
 .shop-profile-page > div {
   width: 100%;
-  max-width: 1200px;
+  max-width: var(--content-max-width);
   margin: 0 auto;
 }
 
@@ -1022,9 +1027,9 @@
 
 .packages-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 1rem;
-  margin-top: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(18vw, 1fr));
+  gap: 1.2vw;
+  margin-top: 1.2vw;
 }
 
 .package-card {
@@ -1621,7 +1626,7 @@
 
 /* Wallet Page Styles */
 .wallet-page {
-  margin-left: 260px;
+  margin-left: var(--sidebar-width);
   padding: 2rem;
   min-height: calc(100vh - 65px);
   background: #f8f9fa;
@@ -1636,7 +1641,7 @@
 
 .wallet-page > div {
   width: 100%;
-  max-width: 1200px;
+  max-width: var(--content-max-width);
   margin: 0 auto;
 }
 
@@ -1972,7 +1977,7 @@
 /* Target the main dashboard content container */
 .dashboard-content-shop {
   flex: 1;
-  margin-left: 260px; /* Desktop default */
+  margin-left: var(--sidebar-width); /* Desktop default percentage-based */
   padding: 1.5rem;
   background-color: #f8f9fa;
   margin-top: 65px !important; /* Ensure content clears the fixed top bar */
@@ -1993,16 +1998,16 @@
   .wallet-page,
   .shop-profile-page,
   .dashboard-content-shop {
-    margin-left: 260px; /* keep offset equal to sidebar width */
+    margin-left: var(--sidebar-width); /* keep offset equal to sidebar width */
     padding-left: 1rem; /* add breathing space */
-    max-width: calc(100vw - 260px); /* ensure content fits beside sidebar */
+    max-width: var(--content-max-width); /* ensure content fits beside sidebar */
   }
 
   /* Prevent table wrappers from extending beneath sidebar */
   .packages-table-wrapper,
   .recent-packages,
   .money-transactions-container {
-    max-width: calc(100vw - 300px);
+    max-width: calc(100vw - var(--sidebar-width) - 3vw);
   }
 
   /* Prevent any horizontal overflow in common containers */
@@ -2010,7 +2015,7 @@
   .recent-packages-cards,
   .dashboard-stats-container,
   .stats-and-chart-row {
-    max-width: calc(100vw - 300px);
+    max-width: calc(100vw - var(--sidebar-width) - 3vw);
     overflow-x: hidden;
   }
 }
@@ -3191,7 +3196,7 @@ div.dashboard-content {
 
 /* Create Package Page Styles */
 .create-package-page {
-  margin-left: 260px;
+  margin-left: var(--sidebar-width);
   margin-top: 65px !important;
   padding: 2rem;
   min-height: calc(100vh - 65px);
@@ -3205,7 +3210,7 @@ div.dashboard-content {
 
 .create-package-page > div {
   width: 100%;
-  max-width: 800px;
+  max-width: calc(var(--content-max-width) * 0.65);
   margin: 0 auto;
 }
 
