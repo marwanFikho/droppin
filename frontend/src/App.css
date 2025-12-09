@@ -1526,56 +1526,42 @@ input:focus {
     gap: 1rem;
   }
   
+  /* Mobile navigation: use slide-out menu controlled by React state */
   .nav-container {
-    flex-wrap: wrap;
-    justify-content: space-between;
-    padding: 0 0.5rem;
+    padding: 0 1rem;
   }
-  
-  .nav-logo {
-    flex-grow: 1;
-  }
-  
-  /* Keep nav links visible on small desktop widths instead of hiding behind hamburger */
+
   .nav-links {
-    position: static;
-    top: auto;
-    right: auto;
-    height: auto;
-    width: auto;
-    background: transparent;
-    backdrop-filter: none;
-    flex-direction: row;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    align-items: center;
-    z-index: 1001;
-    box-shadow: none;
-    transform: none;
-    transition: none;
-    padding: 0;
-    border-left: none;
+    position: fixed;
+    top: 70px; /* matches .main-nav min-height */
+    right: 0;
+    width: 75%;
+    max-width: 320px;
+    height: calc(100vh - 70px);
+    background: rgba(255, 255, 255, 0.98);
+    backdrop-filter: blur(10px);
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 1.5rem 1rem;
+    box-shadow: -4px 0 20px rgba(0, 0, 0, 0.15);
+    transform: translateX(100%);
+    transition: transform 0.3s ease;
+    border-left: 1px solid rgba(0, 0, 0, 0.03);
   }
 
   .nav-links.open {
-    transform: none;
+    transform: translateX(0);
   }
   
   .nav-links .nav-link {
-    font-size: 0.85rem;
-    margin: 0 0.2rem;
-    width: auto;
-    text-align: center;
-    padding: 0.6rem 1rem;
-    border-radius: 18px;
+    width: 100%;
+    margin: 0.25rem 0;
+    text-align: left;
   }
 
-  /* Hide hamburger when links are always visible */
   .hamburger-menu {
-    display: none;
+    display: block;
   }
-
-  /* Removed hamburger hover styling since hamburger is hidden at this breakpoint */
 
   /* Reduce complex animations and effects on mobile */
   .hero-background .shape {
