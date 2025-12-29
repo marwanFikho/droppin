@@ -24,6 +24,19 @@ const app = express();
 // Middleware
 app.disable('x-powered-by');
 app.use(cors());
+
+// Capture raw body for webhook HMAC verification
+app.use((req, res, next) => {
+  let rawBody = '';
+  req.on('data', (chunk) => {
+    rawBody += chunk.toString('utf-8');
+  });
+  req.on('end', () => {
+    req.rawBody = rawBody;
+    next();
+  });
+});
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
@@ -45,6 +58,7 @@ const infoRoutes = require('./routes/info.routes');
 const pickupRoutes = require('./routes/pickup.routes');
 const itemRoutes = require('./routes/item.routes');
 const apiRoutes = require('./routes/api.js');
+const webhookRoutes = require('./routes/webhook.routes');
 
 // API routes
 app.use('/api/auth', authRoutes);
@@ -57,6 +71,9 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/info', infoRoutes);
 app.use('/api/pickups', pickupRoutes);
 app.use('/api', apiRoutes);
+
+// Webhook routes (GDPR compliance)
+app.use('/webhooks', webhookRoutes);
 
 // Serve static assets (templates, images, fonts) under /assets
 // This enables links like /assets/templates/droppin_bulk_package_import_template.xlsx
