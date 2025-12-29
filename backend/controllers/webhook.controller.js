@@ -6,17 +6,24 @@ const SHOPIFY_API_SECRET = '5d3a322b312dc88b66480128ab2f67d4';
 /**
  * Verify Shopify HMAC signature
  * @param {string} hmacHeader - The X-Shopify-Hmac-SHA256 header value
- * @param {Buffer|string} body - The raw request body
+ * @param {Buffer|string|object} body - The raw request body or parsed JSON
  * @returns {boolean} - True if HMAC is valid, false otherwise
  */
 const verifyShopifyHmac = (hmacHeader, body) => {
-  // Ensure body is a string
-  const bodyString = typeof body === 'string' ? body : body.toString('utf-8');
+  // Normalize body to Buffer (prefer raw body when available)
+  let payload;
+  if (Buffer.isBuffer(body)) {
+    payload = body;
+  } else if (typeof body === 'string') {
+    payload = Buffer.from(body, 'utf-8');
+  } else {
+    payload = Buffer.from(JSON.stringify(body || {}), 'utf-8');
+  }
 
-  // Create HMAC
+  // Create HMAC over the raw payload
   const computed = crypto
     .createHmac('sha256', SHOPIFY_API_SECRET)
-    .update(bodyString, 'utf-8')
+    .update(payload)
     .digest('base64');
 
   // Compare with provided HMAC
@@ -34,10 +41,10 @@ const verifyWebhookSignature = (req, res, next) => {
     return res.status(403).json({ error: 'request denied' });
   }
 
-  // Get raw body
-  const rawBody = req.rawBody || JSON.stringify(req.body);
+  // Body will be a Buffer for webhook routes (express.raw)
+  const bodyForHmac = req.body;
 
-  if (!verifyShopifyHmac(hmacHeader, rawBody)) {
+  if (!verifyShopifyHmac(hmacHeader, bodyForHmac)) {
     return res.status(403).json({ error: 'request denied' });
   }
 
