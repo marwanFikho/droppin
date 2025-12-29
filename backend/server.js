@@ -24,6 +24,8 @@ const app = express();
 // Middleware
 app.disable('x-powered-by');
 app.use(cors());
+// Mount webhook routes early to preserve raw body for HMAC
+app.use('/webhooks', require('./routes/webhook.routes'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
@@ -45,7 +47,6 @@ const infoRoutes = require('./routes/info.routes');
 const pickupRoutes = require('./routes/pickup.routes');
 const itemRoutes = require('./routes/item.routes');
 const apiRoutes = require('./routes/api.js');
-const webhookRoutes = require('./routes/webhook.routes');
 
 // API routes
 app.use('/api/auth', authRoutes);
@@ -59,8 +60,7 @@ app.use('/api/info', infoRoutes);
 app.use('/api/pickups', pickupRoutes);
 app.use('/api', apiRoutes);
 
-// Webhook routes (GDPR compliance)
-app.use('/webhooks', webhookRoutes);
+// Webhook routes mounted earlier (before JSON parser)
 
 // Serve static assets (templates, images, fonts) under /assets
 // This enables links like /assets/templates/droppin_bulk_package_import_template.xlsx
