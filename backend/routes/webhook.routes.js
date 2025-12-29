@@ -9,14 +9,11 @@ const {
   handleShopRedact,
 } = require('../controllers/webhook.controller');
 
-// For webhooks, we need the raw body (Buffer) for HMAC verification
-router.use(express.raw({ type: 'application/json' }));
-
 // Apply HMAC verification middleware to all webhook routes
 router.use(verifyWebhookSignature);
 
 // APP_UNINSTALLED webhook
-router.post('/app/uninstalled', handleAppUninstalled);
+router.post('/app/installed', handleAppUninstalled);
 
 // APP_SUBSCRIPTIONS_UPDATE webhook
 router.post('/app/scopes_update', handleAppSubscriptionsUpdate);
