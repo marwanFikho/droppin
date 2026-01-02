@@ -3,7 +3,7 @@
 client_id = "204d55c4dc34850c3820d421098f101b"
 name = "Droppin EG"
 handle = "droppin-eg-2"
-application_url = "https://shopify.droppin-eg.com"
+application_url = "https://droppin-testing.myshopify.com"
 embedded = true
  
 [build]
@@ -34,9 +34,9 @@ scopes = "write_products, read_orders, read_customers"
  
 [auth]
 redirect_urls = [
-  "https://shopify.droppin-eg.com/auth/callback",
-  "https://shopify.droppin-eg.com/auth/shopify/callback",
-  "https://shopify.droppin-eg.com/api/auth/callback"
+  "https://droppin-testing.myshopify.com/auth/callback",
+  "https://droppin-testing.myshopify.com/auth/shopify/callback",
+  "https://droppin-testing.myshopify.com/api/auth/callback"
 ]
  
 [pos]

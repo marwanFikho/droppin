@@ -12,7 +12,7 @@ const shopify = shopifyApp({
   apiSecretKey: "5d3a322b312dc88b66480128ab2f67d4",
   apiVersion: ApiVersion.January25,
   scopes: "write_products,read_orders,read_customers".split(","),
-  appUrl: "https://shopify.droppin-eg.com",
+  appUrl: "https://droppin-testing.myshopify.com",
   authPathPrefix: "/auth",
   sessionStorage: new PrismaSessionStorage(prisma),
   distribution: AppDistribution.AppStore,

@@ -6,7 +6,7 @@ import tsconfigPaths from "vite-tsconfig-paths";
 installGlobals({ nativeFetch: true });
 
 // Hardcoded configuration
-const SHOPIFY_APP_URL = "https://shopify.droppin-eg.com";
+const SHOPIFY_APP_URL = "https://droppin-testing.myshopify.com";
 const PORT = 4000;
 
 // Related: https://github.com/remix-run/remix/issues/2835#issuecomment-1144102176
