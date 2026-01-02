@@ -34,9 +34,9 @@ scopes = "write_products, read_orders, read_customers"
  
 [auth]
 redirect_urls = [
-  "https://droppin-testing.myshopify.com/auth/callback",
-  "https://droppin-testing.myshopify.com/auth/shopify/callback",
-  "https://droppin-testing.myshopify.com/api/auth/callback"
+  "https://shopify.droppin-eg.com/auth/callback",
+  "https://shopify.droppin-eg.com/auth/shopify/callback",
+  "https://shopify.droppin-eg.com/api/auth/callback"
 ]
  
 [pos]
