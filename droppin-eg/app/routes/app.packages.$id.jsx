@@ -9,7 +9,7 @@ export const loader = async ({ request, params }) => {
   const shopDomain = session.shop;
   const config = await prisma.droppinShopConfig.findUnique({ where: { shop: shopDomain } });
   const apiKey = config?.apiKey || '';
-  const apiBaseUrl = config?.apiBaseUrl || process.env.DROPPIN_API_URL || '';
+  const apiBaseUrl = config?.apiBaseUrl || process.env.DROPPIN_API_URL || 'https://api.droppin-eg.com';
   if (!apiKey || !apiBaseUrl) return { package: null, missingApiKey: !apiKey, missingApiBaseUrl: !apiBaseUrl };
   const client = makeClient(apiKey, apiBaseUrl);
   try {
@@ -25,7 +25,7 @@ export const action = async ({ request, params }) => {
   const shopDomain = session.shop;
   const config = await prisma.droppinShopConfig.findUnique({ where: { shop: shopDomain } });
   const apiKey = config?.apiKey || '';
-  const apiBaseUrl = config?.apiBaseUrl || process.env.DROPPIN_API_URL || '';
+  const apiBaseUrl = config?.apiBaseUrl || process.env.DROPPIN_API_URL || 'https://api.droppin-eg.com';
   const form = await request.formData();
   const intent = form.get('_intent');
   const client = makeClient(apiKey, apiBaseUrl);

@@ -1,49 +1,40 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
-
+ 
 client_id = "204d55c4dc34850c3820d421098f101b"
 name = "Droppin EG"
 handle = "droppin-eg-2"
-application_url = "https://successfully-vocational-important-prophet.trycloudflare.com"
+application_url = "https://defensive-securities-citizenship-writer.trycloudflare.com"
 embedded = true
-
+ 
 [build]
-include_config_on_deploy = true
 automatically_update_urls_on_dev = true
-
+ 
 [webhooks]
 api_version = "2025-04"
-
+ 
 [[webhooks.handlers]]
 api_version = "2025-04"
 topics = ["APP_UNINSTALLED"]
 uri = "/webhooks/app/uninstalled"
-
+ 
 [[webhooks.handlers]]
 api_version = "2025-04"
 topics = ["APP_SUBSCRIPTIONS_UPDATE"]
 uri = "/webhooks/app/scopes_update"
-
-[[webhooks.handlers]]
-api_version = "2025-04"
-topics = ["CUSTOMERS_DATA_REQUEST"]
-uri = "/webhooks/customers/data_request"
-
-[[webhooks.handlers]]
-api_version = "2025-04"
-topics = ["CUSTOMERS_REDACT"]
-uri = "/webhooks/customers/redact"
-
-[[webhooks.handlers]]
-api_version = "2025-04"
-topics = ["SHOP_REDACT"]
-uri = "/webhooks/shop/redact"
-
+ 
+[[webhooks.subscriptions]]
+compliance_topics = ["customers/data_request", "customers/redact", "shop/redact"]
+uri = "https://api.droppin-eg.com/webhooks"
+ 
+ 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
 scopes = "write_products, read_orders, read_customers"
-
+ 
 [auth]
-redirect_urls = ["https://successfully-vocational-important-prophet.trycloudflare.com/auth/callback", "https://successfully-vocational-important-prophet.trycloudflare.com/auth/shopify/callback", "https://successfully-vocational-important-prophet.trycloudflare.com/api/auth/callback"]
-
+redirect_urls = [
+  "https://defensive-securities-citizenship-writer.trycloudflare.com/auth/callback"
+]
+ 
 [pos]
 embedded = false

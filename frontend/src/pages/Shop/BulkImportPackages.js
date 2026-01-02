@@ -22,7 +22,7 @@ const BulkImportPackages = () => {
 
   const handleDownloadTemplate = () => {
     // For now, just point to backend static path (you can proxy or serve statically via nginx)
-    window.open(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/assets/templates/droppin_bulk_package_import_template.xlsx`, '_blank');
+    window.open(`${process.env.REACT_APP_API_URL || 'https://api.droppin-eg.com'}/assets/templates/droppin_bulk_package_import_template.xlsx`, '_blank');
   };
 
   const handleUpload = async () => {

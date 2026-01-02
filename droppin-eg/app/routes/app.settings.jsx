@@ -8,8 +8,8 @@ import prisma from "../db.server";
 export const loader = async ({ request }) => {
   const { admin, session } = await authenticate.admin(request);
   const shopDomain = session.shop;
-  const config = await prisma.droppinShopConfig.findUnique({ where: { shop: shopDomain } });
-  return json({ apiKey: config?.apiKey || "", apiBaseUrl: config?.apiBaseUrl || (process.env.DROPPIN_API_URL || '') });
+  const config = await prisma.droppinShopConfig.findUnique({ where: { shop: shopDomain }, select: { apiKey: true } });
+  return json({ apiKey: config?.apiKey || "" });
 };
 
 export const action = async ({ request }) => {
@@ -17,20 +17,18 @@ export const action = async ({ request }) => {
   const shopDomain = session.shop;
   const formData = await request.formData();
   const apiKey = (formData.get("apiKey") || "").toString();
-  const apiBaseUrl = (formData.get("apiBaseUrl") || "").toString();
   await prisma.droppinShopConfig.upsert({
     where: { shop: shopDomain },
-    update: { apiKey, apiBaseUrl },
-    create: { shop: shopDomain, apiKey, apiBaseUrl },
+    update: { apiKey },
+    create: { shop: shopDomain, apiKey },
   });
   return redirect("/app/settings");
 };
 
 export default function Settings() {
-  const { apiKey, apiBaseUrl } = useLoaderData();
+  const { apiKey } = useLoaderData();
   const actionData = useActionData();
   const [value, setValue] = useState(apiKey || "");
-  const [base, setBase] = useState(apiBaseUrl || "");
 
   return (
     <Page title="Droppin Settings">
@@ -45,13 +43,6 @@ export default function Settings() {
               onChange={setValue}
               autoComplete="off"
             />
-            <TextField
-              label="Droppin API Base URL (e.g., https://api.yourdomain.com/api)"
-              name="apiBaseUrl"
-              value={base}
-              onChange={setBase}
-              autoComplete="off"
-            />
             <Button submit primary>
               Save
             </Button>
@@ -59,11 +50,6 @@ export default function Settings() {
           {apiKey && (
             <Text variant="bodyMd" color="success">
               Current API Key: {apiKey}
-            </Text>
-          )}
-          {base && (
-            <Text variant="bodyMd" color="success">
-              Current API Base URL: {base}
             </Text>
           )}
         </BlockStack>

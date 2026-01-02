@@ -129,8 +129,13 @@ export const loader = async ({ request }) => {
     orders = [];
   }
   const shopDomain = session.shop;
-  const config = await prisma.droppinShopConfig.findUnique({ where: { shop: shopDomain } });
-  const apiKey = config?.apiKey || "";
+  let apiKey = "";
+  try {
+    const config = await prisma.droppinShopConfig.findUnique({ where: { shop: shopDomain }, select: { apiKey: true, shop: true } });
+    apiKey = config?.apiKey || "";
+  } catch (e) {
+    console.warn('DroppinShopConfig lookup failed (fallback to empty apiKey):', e?.message);
+  }
   return { orders, apiKey };
 };
 

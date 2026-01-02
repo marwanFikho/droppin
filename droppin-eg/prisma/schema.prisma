@@ -35,5 +35,4 @@ model DroppinShopConfig {
   id     String @id @default(cuid())
   shop   String @unique
   apiKey String
-  apiBaseUrl String?
 }

@@ -1,14 +1,14 @@
-// Simple API client for Droppin backend using shop API key.
-// Assumes prisma stores apiKey per shop (loader retrieves). Base URL configurable via env.
-const DEFAULT_BASE = (typeof process !== 'undefined' && process.env.DROPPIN_API_URL) || null;
+// Simple API client for Droppin backend using only the shop API key.
+// Base URL removed as requested; assumes a reverse proxy or Remix server route
+// forwards requests under /droppin to the backend. Adjust BASE_PATH if needed.
 
-export function makeClient(apiKey, baseUrl = DEFAULT_BASE) {
+export function makeClient(apiKey, apiBaseUrl = 'https://api.droppin-eg.com') {
   if (!apiKey) throw new Error('Droppin API key missing');
-  if (!baseUrl) throw new Error('Droppin API base URL missing');
   const authHeader = { Authorization: `Bearer ${apiKey}` };
+  const baseUrl = apiBaseUrl.endsWith('/') ? apiBaseUrl.slice(0, -1) : apiBaseUrl;
 
   async function request(path, options = {}) {
-    const res = await fetch(`${baseUrl}${path}`, {
+    const res = await fetch(`${baseUrl}/api${path}`, {
       ...options,
       headers: {
         'Content-Type': 'application/json',
