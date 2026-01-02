@@ -3,11 +3,12 @@
 client_id = "204d55c4dc34850c3820d421098f101b"
 name = "Droppin EG"
 handle = "droppin-eg-2"
-application_url = "https://defensive-securities-citizenship-writer.trycloudflare.com"
+application_url = "https://shopify.droppin-eg.com"
 embedded = true
  
 [build]
-automatically_update_urls_on_dev = true
+automatically_update_urls_on_dev = false
+dev_store_url = "https://shopify.droppin-eg.com"
  
 [webhooks]
 api_version = "2025-04"
@@ -33,7 +34,9 @@ scopes = "write_products, read_orders, read_customers"
  
 [auth]
 redirect_urls = [
-  "https://defensive-securities-citizenship-writer.trycloudflare.com/auth/callback"
+  "https://shopify.droppin-eg.com/auth/callback",
+  "https://shopify.droppin-eg.com/auth/shopify/callback",
+  "https://shopify.droppin-eg.com/api/auth/callback"
 ]
  
 [pos]

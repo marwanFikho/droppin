@@ -10,7 +10,7 @@ export const loader = async ({ request }) => {
   try {
     config = await prisma.droppinShopConfig.findUnique({ where: { shop: shopDomain }, select: { apiKey: true, shop: true } });
   } catch {}
-  const apiBaseUrl = process.env.DROPPIN_API_URL || 'https://api.droppin-eg.com';
+  const apiBaseUrl = 'https://api.droppin-eg.com';
   // Until we formalize additional fields in DroppinShopConfig, keep defaults empty
   const shownShippingFees = null;
   const shippingFees = null;

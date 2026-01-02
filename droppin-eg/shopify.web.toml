@@ -4,4 +4,8 @@ webhooks_path = "/webhooks/app/uninstalled"
 
 [commands]
 predev = "npx prisma generate"
-dev = "npx prisma migrate deploy && npm exec remix vite:dev"
+dev = "npx prisma migrate deploy && PORT=4000 npm exec remix vite:dev"
+
+[env]
+PORT = "4000"
+SHOPIFY_APP_URL = "https://shopify.droppin-eg.com"

@@ -15,7 +15,7 @@ export const loader = async ({ request }) => {
   } catch (e) {
     console.warn('DroppinShopConfig read failed:', e?.message);
   }
-  const apiBaseUrl = process.env.DROPPIN_API_URL || 'https://api.droppin-eg.com';
+  const apiBaseUrl = 'https://api.droppin-eg.com';
   if (!apiKey || !apiBaseUrl) {
     return { packagesResp: null, packages: [], missingApiKey: !apiKey, missingApiBaseUrl: !apiBaseUrl };
   }
