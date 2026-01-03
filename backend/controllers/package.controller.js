@@ -747,7 +747,7 @@ exports.getPackages = async (req, res) => {
   }
 };
 
-// Export selected packages to PDF (admin only)
+// Export selected packages to PDF (admin only) - Landscape A4 table format, 15 packages per page in Arabic
 exports.exportPackagesPdf = async (req, res) => {
   try {
     if (req.user.role !== 'admin') {
@@ -761,254 +761,240 @@ exports.exportPackagesPdf = async (req, res) => {
     const pkgs = await Package.findAll({
       where: { id: packageIds },
       attributes: [
-        'id','trackingNumber','deliveryAddress','deliveryContactName','deliveryContactPhone','status','codAmount','shownDeliveryCost'
+        'id','trackingNumber','deliveryAddress','deliveryContactName','deliveryContactPhone','status','codAmount','shownDeliveryCost','packageDescription','weight'
       ],
       include: [{ model: Shop, attributes: ['businessName'] }]
     });
     if (!pkgs || pkgs.length === 0) {
       return res.status(404).json({ message: 'No matching packages found' });
     }
-    // Prepare PDF
-  const doc = new PDFDocument({ margin: 20, size: 'A4' });
-    const timestamp = new Date();
-    const fileName = `packages_export_${timestamp.toISOString().slice(0,19).replace(/[:T]/g,'-')}.pdf`;
+    
+    // Prepare PDF in A4 landscape format with minimal margins
+    const doc = new PDFDocument({ 
+      margin: 6, 
+      size: 'A4', 
+      layout: 'landscape', 
+      bufferPages: false,
+      autoFirstPage: false
+    });
+    const fileName = `packages_export_${Date.now()}.pdf`;
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
 
     doc.pipe(res);
 
     const assetsBase = path.resolve(__dirname, '../assets');
-  const arabicFontPath = path.join(assetsBase, 'fonts', 'NotoSansArabic-Regular.ttf');
-  const unifiedFontPath = path.join(assetsBase, 'fonts', 'DejaVuSans.ttf');
+    const arabicFontPath = path.join(assetsBase, 'fonts', 'NotoSansArabic-Regular.ttf');
+    const unifiedFontPath = path.join(assetsBase, 'fonts', 'DejaVuSans.ttf');
     const logoPath = path.join(assetsBase, 'images', 'logo.jpg');
 
-    // Prefer unified bilingual font (DejaVuSans) if present; else fall back to separate Arabic font then system Helvetica
+    // Register fonts
     let unifiedFontName = null;
     if (fs.existsSync(unifiedFontPath)) {
-      try { doc.registerFont('UnifiedBilingual', unifiedFontPath); unifiedFontName = 'UnifiedBilingual'; } catch(e){ console.error('Failed to register unified font:', e); }
+      try { 
+        doc.registerFont('UnifiedBilingual', unifiedFontPath); 
+        unifiedFontName = 'UnifiedBilingual'; 
+      } catch(e){ 
+        console.error('Failed to register unified font:', e); 
+      }
     }
     let arabicFontName = 'Helvetica';
     if (!unifiedFontName && fs.existsSync(arabicFontPath)) {
-      try { doc.registerFont('DroppinArabic', arabicFontPath); arabicFontName = 'DroppinArabic'; } catch(e){ console.error('Failed to register arabic font:', e); }
+      try { 
+        doc.registerFont('DroppinArabic', arabicFontPath); 
+        arabicFontName = 'DroppinArabic'; 
+      } catch(e){ 
+        console.error('Failed to register arabic font:', e); 
+      }
     }
-    const headerFontName = unifiedFontName || 'Helvetica-Bold';
-    const baseLatin = unifiedFontName || 'Helvetica';
+    
     const fonts = {
-      unified: unifiedFontName,
-      latin: baseLatin,
+      latin: unifiedFontName || 'Helvetica',
       arabic: unifiedFontName || arabicFontName,
-      header: headerFontName
+      header: unifiedFontName || 'Helvetica-Bold'
     };
 
-    const usableWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
-    const startX = doc.page.margins.left;
+    // Page dimensions for landscape A4
+    const margin = 6;
+    const pageWidth = 841.89;  // A4 landscape width in points
+    const pageHeight = 595.28; // A4 landscape height in points
+    const usableWidth = pageWidth - (margin * 2);
+    const startX = margin;
 
-    const headerStartY = doc.y;
-    if (fs.existsSync(logoPath)) {
-      doc.image(logoPath, startX, headerStartY - 6, { width: 70 });
-    }
-
-    doc.font(fonts.header).fontSize(20).fillColor('#0f172a');
-    doc.text('Droppin Packages Export', startX + 90, headerStartY, {
-      width: usableWidth - 90,
-      align: 'left'
-    });
-    doc.moveDown(0.2);
-    doc.font(fonts.latin).fontSize(10).fillColor('#475569').text(`Generated: ${timestamp.toLocaleString()}`, startX + 90, doc.y, {
-      width: usableWidth - 90,
-      align: 'left'
-    });
-    doc.moveDown(2);
-
-    // Helper to format Arabic text properly
+    // Helper to format Arabic text properly with correct word order and spacing
     const formatText = (text) => {
       if (!text) return '';
       const stringValue = String(text);
       if (!containsArabicChars(stringValue)) return stringValue;
       
-      // Split by spaces, reverse word order, then shape each word
+      // Split by spaces, reverse word order for RTL, then shape each word
       const words = stringValue.split(' ');
       const reversedWords = words.reverse();
       const shapedWords = reversedWords.map(word => ArabicShaper.convertArabic(word));
-      return shapedWords.join(' ');
+      return shapedWords.join('  '); // Double space for better visibility
     };
 
-    // Card-based layout
-    const cardWidth = usableWidth;
-    const cardMarginBottom = 12;
-    const cardPadding = 12;
-    let cursorY = doc.y;
-
-    const ensureSpace = (height) => {
-      if (cursorY + height > doc.page.height - doc.page.margins.bottom - 30) {
-        doc.addPage();
-        cursorY = doc.y;
-        return true;
+    // Helper to draw header on each page
+    const drawHeader = () => {
+      const headerY = margin;
+      if (fs.existsSync(logoPath)) {
+        doc.image(logoPath, startX, headerY, { width: 35 });
       }
-      return false;
+      
+      doc.font(fonts.header).fontSize(12).fillColor('#0f172a');
+      doc.text(formatText('تقارير الطرود'), startX + 45, headerY + 8, { width: usableWidth - 45, align: 'right' });
     };
 
-    // Helper to render mixed Arabic/English text with proper directionality
-    const renderBidiText = (doc, text, x, y, options = {}) => {
-      if (!text || !containsArabicChars(text)) {
-        // Pure English - render left to right
-        doc.text(text, x, y, { ...options, align: 'left' });
-        return;
-      }
+    // Table column setup (10 columns for landscape) - removed "بدون شحن" column
+    const tableTop = 38;
+    const rowHeight = 35;
+    const columns = [
+      { header: 'الرقم', width: 30, key: 'number' },
+      { header: 'الرمز', width: 75, key: 'tracking' },
+      { header: 'العميل', width: 95, key: 'customer' },
+      { header: 'الهاتف', width: 80, key: 'phone' },
+      { header: 'العنوان', width: 140, key: 'address' },
+      { header: 'المحل', width: 95, key: 'shop' },
+      { header: 'الحالة', width: 70, key: 'status' },
+      { header: 'المبلغ', width: 75, key: 'codWithShip' },
+      { header: 'ملاحظات', width: 80, key: 'notes' },
+      { header: 'تم التسليم', width: 60, key: 'delivered' }
+    ];
+
+    // Calculate column positions (right-aligned for RTL)
+    let columnPositions = [];
+    let currentX = startX + usableWidth;
+    for (let i = 0; i < columns.length; i++) {
+      currentX -= columns[i].width;
+      columnPositions.push(currentX);
+    }
+
+    // Helper to draw table header
+    const drawTableHeader = (pageStartY) => {
+      const headerY = pageStartY + tableTop;
       
-      // Check if it's mixed content
-      const hasEnglish = /[A-Za-z0-9]/.test(text);
+      doc.save();
+      doc.fillColor('#1e40af').rect(startX, headerY, usableWidth, 18).fill();
+      doc.restore();
       
-      if (!hasEnglish) {
-        // Pure Arabic - shape and render right to left
-        const shapedText = formatText(text);
-        doc.text(shapedText, x, y, { ...options, align: 'right' });
-        return;
-      }
-      
-      // Mixed content - split into segments and render each with proper direction
-      const segments = [];
-      let currentSegment = '';
-      let currentIsArabic = containsArabicChars(text[0]);
-      
-      for (let i = 0; i < text.length; i++) {
-        const char = text[i];
-        const charIsArabic = containsArabicChars(char);
-        
-        if (charIsArabic === currentIsArabic) {
-          currentSegment += char;
-        } else {
-          segments.push({ text: currentSegment, isArabic: currentIsArabic });
-          currentSegment = char;
-          currentIsArabic = charIsArabic;
-        }
-      }
-      segments.push({ text: currentSegment, isArabic: currentIsArabic });
-      
-      // Render segments from right to left (Arabic order)
-      const width = options.width || 300;
-      let currentX = x + width;
-      
-      // Process segments in reverse for RTL layout
-      for (let i = segments.length - 1; i >= 0; i--) {
-        const segment = segments[i];
-        const textToRender = segment.isArabic ? formatText(segment.text) : segment.text;
-        const textWidth = doc.widthOfString(textToRender);
-        currentX -= textWidth;
-        doc.text(textToRender, currentX, y, { ...options, width: textWidth + 5, align: 'left' });
+      doc.font(fonts.header).fontSize(8).fillColor('#ffffff');
+      for (let i = 0; i < columns.length; i++) {
+        const col = columns[i];
+        const x = columnPositions[i];
+        doc.text(formatText(col.header), x + 2, headerY + 5, { width: col.width - 4, align: 'right' });
       }
     };
 
-    const drawCard = (pkg, index) => {
+    // Helper to draw a table row
+    const drawTableRow = (pkg, rowIndex, pageStartY) => {
+      const rowY = pageStartY + tableTop + 18 + (rowIndex * rowHeight);
       const codWithoutShipping = parseFloat(pkg.codAmount || 0) - parseFloat(pkg.shownDeliveryCost || 0);
       const codWithShipping = parseFloat(pkg.codAmount || 0);
       
-      // Estimate card height - increased for bigger notes section
-      const estimatedHeight = 180;
-      ensureSpace(estimatedHeight);
-
-      const cardY = cursorY;
-      
-      // Card background with shadow effect
-      doc.save();
-      doc.rect(startX, cardY, cardWidth, estimatedHeight).fill('#ffffff');
-      doc.restore();
-      doc.strokeColor('#cbd5e1').lineWidth(1.5).roundedRect(startX, cardY, cardWidth, estimatedHeight, 4).stroke();
-
-      // Inner content positioning - LEFT side for COD, RIGHT side for main info
-      let contentY = cardY + cardPadding;
-      const leftColX = startX + cardPadding; // COD column
-      const leftColWidth = 180;
-      const rightColX = leftColX + leftColWidth + 20; // Main info column
-      const rightColWidth = cardWidth - leftColWidth - cardPadding * 2 - 20;
-
-      // Tracking number - prominent at top right
-      doc.font(fonts.header).fontSize(14).fillColor('#0f172a');
-      doc.text(`${pkg.trackingNumber}`, rightColX, contentY, { align: 'right', width: rightColWidth });
-      contentY += 22;
-
-      // RIGHT COLUMN - Main info aligned to the right
-      let rightContentY = contentY;
-      doc.font(fonts.unified || fonts.latin).fontSize(10).fillColor('#1e293b');
-      
-      // Customer name
-      const customerLabel = formatText('العميل:');
-      const customerName = formatText(pkg.deliveryContactName || 'N/A');
-      const rightEdge = rightColX + rightColWidth;
-      doc.text(customerLabel, rightEdge - 60, rightContentY, { align: 'right', width: 60 });
-      doc.text(customerName, rightColX, rightContentY, { align: 'right', width: rightColWidth - 65 });
-      rightContentY += 16;
-      
-      // Phone number
-      const phoneLabel = formatText('الهاتف:');
-      const phoneNumber = pkg.deliveryContactPhone || 'N/A';
-      doc.text(phoneLabel, rightEdge - 60, rightContentY, { align: 'right', width: 60 });
-      doc.text(phoneNumber, rightColX, rightContentY, { align: 'right', width: rightColWidth - 65 });
-      rightContentY += 16;
-      
-      // Brand name
-      const brandLabel = formatText('المحل:');
-      const brandName = formatText(pkg.Shop ? pkg.Shop.businessName : 'N/A');
-      doc.text(brandLabel, rightEdge - 80, rightContentY, { align: 'right', width: 80 });
-      doc.text(brandName, rightColX, rightContentY, { align: 'right', width: rightColWidth - 85 });
-      rightContentY += 20;
-
-      // Address section
-      doc.font(fonts.unified || fonts.latin).fontSize(9).fillColor('#475569');
-      const destinationLabel = formatText('الوجهة:');
-      doc.text(destinationLabel, rightEdge - 60, rightContentY, { align: 'right', width: 60 });
-      rightContentY += 14;
-      
-      const addressText = formatText(pkg.deliveryAddress || 'N/A');
-      doc.font(fonts.unified || fonts.arabic).fontSize(9).fillColor('#1e293b');
-      doc.text(addressText, rightColX, rightContentY, { align: 'right', width: rightColWidth, lineGap: 2 });
-
-      // LEFT COLUMN - Financial info in Arabic
-      let leftContentY = contentY;
-      doc.font(fonts.header).fontSize(9).fillColor('#475569');
-      const codNoShippingLabel = formatText('بدون شحن');
-      doc.text(codNoShippingLabel, leftColX, leftContentY, { align: 'left', width: leftColWidth });
-      leftContentY += 14;
-      doc.font(fonts.unified || fonts.latin).fontSize(11).fillColor('#059669');
-      doc.text(`EGP ${codWithoutShipping.toFixed(2)}`, leftColX, leftContentY, { align: 'left' });
-      leftContentY += 20;
-
-      doc.font(fonts.header).fontSize(9).fillColor('#475569');
-      const codWithShippingLabel = formatText('مع الشحن');
-      doc.text(codWithShippingLabel, leftColX, leftContentY, { align: 'left', width: leftColWidth });
-      leftContentY += 14;
-      doc.font(fonts.unified || fonts.latin).fontSize(11).fillColor('#dc2626');
-      doc.text(`EGP ${codWithShipping.toFixed(2)}`, leftColX, leftContentY, { align: 'left' });
-
-      // Driver notes section at bottom - much bigger for writing
-      const notesY = cardY + estimatedHeight - 70;
-      doc.font(fonts.header).fontSize(9).fillColor('#64748b');
-      const notesLabel = formatText('');
-      doc.text(notesLabel, leftColX, notesY, { align: 'right', width: cardWidth - cardPadding * 2 });
-      
-      // Draw multiple lines for writing space
-      doc.strokeColor('#e2e8f0').lineWidth(0.8);
-      for (let i = 0; i < 4; i++) {
-        const lineY = notesY + 15 + (i * 12);
-        doc.moveTo(leftColX, lineY)
-          .lineTo(startX + cardWidth - cardPadding, lineY)
-          .stroke();
+      // Alternate row background
+      if (rowIndex % 2 === 0) {
+        doc.fillColor('#f8fafc').rect(startX, rowY, usableWidth, rowHeight).fill();
       }
-
-      cursorY = cardY + estimatedHeight + cardMarginBottom;
+      
+      // Draw borders
+      doc.strokeColor('#cbd5e1').lineWidth(0.5);
+      doc.rect(startX, rowY, usableWidth, rowHeight).stroke();
+      
+      // Draw cell borders
+      for (let i = 0; i < columnPositions.length; i++) {
+        doc.moveTo(columnPositions[i], rowY).lineTo(columnPositions[i], rowY + rowHeight).stroke();
+      }
+      
+      doc.font(fonts.latin).fontSize(7).fillColor('#1e293b');
+      
+      // Row number
+      let x = columnPositions[0];
+      doc.text(String(rowIndex + 1), x + 2, rowY + 4, { width: columns[0].width - 4, align: 'center' });
+      
+      // Tracking number
+      x = columnPositions[1];
+      doc.text(pkg.trackingNumber || '', x + 2, rowY + 4, { width: columns[1].width - 4, align: 'center' });
+      
+      // Customer name (Arabic)
+      x = columnPositions[2];
+      const customerName = formatText(pkg.deliveryContactName || 'N/A');
+      doc.font(fonts.arabic).fontSize(7);
+      doc.text(customerName, x + 2, rowY + 4, { width: columns[2].width - 4, align: 'right' });
+      
+      // Phone
+      x = columnPositions[3];
+      doc.font(fonts.latin).fontSize(7);
+      doc.text(pkg.deliveryContactPhone || '', x + 2, rowY + 4, { width: columns[3].width - 4, align: 'center' });
+      
+      // Address (Arabic)
+      x = columnPositions[4];
+      const address = formatText(pkg.deliveryAddress || 'N/A');
+      doc.font(fonts.arabic).fontSize(6);
+      doc.text(address, x + 2, rowY + 3, { width: columns[4].width - 4, align: 'right', lineGap: 1 });
+      
+      // Shop name (Arabic)
+      x = columnPositions[5];
+      const shopName = formatText(pkg.Shop ? pkg.Shop.businessName : 'N/A');
+      doc.font(fonts.arabic).fontSize(7);
+      doc.text(shopName, x + 2, rowY + 4, { width: columns[5].width - 4, align: 'right' });
+      
+      // Status (Arabic)
+      x = columnPositions[6];
+      const statusMap = {
+        'pending': 'قيد الانتظار',
+        'assigned': 'معين',
+        'pickedup': 'تم الاستلام',
+        'in-transit': 'قيد النقل',
+        'delivered': 'مسلم',
+        'rejected': 'مرفوض',
+        'awaiting_schedule': 'في الانتظار'
+      };
+      const statusText = formatText(statusMap[pkg.status] || pkg.status);
+      doc.font(fonts.arabic).fontSize(6);
+      doc.text(statusText, x + 2, rowY + 3, { width: columns[6].width - 4, align: 'center' });
+      
+      // COD with shipping (now column 7, was 8)
+      x = columnPositions[7];
+      doc.font(fonts.latin).fontSize(7).fillColor('#dc2626');
+      doc.text(`${codWithShipping.toFixed(2)}`, x + 2, rowY + 3, { width: columns[7].width - 4, align: 'center' });
+      
+      // Notes (empty for writing) - now column 8, was 9
+      x = columnPositions[8];
+      doc.font(fonts.latin).fontSize(6).fillColor('#999');
+      doc.text('_', x + 2, rowY + 5, { width: columns[8].width - 4, align: 'center' });
+      
+      // Delivered checkbox (empty for driver to tick) - now column 9, was 10
+      x = columnPositions[9];
+      doc.font(fonts.latin).fontSize(7).fillColor('#999');
+      doc.text('☐', x + 2, rowY + 3, { width: columns[9].width - 4, align: 'center' });
     };
 
-    // Draw all package cards
-    pkgs.forEach((pkg, idx) => drawCard(pkg, idx));
+    // Main loop - draw packages in pages with 18 per page (to fit A4 landscape properly)
+    const packagesPerPage = 15;
+    const totalPages = Math.ceil(pkgs.length / packagesPerPage);
 
-    // Footer in Arabic
-    cursorY += 10;
-    if (cursorY > doc.page.height - doc.page.margins.bottom - 30) {
-      doc.addPage();
-      cursorY = doc.y;
+    for (let pageNum = 0; pageNum < totalPages; pageNum++) {
+      // Add page with consistent settings
+      doc.addPage({ 
+        size: 'A4', 
+        layout: 'landscape',
+        margin: 6
+      });
+      
+      // Draw header on each page
+      drawHeader();
+      
+      // Draw table header
+      drawTableHeader(0);
+      
+      const startIdx = pageNum * packagesPerPage;
+      const endIdx = Math.min(startIdx + packagesPerPage, pkgs.length);
+      
+      for (let i = startIdx; i < endIdx; i++) {
+        drawTableRow(pkgs[i], i - startIdx, 0);
+      }
     }
-    const totalLabel = formatText('إجمالي الطرود:');
-    doc.font(fonts.header, 10).fillColor('#475569').text(`${totalLabel} ${pkgs.length}`, startX, cursorY, { align: 'right', width: usableWidth });
+    
     doc.end();
   } catch (err) {
     console.error('Error exporting packages PDF:', err);
