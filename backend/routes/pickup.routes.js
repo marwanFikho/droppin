@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const { Op } = require('sequelize');
 const { authenticate } = require('../middleware/auth.middleware');
 const { Pickup } = require('../models');
 const { Package } = require('../models');
@@ -68,6 +69,98 @@ router.post('/', authenticate, async (req, res) => {
       message: 'Failed to schedule pickup',
       error: error.message
     });
+  }
+});
+
+// Admin schedules pickup for selected packages (awaiting_schedule only)
+router.post('/admin/schedule', authenticate, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Admin access required' });
+    }
+
+    const { scheduledTime, pickupAddress, packageIds } = req.body;
+
+    if (!scheduledTime) {
+      return res.status(400).json({ message: 'scheduledTime is required' });
+    }
+
+    if (!Array.isArray(packageIds) || packageIds.length === 0) {
+      return res.status(400).json({ message: 'packageIds must be a non-empty array' });
+    }
+
+    const uniquePackageIds = [...new Set(packageIds.map(id => parseInt(id, 10)).filter(Boolean))];
+    if (uniquePackageIds.length === 0) {
+      return res.status(400).json({ message: 'No valid package IDs provided' });
+    }
+
+    const packages = await Package.findAll({
+      where: { id: { [Op.in]: uniquePackageIds } },
+      attributes: ['id', 'shopId', 'status', 'pickupAddress']
+    });
+
+    if (packages.length !== uniquePackageIds.length) {
+      return res.status(404).json({ message: 'Some selected packages were not found' });
+    }
+
+    const invalid = packages.filter(pkg => pkg.status !== 'awaiting_schedule');
+    if (invalid.length > 0) {
+      return res.status(400).json({
+        message: 'Only packages with status awaiting_schedule can be scheduled for pickup',
+        invalidPackageIds: invalid.map(p => p.id)
+      });
+    }
+
+    const shopIds = [...new Set(packages.map(pkg => pkg.shopId))];
+    if (shopIds.length !== 1) {
+      return res.status(400).json({ message: 'Selected packages must belong to the same shop' });
+    }
+
+    const shop = await Shop.findByPk(shopIds[0]);
+    if (!shop) {
+      return res.status(400).json({ message: 'Shop not found for selected packages' });
+    }
+
+    const resolvedPickupAddress = pickupAddress || packages[0]?.pickupAddress || shop.address || '';
+    const pickup = await Pickup.create({
+      shopId: shop.id,
+      scheduledTime,
+      pickupAddress: resolvedPickupAddress,
+      status: 'scheduled'
+    });
+
+    await pickup.addPackages(uniquePackageIds);
+    await Package.update(
+      {
+        status: 'scheduled_for_pickup',
+        pickupId: pickup.id,
+        schedulePickupTime: scheduledTime
+      },
+      { where: { id: { [Op.in]: uniquePackageIds } } }
+    );
+
+    // Notify shop user
+    try {
+      if (shop.userId) {
+        await createNotification({
+          userId: shop.userId,
+          userType: 'shop',
+          title: 'Pickup Scheduled by Admin',
+          message: `A pickup (#${pickup.id}) was scheduled for your selected packages.`,
+          data: { pickupId: pickup.id, shopId: shop.id, packageIds: uniquePackageIds }
+        });
+      }
+    } catch (notifyErr) {
+      console.error('Failed to notify shop for admin scheduled pickup:', notifyErr);
+    }
+
+    return res.status(201).json({
+      message: 'Pickup scheduled successfully',
+      pickup
+    });
+  } catch (error) {
+    console.error('Error scheduling pickup by admin:', error);
+    return res.status(500).json({ message: 'Failed to schedule pickup', error: error.message });
   }
 });
 
@@ -325,6 +418,53 @@ router.patch('/:id/cancel', authenticate, async (req, res) => {
   } catch (error) {
     console.error('Error cancelling pickup:', error);
     res.status(500).json({ message: 'Failed to cancel pickup', error: error.message });
+  }
+});
+
+// Delete a pickup and reset package statuses
+router.delete('/:id', authenticate, async (req, res) => {
+  try {
+    let shop = null;
+    if (req.user.role !== 'admin') {
+      // Find the shop for the current user
+      shop = await Shop.findOne({ where: { userId: req.user.id } });
+      if (!shop) {
+        return res.status(400).json({ message: 'Shop not found for this user.' });
+      }
+    }
+
+    const pickup = await Pickup.findByPk(req.params.id, {
+      include: [{ model: Package }]
+    });
+
+    if (!pickup) {
+      return res.status(404).json({ message: 'Pickup not found' });
+    }
+
+    if (req.user.role !== 'admin' && pickup.shopId !== shop.id) {
+      return res.status(403).json({ message: 'Not authorized to delete this pickup' });
+    }
+
+    // Reset status of all packages in this pickup to awaiting_schedule and detach pickupId
+    if (pickup.Packages && pickup.Packages.length > 0) {
+      const packageIds = pickup.Packages.map(pkg => pkg.id);
+      await Package.update(
+        {
+          status: 'awaiting_schedule',
+          pickupId: null
+        },
+        { where: { id: packageIds } }
+      );
+    }
+
+    // Remove M:N associations and delete pickup record
+    await pickup.setPackages([]);
+    await pickup.destroy();
+
+    return res.json({ message: 'Pickup deleted and packages reset successfully' });
+  } catch (error) {
+    console.error('Error deleting pickup:', error);
+    return res.status(500).json({ message: 'Failed to delete pickup', error: error.message });
   }
 });
 

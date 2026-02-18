@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import api, { adminService, packageService } from '../../services/api';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faUser, faStore, faTruck, faBox, faSearch, faEye, faCheck, faTimes, faChartBar, faUserPlus, faTimes as faClose, faEdit, faSignOutAlt, faTrash, faDollarSign, faPlus } from '@fortawesome/free-solid-svg-icons';
+import { faUser, faStore, faTruck, faBox, faSearch, faEye, faCheck, faTimes, faChartBar, faUserPlus, faTimes as faClose, faEdit, faSignOutAlt, faTrash, faDollarSign, faPlus, faEyeSlash } from '@fortawesome/free-solid-svg-icons';
 import { formatDate } from '../../utils/dateUtils';
 import './AdminDashboard.css';
 import SwipeMenuHint from '../../components/SwipeMenuHint.jsx';
@@ -81,7 +81,13 @@ const AdminDashboard = () => {
   const [packagesTab, setPackagesTab] = useState('all');
   const [packagesSubTab, setPackagesSubTab] = useState('all'); // New state for sub-sub-tabs
   const [selectedPackages, setSelectedPackages] = useState([]);
+  const [showSchedulePickupModal, setShowSchedulePickupModal] = useState(false);
+  const [pickupScheduleDate, setPickupScheduleDate] = useState('');
+  const [pickupScheduleTime, setPickupScheduleTime] = useState('');
+  const [pickupScheduleAddress, setPickupScheduleAddress] = useState('');
+  const [schedulingPickup, setSchedulingPickup] = useState(false);
   const [exportingPdf, setExportingPdf] = useState(false);
+  const [printingBulkAwb, setPrintingBulkAwb] = useState(false);
   const [showBulkAssignModal, setShowBulkAssignModal] = useState(false);
   const [bulkAssignDriverId, setBulkAssignDriverId] = useState('');
   const [bulkAssigning, setBulkAssigning] = useState(false);
@@ -90,6 +96,7 @@ const AdminDashboard = () => {
   const [driverPackages, setDriverPackages] = useState([]);
   const [driverPackagesFilter, setDriverPackagesFilter] = useState({ preset: 'today', start: '', end: '' });
   const [selectedDriverForPackages, setSelectedDriverForPackages] = useState(null);
+  const [shopsViewTab, setShopsViewTab] = useState('active'); // active | hidden
   const [forwardingPackageId, setForwardingPackageId] = useState(null);
   const [settleAmountInput, setSettleAmountInput] = useState('');
   const [moneyTransactions, setMoneyTransactions] = useState([]);
@@ -1259,11 +1266,35 @@ const AdminDashboard = () => {
       case 'users':
         return filtered.filter(user => user.role === 'user');
       case 'shops':
-        return filtered.filter(user => user.role === 'shop');
+        return filtered
+          .filter(user => user.role === 'shop')
+          .filter(user => shopsViewTab === 'hidden' ? user.isActive === false : user.isActive !== false);
       case 'drivers':
         return filtered.filter(user => user.role === 'driver');
       default:
         return filtered.filter(user => user.role !== 'admin');
+    }
+  };
+
+  const handleToggleShopVisibility = async (shopUser) => {
+    try {
+      const nextIsActive = !(shopUser.isActive !== false);
+      await adminService.updateShop(shopUser.shopId || shopUser.id, { isActive: nextIsActive });
+      setUsers(prev => prev.map(u => (
+        (u.shopId || u.id) === (shopUser.shopId || shopUser.id)
+          ? { ...u, isActive: nextIsActive }
+          : u
+      )));
+      setStatusMessage({
+        type: 'success',
+        text: `Shop ${nextIsActive ? 'unhidden' : 'hidden'} successfully.`
+      });
+    } catch (error) {
+      console.error('Error updating shop visibility:', error);
+      setStatusMessage({
+        type: 'error',
+        text: error.response?.data?.message || 'Failed to update shop visibility.'
+      });
     }
   };
 
@@ -1464,7 +1495,7 @@ const AdminDashboard = () => {
   const renderUsersTable = () => {
     const filteredUsers = getFilteredUsers();
 
-    if (filteredUsers.length === 0) {
+    if (filteredUsers.length === 0 && activeTab !== 'shops') {
       return (
         <div className="empty-state">
           <p>No {activeTab} found{searchTerm ? ' matching your search' : ''}.</p>
@@ -1473,6 +1504,31 @@ const AdminDashboard = () => {
     }
 
     return (
+      <>
+        {activeTab === 'shops' && (
+          <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+            <button
+              className={`btn-secondary ${shopsViewTab === 'active' ? 'active' : ''}`}
+              onClick={() => setShopsViewTab('active')}
+              style={{ padding: '6px 12px', border: shopsViewTab === 'active' ? '2px solid #2e7d32' : '1px solid #ddd' }}
+            >
+              Active Shops
+            </button>
+            <button
+              className={`btn-secondary ${shopsViewTab === 'hidden' ? 'active' : ''}`}
+              onClick={() => setShopsViewTab('hidden')}
+              style={{ padding: '6px 12px', border: shopsViewTab === 'hidden' ? '2px solid #6a1b9a' : '1px solid #ddd' }}
+            >
+              Hidden Shops
+            </button>
+          </div>
+        )}
+
+        {filteredUsers.length === 0 ? (
+          <div className="empty-state">
+            <p>No {shopsViewTab === 'hidden' ? 'hidden shops' : 'active shops'} found{searchTerm ? ' matching your search' : ''}.</p>
+          </div>
+        ) : (
       <table className="admin-table">
         <thead>
           <tr>
@@ -1526,11 +1582,11 @@ const AdminDashboard = () => {
               )}
               {activeTab === 'shops' && (
                 <>
-                  <td data-label="To Collect (EGP)" className="financial-cell" style={{fontSize: '15px', color: parseFloat(user.ToCollect || 0) > 0 ? '#2e7d32' : '#d32f2f'}}>
-                    EGP {parseFloat(user.ToCollect || 0).toFixed(2)}
+                  <td data-label="To Collect (EGP)" className="financial-cell" style={{fontSize: '15px', color: Number((parseFloat(user.ToCollect || 0) || 0).toFixed(2)) > 0 ? '#2e7d32' : '#d32f2f'}}>
+                    EGP {(parseFloat(user.ToCollect || 0) || 0).toFixed(2)}
                   </td>
-                  <td data-label="Collected (EGP)" className="financial-cell" style={{fontSize: '15px', color: parseFloat(user.TotalCollected || 0) > 0 ? '#2e7d32' : '#d32f2f'}}>
-                    EGP {parseFloat(user.TotalCollected || 0).toFixed(2)}
+                  <td data-label="Collected (EGP)" className="financial-cell" style={{fontSize: '15px', color: Number((parseFloat(user.TotalCollected || 0) || 0).toFixed(2)) > 0 ? '#2e7d32' : '#d32f2f'}}>
+                    EGP {(parseFloat(user.TotalCollected || 0) || 0).toFixed(2)}
                   </td>
                 </>
               )}
@@ -1625,11 +1681,36 @@ const AdminDashboard = () => {
                     <FontAwesomeIcon icon={faDollarSign} />
                   </button>
                 )}
+                {activeTab === 'shops' && (
+                  <button
+                    className="action-btn"
+                    onClick={() => handleToggleShopVisibility(user)}
+                    title={user.isActive === false ? 'Unhide shop' : 'Hide shop'}
+                    style={{
+                      marginRight: '0.25rem',
+                      width: '36px',
+                      height: '36px',
+                      borderRadius: '50%',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '16px',
+                      background: user.isActive === false ? '#2e7d32' : '#6a1b9a',
+                      color: '#fff',
+                      border: 'none',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <FontAwesomeIcon icon={user.isActive === false ? faEye : faEyeSlash} />
+                  </button>
+                )}
               </td>
             </tr>
           ))}
         </tbody>
       </table>
+        )}
+      </>
     );
   };
 
@@ -1660,8 +1741,25 @@ const AdminDashboard = () => {
               Assign Driver to {selectedPackages.length} Selected Package{selectedPackages.length !== 1 ? 's' : ''}
             </button>
           )}
-          {/* Export Selected Packages to PDF (admin only, any packages tab 'all') */}
-          {packagesSubTab === 'all' && selectedPackages.length > 0 && (
+          {packagesTab === 'ready-to-assign' && packagesSubTab === 'all' && selectedPackages.length > 0 && (
+            (() => {
+              const selected = packages.filter(pkg => selectedPackages.includes(pkg.id));
+              const awaitingSchedule = selected.filter(pkg => pkg.status === 'awaiting_schedule');
+              return (
+                <button
+                  className="btn-secondary bulk-assign-btn"
+                  onClick={openSchedulePickupModal}
+                  disabled={awaitingSchedule.length === 0 || schedulingPickup}
+                  title={awaitingSchedule.length === 0 ? 'Only awaiting_schedule packages can be scheduled' : 'Schedule pickup for selected awaiting_schedule packages'}
+                  style={{ background: '#2e7d32', marginLeft: '0.5rem' }}
+                >
+                  Schedule Pickup ({awaitingSchedule.length})
+                </button>
+              );
+            })()
+          )}
+          {/* Export Selected Packages to PDF (admin only, all sub-tab and delivered tab) */}
+          {(packagesSubTab === 'all' || packagesTab === 'delivered') && selectedPackages.length > 0 && (
             <button
               className="btn-secondary bulk-assign-btn"
               onClick={handleExportSelectedPackages}
@@ -1670,6 +1768,17 @@ const AdminDashboard = () => {
               style={{ background: '#444', marginLeft: '0.5rem' }}
             >
               Export {selectedPackages.length} to PDF
+            </button>
+          )}
+          {(packagesSubTab === 'all' || packagesTab === 'delivered') && selectedPackages.length > 0 && (
+            <button
+              className="btn-secondary bulk-assign-btn"
+              onClick={handlePrintSelectedAwbs}
+              disabled={selectedPackages.length === 0 || printingBulkAwb}
+              title="Print AWB for selected packages (1 AWB per page)"
+              style={{ background: '#1f6f8b', marginLeft: '0.5rem' }}
+            >
+              {printingBulkAwb ? 'Preparing AWBs...' : `Print ${selectedPackages.length} AWB${selectedPackages.length !== 1 ? 's' : ''}`}
             </button>
           )}
           {packagesTab === 'in-transit' && packagesSubTab === 'all' && selectedPackages.length > 0 && (
@@ -1717,7 +1826,7 @@ const AdminDashboard = () => {
   const renderPackagesTable = () => {
     const filteredPackages = getFilteredPackages();
     const isAllSelected = filteredPackages.length > 0 && selectedPackages.length === filteredPackages.length;
-    const selectionEnabled = packagesSubTab === 'all' && ['ready-to-assign', 'in-transit', 'all'].includes(packagesTab);
+    const selectionEnabled = (packagesSubTab === 'all' && ['ready-to-assign', 'in-transit', 'all'].includes(packagesTab)) || packagesTab === 'delivered';
     const baseColCount = 8 + (packagesTab === 'delivered' ? 1 : 0);
     const totalColSpan = baseColCount + (selectionEnabled ? 1 : 0);
 
@@ -1939,6 +2048,245 @@ const AdminDashboard = () => {
       alert('Failed to export PDF. Please try again.');
     } finally {
       setExportingPdf(false);
+    }
+  };
+
+  const buildAwbPageHtml = async (pkg) => {
+    // Ensure we have Items for AWB
+    let packageForAwb = pkg;
+    if (!pkg?.Items || !Array.isArray(pkg.Items)) {
+      try {
+        const resp = await packageService.getPackageById(pkg.id);
+        if (resp && resp.data) packageForAwb = resp.data;
+      } catch (err) {
+        // ignore and fallback
+      }
+    }
+
+    const qrDataUrl = await QRCode.toDataURL((packageForAwb.trackingNumber || pkg.trackingNumber || ''));
+    const logoUrl = window.location.origin + '/assets/images/logo.jpg';
+    const awbPkg = packageForAwb;
+    const cod = parseFloat((awbPkg.codAmount != null ? awbPkg.codAmount : pkg.codAmount) || 0);
+    const isShopify = (awbPkg.shopifyOrderId !== undefined && awbPkg.shopifyOrderId !== null && awbPkg.shopifyOrderId !== '');
+    const itemsSum = (Array.isArray(awbPkg.Items) && awbPkg.Items.length > 0)
+      ? awbPkg.Items.reduce((sum, it) => sum + (parseFloat(it.codAmount || 0) || 0), 0)
+      : cod;
+    const shippingValue = Number(awbPkg.shownDeliveryCost ?? awbPkg.deliveryCost ?? pkg.shownDeliveryCost ?? pkg.deliveryCost ?? 0) || 0;
+
+    // For Shopify packages: Sub Total = COD - shownShippingFees, Delivery fees = shownShippingFees, Total = COD
+    // For manually created packages: Sub Total = itemsSum, Delivery fees = shippingValue, Total = subTotal + shipping
+    const subTotal = isShopify ? Math.max(0, cod - shippingValue) : itemsSum;
+    const deliveryFees = shippingValue;
+    const total = isShopify ? cod : (subTotal + shippingValue);
+
+    const totalsRows = isShopify
+      ? `<tr><td>Sub Total:</td><td>${subTotal.toFixed(2)} EGP</td></tr>`
+        + `<tr><td>Delivery fees & Taxes:</td><td>${deliveryFees.toFixed(2)} EGP</td></tr>`
+        + `<tr><td><b>Total:</b></td><td><b>${total.toFixed(2)} EGP</b></td></tr>`
+      : `<tr><td>Sub Total:</td><td>${subTotal.toFixed(2)} EGP</td></tr>`
+        + `<tr><td>Shipping:</td><td>${deliveryFees.toFixed(2)} EGP</td></tr>`
+        + `<tr><td><b>Total:</b></td><td><b>${total.toFixed(2)} EGP</b></td></tr>`;
+    const shopName = awbPkg.Shop?.businessName || awbPkg.shop?.businessName;
+    const shopNameAr = toArabicName(shopName || '-');
+    const recipientNameAr = toArabicName(awbPkg.deliveryContactName || '-');
+    const addressAr = toArabicName(awbPkg.deliveryAddress || '-');
+    const isExchange = (awbPkg.type === 'exchange');
+    const exch = awbPkg.exchangeDetails || {};
+    const takeItems = Array.isArray(exch.takeItems) ? exch.takeItems : [];
+    const giveItems = Array.isArray(exch.giveItems) ? exch.giveItems : [];
+    const cd = exch.cashDelta || {};
+    const moneyAmount = Number.parseFloat(cd.amount || 0) || 0;
+    const moneyType = cd.type || null;
+    const moneyLabel = moneyType === 'give' ? 'Give to customer' : (moneyType === 'take' ? 'Take from customer' : 'Money');
+    const shippingDisplay = Number(awbPkg.shownDeliveryCost ?? awbPkg.deliveryCost ?? shippingValue) || 0;
+
+    const itemsSectionDefault = `
+            <table class="awb-table">
+              <thead>
+                <tr><th>Item</th><th>Qty</th><th>COD Per Unit</th><th>Total COD</th></tr>
+              </thead>
+              <tbody>
+                ${
+                  awbPkg.Items && awbPkg.Items.length > 0
+                    ? awbPkg.Items.map(item => `
+                      <tr>
+                        <td>${item.description || '-'}</td>
+                        <td>${item.quantity}</td>
+                        <td>${item.codAmount && item.quantity ? (item.codAmount / item.quantity).toFixed(2) : '0.00'} EGP</td>
+                        <td>${parseFloat(item.codAmount || 0).toFixed(2)} EGP</td>
+                      </tr>
+                    `).join('')
+                    : `
+                      <tr>
+                        <td>${awbPkg.packageDescription || '-'}</td>
+                        <td>${awbPkg.itemsNo ?? 1}</td>
+                        <td>${cod.toFixed(2)} EGP</td>
+                        <td>${cod.toFixed(2)} EGP</td>
+                      </tr>`
+                }
+              </tbody>
+            </table>
+            <div class="awb-section">
+              <b>Payment Method:</b> COD
+            </div>
+            <div class="awb-section" style="display:flex;justify-content:flex-end;">
+              <table class="awb-info-table" style="width:300px;">
+                ${totalsRows}
+              </table>
+            </div>`;
+
+    const itemsSectionExchange = `
+            <div class="awb-section">
+              <table class="awb-table">
+                <thead>
+                  <tr><th colspan="2">Items to take from customer</th></tr>
+                </thead>
+                <tbody>
+                  ${
+                    takeItems.length > 0
+                      ? takeItems.map(it => `
+                          <tr>
+                            <td>${(it.description || '-')}</td>
+                            <td>Qty: ${(parseInt(it.quantity) || 0)}</td>
+                          </tr>
+                        `).join('')
+                      : `<tr><td colspan="2">None</td></tr>`
+                  }
+                </tbody>
+              </table>
+              <table class="awb-table" style="margin-top:12px;">
+                <thead>
+                  <tr><th colspan="2">Items to give to customer</th></tr>
+                </thead>
+                <tbody>
+                  ${
+                    giveItems.length > 0
+                      ? giveItems.map(it => `
+                          <tr>
+                            <td>${(it.description || '-')}</td>
+                            <td>Qty: ${(parseInt(it.quantity) || 0)}</td>
+                          </tr>
+                        `).join('')
+                      : `<tr><td colspan="2">None</td></tr>`
+                  }
+                </tbody>
+              </table>
+            </div>
+            <div class="awb-section" style="display:flex;justify-content:flex-end;">
+              <table class="awb-info-table" style="width:360px;">
+                <tr><td>${moneyLabel}:</td><td>EGP ${moneyAmount.toFixed(2)}</td></tr>
+                <tr><td>Shipping Fees:</td><td>EGP ${shippingDisplay.toFixed(2)}</td></tr>
+              </table>
+            </div>`;
+
+    return `
+      <div class="awb-page">
+        <div class="awb-container">
+          <div class="awb-header">
+            <img src="${logoUrl}" class="awb-logo" alt="Droppin Logo" />
+            <div>
+              <img src="${qrDataUrl}" alt="QR Code" style="height:140px;width:140px;" />
+            </div>
+          </div>
+          <div class="awb-section">
+            <table class="awb-info-table">
+              <tr>
+                <td>
+                  <div class="awb-tracking">Tracking #: ${awbPkg.trackingNumber || '-'}</div>
+                  <div class="awb-shop-name">Shop Name: ${shopName || '-'} | ${shopNameAr}</div>
+                </td>
+                <td><b>Date:</b> ${awbPkg.createdAt ? new Date(awbPkg.createdAt).toLocaleDateString() : '-'}</td>
+              </tr>
+              <tr>
+                <td colspan="2">
+                  <div><b>Recipient:</b> ${awbPkg.deliveryContactName || '-'} | ${recipientNameAr}</div>
+                  <div><b>Email:</b> ${awbPkg.deliveryContactEmail || '-'}</div>
+                  <div><b>Phone:</b> ${awbPkg.deliveryContactPhone || '-'}</div>
+                  <div><b>Address:</b> ${awbPkg.deliveryAddress || '-'} | ${addressAr}</div>
+                  ${isShopify ? `<div><b>Shopify Order:</b> ${awbPkg.shopifyOrderName || awbPkg.shopifyOrderId}</div>` : ''}
+                </td>
+              </tr>
+            </table>
+          </div>
+          <div class="awb-section">
+            <b>Description:</b> ${awbPkg.packageDescription || '-'}
+          </div>
+          ${awbPkg.shopNotes ? `<div class="awb-section"><b>Shop Notes:</b> ${awbPkg.shopNotes}</div>` : ''}
+          ${isExchange ? itemsSectionExchange : itemsSectionDefault}
+          <div class="awb-footer">Thank you for your order!</div>
+        </div>
+      </div>
+    `;
+  };
+
+  const getAwbDocumentHtml = (pagesHtml) => `
+    <html>
+      <head>
+        <title>Droppin Air Waybill</title>
+        <style>
+          @page { margin: 0; }
+          body { font-family: Arial, sans-serif; background: #fff; color: #111; margin: 0; padding: 0; }
+          .awb-page { page-break-after: always; break-after: page; }
+          .awb-page:last-child { page-break-after: auto; break-after: auto; }
+          .awb-container { width: 800px; margin: 0 auto; padding: 32px; background: #fff; }
+          .awb-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #111; padding-bottom: 16px; }
+          .awb-logo { height: 80px; width: auto; }
+          .awb-shop-name { font-size: 1.2rem; font-weight: bold; color: #004b6f; margin-top: 4px; }
+          .awb-section { margin-top: 24px; }
+          .awb-table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+          .awb-table th, .awb-table td { border: 1px solid #111; padding: 8px; text-align: left; }
+          .awb-table th { background: #f5f5f5; }
+          .awb-info-table { width: 100%; margin-top: 16px; }
+          .awb-info-table td { padding: 4px 8px; }
+          .awb-footer { margin-top: 32px; text-align: center; font-size: 1.1rem; font-weight: bold; }
+          .awb-tracking { font-size: 22px; font-weight: bold; }
+        </style>
+      </head>
+      <body>
+        ${pagesHtml.join('\n')}
+      </body>
+    </html>
+  `;
+
+  const openAndPrintAwbDocument = (docHtml) => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert('Popup was blocked. Please allow popups for this site and try again.');
+      return;
+    }
+    printWindow.document.open();
+    printWindow.document.write(docHtml);
+    printWindow.document.close();
+    printWindow.onload = () => {
+      printWindow.focus();
+      printWindow.print();
+    };
+  };
+
+  const handlePrintSelectedAwbs = async () => {
+    if (selectedPackages.length === 0 || printingBulkAwb) return;
+
+    try {
+      setPrintingBulkAwb(true);
+      const selected = packages.filter(pkg => selectedPackages.includes(pkg.id));
+      if (selected.length === 0) {
+        alert('No selected packages found on this page.');
+        return;
+      }
+
+      const pages = [];
+      for (const pkg of selected) {
+        const pageHtml = await buildAwbPageHtml(pkg);
+        pages.push(pageHtml);
+      }
+
+      const bulkHtml = getAwbDocumentHtml(pages);
+      openAndPrintAwbDocument(bulkHtml);
+    } catch (e) {
+      console.error('Bulk AWB print error:', e);
+      alert('Failed to generate bulk AWB print.');
+    } finally {
+      setPrintingBulkAwb(false);
     }
   };
 
@@ -4179,6 +4527,80 @@ const AdminDashboard = () => {
     }
   };
 
+  const openSchedulePickupModal = () => {
+    const selected = packages.filter(pkg => selectedPackages.includes(pkg.id));
+    const eligible = selected.filter(pkg => pkg.status === 'awaiting_schedule');
+
+    if (eligible.length === 0) {
+      alert('Please select at least one package with status awaiting_schedule.');
+      return;
+    }
+
+    const uniqueShops = [...new Set(eligible.map(pkg => pkg.shopId))];
+    if (uniqueShops.length !== 1) {
+      alert('Please select awaiting_schedule packages from one shop only.');
+      return;
+    }
+
+    const defaultAddress = eligible[0]?.pickupAddress || '';
+    const now = new Date();
+    const date = now.toISOString().split('T')[0];
+    const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+    setPickupScheduleAddress(defaultAddress);
+    setPickupScheduleDate(date);
+    setPickupScheduleTime(time);
+    setShowSchedulePickupModal(true);
+  };
+
+  const handleScheduleSelectedPickup = async () => {
+    if (!pickupScheduleDate || !pickupScheduleTime) {
+      alert('Please select pickup date and time.');
+      return;
+    }
+
+    const selected = packages.filter(pkg => selectedPackages.includes(pkg.id));
+    const eligible = selected.filter(pkg => pkg.status === 'awaiting_schedule');
+    if (eligible.length === 0) {
+      alert('No eligible awaiting_schedule packages selected.');
+      return;
+    }
+
+    const uniqueShops = [...new Set(eligible.map(pkg => pkg.shopId))];
+    if (uniqueShops.length !== 1) {
+      alert('Selected eligible packages must belong to one shop.');
+      return;
+    }
+
+    const scheduledTime = new Date(`${pickupScheduleDate}T${pickupScheduleTime}`);
+    if (Number.isNaN(scheduledTime.getTime())) {
+      alert('Invalid pickup date/time.');
+      return;
+    }
+
+    try {
+      setSchedulingPickup(true);
+      await adminService.schedulePickupForPackages({
+        scheduledTime,
+        pickupAddress: pickupScheduleAddress,
+        packageIds: eligible.map(pkg => pkg.id)
+      });
+
+      setShowSchedulePickupModal(false);
+      setStatusMessage({ type: 'success', text: `Pickup scheduled for ${eligible.length} package(s).` });
+      setSelectedPackages(prev => prev.filter(id => !eligible.some(pkg => pkg.id === id)));
+
+      await fetchPackagesWithMainTab(packagesTab, packagesSubTab, packagePage);
+      const pickupsResponse = await adminService.getAllPickups();
+      setPickups(pickupsResponse.data || []);
+    } catch (error) {
+      console.error('Error scheduling pickup:', error);
+      alert(error.response?.data?.message || 'Failed to schedule pickup.');
+    } finally {
+      setSchedulingPickup(false);
+    }
+  };
+
   const openBulkAssignModal = async () => {
     if (selectedPackages.length === 0) {
       alert('Please select at least one package to assign.');
@@ -4246,6 +4668,65 @@ const AdminDashboard = () => {
     } finally {
       setBulkAssigning(false);
     }
+  };
+
+  const renderSchedulePickupModal = () => {
+    if (!showSchedulePickupModal) return null;
+
+    const selected = packages.filter(pkg => selectedPackages.includes(pkg.id));
+    const eligible = selected.filter(pkg => pkg.status === 'awaiting_schedule');
+
+    return (
+      <div className="modal-overlay show" onClick={() => setShowSchedulePickupModal(false)}>
+        <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 540 }}>
+          <div className="modal-header">
+            <h3>Schedule Pickup</h3>
+            <button className="modal-close" onClick={() => setShowSchedulePickupModal(false)}>
+              <FontAwesomeIcon icon={faClose} />
+            </button>
+          </div>
+          <div className="modal-body">
+            <p style={{ marginTop: 0 }}>This will schedule pickup for <strong>{eligible.length}</strong> selected package(s) with status <strong>awaiting_schedule</strong>.</p>
+            <div className="form-group" style={{ marginBottom: 12 }}>
+              <label style={{ display: 'block', marginBottom: 6 }}>Pickup Address</label>
+              <input
+                type="text"
+                value={pickupScheduleAddress}
+                onChange={(e) => setPickupScheduleAddress(e.target.value)}
+                className="form-control"
+              />
+            </div>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <div className="form-group" style={{ flex: 1 }}>
+                <label style={{ display: 'block', marginBottom: 6 }}>Pickup Date</label>
+                <input
+                  type="date"
+                  value={pickupScheduleDate}
+                  onChange={(e) => setPickupScheduleDate(e.target.value)}
+                  min={new Date().toISOString().split('T')[0]}
+                  className="form-control"
+                />
+              </div>
+              <div className="form-group" style={{ flex: 1 }}>
+                <label style={{ display: 'block', marginBottom: 6 }}>Pickup Time</label>
+                <input
+                  type="time"
+                  value={pickupScheduleTime}
+                  onChange={(e) => setPickupScheduleTime(e.target.value)}
+                  className="form-control"
+                />
+              </div>
+            </div>
+          </div>
+          <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+            <button className="btn-secondary" onClick={() => setShowSchedulePickupModal(false)}>Cancel</button>
+            <button className="btn-primary" onClick={handleScheduleSelectedPickup} disabled={schedulingPickup || eligible.length === 0}>
+              {schedulingPickup ? 'Scheduling...' : 'Schedule Pickup'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   // Bulk forward statuses for selected packages (skip those that would require delivery modal)
@@ -4802,7 +5283,7 @@ const AdminDashboard = () => {
           switch (packagesTab) {
             case 'ready-to-assign':
               return (packagesSubTab === 'all')
-                ? 'pending,return-requested,exchange-in-process'
+                ? 'awaiting_schedule,scheduled_for_pickup,pending,exchange-awaiting-schedule,return-requested'
                 : packagesSubTab;
             case 'in-transit':
               return (packagesSubTab === 'all')
@@ -4818,7 +5299,7 @@ const AdminDashboard = () => {
               if (packagesSubTab === 'rejected-group') return 'rejected,rejected-returned';
               return packagesSubTab;
             case 'return-to-shop':
-              if (packagesSubTab === 'all') return 'return-requested,return-in-transit,return-pending,return-completed,exchange-requests,cancelled-awaiting-return,rejected-awaiting-return,exchange-completed';
+              if (packagesSubTab === 'all') return 'return-requested,return-in-transit,return-pending,return-completed,cancelled-awaiting-return,rejected-awaiting-return,delivered-awaiting-return,exchange-awaiting-schedule,exchange-awaiting-pickup,exchange-in-process,exchange-in-transit,exchange-awaiting-return,exchange-returned';
               if (packagesSubTab === 'exchange-requests') return 'exchange-awaiting-schedule,exchange-awaiting-pickup,exchange-in-process,exchange-in-transit,exchange-awaiting-return';
               if (packagesSubTab === 'exchange-completed') return 'exchange-returned';
               return packagesSubTab;
@@ -5236,6 +5717,27 @@ const AdminDashboard = () => {
       });
     }
 
+    // Last-mile operational KPIs
+    const totalCreated = Number(stats?.packages?.total || 0);
+    const totalDelivered = Number(stats?.packages?.delivered || 0);
+    const totalInTransit = Number(stats?.packages?.inTransit || 0);
+    const totalPending = Number(stats?.packages?.pending || 0);
+    const undeliveredCount = Math.max(totalCreated - totalDelivered, 0);
+    const createdToDeliveredPct = totalCreated > 0 ? (totalDelivered / totalCreated) * 100 : 0;
+    const undeliveredPct = totalCreated > 0 ? (undeliveredCount / totalCreated) * 100 : 0;
+    const inTransitPct = totalCreated > 0 ? (totalInTransit / totalCreated) * 100 : 0;
+    const pendingOtherCount = Math.max(totalCreated - totalDelivered - totalInTransit, 0);
+
+    const createdLast7 = (dashboardData?.packagesChart?.datasets?.[0]?.data || []).reduce((sum, v) => sum + (Number(v) || 0), 0);
+    const deliveredLast7 = (dashboardData?.packagesChart?.datasets?.[1]?.data || []).reduce((sum, v) => sum + (Number(v) || 0), 0);
+    const createdToDeliveredLast7Pct = createdLast7 > 0 ? (deliveredLast7 / createdLast7) * 100 : 0;
+
+    const rateColor = (value) => {
+      if (value >= 80) return '#2e7d32';
+      if (value >= 60) return '#f57c00';
+      return '#c62828';
+    };
+
     const kpiData = [
       { title: 'Total Users', value: stats.users.total, icon: faUser },
       { title: 'Shops', value: stats.users.shops, icon: faStore },
@@ -5253,30 +5755,49 @@ const AdminDashboard = () => {
     const deliveredData = analytics.packagesPerMonth.map(row => row.delivered);
     const codMonths = analytics.codPerMonth.map(row => row.month);
     const codData = analytics.codPerMonth.map(row => row.codCollected);
-    // Group cancelled statuses and merge pickedup/in-transit into 'In-Transit'
+    // Group statuses into operational buckets to keep legend concise
     const statusRaw = analytics.statusDistribution;
     const statusMap = {};
     statusRaw.forEach(row => {
       const status = row.status.toLowerCase();
-      if (/cancel/i.test(status)) {
-        statusMap['Cancelled'] = (statusMap['Cancelled'] || 0) + Number(row.count);
-      } else if (status.includes('pickedup') || status.includes('in-transit')) {
-        statusMap['In-Transit'] = (statusMap['In-Transit'] || 0) + Number(row.count);
-      } else if (status === 'delivered') {
-        statusMap['Delivered'] = (statusMap['Delivered'] || 0) + Number(row.count);
+      const count = Number(row.count) || 0;
+
+      if (status === 'delivered' || status === 'delivered-returned') {
+        statusMap['Delivered'] = (statusMap['Delivered'] || 0) + count;
+      } else if (status.includes('pickedup') || status.includes('in-transit') || status === 'assigned') {
+        statusMap['In-Transit'] = (statusMap['In-Transit'] || 0) + count;
+      } else if (status === 'awaiting_schedule' || status === 'scheduled_for_pickup' || status === 'awaiting_pickup') {
+        statusMap['Awaiting Pickup'] = (statusMap['Awaiting Pickup'] || 0) + count;
+      } else if (status === 'pending') {
+        statusMap['Pending'] = (statusMap['Pending'] || 0) + count;
+      } else if (status.includes('return')) {
+        statusMap['Return Flow'] = (statusMap['Return Flow'] || 0) + count;
+      } else if (status.includes('exchange')) {
+        statusMap['Exchange Flow'] = (statusMap['Exchange Flow'] || 0) + count;
+      } else if (status.includes('rejected')) {
+        statusMap['Rejected'] = (statusMap['Rejected'] || 0) + count;
+      } else if (status.includes('cancelled')) {
+        statusMap['Cancelled'] = (statusMap['Cancelled'] || 0) + count;
       } else {
-        statusMap[row.status] = (statusMap[row.status] || 0) + Number(row.count);
+        statusMap['Other'] = (statusMap['Other'] || 0) + count;
       }
     });
     const statusLabels = Object.keys(statusMap);
     const statusCounts = Object.values(statusMap);
-    // Assign colors: delivered = green, cancelled = red, in-transit = orange, others = blue
+    // Assign stable, distinct colors per bucket
+    const statusColorMap = {
+      'Delivered': '#2E7D32',
+      'In-Transit': '#EF6C00',
+      'Awaiting Pickup': '#1E88E5',
+      'Pending': '#F9A825',
+      'Return Flow': '#8E24AA',
+      'Exchange Flow': '#00838F',
+      'Rejected': '#AD1457',
+      'Cancelled': '#C62828',
+      'Other': '#546E7A'
+    };
     const statusColors = statusLabels.map(label => {
-      if (label.toLowerCase() === 'delivered') return '#28a745';
-      if (label.toLowerCase() === 'cancelled') return '#dc3545';
-      if (label.toLowerCase() === 'in-transit') return '#ff8c00';
-      // fallback palette
-      return '#007bff';
+      return statusColorMap[label] || '#546E7A';
     });
     const topShopNames = analytics.topShops.volume.map(row => row.businessName);
     const topShopVolumes = analytics.topShops.volume.map(row => row.packageCount);
@@ -5307,6 +5828,56 @@ const AdminDashboard = () => {
             </Card>
           ))}
         </Flex>
+
+        <Row gutter={[24, 24]} style={{ marginTop: '24px' }}>
+          <Col xs={24}>
+            <Card title="Operational KPIs (Last-Mile)">
+              <Row gutter={[16, 16]}>
+                <Col xs={24} md={12} lg={6}>
+                  <div style={{ padding: 12, border: '1px solid #eee', borderRadius: 8 }}>
+                    <div style={{ color: '#666', fontSize: 13 }}>Created → Delivered</div>
+                    <div style={{ fontSize: 28, fontWeight: 700, color: rateColor(createdToDeliveredPct) }}>{createdToDeliveredPct.toFixed(1)}%</div>
+                    <div style={{ fontSize: 12, color: '#777' }}>{totalDelivered} / {totalCreated} packages</div>
+                  </div>
+                </Col>
+                <Col xs={24} md={12} lg={6}>
+                  <div style={{ padding: 12, border: '1px solid #eee', borderRadius: 8 }}>
+                    <div style={{ color: '#666', fontSize: 13 }}>Undelivered Backlog</div>
+                    <div style={{ fontSize: 28, fontWeight: 700, color: '#c62828' }}>{undeliveredCount}</div>
+                    <div style={{ fontSize: 12, color: '#777' }}>{undeliveredPct.toFixed(1)}% of all created</div>
+                  </div>
+                </Col>
+                <Col xs={24} md={12} lg={6}>
+                  <div style={{ padding: 12, border: '1px solid #eee', borderRadius: 8 }}>
+                    <div style={{ color: '#666', fontSize: 13 }}>In-Transit Share</div>
+                    <div style={{ fontSize: 28, fontWeight: 700, color: '#1565c0' }}>{inTransitPct.toFixed(1)}%</div>
+                    <div style={{ fontSize: 12, color: '#777' }}>{totalInTransit} in transit now</div>
+                  </div>
+                </Col>
+                <Col xs={24} md={12} lg={6}>
+                  <div style={{ padding: 12, border: '1px solid #eee', borderRadius: 8 }}>
+                    <div style={{ color: '#666', fontSize: 13 }}>7-Day Conversion</div>
+                    <div style={{ fontSize: 28, fontWeight: 700, color: rateColor(createdToDeliveredLast7Pct) }}>{createdToDeliveredLast7Pct.toFixed(1)}%</div>
+                    <div style={{ fontSize: 12, color: '#777' }}>{deliveredLast7} delivered / {createdLast7} created</div>
+                  </div>
+                </Col>
+              </Row>
+
+              <div style={{ marginTop: 16 }}>
+                <div style={{ fontSize: 12, color: '#666', marginBottom: 6 }}>Delivery Funnel</div>
+                <div style={{ height: 10, borderRadius: 999, background: '#eee', overflow: 'hidden', display: 'flex' }}>
+                  <div style={{ width: `${Math.min(createdToDeliveredPct, 100)}%`, background: '#2e7d32' }} />
+                  <div style={{ width: `${Math.min(inTransitPct, 100)}%`, background: '#1565c0' }} />
+                  <div style={{ width: `${Math.min(Math.max(100 - createdToDeliveredPct - inTransitPct, 0), 100)}%`, background: '#f57c00' }} />
+                </div>
+                <div style={{ marginTop: 6, fontSize: 12, color: '#666' }}>
+                  Delivered: {totalDelivered} · In Transit: {totalInTransit} · Pending/Other: {pendingOtherCount}
+                </div>
+              </div>
+            </Card>
+          </Col>
+        </Row>
+
         <Row gutter={[24, 24]} style={{ marginTop: '24px' }}>
           <Col xs={24} lg={12}>
             <Card title="Packages Over Time (Last 7 Days)">
@@ -5725,9 +6296,8 @@ const AdminDashboard = () => {
     switch (mainTab) {
       case 'ready-to-assign':
         if (subTab === 'all') {
-          // Show only Pending, Return Requested, and Exchange Requested under 'All Ready'
-          // Exchange requested maps to the initial exchange-request state: exchange-awaiting-schedule
-          statusFilter = 'pending,return-requested,exchange-in-process';
+          // Show all statuses represented under Ready to Assign tabs
+          statusFilter = 'awaiting_schedule,scheduled_for_pickup,pending,exchange-awaiting-schedule,return-requested';
         } else {
           statusFilter = subTab;
         }
@@ -5759,7 +6329,7 @@ const AdminDashboard = () => {
         break;
       case 'return-to-shop':
         if (subTab === 'all') {
-          statusFilter = 'return-requested,return-in-transit,return-pending,return-completed,exchange-requests,cancelled-awaiting-return,rejected-awaiting-return,exchange-completed';
+          statusFilter = 'return-requested,return-in-transit,return-pending,return-completed,cancelled-awaiting-return,rejected-awaiting-return,delivered-awaiting-return,exchange-awaiting-schedule,exchange-awaiting-pickup,exchange-in-process,exchange-in-transit,exchange-awaiting-return,exchange-returned';
         } else if (subTab === 'exchange-requests') {
           statusFilter = 'exchange-awaiting-schedule,exchange-awaiting-pickup,exchange-in-process,exchange-in-transit,exchange-awaiting-return';
         } else if (subTab === 'exchange-completed') {
@@ -5918,6 +6488,7 @@ const AdminDashboard = () => {
               <div class="awb-section">
                 <b>Description:</b> ${awbPkg.packageDescription || '-'}
               </div>
+              ${awbPkg.shopNotes ? `<div class="awb-section"><b>Shop Notes:</b> ${awbPkg.shopNotes}</div>` : ''}
               ${isExchange ? itemsSectionExchange : itemsSectionDefault}
               <div class="awb-footer">Thank you for your order!</div>
             </div>
@@ -6020,6 +6591,7 @@ const AdminDashboard = () => {
       if (showAssignPickupDriverModal) { setShowAssignPickupDriverModal(false); return; }
       if (showAssignDriverModal) { setShowAssignDriverModal(false); return; }
       if (showBulkAssignModal) { setShowBulkAssignModal(false); return; }
+      if (showSchedulePickupModal) { setShowSchedulePickupModal(false); return; }
       if (showSettleAmountModal) { setShowSettleAmountModal(false); return; }
       if (showPickupModal) { setShowPickupModal(false); return; }
       if (showWorkingAreaModal) { setShowWorkingAreaModal(false); return; }
@@ -6028,7 +6600,7 @@ const AdminDashboard = () => {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [showReturnCompleteDialog, showExchangeCompleteDialog, showConfirmationDialog, showAdminDeliveryModal, showRejectPackageModal, showForwardPackageModal, showAssignPickupDriverModal, showAssignDriverModal, showBulkAssignModal, showSettleAmountModal, showPickupModal, showWorkingAreaModal, showShippingFeesModal, showDetailsModal]);
+  }, [showReturnCompleteDialog, showExchangeCompleteDialog, showConfirmationDialog, showAdminDeliveryModal, showRejectPackageModal, showForwardPackageModal, showAssignPickupDriverModal, showAssignDriverModal, showBulkAssignModal, showSchedulePickupModal, showSettleAmountModal, showPickupModal, showWorkingAreaModal, showShippingFeesModal, showDetailsModal]);
 
   // Render admin delivery confirmation modal (mirror of mobile driver)
   const renderAdminDeliveryModal = () => {
@@ -6249,6 +6821,7 @@ const AdminDashboard = () => {
       {renderConfirmationDialog()}
       {renderForwardPackageModal()}
       {renderRejectPackageModal()}
+      {renderSchedulePickupModal()}
       {renderShippingFeesModal()}
       {/* Mobile sidebar (shown only on small screens via CSS) */}
       <div className="admin-sidebar">

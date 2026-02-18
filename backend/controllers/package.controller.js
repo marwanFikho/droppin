@@ -12,6 +12,8 @@ const bidiFactory = require('bidi-js');
 const XLSX = require('xlsx');
 
 const bidiEngine = bidiFactory();
+const DRIVER_SHARE_EGP = 60;
+const calculateNetRevenue = (deliveryCost = 0) => (parseFloat(deliveryCost || 0) || 0) - DRIVER_SHARE_EGP;
 const containsArabicChars = (text = '') => /[\u0600-\u06FF]/.test(text);
 
 const reorderBidiText = (text) => {
@@ -683,12 +685,15 @@ exports.getPackages = async (req, res) => {
       if (toDate) where.createdAt[Op.lte] = new Date(toDate);
     }
     
-    // Search by tracking number or description
+    // Search by tracking number, description, user name, or shop name
+    let searchIncludes = [];
     if (search) {
       where[Op.or] = [
         { trackingNumber: { [Op.like]: `%${search}%` } },
         { packageDescription: { [Op.like]: `%${search}%` } },
-        { deliveryContactName: { [Op.like]: `%${search}%` } }
+        { deliveryContactName: { [Op.like]: `%${search}%` } },
+        { '$User.name$': { [Op.like]: `%${search}%` } },
+        { '$Shop.businessName$': { [Op.like]: `%${search}%` } }
       ];
     }
     
@@ -727,10 +732,15 @@ exports.getPackages = async (req, res) => {
           attributes: ['id']
         },
         {
+          model: User,
+          attributes: ['name']
+        },
+        {
           model: Item,
           attributes: ['id', 'description', 'quantity', 'codAmount', 'createdAt', 'updatedAt']
         }
-      ]
+      ],
+      subQuery: false
     });
     
     // Return the paginated result
@@ -1456,13 +1466,14 @@ exports.updatePackageStatus = async (req, res) => {
         );
       }
 
-      // 3) Deduct deliveryCost from TotalCollected and recognize revenue in Stats (same as full delivery)
+      // 3) Deduct deliveryCost from TotalCollected and recognize NET revenue in Stats
       const deliveryCost = parseFloat(package.deliveryCost || 0) || 0;
       if (deliveryCost > 0) {
+        const netRevenue = calculateNetRevenue(deliveryCost);
         await sequelize.query(
           'UPDATE Stats SET profit = profit + :amount',
           {
-            replacements: { amount: deliveryCost },
+            replacements: { amount: netRevenue },
             type: sequelize.QueryTypes.UPDATE,
             transaction: t
           }
@@ -1482,10 +1493,10 @@ exports.updatePackageStatus = async (req, res) => {
         }
         await logMoneyTransaction(
           adminShop.id,
-          deliveryCost,
+          netRevenue,
           'Revenue',
           'increase',
-          `Partial delivery (awaiting return) for ${package.trackingNumber} (delivery cost revenue)`,
+          `Partial delivery (awaiting return) for ${package.trackingNumber} (net revenue: delivery cost - ${DRIVER_SHARE_EGP})`,
           t
         );
         // Deduct delivery cost from shop's TotalCollected
@@ -1627,17 +1638,18 @@ exports.updatePackageStatus = async (req, res) => {
       }
     }
 
-    // === Increment Stats.profit by deliveryCost when delivered ===
+    // === Increment Stats.profit by NET revenue when delivered ===
     if (
       nextStatus === 'delivered' &&
       originalStatus !== 'delivered'
     ) {
       const deliveryCost = parseFloat(package.deliveryCost || 0);
       if (deliveryCost > 0) {
+        const netRevenue = calculateNetRevenue(deliveryCost);
         await sequelize.query(
           'UPDATE Stats SET profit = profit + :amount',
           {
-            replacements: { amount: deliveryCost },
+            replacements: { amount: netRevenue },
             type: sequelize.QueryTypes.UPDATE,
             transaction: t
           }
@@ -1658,10 +1670,10 @@ exports.updatePackageStatus = async (req, res) => {
         }
         await logMoneyTransaction(
           adminShop.id,
-          deliveryCost,
+          netRevenue,
           'Revenue',
           'increase',
-          `Package ${package.trackingNumber} delivered (delivery cost revenue)`,
+          `Package ${package.trackingNumber} delivered (net revenue: delivery cost - ${DRIVER_SHARE_EGP})`,
           t
         );
 
@@ -1803,9 +1815,10 @@ exports.updatePackageStatus = async (req, res) => {
         currentTotalCollected = newTotalCollected2;
       }
 
-      // Step 3: Deduct delivery cost from TotalCollected and recognize revenue
+      // Step 3: Deduct delivery cost from TotalCollected and recognize NET revenue
       const deliveryCost = parseFloat(package.deliveryCost || 0) || 0;
       if (deliveryCost > 0 && package.rejectionDeductShipping !== false) {
+        const netRevenue = calculateNetRevenue(deliveryCost);
         const newTotalCollected3 = currentTotalCollected - deliveryCost;
         await sequelize.query(
           'UPDATE Shops SET TotalCollected = :newTotalCollected WHERE id = :shopId',
@@ -1819,7 +1832,7 @@ exports.updatePackageStatus = async (req, res) => {
         await sequelize.query(
           'UPDATE Stats SET profit = profit + :amount',
           {
-            replacements: { amount: deliveryCost },
+            replacements: { amount: netRevenue },
             type: sequelize.QueryTypes.UPDATE,
             transaction: t
           }
@@ -1838,10 +1851,10 @@ exports.updatePackageStatus = async (req, res) => {
         }
         await logMoneyTransaction(
           adminShop.id,
-          deliveryCost,
+          netRevenue,
           'Revenue',
           'increase',
-          `Rejected and returned ${package.trackingNumber} (delivery cost revenue)`,
+          `Rejected and returned ${package.trackingNumber} (net revenue: delivery cost - ${DRIVER_SHARE_EGP})`,
           t
         );
       }

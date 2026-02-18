@@ -44,6 +44,29 @@ exports.getDashboardStats = async (req, res) => {
       console.error('Error fetching profit from Stats:', err);
     }
 
+    // Recalculate delivered revenue from packages using net formula:
+    // revenue per package = deliveryCost - 60 EGP
+    let revenueDeliveredPackages = 0;
+    try {
+      const [revenueResult] = await sequelize.query(`
+        SELECT COALESCE(SUM(
+          CASE
+            WHEN status IN ('delivered', 'delivered-awaiting-return', 'delivered-returned', 'return-completed')
+              THEN (COALESCE(deliveryCost, 0) - 60)
+            WHEN status = 'rejected-returned' AND (rejectionDeductShipping IS NULL OR rejectionDeductShipping = 1)
+              THEN (COALESCE(deliveryCost, 0) - 60)
+            ELSE 0
+          END
+        ), 0) AS revenue
+        FROM Packages
+        WHERE COALESCE(deliveryCost, 0) > 0
+      `);
+      revenueDeliveredPackages = parseFloat(revenueResult?.[0]?.revenue) || 0;
+    } catch (err) {
+      console.error('Error recalculating revenueDeliveredPackages:', err);
+      revenueDeliveredPackages = 0;
+    }
+
     res.json({
       users: {
         total: totalUsers + totalShops + totalDrivers,
@@ -62,7 +85,7 @@ exports.getDashboardStats = async (req, res) => {
         totalToCollect: parseFloat(codSums.totalToCollect) || 0,
         totalCollected: parseFloat(codSums.totalCollected) || 0
       },
-      revenueDeliveredPackages: profit,
+      revenueDeliveredPackages,
       profit: profit
     });
   } catch (error) {
@@ -1199,7 +1222,12 @@ exports.getPackages = async (req, res) => {
       whereClause[Op.or] = [
         { trackingNumber: { [Op.like]: `%${search}%` } },
         { packageDescription: { [Op.like]: `%${search}%` } },
-        { '$Driver.User.name$': { [Op.like]: `%${search}%` } }
+        { deliveryContactName: { [Op.like]: `%${search}%` } },
+        { pickupContactName: { [Op.like]: `%${search}%` } },
+        { deliveryContactPhone: { [Op.like]: `%${search}%` } },
+        { '$Driver.User.name$': { [Op.like]: `%${search}%` } },
+        { '$User.name$': { [Op.like]: `%${search}%` } },
+        { '$Shop.businessName$': { [Op.like]: `%${search}%` } }
       ];
     }
 
@@ -1252,11 +1280,16 @@ exports.getPackages = async (req, res) => {
               attributes: ['name', 'email', 'phone']
             }
           ]
+        },
+        {
+          model: User,
+          attributes: ['name', 'email', 'phone']
         }
       ],
       order: [[orderField, orderDirection]],
       limit,
-      offset
+      offset,
+      subQuery: false
     });
 
     const packages = rows.map(row => {
@@ -1914,7 +1947,7 @@ exports.getRecentCodData = async (req, res) => {
 exports.updateShop = async (req, res) => {
   try {
     const { id } = req.params;
-    const { shippingFees } = req.body;
+    const { shippingFees, isActive } = req.body;
     // Find the shop by ID
     const shop = await Shop.findByPk(id);
     if (!shop) {
@@ -1924,8 +1957,19 @@ exports.updateShop = async (req, res) => {
     if (shippingFees !== undefined) {
       shop.shippingFees = shippingFees;
     }
+
+    // Update shop visibility through the related user active flag
+    if (isActive !== undefined) {
+      const user = await User.findByPk(shop.userId);
+      if (!user) {
+        return res.status(404).json({ message: 'Shop user not found' });
+      }
+      user.isActive = Boolean(isActive);
+      await user.save();
+    }
+
     await shop.save();
-    res.json({ message: 'Shop updated successfully', shop });
+    res.json({ message: 'Shop updated successfully', shop, isActive: isActive !== undefined ? Boolean(isActive) : undefined });
   } catch (error) {
     console.error('Error updating shop:', error);
     res.status(500).json({ message: error.message });

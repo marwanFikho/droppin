@@ -109,6 +109,7 @@ export const packageService = {
   },
   getShopPickups: () => api.get('/pickups/shop'),
   getPickupById: (id) => api.get(`/pickups/${id}`),
+  deletePickup: (pickupId) => api.delete(`/pickups/${pickupId}`),
   cancelPickup: (pickupId) => api.patch(`/pickups/${pickupId}/cancel`),
   getMoneyTransactions: (params = {}) => api.get('/shops/money-transactions', { params }),
   updatePackageNotes: (id, note) => {
@@ -191,6 +192,7 @@ export const adminService = {
   
   // Pickup management
   getAllPickups: () => api.get('/pickups/admin/all'),
+  schedulePickupForPackages: (data) => api.post('/pickups/admin/schedule', data),
   markPickupAsPickedUp: (pickupId) => api.patch(`/pickups/${pickupId}/pickup`),
   assignDriverToPickup: (pickupId, driverId) => api.patch(`/pickups/admin/pickups/${pickupId}/assign-driver`, { driverId }),
   updatePickupStatus: (pickupId, status) => api.patch(`/pickups/admin/pickups/${pickupId}/status`, { status }),

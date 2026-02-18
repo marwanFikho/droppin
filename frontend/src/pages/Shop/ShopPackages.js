@@ -410,7 +410,9 @@ const ShopPackages = () => {
         pkg.trackingNumber?.toLowerCase().includes(searchLower) ||
         pkg.packageDescription?.toLowerCase().includes(searchLower) ||
         pkg.deliveryContactName?.toLowerCase().includes(searchLower) ||
-        pkg.status?.toLowerCase().includes(searchLower)
+        pkg.status?.toLowerCase().includes(searchLower) ||
+        pkg.User?.name?.toLowerCase().includes(searchLower) ||
+        pkg.Shop?.businessName?.toLowerCase().includes(searchLower)
       );
     }
 
@@ -678,6 +680,7 @@ const ShopPackages = () => {
             <div class="awb-section">
               <b>Description:</b> ${awbPkg.packageDescription || '-'}
             </div>
+            ${awbPkg.shopNotes ? `<div class="awb-section"><b>Shop Notes:</b> ${awbPkg.shopNotes}</div>` : ''}
             ${isExchange ? itemsSectionExchange : itemsSectionDefault}
             <div class="awb-footer">Thank you for your order!</div>
           </div>
@@ -876,6 +879,7 @@ const ShopPackages = () => {
           <div class="awb-section">
             <b>Description:</b> ${packageData.packageDescription || '-'}
           </div>
+          ${packageData.shopNotes ? `<div class="awb-section"><b>Shop Notes:</b> ${packageData.shopNotes}</div>` : ''}
           ${isExchange ? itemsSectionExchange : itemsSectionDefault}
           <div class="awb-footer">Thank you for your order!</div>
         </div>

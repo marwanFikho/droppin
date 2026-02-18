@@ -382,7 +382,9 @@ const ShopDashboard = () => {
         pkg.trackingNumber?.toLowerCase().includes(searchLower) ||
         pkg.packageDescription?.toLowerCase().includes(searchLower) ||
         pkg.deliveryContactName?.toLowerCase().includes(searchLower) ||
-        pkg.status?.toLowerCase().includes(searchLower)
+        pkg.status?.toLowerCase().includes(searchLower) ||
+        pkg.User?.name?.toLowerCase().includes(searchLower) ||
+        pkg.Shop?.businessName?.toLowerCase().includes(searchLower)
       );
     }
 
