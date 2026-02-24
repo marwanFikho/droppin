@@ -75,6 +75,11 @@ const Shop = sequelize.define('Shop', {
     allowNull: true,
     defaultValue: null
   },
+  isHiddenInAdminMenu: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: false
+  },
   apiKey: {
     type: DataTypes.STRING,
     allowNull: true,

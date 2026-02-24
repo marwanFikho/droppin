@@ -295,6 +295,7 @@ exports.getShops = async (req, res) => {
           contactPersonEmail: shop.contactPersonEmail,
           address: shop.address,
           shippingFees: shop.shippingFees, // <-- add this line
+          isHiddenInAdminMenu: Boolean(shop.isHiddenInAdminMenu),
           // Use the financial data directly from the SQL query
           ToCollect: financialData.ToCollect,
           TotalCollected: financialData.TotalCollected,
@@ -404,6 +405,7 @@ exports.getShopById = async (req, res) => {
       settelled: financialData.settelled, // <-- Add this line
       // Add shippingFees from the Shop model
       shippingFees: shop.shippingFees,
+      isHiddenInAdminMenu: Boolean(shop.isHiddenInAdminMenu),
       // Include package count (delivered only)
       packageCount: packages.length,
       // Add financialData object for consistency
@@ -1947,7 +1949,7 @@ exports.getRecentCodData = async (req, res) => {
 exports.updateShop = async (req, res) => {
   try {
     const { id } = req.params;
-    const { shippingFees, isActive } = req.body;
+    const { shippingFees, isHiddenInAdminMenu } = req.body;
     // Find the shop by ID
     const shop = await Shop.findByPk(id);
     if (!shop) {
@@ -1958,18 +1960,12 @@ exports.updateShop = async (req, res) => {
       shop.shippingFees = shippingFees;
     }
 
-    // Update shop visibility through the related user active flag
-    if (isActive !== undefined) {
-      const user = await User.findByPk(shop.userId);
-      if (!user) {
-        return res.status(404).json({ message: 'Shop user not found' });
-      }
-      user.isActive = Boolean(isActive);
-      await user.save();
+    if (isHiddenInAdminMenu !== undefined) {
+      shop.isHiddenInAdminMenu = Boolean(isHiddenInAdminMenu);
     }
 
     await shop.save();
-    res.json({ message: 'Shop updated successfully', shop, isActive: isActive !== undefined ? Boolean(isActive) : undefined });
+    res.json({ message: 'Shop updated successfully', shop });
   } catch (error) {
     console.error('Error updating shop:', error);
     res.status(500).json({ message: error.message });

@@ -1268,7 +1268,7 @@ const AdminDashboard = () => {
       case 'shops':
         return filtered
           .filter(user => user.role === 'shop')
-          .filter(user => shopsViewTab === 'hidden' ? user.isActive === false : user.isActive !== false);
+          .filter(user => shopsViewTab === 'hidden' ? user.isHiddenInAdminMenu === true : user.isHiddenInAdminMenu !== true);
       case 'drivers':
         return filtered.filter(user => user.role === 'driver');
       default:
@@ -1278,16 +1278,18 @@ const AdminDashboard = () => {
 
   const handleToggleShopVisibility = async (shopUser) => {
     try {
-      const nextIsActive = !(shopUser.isActive !== false);
-      await adminService.updateShop(shopUser.shopId || shopUser.id, { isActive: nextIsActive });
+      const nextHiddenState = !(shopUser.isHiddenInAdminMenu === true);
+      const targetShopId = shopUser.shopId || shopUser.id;
+      await adminService.updateShop(targetShopId, { isHiddenInAdminMenu: nextHiddenState });
       setUsers(prev => prev.map(u => (
-        (u.shopId || u.id) === (shopUser.shopId || shopUser.id)
-          ? { ...u, isActive: nextIsActive }
+        (u.shopId || u.id) === targetShopId
+          ? { ...u, isHiddenInAdminMenu: nextHiddenState }
           : u
       )));
+
       setStatusMessage({
         type: 'success',
-        text: `Shop ${nextIsActive ? 'unhidden' : 'hidden'} successfully.`
+        text: `Shop ${nextHiddenState ? 'hidden' : 'unhidden'} successfully.`
       });
     } catch (error) {
       console.error('Error updating shop visibility:', error);
@@ -1682,10 +1684,13 @@ const AdminDashboard = () => {
                   </button>
                 )}
                 {activeTab === 'shops' && (
+                  (() => {
+                    const isHiddenInAdminMenu = user.isHiddenInAdminMenu === true;
+                    return (
                   <button
                     className="action-btn"
                     onClick={() => handleToggleShopVisibility(user)}
-                    title={user.isActive === false ? 'Unhide shop' : 'Hide shop'}
+                    title={isHiddenInAdminMenu ? 'Unhide shop' : 'Hide shop'}
                     style={{
                       marginRight: '0.25rem',
                       width: '36px',
@@ -1695,14 +1700,16 @@ const AdminDashboard = () => {
                       alignItems: 'center',
                       justifyContent: 'center',
                       fontSize: '16px',
-                      background: user.isActive === false ? '#2e7d32' : '#6a1b9a',
+                      background: isHiddenInAdminMenu ? '#2e7d32' : '#6a1b9a',
                       color: '#fff',
                       border: 'none',
                       cursor: 'pointer'
                     }}
                   >
-                    <FontAwesomeIcon icon={user.isActive === false ? faEye : faEyeSlash} />
+                    <FontAwesomeIcon icon={isHiddenInAdminMenu ? faEye : faEyeSlash} />
                   </button>
+                    );
+                  })()
                 )}
               </td>
             </tr>
