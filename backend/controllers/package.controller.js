@@ -857,7 +857,9 @@ exports.exportPackagesPdf = async (req, res) => {
 
     // Table column setup (10 columns for landscape) - removed "بدون شحن" column
     const tableTop = 38;
-    const rowHeight = 35;
+    const headerHeight = 18;
+    const minRowHeight = 22;
+    const cellVerticalPadding = 4;
     const columns = [
       { header: 'الرقم', width: 30, key: 'number' },
       { header: 'الرمز', width: 75, key: 'tracking' },
@@ -879,12 +881,61 @@ exports.exportPackagesPdf = async (req, res) => {
       columnPositions.push(currentX);
     }
 
+    const buildRowData = (pkg) => {
+      const codWithShipping = parseFloat(pkg.codAmount || 0);
+      const customerName = formatText(pkg.deliveryContactName || 'N/A');
+      const address = formatText(pkg.deliveryAddress || 'N/A');
+      const shopName = formatText(pkg.Shop ? pkg.Shop.businessName : 'N/A');
+      const statusMap = {
+        'pending': 'قيد الانتظار',
+        'assigned': 'معين',
+        'pickedup': 'تم الاستلام',
+        'in-transit': 'قيد النقل',
+        'delivered': 'مسلم',
+        'rejected': 'مرفوض',
+        'awaiting_schedule': 'في الانتظار'
+      };
+      const statusText = formatText(statusMap[pkg.status] || pkg.status);
+
+      return {
+        trackingNumber: pkg.trackingNumber || '',
+        customerName,
+        phone: pkg.deliveryContactPhone || '',
+        address,
+        shopName,
+        statusText,
+        codWithShipping: `${codWithShipping.toFixed(2)}`
+      };
+    };
+
+    const measureTextHeight = ({ text, font, fontSize, width, lineGap = 0 }) => {
+      doc.font(font).fontSize(fontSize);
+      return doc.heightOfString(String(text || ''), { width, lineGap });
+    };
+
+    const calculateRowHeight = (rowData, rowNumber) => {
+      const heights = [
+        measureTextHeight({ text: String(rowNumber), font: fonts.latin, fontSize: 7, width: columns[0].width - 4 }),
+        measureTextHeight({ text: rowData.trackingNumber, font: fonts.latin, fontSize: 7, width: columns[1].width - 4 }),
+        measureTextHeight({ text: rowData.customerName, font: fonts.arabic, fontSize: 7, width: columns[2].width - 4 }),
+        measureTextHeight({ text: rowData.phone, font: fonts.latin, fontSize: 7, width: columns[3].width - 4 }),
+        measureTextHeight({ text: rowData.address, font: fonts.arabic, fontSize: 6, width: columns[4].width - 4, lineGap: 1 }),
+        measureTextHeight({ text: rowData.shopName, font: fonts.arabic, fontSize: 7, width: columns[5].width - 4 }),
+        measureTextHeight({ text: rowData.statusText, font: fonts.arabic, fontSize: 6, width: columns[6].width - 4 }),
+        measureTextHeight({ text: rowData.codWithShipping, font: fonts.latin, fontSize: 7, width: columns[7].width - 4 }),
+        measureTextHeight({ text: '_', font: fonts.latin, fontSize: 6, width: columns[8].width - 4 }),
+        measureTextHeight({ text: '☐', font: fonts.latin, fontSize: 7, width: columns[9].width - 4 })
+      ];
+
+      return Math.max(minRowHeight, Math.ceil(Math.max(...heights) + (cellVerticalPadding * 2)));
+    };
+
     // Helper to draw table header
-    const drawTableHeader = (pageStartY) => {
-      const headerY = pageStartY + tableTop;
+    const drawTableHeader = () => {
+      const headerY = tableTop;
       
       doc.save();
-      doc.fillColor('#1e40af').rect(startX, headerY, usableWidth, 18).fill();
+      doc.fillColor('#1e40af').rect(startX, headerY, usableWidth, headerHeight).fill();
       doc.restore();
       
       doc.font(fonts.header).fontSize(8).fillColor('#ffffff');
@@ -896,13 +947,10 @@ exports.exportPackagesPdf = async (req, res) => {
     };
 
     // Helper to draw a table row
-    const drawTableRow = (pkg, rowIndex, pageStartY) => {
-      const rowY = pageStartY + tableTop + 18 + (rowIndex * rowHeight);
-      const codWithoutShipping = parseFloat(pkg.codAmount || 0) - parseFloat(pkg.shownDeliveryCost || 0);
-      const codWithShipping = parseFloat(pkg.codAmount || 0);
+    const drawTableRow = (rowData, rowNumber, rowY, rowHeight) => {
       
       // Alternate row background
-      if (rowIndex % 2 === 0) {
+      if ((rowNumber - 1) % 2 === 0) {
         doc.fillColor('#f8fafc').rect(startX, rowY, usableWidth, rowHeight).fill();
       }
       
@@ -919,90 +967,81 @@ exports.exportPackagesPdf = async (req, res) => {
       
       // Row number
       let x = columnPositions[0];
-      doc.text(String(rowIndex + 1), x + 2, rowY + 4, { width: columns[0].width - 4, align: 'center' });
+      doc.text(String(rowNumber), x + 2, rowY + cellVerticalPadding, { width: columns[0].width - 4, align: 'center' });
       
       // Tracking number
       x = columnPositions[1];
-      doc.text(pkg.trackingNumber || '', x + 2, rowY + 4, { width: columns[1].width - 4, align: 'center' });
+      doc.text(rowData.trackingNumber, x + 2, rowY + cellVerticalPadding, { width: columns[1].width - 4, align: 'center' });
       
       // Customer name (Arabic)
       x = columnPositions[2];
-      const customerName = formatText(pkg.deliveryContactName || 'N/A');
       doc.font(fonts.arabic).fontSize(7);
-      doc.text(customerName, x + 2, rowY + 4, { width: columns[2].width - 4, align: 'right' });
+      doc.text(rowData.customerName, x + 2, rowY + cellVerticalPadding, { width: columns[2].width - 4, align: 'right' });
       
       // Phone
       x = columnPositions[3];
       doc.font(fonts.latin).fontSize(7);
-      doc.text(pkg.deliveryContactPhone || '', x + 2, rowY + 4, { width: columns[3].width - 4, align: 'center' });
+      doc.text(rowData.phone, x + 2, rowY + cellVerticalPadding, { width: columns[3].width - 4, align: 'center' });
       
       // Address (Arabic)
       x = columnPositions[4];
-      const address = formatText(pkg.deliveryAddress || 'N/A');
       doc.font(fonts.arabic).fontSize(6);
-      doc.text(address, x + 2, rowY + 3, { width: columns[4].width - 4, align: 'right', lineGap: 1 });
+      doc.text(rowData.address, x + 2, rowY + cellVerticalPadding, { width: columns[4].width - 4, align: 'right', lineGap: 1 });
       
       // Shop name (Arabic)
       x = columnPositions[5];
-      const shopName = formatText(pkg.Shop ? pkg.Shop.businessName : 'N/A');
       doc.font(fonts.arabic).fontSize(7);
-      doc.text(shopName, x + 2, rowY + 4, { width: columns[5].width - 4, align: 'right' });
+      doc.text(rowData.shopName, x + 2, rowY + cellVerticalPadding, { width: columns[5].width - 4, align: 'right' });
       
       // Status (Arabic)
       x = columnPositions[6];
-      const statusMap = {
-        'pending': 'قيد الانتظار',
-        'assigned': 'معين',
-        'pickedup': 'تم الاستلام',
-        'in-transit': 'قيد النقل',
-        'delivered': 'مسلم',
-        'rejected': 'مرفوض',
-        'awaiting_schedule': 'في الانتظار'
-      };
-      const statusText = formatText(statusMap[pkg.status] || pkg.status);
       doc.font(fonts.arabic).fontSize(6);
-      doc.text(statusText, x + 2, rowY + 3, { width: columns[6].width - 4, align: 'center' });
+      doc.text(rowData.statusText, x + 2, rowY + cellVerticalPadding, { width: columns[6].width - 4, align: 'center' });
       
       // COD with shipping (now column 7, was 8)
       x = columnPositions[7];
       doc.font(fonts.latin).fontSize(7).fillColor('#dc2626');
-      doc.text(`${codWithShipping.toFixed(2)}`, x + 2, rowY + 3, { width: columns[7].width - 4, align: 'center' });
+      doc.text(rowData.codWithShipping, x + 2, rowY + cellVerticalPadding, { width: columns[7].width - 4, align: 'center' });
       
       // Notes (empty for writing) - now column 8, was 9
       x = columnPositions[8];
       doc.font(fonts.latin).fontSize(6).fillColor('#999');
-      doc.text('_', x + 2, rowY + 5, { width: columns[8].width - 4, align: 'center' });
+      doc.text('_', x + 2, rowY + cellVerticalPadding, { width: columns[8].width - 4, align: 'center' });
       
       // Delivered checkbox (empty for driver to tick) - now column 9, was 10
       x = columnPositions[9];
       doc.font(fonts.latin).fontSize(7).fillColor('#999');
-      doc.text('☐', x + 2, rowY + 3, { width: columns[9].width - 4, align: 'center' });
+      doc.text('☐', x + 2, rowY + cellVerticalPadding, { width: columns[9].width - 4, align: 'center' });
     };
 
-    // Main loop - draw packages in pages with 18 per page (to fit A4 landscape properly)
-    const packagesPerPage = 15;
-    const totalPages = Math.ceil(pkgs.length / packagesPerPage);
-
-    for (let pageNum = 0; pageNum < totalPages; pageNum++) {
-      // Add page with consistent settings
-      doc.addPage({ 
-        size: 'A4', 
+    const addTablePage = () => {
+      doc.addPage({
+        size: 'A4',
         layout: 'landscape',
         margin: 6
       });
-      
-      // Draw header on each page
       drawHeader();
-      
-      // Draw table header
-      drawTableHeader(0);
-      
-      const startIdx = pageNum * packagesPerPage;
-      const endIdx = Math.min(startIdx + packagesPerPage, pkgs.length);
-      
-      for (let i = startIdx; i < endIdx; i++) {
-        drawTableRow(pkgs[i], i - startIdx, 0);
+      drawTableHeader();
+      return tableTop + headerHeight;
+    };
+
+    let currentRowY = addTablePage();
+    let currentPageRowNumber = 0;
+    const pageBottomY = pageHeight - margin;
+
+    for (const pkg of pkgs) {
+      const rowData = buildRowData(pkg);
+      const prospectiveRowNumber = currentPageRowNumber + 1;
+      const rowHeight = calculateRowHeight(rowData, prospectiveRowNumber);
+
+      if (currentRowY + rowHeight > pageBottomY) {
+        currentRowY = addTablePage();
+        currentPageRowNumber = 0;
       }
+
+      currentPageRowNumber += 1;
+      drawTableRow(rowData, currentPageRowNumber, currentRowY, rowHeight);
+      currentRowY += rowHeight;
     }
     
     doc.end();
