@@ -6643,9 +6643,16 @@ const AdminDashboard = () => {
                 <div>
                   {items.map((it) => {
                     const maxQty = parseInt(it.quantity, 10) || 0;
+                    const totalPrice = parseFloat(it.codAmount || 0) || 0;
+                    const unitPrice = maxQty > 0 ? (totalPrice / maxQty) : 0;
                     return (
                       <div key={it.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                        <div style={{ flex: 1, marginRight: 8 }}>{it.description} (max {maxQty})</div>
+                        <div style={{ flex: 1, marginRight: 8 }}>
+                          {it.description} (max {maxQty})
+                          <div style={{ fontSize: 12, color: '#555' }}>
+                            Unit: {unitPrice.toFixed(2)} EGP | Total: {totalPrice.toFixed(2)} EGP
+                          </div>
+                        </div>
                         <input
                           type="number"
                           min="0"
