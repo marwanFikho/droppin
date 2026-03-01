@@ -297,7 +297,7 @@ const About = () => {
       >
         <div className="container">
           <h2>Ready to Join Our Network?</h2>
-          <p>Become part of Egypt's leading Last-mile Delivery delivery platform</p>
+          <p>Become part of Egypt's leading Last-mile Delivery platform</p>
           <div className="cta-buttons">
             <Link to="/register/shop" className="cta-button primary">
               Join as Shop

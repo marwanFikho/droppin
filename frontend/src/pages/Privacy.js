@@ -149,7 +149,7 @@ const Privacy = () => {
               <p>
                 At Droppin Delivery, we are committed to protecting your privacy and personal information.
                 This Privacy Policy explains how we collect, use, disclose, and safeguard your information
-                when you use our Last-mile Delivery delivery services, website, and mobile application.
+                when you use our Last-mile Delivery services, website, and mobile application.
               </p>
             </motion.div>
 

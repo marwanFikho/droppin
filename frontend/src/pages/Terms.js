@@ -14,7 +14,7 @@ const Terms = () => {
     },
     {
       title: '2. Description of Service',
-      content: `Droppin Delivery provides Last-mile Delivery delivery services connecting shops, drivers, and customers. Our services include same-day delivery, real-time tracking, return management, and API integration for businesses across Egypt.`
+      content: `Droppin Delivery provides Last-mile Delivery services connecting shops, drivers, and customers. Our services include same-day delivery, real-time tracking, return management, and API integration for businesses across Egypt.`
     },
     {
       title: '3. User Accounts',
@@ -113,7 +113,7 @@ const Terms = () => {
             >
               <p>
                 Welcome to Droppin Delivery. These Terms of Service ("Terms") govern your use of our
-                Last-mile Delivery delivery services, website, mobile application, and any related services (collectively,
+                Last-mile Delivery services, website, mobile application, and any related services (collectively,
                 the "Service"). By accessing or using our Service, you agree to be bound by these Terms.
               </p>
             </motion.div>

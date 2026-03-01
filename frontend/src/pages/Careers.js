@@ -134,7 +134,7 @@ const Careers = () => {
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.4, duration: 0.8 }}
           >
-            Shape the future of Last-mile Delivery delivery in Egypt
+            Shape the future of Last-mile Delivery in Egypt
           </motion.p>
           <motion.div
             className="hero-stats"

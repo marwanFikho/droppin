@@ -420,7 +420,7 @@ const Home = () => {
                   </div>
                 </div>
                 <p className="team-description">
-                  Founded in 2025, Droppin has rapidly become Egypt's leading Last-mile Delivery delivery platform.
+                  Founded in 2025, Droppin has rapidly become Egypt's leading Last-mile Delivery platform.
                   Our team consists of logistics experts, technology innovators, and customer service professionals
                   dedicated to revolutionizing the delivery industry. We partner with businesses of all sizes,
                   from local boutiques to major e-commerce platforms, ensuring their success through reliable logistics.
