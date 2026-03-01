@@ -1,0 +1,41 @@
+# Example Nginx config for Droppin maintenance fallback
+# Use inside your `server { ... }` block for droppin-eg.com
+# Serves maintenance files directly from this project path:
+# /home/marwan.elfakharany1/droppin/frontend/public
+
+# 1) Manual maintenance switch
+#    - Enable:  sudo touch /etc/nginx/maintenance.flag
+#    - Disable: sudo rm /etc/nginx/maintenance.flag
+set $maintenance 0;
+if (-f /etc/nginx/maintenance.flag) {
+    set $maintenance 1;
+}
+if ($maintenance = 1) {
+    return 503;
+}
+
+# 2) Main frontend route (React app on port 3000)
+location / {
+    proxy_pass http://127.0.0.1:3000;
+    proxy_http_version 1.1;
+
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+
+    # If frontend is down, serve maintenance page from Nginx filesystem
+    proxy_intercept_errors on;
+    error_page 502 503 504 =503 /maintenance.html;
+}
+
+# 3) Static maintenance page served by Nginx (not by port 3000)
+location = /maintenance.html {
+    root /home/marwan.elfakharany1/droppin/frontend/public;
+    internal;
+}
+
+# Serve logos/images from frontend/public/assets while app is down
+location /assets/ {
+    alias /home/marwan.elfakharany1/droppin/frontend/public/assets/;
+}

@@ -134,8 +134,8 @@ const About = () => {
               businesses and customers deserve.
             </p>
             <p>
-              What started as a small team with a big vision has grown into Egypt's leading Last-mile Delivery
-              delivery platform. We connect hundreds of shops with professional drivers, ensuring
+              What started as a small team with a big vision has grown into Egypt's leading Last-mile delivery
+              platform. We connect hundreds of shops with professional drivers, ensuring
               seamless, trackable deliveries across the country.
             </p>
           </motion.div>

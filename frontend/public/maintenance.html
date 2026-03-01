@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#FF6B00" />
+    <title>Droppin | Under Maintenance</title>
+    <style>
+      :root {
+        --primary-orange: #FF6B00;
+        --primary-orange-light: #ff9248;
+        --secondary-blue: #235789;
+        --secondary-blue-dark: #1a4a6e;
+        --neutral-cream: #faf5f0;
+        --text-primary: #1f2937;
+        --text-secondary: #6b7280;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        color: var(--text-primary);
+        background: linear-gradient(135deg, var(--neutral-cream) 0%, #fff 45%, #fef7f0 100%);
+      }
+
+      .page {
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+      }
+
+      .card {
+        width: 100%;
+        max-width: 780px;
+        background: #fff;
+        border-radius: 20px;
+        border: 1px solid rgba(35, 87, 137, 0.12);
+        box-shadow: 0 18px 48px rgba(35, 87, 137, 0.15);
+        overflow: hidden;
+      }
+
+      .card-top {
+        background: linear-gradient(135deg, var(--primary-orange) 0%, var(--primary-orange-light) 48%, var(--secondary-blue) 100%);
+        padding: 26px;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+      }
+
+      .logo {
+        width: 52px;
+        height: 52px;
+        border-radius: 12px;
+        object-fit: cover;
+        background: #fff;
+        border: 2px solid rgba(255,255,255,0.5);
+      }
+
+      .brand {
+        color: #fff;
+      }
+
+      .brand h1 {
+        margin: 0;
+        font-size: 1.35rem;
+        letter-spacing: 0.2px;
+      }
+
+      .brand p {
+        margin: 4px 0 0;
+        opacity: 0.9;
+        font-size: 0.92rem;
+      }
+
+      .content {
+        padding: 30px 28px;
+      }
+
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: rgba(255, 107, 0, 0.1);
+        color: #a44900;
+        font-weight: 700;
+        font-size: 0.84rem;
+        margin-bottom: 14px;
+      }
+
+      h2 {
+        margin: 0 0 10px;
+        font-size: 1.85rem;
+        color: var(--secondary-blue-dark);
+      }
+
+      .lead {
+        margin: 0;
+        font-size: 1.02rem;
+        color: var(--text-secondary);
+        line-height: 1.7;
+      }
+
+      .tips {
+        margin-top: 22px;
+        padding: 14px 16px;
+        border-radius: 12px;
+        background: #f8fafc;
+        border: 1px solid #e5e7eb;
+      }
+
+      .tips-title {
+        margin: 0 0 8px;
+        font-size: 0.95rem;
+        color: var(--secondary-blue-dark);
+        font-weight: 700;
+      }
+
+      .tips ul {
+        margin: 0;
+        padding-left: 18px;
+        color: var(--text-secondary);
+      }
+
+      .tips li {
+        margin: 6px 0;
+      }
+
+      .footer {
+        margin-top: 20px;
+        font-size: 0.88rem;
+        color: #9ca3af;
+      }
+
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #e55a00;
+        display: inline-block;
+        box-shadow: 0 0 0 8px rgba(229, 90, 0, 0.15);
+        animation: dotPulse 1.4s ease-in-out infinite;
+      }
+
+      @keyframes dotPulse {
+        0%,
+        100% {
+          opacity: 1;
+          transform: scale(1);
+          box-shadow: 0 0 0 0 rgba(229, 90, 0, 0.45);
+        }
+        50% {
+          opacity: 0.45;
+          transform: scale(0.9);
+          box-shadow: 0 0 0 10px rgba(229, 90, 0, 0.08);
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .dot {
+          animation: none;
+        }
+      }
+
+      @media (max-width: 620px) {
+        .card-top {
+          padding: 18px;
+        }
+
+        .logo {
+          width: 44px;
+          height: 44px;
+        }
+
+        h2 {
+          font-size: 1.45rem;
+        }
+
+        .content {
+          padding: 22px 18px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <section class="card" role="status" aria-live="polite">
+        <div class="card-top">
+          <img class="logo" src="assets/images/logo.jpg" alt="Droppin logo" />
+          <div class="brand">
+            <h1>Droppin EG</h1>
+            <p>Delivery & Pickup Management</p>
+          </div>
+        </div>
+
+        <div class="content">
+          <div class="badge"><span class="dot"></span> System Maintenance</div>
+          <h2>We’ll be back shortly</h2>
+          <p class="lead">
+            Our website is currently unavailable due to scheduled maintenance or a temporary service interruption.
+            We’re working to restore everything as quickly as possible.
+          </p>
+
+          <div class="tips">
+            <p class="tips-title">What you can do:</p>
+            <ul>
+              <li>Refresh this page in a few minutes.</li>
+              <li>Check your internet connection.</li>
+              <li>If this continues, contact Droppin EG support.</li>
+            </ul>
+          </div>
+
+          <div class="footer">© <span id="year"></span> Droppin. All rights reserved.</div>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      document.getElementById('year').textContent = new Date().getFullYear();
+    </script>
+  </body>
+</html>
