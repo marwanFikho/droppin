@@ -1143,8 +1143,12 @@ exports.assignDriverToPackage = async (req, res) => {
       await transaction.rollback();
       retryCount++;
       
-      // Check if it's a database lock error
-      if (error.name === 'SequelizeTimeoutError' && error.parent?.code === 'SQLITE_BUSY' && retryCount < maxRetries) {
+      const transientDbErrorCodes = new Set(['ER_LOCK_WAIT_TIMEOUT', 'ER_LOCK_DEADLOCK']);
+      const isTransientDbLock =
+        error.name === 'SequelizeTimeoutError' ||
+        transientDbErrorCodes.has(error.parent?.code);
+
+      if (isTransientDbLock && retryCount < maxRetries) {
         console.log(`Database locked, retrying in 500ms... (attempt ${retryCount} of ${maxRetries})`);
         await new Promise(resolve => setTimeout(resolve, 500));
         continue;
@@ -1794,11 +1798,11 @@ exports.getPackagesPerMonth = async (req, res) => {
   try {
     const results = await sequelize.query(`
       SELECT
-        strftime('%Y-%m', createdAt) as month,
+        DATE_FORMAT(createdAt, '%Y-%m') as month,
         COUNT(*) as created,
         SUM(CASE WHEN status = 'delivered' THEN 1 ELSE 0 END) as delivered
       FROM Packages
-      WHERE date(createdAt) >= date('now', '-12 months')
+      WHERE createdAt >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
       GROUP BY month
       ORDER BY month ASC
     `, { type: QueryTypes.SELECT });
@@ -1813,10 +1817,11 @@ exports.getCodCollectedPerMonth = async (req, res) => {
   try {
     const results = await sequelize.query(`
       SELECT
-        strftime('%Y-%m', actualDeliveryTime) as month,
+        DATE_FORMAT(actualDeliveryTime, '%Y-%m') as month,
         SUM(CASE WHEN status = 'delivered' THEN codAmount ELSE 0 END) as codCollected
       FROM Packages
-      WHERE actualDeliveryTime IS NOT NULL AND date(actualDeliveryTime) >= date('now', '-12 months')
+      WHERE actualDeliveryTime IS NOT NULL
+        AND actualDeliveryTime >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
       GROUP BY month
       ORDER BY month ASC
     `, { type: QueryTypes.SELECT });
@@ -1872,23 +1877,23 @@ exports.getRecentPackagesData = async (req, res) => {
   try {
     const results = await sequelize.query(`
       WITH RECURSIVE dates(d) AS (
-        SELECT date('now', '-6 days')
+        SELECT DATE_SUB(CURDATE(), INTERVAL 6 DAY)
         UNION ALL
-        SELECT date(d, '+1 day') FROM dates WHERE d < date('now')
+        SELECT DATE_ADD(d, INTERVAL 1 DAY) FROM dates WHERE d < CURDATE()
       )
       SELECT
         d AS date,
         COALESCE((
           SELECT COUNT(*)
           FROM Packages
-          WHERE date(createdAt) = d
+          WHERE DATE(createdAt) = d
         ), 0) AS created,
         COALESCE((
           SELECT COUNT(*)
           FROM Packages
           WHERE status = 'delivered'
             AND actualDeliveryTime IS NOT NULL
-            AND date(actualDeliveryTime) = d
+            AND DATE(actualDeliveryTime) = d
         ), 0) AS delivered
       FROM dates
       ORDER BY d ASC

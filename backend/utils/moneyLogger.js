@@ -64,7 +64,7 @@ const logMoneyTransaction = async (shopId, amount, attribute, changeType, descri
       }
     };
 
-    // If we're inside a DB transaction, delay notification until after commit to avoid SQLITE_BUSY
+    // If we're inside a DB transaction, delay notification until after commit to avoid lock contention
     if (transaction && typeof transaction.afterCommit === 'function') {
       transaction.afterCommit(() => {
         // Fire and forget; do not await inside hook

@@ -1,17 +1,35 @@
 const fs = require('fs');
 const path = require('path');
+const Sequelize = require('sequelize');
 const { sequelize } = require('../config/db.config');
 
 async function runMigrations() {
   try {
+    const queryInterface = sequelize.getQueryInterface();
+
     // Create migrations table if it doesn't exist
-    await sequelize.query(`
-      CREATE TABLE IF NOT EXISTS migrations (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL UNIQUE,
-        executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
+    try {
+      await queryInterface.describeTable('migrations');
+    } catch (error) {
+      await queryInterface.createTable('migrations', {
+        id: {
+          type: Sequelize.DataTypes.INTEGER,
+          allowNull: false,
+          primaryKey: true,
+          autoIncrement: true
+        },
+        name: {
+          type: Sequelize.DataTypes.STRING,
+          allowNull: false,
+          unique: true
+        },
+        executed_at: {
+          type: Sequelize.DataTypes.DATE,
+          allowNull: false,
+          defaultValue: sequelize.literal('CURRENT_TIMESTAMP')
+        }
+      });
+    }
 
     // Get all migration files
     const migrationsDir = path.join(__dirname, '../migrations');
@@ -20,9 +38,7 @@ async function runMigrations() {
       .sort();
 
     // Get already executed migrations
-    const [executedMigrations] = await sequelize.query(
-      'SELECT name FROM migrations'
-    );
+    const [executedMigrations] = await sequelize.query('SELECT name FROM migrations');
     const executedMigrationNames = executedMigrations.map(m => m.name);
 
     // Run pending migrations
@@ -31,15 +47,15 @@ async function runMigrations() {
         console.log(`Running migration: ${file}`);
         const migration = require(path.join(migrationsDir, file));
         
-        // Run the migration
-        const result = await migration.up();
+        // Run the migration (supports both custom and sequelize-cli style signatures)
+        const result = await migration.up(queryInterface, Sequelize);
         
-        if (result) {
+        if (result !== false) {
           // Record the migration
           await sequelize.query(
-            'INSERT INTO migrations (name) VALUES (?)',
+            'INSERT INTO migrations (name) VALUES (:name)',
             {
-              replacements: [file]
+              replacements: { name: file }
             }
           );
           console.log(`Migration ${file} completed successfully`);

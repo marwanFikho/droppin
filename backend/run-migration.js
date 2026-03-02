@@ -1,22 +1,15 @@
 const { Sequelize } = require('sequelize');
-const path = require('path');
+const { sequelize } = require('./config/db.config');
 
 // Import the migration
 const migration = require('./migrations/20250727114955-add-rejected-statuses.js');
-
-// Create Sequelize instance with SQLite configuration
-const sequelize = new Sequelize({
-  dialect: 'sqlite',
-  storage: './db/dropin.sqlite',
-  logging: true
-});
 
 async function runMigration() {
   try {
     console.log('Starting migration...');
     
     // Run the migration
-    await migration.up(null, Sequelize);
+    await migration.up(sequelize.getQueryInterface(), Sequelize);
     
     console.log('Migration completed successfully!');
     process.exit(0);

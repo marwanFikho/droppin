@@ -1,13 +1,24 @@
 const { Sequelize } = require('sequelize');
 const path = require('path');
+const dotenv = require('dotenv');
 
-// SQLite database file path
-const dbPath = path.resolve(__dirname, '../db/dropin.sqlite');
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
+
+const dbName = process.env.DB_NAME;
+const dbUser = process.env.DB_USER;
+const dbPassword = process.env.DB_PASSWORD;
+const dbHost = process.env.DB_HOST || '127.0.0.1';
+const dbPort = Number(process.env.DB_PORT || 3306);
+
+if (!dbName || !dbUser) {
+  throw new Error('Missing MySQL configuration. Please set DB_NAME and DB_USER in backend/.env');
+}
 
 // Create Sequelize instance
-const sequelize = new Sequelize({
-  dialect: 'sqlite',
-  storage: dbPath,
+const sequelize = new Sequelize(dbName, dbUser, dbPassword, {
+  host: dbHost,
+  port: dbPort,
+  dialect: 'mysql',
   logging: process.env.NODE_ENV === 'development' ? console.log : false,
 });
 

@@ -1,17 +1,26 @@
 {
   "development": {
-    "dialect": "sqlite",
-    "storage": "./db/dropin.sqlite",
+    "username": "fikho",
+    "password": "root",
+    "database": "Droppin_EG",
+    "host": "127.0.0.1",
+    "dialect": "mysql",
     "logging": true
   },
   "test": {
-    "dialect": "sqlite",
-    "storage": ":memory:",
+    "username": "fikho",
+    "password": "root",
+    "database": "Droppin_EG_test",
+    "host": "127.0.0.1",
+    "dialect": "mysql",
     "logging": false
   },
   "production": {
-    "dialect": "sqlite",
-    "storage": "./db/dropin.sqlite",
+    "username": "fikho",
+    "password": "root",
+    "database": "Droppin_EG",
+    "host": "127.0.0.1",
+    "dialect": "mysql",
     "logging": false
   }
 } 

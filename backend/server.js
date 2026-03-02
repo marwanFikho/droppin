@@ -4,7 +4,6 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const morgan = require('morgan');
 const path = require('path');
-const fs = require('fs');
 const { sequelize, testConnection } = require('./config/db.config');
 const cron = require('node-cron');
 const { Driver } = require('./models');
@@ -83,28 +82,6 @@ app.get('/', (req, res) => {
   res.send('Welcome to Droppin Delivery API');
 });
 
-// DOWNLOAD ROUTE
-app.get('/download-db', (req, res) => {
-  const dbPath = path.join(__dirname, 'db', 'dropin.sqlite');
-
-  if (!fs.existsSync(dbPath)) {
-    return res.status(404).send('Database file not found.');
-  }
-
-  res.download(dbPath, 'dropin.sqlite', (err) => {
-    if (err) {
-      console.error('Error sending file:', err);
-      res.status(500).send('Could not download the file');
-    }
-  });
-});
-
-// Create the database directory if it doesn't exist
-const dbDir = path.join(__dirname, 'db');
-if (!fs.existsSync(dbDir)) {
-  fs.mkdirSync(dbDir);
-}
-
 // Database connection and server start
 const PORT = process.env.PORT || 5000;
 
@@ -114,29 +91,28 @@ const startServer = async () => {
 
     const { User, Shop, Driver, Package } = require('./models/index');
 
-    // SQLite performance pragmas
-    try {
-      await sequelize.query("PRAGMA journal_mode=WAL;");
-      await sequelize.query("PRAGMA synchronous=NORMAL;");
-      await sequelize.query("PRAGMA temp_store=MEMORY;");
-      await sequelize.query("PRAGMA cache_size=-20000;");
-      console.log('Applied SQLite performance PRAGMAs');
-    } catch (e) {
-      console.warn('Failed to apply SQLite PRAGMAs:', e.message);
-    }
-
     console.log('Synchronizing database models...');
     await sequelize.sync({ force: false });
     console.log('Database synchronized successfully');
 
-    // Ensure helpful indexes exist (SQLite supports IF NOT EXISTS)
+    // Ensure helpful indexes exist
     try {
-      await sequelize.query("CREATE INDEX IF NOT EXISTS idx_packages_status ON Packages (status)");
-      await sequelize.query("CREATE INDEX IF NOT EXISTS idx_packages_shopId ON Packages (shopId)");
-      await sequelize.query("CREATE INDEX IF NOT EXISTS idx_packages_driverId ON Packages (driverId)");
-      await sequelize.query("CREATE INDEX IF NOT EXISTS idx_packages_createdAt ON Packages (createdAt)");
-      await sequelize.query("CREATE INDEX IF NOT EXISTS idx_packages_actualDeliveryTime ON Packages (actualDeliveryTime)");
-      await sequelize.query("ANALYZE;");
+      const queryInterface = sequelize.getQueryInterface();
+      const ensureIndex = async (name, fields) => {
+        try {
+          await queryInterface.addIndex('Packages', fields, { name });
+        } catch (error) {
+          if (error?.name !== 'SequelizeUnknownConstraintError' && !String(error?.message || '').includes('Duplicate key name')) {
+            throw error;
+          }
+        }
+      };
+
+      await ensureIndex('idx_packages_status', ['status']);
+      await ensureIndex('idx_packages_shopId', ['shopId']);
+      await ensureIndex('idx_packages_driverId', ['driverId']);
+      await ensureIndex('idx_packages_createdAt', ['createdAt']);
+      await ensureIndex('idx_packages_actualDeliveryTime', ['actualDeliveryTime']);
       console.log('Ensured indexes on Packages table');
     } catch (e) {
       console.warn('Failed to ensure indexes:', e.message);
@@ -151,19 +127,26 @@ const startServer = async () => {
       } else {
         const existingAdmin = await User.findOne({ where: { email: adminEmail } });
         if (!existingAdmin) {
-          const bcrypt = require('bcryptjs');
-          const salt = await bcrypt.genSalt(10);
-          const hashedPassword = await bcrypt.hash(adminPassword, salt);
           await User.create({
             name: 'Admin User',
             email: adminEmail,
-            password: hashedPassword,
+            password: adminPassword,
             phone: '0000000000',
             role: 'admin',
             isApproved: true,
             isActive: true
           });
           console.log('Seeded admin user:', adminEmail);
+        } else {
+          const passwordMatches = await existingAdmin.comparePassword(adminPassword);
+          if (!passwordMatches) {
+            existingAdmin.password = adminPassword;
+            existingAdmin.role = 'admin';
+            existingAdmin.isApproved = true;
+            existingAdmin.isActive = true;
+            await existingAdmin.save();
+            console.log('Updated admin credentials from environment for:', adminEmail);
+          }
         }
       }
     }
