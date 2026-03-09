@@ -5,9 +5,8 @@ import tsconfigPaths from "vite-tsconfig-paths";
 
 installGlobals({ nativeFetch: true });
 
-// Hardcoded configuration
-const SHOPIFY_APP_URL = "https://droppin-testing.myshopify.com";
-const PORT = 4000;
+// Read from environment variables
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 4000;
 
 // Related: https://github.com/remix-run/remix/issues/2835#issuecomment-1144102176
 // Replace the HOST env var with SHOPIFY_APP_URL so that it doesn't break the remix server. The CLI will eventually
@@ -21,7 +20,7 @@ if (
   delete process.env.HOST;
 }
 
-const host = new URL(process.env.SHOPIFY_APP_URL || SHOPIFY_APP_URL || "http://localhost")
+const host = new URL(process.env.SHOPIFY_APP_URL || "http://localhost")
   .hostname;
 let hmrConfig;
 
@@ -43,7 +42,7 @@ if (host === "localhost") {
 
 export default defineConfig({
   server: {
-    allowedHosts: [host, "shopify.droppin-eg.com"],
+    allowedHosts: [host],
     cors: {
       preflightContinue: true,
     },

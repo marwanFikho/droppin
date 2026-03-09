@@ -136,7 +136,8 @@ export const loader = async ({ request }) => {
   } catch (e) {
     console.warn('DroppinShopConfig lookup failed (fallback to empty apiKey):', e?.message);
   }
-  return { orders, apiKey };
+  const apiBaseUrl = process.env.DROPPIN_API_URL || 'https://api.droppin-eg.com';
+  return { orders, apiKey, apiBaseUrl, shopDomain };
 };
 
 export const action = async ({ request }) => {
@@ -214,7 +215,7 @@ export default function Index() {
     "gid://shopify/Product/",
     "",
   );
-  const { orders, apiKey } = useLoaderData();
+  const { orders, apiKey, apiBaseUrl, shopDomain } = useLoaderData();
   const [selected, setSelected] = useState([]);
   const [sending, setSending] = useState(false);
   const [banner, setBanner] = useState(null);
@@ -307,14 +308,14 @@ export default function Index() {
       };
     });
     try {
-      const res = await fetch("https://api.droppin-eg.com/api/packages/shopify", {
+      const res = await fetch(`${apiBaseUrl}/api/packages/shopify`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${apiKey}`,
           "ngrok-skip-browser-warning": "true",
         },
-        body: JSON.stringify({ packages }),
+        body: JSON.stringify({ packages, shopDomain }),
       });
       if (res.ok) {
         setBanner({ status: "success", content: "Successfully sent orders to Droppin." });
@@ -336,7 +337,7 @@ export default function Index() {
   const syncSentOrders = async () => {
     setBanner({ status: "info", content: "Syncing sent orders..." });
     try {
-      const res = await fetch("https://api.droppin-eg.com/api/packages/shopify/sent-ids", {
+      const res = await fetch(`${apiBaseUrl}/api/packages/shopify/sent-ids`, {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${apiKey}`,

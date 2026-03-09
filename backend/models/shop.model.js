@@ -84,6 +84,11 @@ const Shop = sequelize.define('Shop', {
     type: DataTypes.STRING,
     allowNull: true,
     unique: true
+  },
+  shopDomain: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    comment: 'Shopify shop domain (e.g., droppin-testing.myshopify.com)'
   }
 }, {
   timestamps: true

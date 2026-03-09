@@ -17,13 +17,22 @@ router.get('/track/:trackingNumber', packageController.getPackageByTracking);
 router.post('/shopify', apiKeyAuth, async (req, res) => {
   console.log('Received POST /api/packages/shopify');
   try {
-    const { packages } = req.body;
+    const { packages, shopDomain } = req.body;
     console.log('Received package payload:', JSON.stringify(packages, null, 2));
     if (!Array.isArray(packages) || packages.length === 0) {
       return res.status(400).json({ message: 'No packages provided' });
     }
 
-
+    // Update shop's shopDomain if provided and not already set
+    if (shopDomain && req.shop && !req.shop.shopDomain) {
+      try {
+        await req.shop.update({ shopDomain });
+        console.log(`Updated shop ${req.shop.id} with shopDomain: ${shopDomain}`);
+      } catch (updateErr) {
+        console.warn('Failed to update shop shopDomain:', updateErr.message);
+        // Don't fail the request if shopDomain update fails
+      }
+    }
 
     // Helper to generate tracking number
     function generateTrackingNumber() {

@@ -2128,6 +2128,71 @@ exports.updatePackageStatus = async (req, res) => {
     // Commit the transaction
     await t.commit();
     
+    // === Shopify Order Fulfillment ===
+    // If this is a Shopify order and status is delivered or delivered-returned, notify Shopify app to fulfill the order
+    console.log('[Fulfillment Check] Package:', {
+      id: package.id,
+      trackingNumber: package.trackingNumber,
+      status: nextStatus,
+      shopifyOrderId: package.shopifyOrderId,
+      shopId: package.shopId,
+      shopDomain: shop?.shopDomain,
+      hasApiKey: !!shop?.apiKey
+    });
+
+    if (
+      (nextStatus === 'delivered' || nextStatus === 'delivered-returned') &&
+      package.shopifyOrderId &&
+      shop?.shopDomain
+    ) {
+      try {
+        const shopifyAppUrl = process.env.SHOPIFY_APP_URL || 'https://shopify.droppin-eg.com';
+        const fulfillmentUrl = `${shopifyAppUrl}/api/fulfillment`;
+        
+        console.log(`[Fulfillment] Calling webhook: ${fulfillmentUrl}`);
+        console.log('[Fulfillment] Payload:', {
+          shopifyOrderId: package.shopifyOrderId,
+          shopDomain: shop.shopDomain,
+          packageId: package.id,
+          trackingNumber: package.trackingNumber
+        });
+
+        const response = await fetch(fulfillmentUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${shop.apiKey}`
+          },
+          body: JSON.stringify({
+            shopifyOrderId: package.shopifyOrderId,
+            shopDomain: shop.shopDomain,
+            packageId: package.id,
+            trackingNumber: package.trackingNumber
+          })
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`[Fulfillment ERROR] Failed to fulfill Shopify order ${package.shopifyOrderId}:`, errorText);
+          console.error(`[Fulfillment ERROR] Response status: ${response.status}`);
+        } else {
+          const responseData = await response.json();
+          console.log(`✓ [Fulfillment SUCCESS] Shopify order ${package.shopifyOrderId} marked as fulfilled for shop ${shop.shopDomain}`);
+          console.log('[Fulfillment SUCCESS] Response:', responseData);
+        }
+      } catch (fulfillError) {
+        console.error('[Fulfillment ERROR] Exception:', fulfillError.message);
+        console.error('[Fulfillment ERROR] Stack:', fulfillError.stack);
+        // Don't fail the status update if Shopify fulfillment fails
+      }
+    } else {
+      console.log('[Fulfillment] Skipped - Conditions not met:', {
+        isDeliveredStatus: nextStatus === 'delivered' || nextStatus === 'delivered-returned',
+        hasShopifyOrderId: !!package.shopifyOrderId,
+        hasShopDomain: !!shop?.shopDomain
+      });
+    }
+    
     // Format the response with Cairo timezone dates
     const formattedPackage = formatPackageForResponse(updatedPackage);
     res.json(formattedPackage);

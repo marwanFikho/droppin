@@ -7,7 +7,7 @@ application_url = "https://shopify.droppin-eg.com"
 embedded = true
 
 [build]
-automatically_update_urls_on_dev = false
+automatically_update_urls_on_dev = true
 dev_store_url = "droppin-testing.myshopify.com"
  
 [webhooks]
@@ -26,7 +26,7 @@ uri = "/webhooks/app/scopes_update"
 [[webhooks.subscriptions]]
 compliance_topics = ["customers/data_request", "customers/redact", "shop/redact"]
 # Update this URI when changing DROPPIN_API_URL in .env
-uri = "https://api.droppin-eg.com/webhooks"
+uri = "https://36ee-197-37-76-99.ngrok-free.app/webhooks"
  
  
 [access_scopes]
