@@ -1,25 +1,56 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import logo from '../assets/images/logo.jpg';
 import api from '../services/api';
-import { FaTrash } from 'react-icons/fa';
-import { FaTrashAlt } from 'react-icons/fa';
-import { motion } from 'framer-motion';
+import { FaTrash, FaTrashAlt, FaBell } from 'react-icons/fa';
 
 const Navigation = () => {
+  const { t, i18n } = useTranslation();
+  const isRtl = i18n.dir() === 'rtl';
   const { currentUser, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  // Track whether we should use the mobile sliding menu based on viewport width.
-  const [isMobileMenu, setIsMobileMenu] = useState(() => window.innerWidth <= 768);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showLanguageMenu, setShowLanguageMenu] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [loadingNotifications, setLoadingNotifications] = useState(false);
   const notificationDropdownRef = useRef(null);
+  const languageDropdownRef = useRef(null);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [isScrolled, setIsScrolled] = useState(false);
+  const navCollapseRef = useRef(null);
+  const navToggleRef = useRef(null);
+  const navRootRef = useRef(null);
+  const [isMobileNav, setIsMobileNav] = useState(typeof window !== 'undefined' ? window.innerWidth < 992 : false);
+
+  useEffect(() => {
+    const onResize = () => setIsMobileNav(window.innerWidth < 992);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  useEffect(() => {
+    const applyNavHeightVar = () => {
+      const navHeight = navRootRef.current?.offsetHeight || 64;
+      document.documentElement.style.setProperty('--app-nav-height', `${navHeight}px`);
+    };
+
+    applyNavHeightVar();
+    window.addEventListener('resize', applyNavHeightVar);
+    return () => window.removeEventListener('resize', applyNavHeightVar);
+  }, []);
+
+  const closeMobileMenu = () => {
+    if (typeof window === 'undefined' || window.innerWidth >= 992) return;
+    const collapseEl = navCollapseRef.current;
+    if (!collapseEl || !collapseEl.classList.contains('show')) return;
+    collapseEl.classList.remove('show');
+    if (navToggleRef.current) {
+      navToggleRef.current.classList.add('collapsed');
+      navToggleRef.current.setAttribute('aria-expanded', 'false');
+    }
+  };
 
   // Fetch notifications when dropdown is opened
   useEffect(() => {
@@ -30,10 +61,8 @@ const Navigation = () => {
           const data = res.data;
           setNotifications(data);
           setLoadingNotifications(false);
-          // Mark all as read when dropdown is opened
           if (data.some(n => !n.isRead)) {
             api.post('/notifications/mark-all-read').then(() => {
-              // Update local state to mark all as read
               setNotifications((prev) => prev.map(n => ({ ...n, isRead: true })));
             });
           }
@@ -63,8 +92,11 @@ const Navigation = () => {
       if (notificationDropdownRef.current && !notificationDropdownRef.current.contains(event.target)) {
         setShowNotifications(false);
       }
+      if (languageDropdownRef.current && !languageDropdownRef.current.contains(event.target)) {
+        setShowLanguageMenu(false);
+      }
     }
-    if (showNotifications) {
+    if (showNotifications || showLanguageMenu) {
       document.addEventListener('mousedown', handleClickOutside);
     } else {
       document.removeEventListener('mousedown', handleClickOutside);
@@ -72,23 +104,19 @@ const Navigation = () => {
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [showNotifications]);
-
-  // Handle scroll effect
-  useEffect(() => {
-    const handleScroll = () => {
-      const scrollTop = window.scrollY;
-      setIsScrolled(scrollTop > 50);
-    };
-
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+  }, [showNotifications, showLanguageMenu]);
 
   const handleLogout = () => {
+    closeMobileMenu();
     logout();
     navigate('/');
-    setIsMenuOpen(false); // Close menu on logout
+  };
+
+  const handleLanguageSelect = (languageCode) => {
+    i18n.changeLanguage(languageCode);
+    localStorage.setItem('selectedLanguage', languageCode);
+    setShowLanguageMenu(false);
+    closeMobileMenu();
   };
 
   // Handler to delete a notification
@@ -130,15 +158,6 @@ const Navigation = () => {
     }
   };
 
-  const toggleMenu = () => {
-    if (!isMobileMenu) return; // Ignore toggles when mobile menu disabled
-    setIsMenuOpen(prev => !prev);
-  };
-
-  const closeMenu = () => {
-    setIsMenuOpen(false);
-  };
-
   // Check if a link is active
   const isLinkActive = (path) => {
     if (path === '/') {
@@ -147,126 +166,264 @@ const Navigation = () => {
     return location.pathname.startsWith(path);
   };
 
-  // Update mobile menu state on resize and auto-close if leaving mobile
-  useEffect(() => {
-    const handleResize = () => {
-      const nowMobile = window.innerWidth <= 768;
-      setIsMobileMenu(nowMobile);
-      if (!nowMobile) {
-        setIsMenuOpen(false); // ensure links are visible in desktop mode
-      }
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
   return (
-    <motion.nav
-      className={`main-nav ${isScrolled ? 'scrolled' : ''}`}
-      initial={{ y: -100 }}
-      animate={{ y: 0 }}
-      transition={{ duration: 0.6, ease: "easeOut" }}
-    >
-      <div className="nav-container">
-        <div className="nav-logo">
-          <Link to="/" onClick={closeMenu}>
-            <img src={logo} alt="Droppin Logo" className="nav-logo-image" />
-            <span className="logo-text">Droppin</span>
-          </Link>
-        </div>
+    <nav ref={navRootRef} className="navbar navbar-expand-lg navbar-light bg-white sticky-top border-bottom border-2" style={{ borderBottomColor: '#FF6B00' }}>
+      <div className="container-fluid px-3 px-lg-5">
+        {/* Logo and Brand */}
+        <Link className="navbar-brand d-flex align-items-center" to="/" onClick={closeMobileMenu} style={{ gap: '8px' }}>
+          <img src={logo} alt="Droppin Logo" style={{ height: '40px', width: 'auto', borderRadius: '9px' }} />
+          <span className="fw-700" style={{ fontSize: '1.5rem', color: '#FF6B00', letterSpacing: '-0.5px', WebkitTextStroke: '0.35px #e86d14', textShadow: '0 0 0.2px #e86d14' }}>{t('brand.name')}</span>
+        </Link>
 
-        {isMobileMenu && (
-          <button className="hamburger-menu" onClick={toggleMenu} aria-label={isMenuOpen ? 'Close menu' : 'Open menu'}>
-            {isMenuOpen ? '✕' : '☰'}
-          </button>
-        )}
-
-        <motion.div
-          className={`nav-links ${isMobileMenu && isMenuOpen ? 'open' : ''}`}
-          initial={false}
-          animate={isMobileMenu ? { x: isMenuOpen ? 0 : '100%' } : { x: 0 }}
-          transition={isMobileMenu ? { type: 'spring', stiffness: 300, damping: 30, duration: 0.45 } : { duration: 0 }}
+        {/* Hamburger Toggle */}
+        <button
+          ref={navToggleRef}
+          className="navbar-toggler border-0"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#navbarNav"
+          aria-controls="navbarNav"
+          aria-expanded="false"
+          aria-label="Toggle navigation"
         >
-          <Link to="/" className={`nav-link ${isLinkActive('/') ? 'active' : ''}`} onClick={closeMenu}>Home</Link>
-          <Link to="/track" className={`nav-link ${isLinkActive('/track') ? 'active' : ''}`} onClick={closeMenu}>Track Package</Link>
-          
-          {currentUser ? (
-            <>
-              {getDashboardLink() && (
-                <Link to={getDashboardLink()} className={`nav-link ${isLinkActive(getDashboardLink()) ? 'active' : ''}`} onClick={closeMenu}>
-                  {currentUser.role.charAt(0).toUpperCase() + currentUser.role.slice(1)} Dashboard
-                </Link>
-              )}
-              <button onClick={handleLogout} className="nav-link logout-btn">Logout</button>
-              {['admin', 'shop', 'driver'].includes(currentUser?.role) && (
-                <div style={{ position: 'relative', display: 'inline-block', marginLeft: '10px' }} ref={notificationDropdownRef}>
+          <span className="navbar-toggler-icon"></span>
+        </button>
+
+        {/* Main Navigation Menu */}
+        <div
+          ref={navCollapseRef}
+          className="collapse navbar-collapse"
+          id="navbarNav"
+          style={isMobileNav ? undefined : { paddingInlineEnd: isRtl ? '1rem' : 0, paddingInlineStart: isRtl ? 0 : '1rem' }}
+        >
+          <ul
+            className={`navbar-nav ${isRtl ? 'me-auto' : 'ms-auto'} align-items-lg-center`}
+            style={{ gap: '2rem' }}
+          >
+            
+            <li className="nav-item dropdown" ref={languageDropdownRef}>
+              <button
+                type="button"
+                className="btn btn-outline-secondary fw-600 dropdown-toggle"
+                onClick={() => setShowLanguageMenu((prev) => !prev)}
+                aria-expanded={showLanguageMenu}
+                aria-haspopup="true"
+                style={{ fontSize: '0.9rem', padding: '0.45rem 1rem' }}
+              >
+                {i18n.language === 'ar' ? t('language.arabic') : t('language.english')}
+              </button>
+              {showLanguageMenu && (
+                <div
+                  className="dropdown-menu show"
+                  style={isMobileNav
+                    ? { position: 'static', width: '100%', marginTop: '0.5rem' }
+                    : { left: '50%', transform: 'translateX(-50%)', marginTop: '0.5rem' }}
+                >
                   <button
-                    className="nav-link notification-link"
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, position: 'relative' }}
-                    onClick={() => { console.log('Bell clicked!'); setShowNotifications((prev) => !prev); }}
+                    type="button"
+                    className={`dropdown-item ${i18n.language === 'en' ? 'active' : ''}`}
+                    onClick={() => handleLanguageSelect('en')}
                   >
-                    {/* Bell SVG icon */}
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M12 22C13.1046 22 14 21.1046 14 20H10C10 21.1046 10.8954 22 12 22ZM18 16V11C18 7.68629 16.2091 4.87972 13 4.18415V4C13 3.44772 12.5523 3 12 3C11.4477 3 11 3.44772 11 4V4.18415C7.79086 4.87972 6 7.68629 6 11V16L4 18V19H20V18L18 16Z" stroke="#333" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                    {unreadCount > 0 && (
-                      <span style={{ position: 'absolute', top: 0, right: 0, background: 'red', color: 'white', borderRadius: '50%', fontSize: 12, minWidth: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 5px', fontWeight: 'bold', transform: 'translate(50%, -50%)' }}>{unreadCount}</span>
-                    )}
+                    {t('language.english')}
                   </button>
-                  {showNotifications && (
-                    <div style={{ position: 'absolute', right: 0, top: '110%', background: '#fff', boxShadow: '0 2px 8px rgba(0,0,0,0.15)', borderRadius: 6, minWidth: 280, zIndex: 1000 }}>
-                      <div style={{ padding: '10px', borderBottom: '1px solid #eee', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <span>Notifications</span>
-                        {(currentUser?.role === 'admin' || currentUser?.role === 'shop') && notifications.length > 0 && (
-                          <button
-                            onClick={handleDeleteAllNotifications}
-                            style={{ background: 'none', border: 'none', color: '#c00', marginLeft: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '24px', height: '24px' }}
-                            title="Delete all notifications"
-                          >
-                            <FaTrashAlt size={16} />
-                          </button>
-                        )}
-                      </div>
-                      {loadingNotifications ? (
-                        <div style={{ padding: '10px' }}>Loading...</div>
-                      ) : notifications.length === 0 ? (
-                        <div style={{ padding: '10px' }}>No notifications</div>
-                      ) : (
-                        <ul style={{ listStyle: 'none', margin: 0, padding: 0, maxHeight: 300, overflowY: 'auto' }}>
-                          {notifications.slice(0, 10).map((notif) => (
-                            <li key={notif.id} style={{ display: 'flex', alignItems: 'center', padding: '10px', borderBottom: '1px solid #eee', background: notif.isRead ? '#fff' : '#f5faff' }}>
-                              <div style={{ flex: 1 }}>
-                                <div style={{ fontWeight: notif.isRead ? 'normal' : 'bold' }}>{notif.title}</div>
-                                <div style={{ fontSize: 13, color: '#555' }}>{notif.message}</div>
-                                <div style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>{new Date(notif.createdAt).toLocaleString()}</div>
-                              </div>
-                              {(currentUser?.role === 'admin' || currentUser?.role === 'shop') && (
-                                <button
-                                  onClick={() => handleDeleteNotification(notif.id)}
-                                  style={{ background: 'none', border: 'none', color: '#c00', marginLeft: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '20px', height: '20px' }}
-                                  title="Delete notification"
-                                >
-                                  <FaTrash size={14} />
-                                </button>
-                              )}
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-                  )}
+                  <button
+                    type="button"
+                    className={`dropdown-item ${i18n.language === 'ar' ? 'active' : ''}`}
+                    onClick={() => handleLanguageSelect('ar')}
+                  >
+                    {t('language.arabic')}
+                  </button>
                 </div>
               )}
-            </>
-          ) : (
-            <>
-              <Link to="/login" className="nav-link" onClick={closeMenu}>Login</Link>
-              <Link to="/register/shop" className="nav-link" onClick={closeMenu}>Register</Link>
-            </>
-          )}
-        </motion.div>
+            </li>
+            
+            
+            {/* Home Link */}
+            <li className="nav-item">
+              <Link
+                className={`nav-link fw-600 px-0 ${isLinkActive('/') && location.pathname === '/' ? 'active' : ''}`}
+                to="/"
+                onClick={closeMobileMenu}
+                style={isLinkActive('/') && location.pathname === '/' ? {
+                  color: '#FF6B00',
+                  borderBottom: '3px solid #FF6B00',
+                  paddingBottom: '0.5rem',
+                  fontSize: '1rem'
+                } : { color: '#1f2937', fontSize: '1rem' }}
+              >
+                {t('navigation.home')}
+              </Link>
+            </li>
+
+            {/* Track Package Link */}
+            <li className="nav-item">
+              <Link
+                className={`nav-link fw-600 px-0 ${isLinkActive('/track') ? 'active' : ''}`}
+                to="/track"
+                onClick={closeMobileMenu}
+                style={isLinkActive('/track') ? {
+                  color: '#FF6B00',
+                  borderBottom: '3px solid #FF6B00',
+                  paddingBottom: '0.5rem',
+                  fontSize: '1rem'
+                } : { color: '#1f2937', fontSize: '1rem' }}
+              >
+                {t('navigation.trackPackage')}
+              </Link>
+            </li>
+
+            {/* Authenticated User Links */}
+            {currentUser ? (
+              <>
+                {/* Dashboard Link */}
+                {getDashboardLink() && (
+                  <li className="nav-item">
+                    <Link
+                      className={`nav-link fw-600 px-0 ${isLinkActive(getDashboardLink()) ? 'active' : ''}`}
+                      to={getDashboardLink()}
+                      onClick={closeMobileMenu}
+                      style={isLinkActive(getDashboardLink()) ? {
+                        color: '#FF6B00',
+                        borderBottom: '3px solid #FF6B00',
+                        paddingBottom: '0.5rem',
+                        fontSize: '1rem'
+                      } : { color: '#1f2937', fontSize: '1rem' }}
+                    >
+                      {t('navigation.dashboardByRole', { role: t(`navigation.roles.${currentUser.role}`, { defaultValue: currentUser.role }) })}
+                    </Link>
+                  </li>
+                )}
+
+                {/* Notifications Dropdown */}
+                {['admin', 'shop', 'driver'].includes(currentUser?.role) && (
+                  <li className="nav-item dropdown" ref={notificationDropdownRef}>
+                    <button
+                      className="nav-link btn btn-link position-relative"
+                      onClick={() => setShowNotifications(!showNotifications)}
+                      style={{ textDecoration: 'none', color: '#1f2937' }}
+                      title={t('navigation.notifications.title')}
+                    >
+                      <FaBell size={20} />
+                      {unreadCount > 0 && (
+                        <span className={`position-absolute top-0 ${isRtl ? 'end-100' : 'start-100'} translate-middle badge rounded-pill bg-danger`}>
+                          {unreadCount}
+                        </span>
+                      )}
+                    </button>
+
+                    {/* Notifications Dropdown Menu */}
+                    {showNotifications && (
+                      <div
+                        className="dropdown-menu show p-0"
+                        style={isMobileNav
+                          ? {
+                              position: 'static',
+                              width: '100%',
+                              maxWidth: '100%',
+                              minWidth: '0',
+                              marginTop: '0.5rem',
+                              borderRadius: '12px',
+                              border: '1px solid #e5e7eb',
+                              boxShadow: '0 12px 28px rgba(0, 0, 0, 0.12)'
+                            }
+                          : {
+                              right: isRtl ? 'auto' : 0,
+                              left: isRtl ? 0 : 'auto',
+                              width: 'min(350px, calc(100vw - 24px))',
+                              minWidth: '0',
+                              maxWidth: 'calc(100vw - 24px)',
+                              marginTop: '8px',
+                              borderRadius: '12px',
+                              border: '1px solid #e5e7eb',
+                              boxShadow: '0 12px 28px rgba(0, 0, 0, 0.12)'
+                            }}
+                      >
+                        {/* Notifications Header */}
+                        <div className="dropdown-header d-flex justify-content-between align-items-center py-3">
+                          <span className="fw-700">{t('navigation.notifications.title')}</span>
+                          {(currentUser?.role === 'admin' || currentUser?.role === 'shop') && notifications.length > 0 && (
+                            <button
+                              className="btn btn-sm btn-link"
+                              onClick={handleDeleteAllNotifications}
+                              style={{ color: '#dc3545', textDecoration: 'none' }}
+                              title={t('navigation.notifications.deleteAll')}
+                            >
+                              <FaTrashAlt size={14} />
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Notifications List */}
+                        {loadingNotifications ? (
+                          <div className="dropdown-item text-center py-3">
+                            <div className="spinner-border spinner-border-sm text-primary" role="status">
+                              <span className="visually-hidden">{t('status.loading')}</span>
+                            </div>
+                          </div>
+                        ) : notifications.length === 0 ? (
+                          <div className="dropdown-item text-center text-muted py-3">{t('navigation.notifications.empty')}</div>
+                        ) : (
+                          <div style={{ maxHeight: '350px', overflowY: 'auto' }}>
+                            {notifications.slice(0, 10).map((notif) => (
+                              <div key={notif.id} className="dropdown-item px-3 py-2 border-bottom d-flex mb-0" style={{ backgroundColor: notif.isRead ? '#fff' : '#f5faff' }}>
+                                <div className="flex-grow-1" style={{ minWidth: 0 }}>
+                                  <div className={notif.isRead ? '' : 'fw-700'}>{notif.title}</div>
+                                  <div className="small text-muted">{notif.message}</div>
+                                  <div className="small text-secondary-emphasis" style={{ fontSize: '0.75rem' }}>
+                                    {new Date(notif.createdAt).toLocaleString()}
+                                  </div>
+                                </div>
+                                {(currentUser?.role === 'admin' || currentUser?.role === 'shop') && (
+                                  <button
+                                    className={`btn btn-sm btn-link ${isRtl ? 'me-2' : 'ms-2'}`}
+                                    onClick={() => handleDeleteNotification(notif.id)}
+                                    style={{ color: '#dc3545', textDecoration: 'none', padding: '0.25rem' }}
+                                    title={t('navigation.notifications.delete')}
+                                  >
+                                    <FaTrash size={12} />
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </li>
+                )}
+
+                {/* Logout Button */}
+                <li className="nav-item">
+                  <button
+                    onClick={handleLogout}
+                    className="btn btn-outline-danger fw-600"
+                    style={{ fontSize: '0.95rem', padding: '0.5rem 1.5rem' }}
+                  >
+                    {t('navigation.logout')}
+                  </button>
+                </li>
+              </>
+            ) : (
+              <>
+                {/* Login Link */}
+                <li className="nav-item">
+                  <Link className="nav-link fw-600 px-0" to="/login" onClick={closeMobileMenu} style={{ color: '#1f2937', fontSize: '1rem' }}>
+                    {t('navigation.login')}
+                  </Link>
+                </li>
+
+                {/* Register Button */}
+                <li className="nav-item">
+                  <Link className="btn btn-primary fw-600" to="/register/shop" onClick={closeMobileMenu} style={{ fontSize: '0.95rem', padding: '0.5rem 1.5rem' }}>
+                    {t('navigation.register')}
+                  </Link>
+                </li>
+              </>
+            )}
+          </ul>
+        </div>
       </div>
-    </motion.nav>
+    </nav>
   );
 };
 

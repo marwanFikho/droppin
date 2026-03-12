@@ -1,18 +1,18 @@
 import React, { useState, useContext, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
 import { packageService } from '../../services/api';
 import { ShopDashboardContext } from './Dashboard'; // Import the ShopDashboardContext
-import { sanitizeNameInput, validateName, validatePhone } from '../../utils/inputValidators';
+import { sanitizeNameInput } from '../../utils/inputValidators';
+import { useTranslation } from 'react-i18next';
 
 const CATEGORY_OPTIONS = [
-  'Shoes',
-  'Perfumes',
-  'Clothes',
-  'Electronics',
-  'Accessories',
-  'Books',
-  'Other'
+  'shoes',
+  'perfumes',
+  'clothes',
+  'electronics',
+  'accessories',
+  'books',
+  'other'
 ];
 
 const parseAddress = (addressStr) => {
@@ -22,7 +22,7 @@ const parseAddress = (addressStr) => {
 };
 
 const CreatePackage = () => {
-  const { currentUser } = useAuth();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -82,23 +82,22 @@ const CreatePackage = () => {
           pickupAddress: { ...pickupAddress, instructions: '' }
         }));
       } catch (err) {
-        setError('Failed to load shop address.');
+        setError(t('shop.createPackage.errors.loadShopAddress'));
       }
     };
     fetchShopProfile();
-  }, []);
+  }, [t]);
 
   // Update items when itemsNo changes
   useEffect(() => {
     const itemsNo = parseInt(formData.itemsNo) || 0;
     if (itemsNo > 0) {
-      const newItems = Array.from({ length: itemsNo }, (_, index) => ({
+      setItems((prevItems) => Array.from({ length: itemsNo }, (_, index) => ({
         id: index,
-        description: items[index]?.description || '',
-        quantity: items[index]?.quantity || 1,
-        codPerUnit: items[index]?.codPerUnit || ''
-      }));
-      setItems(newItems);
+        description: prevItems[index]?.description || '',
+        quantity: prevItems[index]?.quantity || 1,
+        codPerUnit: prevItems[index]?.codPerUnit || ''
+      })));
     } else {
       setItems([]);
     }
@@ -189,40 +188,40 @@ const CreatePackage = () => {
     try {
       // Validate required fields
       if (!formData.packageDescription || !formData.weight || !formData.category) {
-        throw new Error('Please fill in all required fields');
+        throw new Error(t('shop.createPackage.errors.requiredFields'));
       }
       
       if (!formData.deliveryAddress.contactName || !formData.deliveryAddress.contactPhone ||
           !formData.deliveryAddress.street || !formData.deliveryAddress.city ||
           !formData.deliveryAddress.country) {
-        throw new Error('Please complete all delivery address fields');
+        throw new Error(t('shop.createPackage.errors.deliveryAddressRequired'));
       }
       
       // Validate phone number format (01xxxxxxxxx)
       if (!/^01\d{9}$/.test(formData.deliveryAddress.contactPhone)) {
-        throw new Error('Phone number must be in format: 01xxxxxxxxx (11 digits starting with 01)');
+        throw new Error(t('shop.createPackage.errors.phoneFormat'));
       }
 
       // Validate items
       if (!formData.itemsNo || parseInt(formData.itemsNo) <= 0) {
-        throw new Error('Please specify the number of items');
+        throw new Error(t('shop.createPackage.errors.itemsCountRequired'));
       }
 
       if (items.length !== parseInt(formData.itemsNo)) {
-        throw new Error('Please fill in all item details');
+        throw new Error(t('shop.createPackage.errors.itemsDetailsRequired'));
       }
 
       // Validate each item
       for (let i = 0; i < items.length; i++) {
         const item = items[i];
         if (!item.description || item.description.trim() === '') {
-          throw new Error(`Please enter description for item ${i + 1}`);
+          throw new Error(t('shop.createPackage.errors.itemDescriptionRequired', { number: i + 1 }));
         }
         if (!item.quantity || item.quantity <= 0) {
-          throw new Error(`Please enter a valid quantity for item ${i + 1}`);
+          throw new Error(t('shop.createPackage.errors.itemQuantityInvalid', { number: i + 1 }));
         }
         if (item.codPerUnit < 0) {
-          throw new Error(`COD per unit for item ${i + 1} cannot be negative`);
+          throw new Error(t('shop.createPackage.errors.itemCodNegative', { number: i + 1 }));
         }
       }
       
@@ -253,7 +252,7 @@ const CreatePackage = () => {
       };
       
       // Submit to API
-      const response = await packageService.createPackage(packageData);
+      await packageService.createPackage(packageData);
       
       // Show success modal instead of text alert
       setShowSuccessModal(true);
@@ -308,7 +307,7 @@ const CreatePackage = () => {
       }, 2000);
       
     } catch (err) {
-      setError(err.message || 'Failed to create package. Please try again.');
+      setError(err.message || t('shop.createPackage.errors.createFailed'));
       console.error('Error creating package:', err);
     } finally {
       setIsSubmitting(false);
@@ -316,502 +315,344 @@ const CreatePackage = () => {
   };
 
   return (
-  <div className="shop-packages-page create-package-layout" style={{ maxWidth: '1200px', margin: '0 auto', padding: '2rem' }}>
-      {error && <div className="alert alert-error">{error}</div>}
-      
-      {/* Success Modal */}
+    <div className="container-fluid px-3 px-md-4 py-4" style={{ maxWidth: '1200px' }}>
+      <div className="rounded-4 shadow-sm p-4 p-md-5 mb-4 text-white" style={{ background: 'linear-gradient(135deg, #ff7a3d 0%, #fa8831 28%, #cd7955 52%, #9d8f8d 74%, #4e97ef 100%)' }}>
+        <h1 className="h4 fw-bold mb-1">{t('shop.createPackage.title')}</h1>
+        <p className="mb-0" style={{ color: '#f8fafc' }}>{t('shop.createPackage.subtitle')}</p>
+      </div>
+
+      {error && <div className="alert alert-danger">{error}</div>}
+
       {showSuccessModal && (
-        <div
-          className="create-package-success-overlay"
-          style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          zIndex: 1000
-        }}
-        >
-          <div
-            className="create-package-success-modal"
-            style={{
-            backgroundColor: 'white',
-            padding: '2rem',
-            borderRadius: '8px',
-            boxShadow: '0 2px 10px rgba(0, 0, 0, 0.1)',
-            maxWidth: '400px',
-            width: '90%',
-            textAlign: 'center'
-          }}
-          >
-            <div style={{
-              fontSize: '3rem',
-              color: '#4CAF50',
-              marginBottom: '1rem'
-            }}>
-              ✓
-            </div>
-            <h2 style={{
-              fontSize: '1.5rem',
-              color: '#333',
-              marginBottom: '1rem'
-            }}>
-              Package Created Successfully!
-            </h2>
-            <p style={{
-              color: '#666',
-              marginBottom: '1.5rem'
-            }}>
-              Your package has been created and is ready for pickup.
-            </p>
-            <div style={{
-              fontSize: '0.9rem',
-              color: '#888'
-            }}>
-              Redirecting to packages list...
-            </div>
+        <div className="position-fixed top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center" style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)', zIndex: 1200 }}>
+          <div className="bg-white rounded-4 shadow p-4 text-center" style={{ maxWidth: '420px', width: '90%' }}>
+            <div className="fs-1 text-success mb-2">✓</div>
+            <h2 className="h5 fw-bold mb-2">{t('shop.createPackage.success.title')}</h2>
+            <p className="text-muted mb-2">{t('shop.createPackage.success.subtitle')}</p>
+            <small className="text-secondary">{t('shop.createPackage.success.redirecting')}</small>
           </div>
         </div>
       )}
 
-      <div className="create-package-page">
-        <div className="form-container create-package-form-container" style={{ maxWidth: '100%', margin: '0 auto' }}>
-          <form onSubmit={handleSubmit} className="create-package-form">
-            <div className="form-section" style={{ marginBottom: '1rem' }}>
-              <h2 style={{ fontSize: '1.2rem', marginBottom: '0.5rem', color: '#ff8c00' }}>Package Information</h2>
-              
-              <div className="basic-info-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem' }}>
-                <div className="form-group" style={{ 
-                marginBottom: '1rem' 
-              }}>
-                <label htmlFor="packageDescription" style={{ 
-                  display: 'block', 
-                  marginBottom: '0.5rem', 
-                  fontWeight: '600', 
-                  color: '#333' 
-                }}>
-                  Description*
-                </label>
-                <input
-                  type="text"
-                  id="packageDescription"
-                  name="packageDescription"
-                  value={formData.packageDescription}
-                  onChange={handleChange}
-                  placeholder="Describe contents"
-                  required
-                  style={{ 
-                    width: '100%', 
-                    padding: '0.75rem', 
-                    border: '1px solid #ddd', 
-                    borderRadius: '6px', 
-                    fontSize: '1rem',
-                    transition: 'border-color 0.2s ease'
-                  }}
-                  onFocus={(e) => e.target.style.borderColor = '#ff8c00'}
-                  onBlur={(e) => e.target.style.borderColor = '#ddd'}
-                />
-              </div>
+      <form onSubmit={handleSubmit} className="d-flex flex-column gap-3">
+        <section className="rounded-4 shadow-sm p-3 p-md-4" style={{ background: '#fffaf5' }}>
+          <h2 className="h5 fw-bold mb-3" style={{ color: '#ff8c00' }}>{t('shop.createPackage.sections.packageInfo')}</h2>
 
-                <div className="form-group" style={{ 
-                marginBottom: '1rem' 
-              }}>
-                <label htmlFor="category" style={{ 
-                  display: 'block', 
-                  marginBottom: '0.5rem', 
-                  fontWeight: '600', 
-                  color: '#333' 
-                }}>
-                  Category*
-                </label>
-                <select
-                  id="category"
-                  name="category"
-                  value={formData.category}
-                  onChange={handleChange}
-                  required
-                  style={{ 
-                    width: '100%', 
-                    padding: '0.75rem', 
-                    border: '1px solid #ddd', 
-                    borderRadius: '6px', 
-                    fontSize: '1rem',
-                    backgroundColor: 'white',
-                    transition: 'border-color 0.2s ease'
-                  }}
-                  onFocus={(e) => e.target.style.borderColor = '#ff8c00'}
-                  onBlur={(e) => e.target.style.borderColor = '#ddd'}
-                >
-                  <option value="">Select category</option>
-                  {CATEGORY_OPTIONS.map(opt => (
-                    <option key={opt} value={opt}>{opt}</option>
-                  ))}
-                </select>
-              </div>
-              </div>
-
-              <div className="dimensions-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)'}}>
-                <div className="form-group">
-                  <label htmlFor="weight">Weight (kg)*</label>
-                  <input
-                    type="number"
-                    id="weight"
-                    name="weight"
-                    value={formData.weight}
-                    onChange={handleChange}
-                    placeholder="Weight"
-                    step="0.01"
-                    min="0.01"
-                    required
-                    style={{ padding: '0.5rem' }}
-                  />
-                </div>
-                
-                <div className="form-group">
-                  <label htmlFor="dimensions.length">Length (cm)</label>
-                  <input
-                    type="number"
-                    id="dimensions.length"
-                    name="dimensions.length"
-                    value={formData.dimensions.length}
-                    onChange={handleChange}
-                    placeholder="Length"
-                    min="0"
-                    step="0.1"
-                    style={{ padding: '0.5rem' }}
-                  />
-                </div>
-                
-                <div className="form-group">
-                  <label htmlFor="dimensions.width">Width (cm)</label>
-                  <input
-                    type="number"
-                    id="dimensions.width"
-                    name="dimensions.width"
-                    value={formData.dimensions.width}
-                    onChange={handleChange}
-                    placeholder="Width"
-                    min="0"
-                    step="0.1"
-                    style={{ padding: '0.5rem' }}
-                  />
-                </div>
-                
-                <div className="form-group">
-                  <label htmlFor="dimensions.height">Height (cm)</label>
-                  <input
-                    type="number"
-                    id="dimensions.height"
-                    name="dimensions.height"
-                    value={formData.dimensions.height}
-                    onChange={handleChange}
-                    placeholder="Height"
-                    min="0"
-                    step="0.1"
-                    style={{ padding: '0.5rem' }}
-                  />
-                </div>
-              </div>
-
-              <div className="form-group" style={{ marginTop: '1rem' }}>
-                <label htmlFor="itemsNo">Number of Items in Package*</label>
-                <input
-                  type="number"
-                  id="itemsNo"
-                  name="itemsNo"
-                  value={formData.itemsNo}
-                  onChange={handleChange}
-                  placeholder="Enter number of items"
-                  min="1"
-                  required
-                  style={{ padding: '0.5rem', width: '100%' }}
-                />
-              </div>
+          <div className="row g-3">
+            <div className="col-md-6">
+              <label htmlFor="packageDescription" className="form-label fw-semibold">{t('shop.createPackage.fields.description')}</label>
+              <input
+                type="text"
+                id="packageDescription"
+                name="packageDescription"
+                value={formData.packageDescription}
+                onChange={handleChange}
+                placeholder={t('shop.createPackage.placeholders.description')}
+                required
+                className="form-control"
+              />
+            </div>
+            <div className="col-md-6">
+              <label htmlFor="category" className="form-label fw-semibold">{t('shop.createPackage.fields.category')}</label>
+              <select
+                id="category"
+                name="category"
+                value={formData.category}
+                onChange={handleChange}
+                required
+                className="form-select"
+              >
+                <option value="">{t('shop.createPackage.placeholders.selectCategory')}</option>
+                {CATEGORY_OPTIONS.map(opt => (
+                  <option key={opt} value={opt}>{t(`shop.createPackage.categories.${opt}`)}</option>
+                ))}
+              </select>
             </div>
 
-            {/* Items Section */}
-            {items.length > 0 && (
-              <div className="form-section" style={{ marginBottom: '1rem' }}>
-                <h2 style={{ fontSize: '1.2rem', marginBottom: '0.5rem', color: '#ff8c00' }}>
-                  Items Details ({items.length} items)
-                </h2>
-                <div style={{ 
-                  backgroundColor: '#f9f9f9', 
-                  padding: '1rem', 
-                  borderRadius: '8px',
-                  border: '1px solid #e0e0e0'
-                }}>
-                  {items.map((item, index) => (
-                    <div key={item.id} className="item-card" style={{ 
-                      border: '1px solid #ddd', 
-                      padding: '1rem', 
-                      marginBottom: '1rem', 
-                      borderRadius: '4px',
-                      backgroundColor: 'white'
-                    }}>
-                      <h3 style={{ margin: '0 0 1rem 0', color: '#333', fontSize: '1rem' }}>
-                        Item {index + 1}
-                      </h3>
-                      <div className="item-details-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
-                        <div className="form-group">
-                          <label htmlFor={`item-description-${index}`}>Description*</label>
-                          <input
-                            type="text"
-                            id={`item-description-${index}`}
-                            value={item.description}
-                            onChange={(e) => handleItemChange(index, 'description', e.target.value)}
-                            placeholder="Item description"
-                            required
-                            style={{ padding: '0.5rem' }}
-                          />
-                        </div>
-                        
-                        <div className="form-group">
-                          <label htmlFor={`item-quantity-${index}`}>Quantity*</label>
-                          <input
-                            type="number"
-                            id={`item-quantity-${index}`}
-                            value={item.quantity}
-                            onChange={(e) => handleItemChange(index, 'quantity', e.target.value)}
-                            placeholder="Qty"
-                            min="1"
-                            required
-                            style={{ padding: '0.5rem' }}
-                          />
-                        </div>
-                        
-                        <div className="form-group">
-                          <label htmlFor={`item-cod-${index}`}>COD Per Unit</label>
-                          <input
-                            type="number"
-                            id={`item-cod-${index}`}
-                            value={item.codPerUnit === 0 ? '' : item.codPerUnit}
-                            onChange={(e) => handleItemChange(index, 'codPerUnit', e.target.value)}
-                            placeholder="0.00"
-                            min="0"
-                            step="0.01"
-                            style={{ padding: '0.5rem' }}
-                          />
-                        </div>
-                        
-                        <div className="form-group">
-                          <label>Total COD</label>
-                          <div style={{ 
-                            padding: '0.75rem', 
-                            backgroundColor: '#fff8f0', 
-                            border: '1px solid #ff8c00', 
-                            borderRadius: '6px',
-                            minHeight: '42px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            fontWeight: '600',
-                            color: '#ff8c00',
-                            boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
-                          }}>
-                            EGP {((parseFloat(item.codPerUnit) || 0) * (parseInt(item.quantity) || 1)).toFixed(2)}
-                          </div>
+            <div className="col-6 col-md-3">
+              <label htmlFor="weight" className="form-label fw-semibold">{t('shop.createPackage.fields.weight')}</label>
+              <input
+                type="number"
+                id="weight"
+                name="weight"
+                value={formData.weight}
+                onChange={handleChange}
+                placeholder={t('shop.createPackage.placeholders.weight')}
+                step="0.01"
+                min="0.01"
+                required
+                className="form-control"
+              />
+            </div>
+            <div className="col-6 col-md-3">
+              <label htmlFor="dimensions.length" className="form-label">{t('shop.createPackage.fields.length')}</label>
+              <input
+                type="number"
+                id="dimensions.length"
+                name="dimensions.length"
+                value={formData.dimensions.length}
+                onChange={handleChange}
+                placeholder={t('shop.createPackage.placeholders.length')}
+                min="0"
+                step="0.1"
+                className="form-control"
+              />
+            </div>
+            <div className="col-6 col-md-3">
+              <label htmlFor="dimensions.width" className="form-label">{t('shop.createPackage.fields.width')}</label>
+              <input
+                type="number"
+                id="dimensions.width"
+                name="dimensions.width"
+                value={formData.dimensions.width}
+                onChange={handleChange}
+                placeholder={t('shop.createPackage.placeholders.width')}
+                min="0"
+                step="0.1"
+                className="form-control"
+              />
+            </div>
+            <div className="col-6 col-md-3">
+              <label htmlFor="dimensions.height" className="form-label">{t('shop.createPackage.fields.height')}</label>
+              <input
+                type="number"
+                id="dimensions.height"
+                name="dimensions.height"
+                value={formData.dimensions.height}
+                onChange={handleChange}
+                placeholder={t('shop.createPackage.placeholders.height')}
+                min="0"
+                step="0.1"
+                className="form-control"
+              />
+            </div>
+
+            <div className="col-md-4">
+              <label htmlFor="itemsNo" className="form-label fw-semibold">{t('shop.createPackage.fields.itemsNo')}</label>
+              <input
+                type="number"
+                id="itemsNo"
+                name="itemsNo"
+                value={formData.itemsNo}
+                onChange={handleChange}
+                placeholder={t('shop.createPackage.placeholders.itemsNo')}
+                min="1"
+                required
+                className="form-control"
+              />
+            </div>
+          </div>
+        </section>
+
+        {items.length > 0 && (
+          <section className="rounded-4 shadow-sm p-3 p-md-4" style={{ background: '#fffaf5' }}>
+            <h2 className="h5 fw-bold mb-3" style={{ color: '#ff8c00' }}>{t('shop.createPackage.items.title', { count: items.length })}</h2>
+
+            <div className="d-flex flex-column gap-3">
+              {items.map((item, index) => (
+                <div key={item.id} className="card border-0 shadow-sm rounded-4">
+                  <div className="card-body">
+                    <h3 className="h6 fw-bold mb-3">{t('shop.createPackage.items.itemNumber', { number: index + 1 })}</h3>
+                    <div className="row g-3">
+                      <div className="col-md-5">
+                        <label htmlFor={`item-description-${index}`} className="form-label">{t('shop.createPackage.fields.description')}</label>
+                        <input
+                          type="text"
+                          id={`item-description-${index}`}
+                          value={item.description}
+                          onChange={(e) => handleItemChange(index, 'description', e.target.value)}
+                          placeholder={t('shop.createPackage.placeholders.itemDescription')}
+                          required
+                          className="form-control"
+                        />
+                      </div>
+                      <div className="col-6 col-md-2">
+                        <label htmlFor={`item-quantity-${index}`} className="form-label">{t('shop.createPackage.fields.quantity')}</label>
+                        <input
+                          type="number"
+                          id={`item-quantity-${index}`}
+                          value={item.quantity}
+                          onChange={(e) => handleItemChange(index, 'quantity', e.target.value)}
+                          min="1"
+                          required
+                          className="form-control"
+                        />
+                      </div>
+                      <div className="col-6 col-md-2">
+                        <label htmlFor={`item-cod-${index}`} className="form-label">{t('shop.createPackage.fields.codPerUnit')}</label>
+                        <input
+                          type="number"
+                          id={`item-cod-${index}`}
+                          value={item.codPerUnit === 0 ? '' : item.codPerUnit}
+                          onChange={(e) => handleItemChange(index, 'codPerUnit', e.target.value)}
+                          placeholder="0.00"
+                          min="0"
+                          step="0.01"
+                          className="form-control"
+                        />
+                      </div>
+                      <div className="col-md-3">
+                        <label className="form-label">{t('shop.createPackage.fields.totalCod')}</label>
+                        <div className="form-control fw-semibold" style={{ background: '#fff3e8', color: '#ff8c00' }}>
+                          EGP {((parseFloat(item.codPerUnit) || 0) * (parseInt(item.quantity) || 1)).toFixed(2)}
                         </div>
                       </div>
                     </div>
-                  ))}
-                  
-                  {/* Total COD Display */}
-                  <div style={{ 
-                    marginTop: '1.5rem', 
-                    padding: '1.5rem', 
-                    backgroundColor: '#fff8f0', 
-                    borderRadius: '8px',
-                    border: '2px solid #ff8c00',
-                    boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
-                    textAlign: 'center'
-                  }}>
-                    <div style={{ 
-                      fontSize: '1.1rem', 
-                      color: '#ff8c00', 
-                      fontWeight: '600',
-                      marginBottom: '0.5rem'
-                    }}>
-                      Total COD Amount
-                    </div>
-                    <div style={{ 
-                      fontSize: '1.5rem', 
-                      fontWeight: '700',
-                      color: '#ff8c00'
-                    }}>
-                      EGP {calculateTotalCOD().toFixed(2)}
-                    </div>
-                  </div>
-
-                  {/* Shown Shipping Fees input under items list */}
-                  <div className="form-group" style={{ marginTop: '1rem' }}>
-                    <label htmlFor="shownDeliveryCost">Shown Shipping Fees</label>
-                    <input
-                      type="number"
-                      id="shownDeliveryCost"
-                      name="shownDeliveryCost"
-                      value={formData.shownDeliveryCost}
-                      onChange={handleChange}
-                      placeholder="Leave blank for default Shown Shipping fees"
-                      min="0"
-                      step="0.01"
-                      style={{ padding: '0.5rem', width: '100%' }}
-                    />
                   </div>
                 </div>
-              </div>
-            )}
-            
-            <div className="form-section">
-              <h2 style={{ fontSize: '1.2rem', color: '#ff8c00' }}>Delivery Information</h2>
-              
-              <div className="pickup-contact-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-                <div className="form-group">
-                  <label htmlFor="deliveryAddress.contactName">Contact Name*</label>
-                  <input
-                    type="text"
-                    id="deliveryAddress.contactName"
-                    name="deliveryAddress.contactName"
-                    value={formData.deliveryAddress.contactName}
-                    onChange={handleChange}
-                    placeholder="Recipient's name"
-                    required
-                    inputMode="text"
-                    autoComplete="off"
-                  />
-                </div>
-                
-                <div className="form-group">
-                  <label htmlFor="deliveryAddress.contactPhone">Contact Phone*</label>
-                  <input
-                    type="tel"
-                    id="deliveryAddress.contactPhone"
-                    name="deliveryAddress.contactPhone"
-                    value={formData.deliveryAddress.contactPhone}
-                    onChange={handleChange}
-                    placeholder="01xxxxxxxxx"
-                    required
-                    pattern="01[0-9]{9}"
-                    inputMode="numeric"
-                    maxLength={11}
-                    autoComplete="tel"
-                  />
-                </div>
+              ))}
+
+              <div className="rounded-4 border p-3 text-center" style={{ borderColor: '#ff8c00', background: '#fff3e8' }}>
+                <div className="fw-semibold" style={{ color: '#ff8c00' }}>{t('shop.createPackage.items.totalCodAmount')}</div>
+                <div className="h4 fw-bold mb-0" style={{ color: '#ff8c00' }}>EGP {calculateTotalCOD().toFixed(2)}</div>
               </div>
 
-              <div className="payment-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem'}}>
-                <div className="form-group">
-                  <label htmlFor="deliveryAddress.street">Street Address*</label>
-                  <input
-                    type="text"
-                    id="deliveryAddress.street"
-                    name="deliveryAddress.street"
-                    value={formData.deliveryAddress.street}
-                    onChange={handleChange}
-                    placeholder="Street address"
-                    required
-                    style={{ padding: '0.5rem' }}
-                  />
-                </div>
-                
-                <div className="form-group">
-                  <label htmlFor="deliveryAddress.city">City*</label>
-                  <input
-                    type="text"
-                    id="deliveryAddress.city"
-                    name="deliveryAddress.city"
-                    value={formData.deliveryAddress.city}
-                    onChange={handleChange}
-                    placeholder="City"
-                    required
-                    style={{ padding: '0.5rem' }}
-                  />
-                </div>
-              </div>
-
-              <div className="notes-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginTop: '1rem' }}>
-                <div className="form-group">
-                  <label htmlFor="deliveryAddress.state">State</label>
-                  <input
-                    type="text"
-                    id="deliveryAddress.state"
-                    name="deliveryAddress.state"
-                    value={formData.deliveryAddress.state}
-                    onChange={handleChange}
-                    placeholder="State"
-                    style={{ padding: '0.5rem' }}
-                  />
-                </div>
-                
-                <div className="form-group">
-                  <label htmlFor="deliveryAddress.zipCode">Zip Code</label>
-                  <input
-                    type="text"
-                    id="deliveryAddress.zipCode"
-                    name="deliveryAddress.zipCode"
-                    value={formData.deliveryAddress.zipCode}
-                    onChange={handleChange}
-                    placeholder="Zip code"
-                    style={{ padding: '0.5rem' }}
-                  />
-                </div>
-                
-                <div className="form-group">
-                  <label htmlFor="deliveryAddress.country">Country*</label>
-                  <input
-                    type="text"
-                    id="deliveryAddress.country"
-                    name="deliveryAddress.country"
-                    value={formData.deliveryAddress.country}
-                    onChange={handleChange}
-                    placeholder="Country"
-                    required
-                    style={{ padding: '0.5rem' }}
-                  />
-                </div>
-              </div>
-            </div>
-            
-            <div className="form-section" style={{ marginBottom: '1rem' }}>
-              <h2 style={{ fontSize: '1.2rem', color: '#ff8c00' }}>Additional Information</h2>
-              
-              <div className="form-group">
-                <label htmlFor="shopNotes">Shop Notes</label>
-                <textarea
-                  id="shopNotes"
-                  name="shopNotes"
-                  value={formData.shopNotes}
+              <div className="col-md-4 px-0">
+                <label htmlFor="shownDeliveryCost" className="form-label">{t('shop.createPackage.fields.shownShippingFees')}</label>
+                <input
+                  type="number"
+                  id="shownDeliveryCost"
+                  name="shownDeliveryCost"
+                  value={formData.shownDeliveryCost}
                   onChange={handleChange}
-                  placeholder="Additional notes from the shop"
-                  rows="2"
-                  style={{ padding: '0.5rem', width: '100%' }}
-                ></textarea>
+                  placeholder={t('shop.createPackage.placeholders.shownShippingFees')}
+                  min="0"
+                  step="0.01"
+                  className="form-control"
+                />
               </div>
             </div>
-            
-            <button 
-              type="submit" 
-              className="submit-btn" 
-              disabled={isSubmitting}
-              style={{
-                width: '100%',
-                padding: '0.75rem',
-                backgroundColor: '#ff8c00',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: isSubmitting ? 'not-allowed' : 'pointer',
-                opacity: isSubmitting ? 0.7 : 1
-              }}
-            >
-              {isSubmitting ? 'Creating...' : 'Create Package'}
-            </button>
-          </form>
+          </section>
+        )}
+
+        <section className="rounded-4 shadow-sm p-3 p-md-4" style={{ background: '#fffaf5' }}>
+          <h2 className="h5 fw-bold mb-3" style={{ color: '#ff8c00' }}>{t('shop.createPackage.sections.deliveryInfo')}</h2>
+          <div className="row g-3">
+            <div className="col-md-6">
+              <label htmlFor="deliveryAddress.contactName" className="form-label fw-semibold">{t('shop.createPackage.fields.contactName')}</label>
+              <input
+                type="text"
+                id="deliveryAddress.contactName"
+                name="deliveryAddress.contactName"
+                value={formData.deliveryAddress.contactName}
+                onChange={handleChange}
+                placeholder={t('shop.createPackage.placeholders.contactName')}
+                required
+                inputMode="text"
+                autoComplete="off"
+                className="form-control"
+              />
+            </div>
+            <div className="col-md-6">
+              <label htmlFor="deliveryAddress.contactPhone" className="form-label fw-semibold">{t('shop.createPackage.fields.contactPhone')}</label>
+              <input
+                type="tel"
+                id="deliveryAddress.contactPhone"
+                name="deliveryAddress.contactPhone"
+                value={formData.deliveryAddress.contactPhone}
+                onChange={handleChange}
+                placeholder="01xxxxxxxxx"
+                required
+                pattern="01[0-9]{9}"
+                inputMode="numeric"
+                maxLength={11}
+                autoComplete="tel"
+                className="form-control"
+              />
+            </div>
+
+            <div className="col-md-6">
+              <label htmlFor="deliveryAddress.street" className="form-label fw-semibold">{t('shop.createPackage.fields.streetAddress')}</label>
+              <input
+                type="text"
+                id="deliveryAddress.street"
+                name="deliveryAddress.street"
+                value={formData.deliveryAddress.street}
+                onChange={handleChange}
+                placeholder={t('shop.createPackage.placeholders.streetAddress')}
+                required
+                className="form-control"
+              />
+            </div>
+            <div className="col-md-6">
+              <label htmlFor="deliveryAddress.city" className="form-label fw-semibold">{t('shop.createPackage.fields.city')}</label>
+              <input
+                type="text"
+                id="deliveryAddress.city"
+                name="deliveryAddress.city"
+                value={formData.deliveryAddress.city}
+                onChange={handleChange}
+                placeholder={t('shop.createPackage.placeholders.city')}
+                required
+                className="form-control"
+              />
+            </div>
+
+            <div className="col-md-4">
+              <label htmlFor="deliveryAddress.state" className="form-label">{t('shop.createPackage.fields.state')}</label>
+              <input
+                type="text"
+                id="deliveryAddress.state"
+                name="deliveryAddress.state"
+                value={formData.deliveryAddress.state}
+                onChange={handleChange}
+                placeholder={t('shop.createPackage.placeholders.state')}
+                className="form-control"
+              />
+            </div>
+            <div className="col-md-4">
+              <label htmlFor="deliveryAddress.zipCode" className="form-label">{t('shop.createPackage.fields.zipCode')}</label>
+              <input
+                type="text"
+                id="deliveryAddress.zipCode"
+                name="deliveryAddress.zipCode"
+                value={formData.deliveryAddress.zipCode}
+                onChange={handleChange}
+                placeholder={t('shop.createPackage.placeholders.zipCode')}
+                className="form-control"
+              />
+            </div>
+            <div className="col-md-4">
+              <label htmlFor="deliveryAddress.country" className="form-label fw-semibold">{t('shop.createPackage.fields.country')}</label>
+              <input
+                type="text"
+                id="deliveryAddress.country"
+                name="deliveryAddress.country"
+                value={formData.deliveryAddress.country}
+                onChange={handleChange}
+                placeholder={t('shop.createPackage.placeholders.country')}
+                required
+                className="form-control"
+              />
+            </div>
+          </div>
+        </section>
+
+        <section className="rounded-4 shadow-sm p-3 p-md-4" style={{ background: '#fffaf5' }}>
+          <h2 className="h5 fw-bold mb-3" style={{ color: '#ff8c00' }}>{t('shop.createPackage.sections.additionalInfo')}</h2>
+          <label htmlFor="shopNotes" className="form-label">{t('shop.createPackage.fields.shopNotes')}</label>
+          <textarea
+            id="shopNotes"
+            name="shopNotes"
+            value={formData.shopNotes}
+            onChange={handleChange}
+            placeholder={t('shop.createPackage.placeholders.shopNotes')}
+            rows="3"
+            className="form-control"
+          ></textarea>
+        </section>
+
+        <div className="d-grid">
+          <button
+            type="submit"
+            className="btn btn-lg text-white fw-semibold"
+            disabled={isSubmitting}
+            style={{ background: '#ff8c00', opacity: isSubmitting ? 0.7 : 1 }}
+          >
+            {isSubmitting ? t('shop.createPackage.actions.creating') : t('shop.createPackage.actions.createPackage')}
+          </button>
         </div>
-      </div>
+      </form>
     </div>
   );
 };

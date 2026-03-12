@@ -1,0 +1,18 @@
+{
+  "brand": {
+    "name": "Droppin",
+    "delivery": "Droppin Delivery"
+  },
+  "language": {
+    "switchToArabic": "العربية",
+    "switchToEnglish": "English",
+    "english": "English",
+    "arabic": "العربية"
+  },
+  "actions": {
+    "goBack": "Go Back"
+  },
+  "status": {
+    "loading": "Loading..."
+  }
+}

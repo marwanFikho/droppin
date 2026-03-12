@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import './SwipeMenuHint.css';
 
 /**
  * SwipeMenuHint
@@ -59,20 +58,48 @@ export default function SwipeMenuHint({ isMenuOpen }) {
   if (!visible) return null;
 
   return (
-    <div className="swipe-hint-overlay" role="dialog" aria-label="Tap the menu button at the bottom left to open the side menu">
-      <div className="swipe-hint-card">
-        <div className="swipe-visual button-visual">
-          <div className="button-shape">☰</div>
-          <div className="pulse-ring"></div>
-          <div className="hint-arrow">⬆</div>
+    <div
+      role="dialog"
+      aria-label="Tap the menu button at the bottom left to open the side menu"
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(0,0,0,.45)',
+        backdropFilter: 'saturate(120%) blur(2px)',
+        zIndex: 3000,
+        display: 'flex',
+        justifyContent: 'flex-start',
+        alignItems: 'flex-end',
+        padding: 16
+      }}
+    >
+      <div
+        style={{
+          background: '#fff',
+          borderRadius: 16,
+          boxShadow: '0 10px 40px rgba(0,0,0,.25)',
+          padding: '16px 16px 12px',
+          maxWidth: 320,
+          marginLeft: 12,
+          marginBottom: 12,
+          display: 'grid',
+          gridTemplateColumns: 'auto 1fr',
+          gap: 12,
+          alignItems: 'center'
+        }}
+      >
+        <div style={{ position: 'relative', width: 72, height: 72, background: 'transparent', borderRadius: 12, overflow: 'hidden', border: '1px dashed #cbd5e1', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#FF6B00', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 22, boxShadow: '0 6px 20px rgba(0,0,0,.2)' }}>☰</div>
+          <div className="pulse-ring" style={{ position: 'absolute', width: 72, height: 72, borderRadius: '50%', border: '2px solid rgba(255,107,0,.6)', animation: 'ringPulse 1.8s ease-out infinite', pointerEvents: 'none' }}></div>
+          <div style={{ position: 'absolute', left: '50%', top: -6, transform: 'translate(-50%, -50%)', color: '#0A2533', fontSize: 18, opacity: 0.85 }}>⬆</div>
         </div>
-        <div className="swipe-text">
-          <h3>Menu moved to a button</h3>
-          <p>Tap the round button at the bottom-left to open your side menu.</p>
+        <div>
+          <h3 style={{ margin: '0 0 4px 0', fontSize: 16, color: '#0A2533' }}>Menu moved to a button</h3>
+          <p style={{ margin: 0, color: '#334155', fontSize: 13 }}>Tap the round button at the bottom-left to open your side menu.</p>
         </div>
-        <div className="swipe-actions">
+        <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
           <button
-            className="btn-primary"
+            style={{ background: '#FF6B00', color: '#fff', border: 'none', borderRadius: 10, padding: '8px 12px', fontWeight: 700, cursor: 'pointer', boxShadow: '0 6px 20px rgba(255,107,0,.25)' }}
             onClick={() => {
               const btn = document.querySelector('.menu-fab');
               if (btn) {
@@ -87,6 +114,7 @@ export default function SwipeMenuHint({ isMenuOpen }) {
           </button>
         </div>
       </div>
+      <style>{`@keyframes ringPulse{0%{transform:scale(.85);opacity:.8}70%{transform:scale(1.15);opacity:.2}100%{transform:scale(1.2);opacity:0}}`}</style>
     </div>
   );
 }

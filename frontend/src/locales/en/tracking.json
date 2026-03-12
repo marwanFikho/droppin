@@ -1,0 +1,48 @@
+{
+	"tracking": {
+		"packageTracking": {
+			"title": "Track Your Package",
+			"subtitle": "Enter your tracking number to get real-time updates",
+			"loadingInfo": "Loading package information...",
+			"packageFallback": "Package",
+			"notAvailable": "N/A",
+			"unknownDate": "Unknown date",
+			"noNotes": "No notes yet.",
+			"sections": {
+				"packageInfo": "Package Information",
+				"shopInfo": "Shop Information",
+				"driverInfo": "Driver Information",
+				"deliveryInfo": "Delivery Information",
+				"notesLog": "Notes Log"
+			},
+			"labels": {
+				"trackingNumber": "Tracking Number",
+				"status": "Status",
+				"description": "Description",
+				"priority": "Priority",
+				"weight": "Weight",
+				"dimensions": "Dimensions",
+				"businessName": "Business Name",
+				"name": "Name",
+				"phone": "Phone",
+				"vehicleType": "Vehicle Type",
+				"workingArea": "Working Area",
+				"contactName": "Contact Name",
+				"address": "Address",
+				"estimatedDelivery": "Estimated Delivery",
+				"deliveredOn": "Delivered On"
+			},
+			"units": {
+				"kg": "kg"
+			},
+			"form": {
+				"placeholder": "Enter tracking number (e.g., DP123456789)",
+				"submit": "Track",
+				"submitting": "Tracking..."
+			},
+			"errors": {
+				"notFound": "Package not found. Please check the tracking number and try again."
+			}
+		}
+	}
+}

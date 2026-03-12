@@ -1,7 +1,14 @@
+/*
+ * File Purpose:
+ * - Main stylesheet for the Admin dashboard UI.
+ * - Defines page layout, sidebar/header behavior, table styling, modal visuals, status badges, and responsive rules.
+ * - Acts as the shared visual contract across Admin tabs and modal components.
+ */
+
 /* Admin Dashboard Styles */
 .admin-dashboard {
   padding: 20px;
-  padding-top: 100px; /* Add top padding to account for fixed navigation */
+  padding-top: var(--app-nav-height, 72px); /* Align content under fixed navbar without extra gap */
   background-color: #f8f9fa;
   min-height: calc(100vh - 60px);
 }
@@ -240,8 +247,8 @@
 }
 
 .status-badge.status-assigned {
-  background-color: #e8f5e9;
-  color: #2e7d32;
+  background-color: #ffd600;
+  color: #2f2f2f;
 }
 
 .status-badge.status-pickedup {
@@ -345,6 +352,20 @@
   z-index: 10000;
 }
 
+/* Keep the large details modal usable on all viewport heights */
+.modal-overlay.details-modal-overlay {
+  align-items: flex-start;
+  padding: 1.25rem 1rem;
+  overflow-y: auto;
+}
+
+.modal-content.details-modal {
+  width: min(1180px, 94vw);
+  max-height: calc(100vh - 2.5rem);
+  overflow-y: auto;
+  margin: 0 auto;
+}
+
 .modal-overlay.show {
   opacity: 1;
   visibility: visible;
@@ -443,6 +464,16 @@ body.no-scroll {
     border-radius: 12px;
     padding: 20px;
     margin: auto;
+  }
+
+  .modal-overlay.details-modal-overlay {
+    padding: 0.5rem;
+  }
+
+  .modal-content.details-modal {
+    width: 100% !important;
+    max-height: calc(100vh - 1rem);
+    margin: 0;
   }
   .modal-header {
     padding: 20px;
@@ -617,14 +648,14 @@ body.no-scroll {
 /* Confirmation dialog styling */
 .confirmation-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+  inset: 0;
+  width: 100vw;
+  min-height: 100dvh;
   background-color: rgba(0, 0, 0, 0.5);
-  display: flex;
-  justify-content: center;
-  align-items: center;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  overflow-y: auto;
   z-index: 11000; /* Above modal-overlay (9999) */
 }
 
@@ -632,7 +663,12 @@ body.no-scroll {
   background-color: white;
   border-radius: 8px;
   padding: 20px;
-  max-width: 400px;
+  width: min(560px, calc(100vw - 1.25rem));
+  max-height: calc(100dvh - 1.25rem);
+  overflow-y: auto;
+  overflow-x: hidden;
+  overflow-wrap: anywhere;
+  word-break: break-word;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
@@ -674,6 +710,34 @@ body.no-scroll {
   gap: 10px;
 }
 
+@media (max-width: 768px) {
+  .admin-dashboard {
+    padding-top: 66px;
+  }
+
+  .confirmation-overlay {
+    place-items: start center;
+    padding-top: 1.25rem;
+    padding-bottom: 1.25rem;
+  }
+
+  .confirmation-dialog {
+    width: calc(100vw - 0.75rem);
+    max-height: calc(100dvh - 2.5rem);
+    border-radius: 12px;
+  }
+
+  .confirmation-buttons {
+    flex-wrap: wrap;
+  }
+
+  .confirmation-buttons .btn-secondary,
+  .confirmation-buttons .btn-primary,
+  .confirmation-buttons .btn-danger {
+    flex: 1 1 100%;
+  }
+}
+
 .btn-secondary {
   background-color: #f0f0f0;
   color: #333;
@@ -709,16 +773,17 @@ body.no-scroll {
 /* Status message styling */
 .status-message {
   position: fixed;
-  top: 20px;
+  top: calc(var(--app-nav-height, 72px) + 12px);
   right: 20px;
+  max-width: min(520px, calc(100vw - 1.25rem));
   padding: 12px 20px;
   border-radius: 4px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  z-index: 1000;
-  animation: slideIn 0.3s ease-out;
+  z-index: 13000;
+  animation: none;
 }
 
 .status-message p {
@@ -734,6 +799,16 @@ body.no-scroll {
   padding: 0 5px;
 }
 
+@media (max-width: 768px) {
+  .status-message {
+    top: calc(var(--app-nav-height, 66px) + env(safe-area-inset-top) + 10px);
+    right: 0.5rem;
+    left: 0.5rem;
+    max-width: none;
+    padding: 10px 12px;
+  }
+}
+
 .status-message.success {
   background-color: #dff2bf;
   color: #4F8A10;
@@ -747,14 +822,8 @@ body.no-scroll {
 }
 
 @keyframes slideIn {
-  from {
-    transform: translateX(100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
+  from { opacity: 1; }
+  to { opacity: 1; }
 }
 
 /* Details styling */
@@ -923,9 +992,32 @@ body.no-scroll {
   background-color: white;
   border-radius: 0 0 8px 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  padding: 20px;
+  padding: 24px;
   overflow-x: auto;
   margin-top: -1px; /* Connect with tabs */
+}
+
+/* Admin spacing polish: add breathing room between content blocks and container walls */
+.dashboard-content > * + * {
+  margin-top: 14px;
+}
+
+.dashboard-content .table-responsive,
+.dashboard-content .empty-state,
+.dashboard-content .money-transactions-section,
+.dashboard-content .driver-packages-tab {
+  margin-top: 10px;
+}
+
+.dashboard-content .card,
+.dashboard-content .ant-card,
+.dashboard-content .table-responsive {
+  border-radius: 12px;
+}
+
+.packages-header,
+.pickups-header {
+  margin-bottom: 1rem;
 }
 
 /* ===== Mobile Sidebar (Admin) ===== */
@@ -1346,8 +1438,8 @@ body.no-scroll {
 }
 
 .admin-table .status-assigned {
-  background: #ff8c00 !important;
-  color: #fff !important;
+  background: #ffd600 !important;
+  color: #2f2f2f !important;
   border-radius: 999px;
   font-weight: 600;
   display: inline-block;
@@ -1487,9 +1579,9 @@ body.no-scroll {
 }
 
 .status-assigned {
-  background-color: #e8f5e8;
-  color: #388e3c;
-  border: 1px solid #c8e6c9;
+  background-color: #fff9c4;
+  color: #8a6d00;
+  border: 1px solid #ffd600;
 }
 
 .status-pickedup {
@@ -2089,7 +2181,7 @@ body.no-scroll {
 
   .dashboard-content {
     width: 100%;
-    padding: 0.75rem !important;
+    padding: 0.9rem !important;
     margin: 0;
   }
 
@@ -2618,3 +2710,141 @@ body.no-scroll {
     font-size: 0.8rem !important;
   }
 }
+
+/* Admin package popup organization (Bootstrap-first polish). */
+.package-popup-modal {
+  background: #f8fafc;
+}
+
+.package-popup-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.package-popup-grid .detail-item {
+  background: #fff;
+  border: 1px solid #e9ecef;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+
+.package-popup-grid .detail-item.full-width {
+  grid-column: 1 / -1;
+}
+
+.package-popup-grid .label {
+  color: #4b5563;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  margin-bottom: 0.35rem;
+}
+
+.package-popup-grid .nested-details {
+  border: 1px solid #eef2f7;
+  border-radius: 10px;
+  padding: 0.75rem;
+  background: #fbfdff;
+}
+
+.package-popup-grid input,
+.package-popup-grid textarea,
+.package-popup-grid select {
+  max-width: 100%;
+}
+
+@media (max-width: 992px) {
+  .package-popup-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+  /* Keep search input fluid so mobile header never overflows. */
+  .search-box input {
+    width: min(100%, 360px);
+  }
+
+  @media (max-width: 768px) {
+    .dashboard-header {
+      width: 100%;
+    }
+
+    .header-actions,
+    .search-box {
+      width: 100%;
+    }
+
+    .search-box input {
+      width: 100%;
+    }
+
+    .packages-sub-tabs,
+    .packages-sub-sub-tabs {
+      flex-wrap: nowrap !important;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: thin;
+      padding-bottom: 0.35rem;
+    }
+
+    .packages-sub-tabs .btn,
+    .packages-sub-sub-tabs .btn {
+      white-space: nowrap;
+      flex: 0 0 auto;
+    }
+
+    .admin-mobile-table thead {
+      display: none;
+    }
+
+    .admin-mobile-table,
+    .admin-mobile-table tbody,
+    .admin-mobile-table tr,
+    .admin-mobile-table td {
+      display: block;
+      width: 100%;
+    }
+
+    .admin-mobile-table tr {
+      border: 1px solid #eceff3;
+      border-radius: 12px;
+      margin-bottom: 0.9rem;
+      background: #fff;
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+      overflow: hidden;
+    }
+
+    .admin-mobile-table td {
+      display: flex;
+      justify-content: space-between;
+      gap: 0.75rem;
+      border-bottom: 1px solid #f1f3f5;
+      padding: 0.7rem 0.85rem;
+      text-align: right;
+      font-size: 0.86rem;
+    }
+
+    .admin-mobile-table td:last-child {
+      border-bottom: none;
+    }
+
+    .admin-mobile-table td::before {
+      content: attr(data-label);
+      font-weight: 600;
+      color: #5f6b7a;
+      text-align: left;
+      white-space: nowrap;
+      flex: 0 0 auto;
+    }
+
+    .admin-mobile-table td[data-label='Actions'] {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.45rem;
+    }
+
+    .admin-mobile-table td[data-label='Actions'] .btn {
+      min-height: 38px;
+    }
+  }

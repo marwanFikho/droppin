@@ -1,0 +1,137 @@
+{
+  "help": {
+    "hero": {
+      "title": "Help Center",
+      "subtitle": "Find answers to your questions and get the help you need",
+      "searchPlaceholder": "Search for help..."
+    },
+    "browseByCategory": "Browse by Category",
+    "faqIntro": "Frequently asked questions about {{category}}",
+    "noResultsTitle": "No results found for \"{{searchTerm}}\"",
+    "noResultsSubtitle": "Try different keywords or browse our categories",
+    "categories": [
+      { "id": "getting-started", "name": "Getting Started", "icon": "🚀" },
+      { "id": "account", "name": "Account & Profile", "icon": "👤" },
+      { "id": "orders", "name": "Orders & Tracking", "icon": "📦" },
+      { "id": "payments", "name": "Payments & Billing", "icon": "💳" },
+      { "id": "technical", "name": "Technical Support", "icon": "🛠️" },
+      { "id": "drivers", "name": "Driver Support", "icon": "🚚" }
+    ],
+    "faqsByCategory": {
+      "getting-started": [
+        {
+          "question": "How do I create an account?",
+          "answer": "Click Register from the top menu, choose shop or driver, then complete your details. Our team typically verifies accounts within 24 hours."
+        },
+        {
+          "question": "What documents are required for registration?",
+          "answer": "Shops usually provide business registration, tax details, and payout info. Drivers usually provide valid license and vehicle documents."
+        },
+        {
+          "question": "How long does verification take?",
+          "answer": "Verification usually takes 24 to 48 business hours. You will receive an email once approval is completed."
+        },
+        {
+          "question": "Can I use more than one account?",
+          "answer": "Each person should use one account. If your use case is special, contact support for guided setup."
+        }
+      ],
+      "account": [
+        {
+          "question": "How can I update my profile information?",
+          "answer": "Open your dashboard, go to profile settings, then edit and save your details. Some changes may require review."
+        },
+        {
+          "question": "How can I reset or change my password?",
+          "answer": "Use the security section inside your account to change password. If you forgot it, use the password reset flow."
+        },
+        {
+          "question": "How do I add team members for my shop?",
+          "answer": "From shop settings, open team management and invite members by email with the right permission role."
+        },
+        {
+          "question": "How can I request account deletion?",
+          "answer": "Send a deletion request to our support email with your account details, and we will process it per policy."
+        }
+      ],
+      "orders": [
+        {
+          "question": "How do I create a new delivery order?",
+          "answer": "From the shop dashboard, create a package by entering recipient details, package info, and delivery preferences."
+        },
+        {
+          "question": "How do I track a package?",
+          "answer": "Use the tracking number on the tracking page to see the package status and delivery progress in real time."
+        },
+        {
+          "question": "What if a package is delayed?",
+          "answer": "Delays may happen due to traffic or operational conditions. Contact support if the delay exceeds the expected window."
+        },
+        {
+          "question": "Can I cancel or edit an order?",
+          "answer": "You can edit or cancel shortly after creation when the order is still in an editable status."
+        }
+      ],
+      "payments": [
+        {
+          "question": "Which payment methods are supported?",
+          "answer": "Supported options may include cards, transfers, and selected digital wallets based on your account setup."
+        },
+        {
+          "question": "When are delivery fees charged?",
+          "answer": "Fees are applied based on the package flow and your account billing configuration."
+        },
+        {
+          "question": "How can I access billing history?",
+          "answer": "Open the wallet or transactions section in your dashboard to review billing records."
+        },
+        {
+          "question": "How are refunds handled?",
+          "answer": "Eligible refund cases are reviewed by support, then processed according to policy timelines."
+        }
+      ],
+      "technical": [
+        {
+          "question": "How do I integrate with your API?",
+          "answer": "Use your API credentials and integration documentation to connect your systems. Contact support for onboarding help."
+        },
+        {
+          "question": "Why is the app or website slow?",
+          "answer": "Try refreshing, checking connection quality, and clearing cache. If the issue persists, contact support."
+        },
+        {
+          "question": "How do I report a technical problem?",
+          "answer": "Share clear steps, screenshots, and error details via support email so our team can investigate quickly."
+        },
+        {
+          "question": "Do you provide training?",
+          "answer": "Yes, onboarding guidance is available for teams that need support during setup and operations."
+        }
+      ],
+      "drivers": [
+        {
+          "question": "How do I accept delivery requests?",
+          "answer": "Stay online in the driver dashboard and accept incoming requests from your available queue."
+        },
+        {
+          "question": "What should I do if I cannot complete a delivery?",
+          "answer": "Update the delivery status correctly, add notes, and contact the shop or support when needed."
+        },
+        {
+          "question": "How do I manage availability?",
+          "answer": "Use your availability controls to go online or offline depending on your working schedule."
+        },
+        {
+          "question": "What if my rating drops?",
+          "answer": "Maintain service quality, communication, and timely delivery to improve your performance metrics."
+        }
+      ]
+    },
+    "cta": {
+      "title": "Still Need Help?",
+      "subtitle": "Our support team is here to help you succeed",
+      "callSupport": "Call Support",
+      "emailUs": "Email Us"
+    }
+  }
+}

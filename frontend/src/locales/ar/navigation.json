@@ -1,0 +1,22 @@
+{
+  "navigation": {
+    "home": "الرئيسية",
+    "trackPackage": "تتبع الشحنة",
+    "login": "تسجيل الدخول",
+    "register": "إنشاء حساب",
+    "logout": "تسجيل الخروج",
+    "dashboardByRole": "لوحة تحكم {{role}}",
+    "roles": {
+      "shop": "المتجر",
+      "driver": "السائق",
+      "admin": "المسؤول",
+      "user": "المستخدم"
+    },
+    "notifications": {
+      "title": "الإشعارات",
+      "delete": "حذف",
+      "deleteAll": "حذف الكل",
+      "empty": "لا توجد إشعارات"
+    }
+  }
+}

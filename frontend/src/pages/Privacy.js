@@ -1,196 +1,109 @@
 import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
-import '../App.css';
-import './Legal.css';
+import { useTranslation } from 'react-i18next';
+import PublicFooter from '../components/PublicFooter';
 
 const Privacy = () => {
+  const { t, i18n } = useTranslation();
+
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
-  const sections = [
-    {
-      title: '1. Information We Collect',
-      content: `We collect information you provide directly to us, such as when you:
-      • Create an account or use our services
-      • Make a purchase or payment
-      • Contact us for support
-      • Participate in surveys or promotions
 
-      This includes personal information like name, email, phone number, address, and payment information.`
-    },
-    {
-      title: '2. Automatically Collected Information',
-      content: `We automatically collect certain information when you use our services:
-      • Device information (IP address, browser type, operating system)
-      • Usage data (pages visited, time spent, features used)
-      • Location information for delivery services
-      • Cookies and similar technologies for functionality`
-    },
-    {
-      title: '3. How We Use Your Information',
-      content: `We use collected information to:
-      • Provide, maintain, and improve our services
-      • Process transactions and send related information
-      • Send technical notices and support messages
-      • Communicate with you about products, services, and promotions
-      • Monitor and analyze usage patterns
-      • Detect and prevent fraud and abuse`
-    },
-    {
-      title: '4. Information Sharing',
-      content: `We may share your information:
-      • With service providers who assist our operations
-      • With delivery drivers to complete orders
-      • With business partners for joint services
-      • When required by law or to protect rights
-      • In connection with a business transfer
-      • With your consent or at your direction`
-    },
-    {
-      title: '5. Data Security',
-      content: `We implement appropriate security measures to protect your personal information:
-      • Encryption of sensitive data in transit and at rest
-      • Regular security audits and updates
-      • Limited access to personal information
-      • Secure data centers and infrastructure
-      • Employee training on data protection`
-    },
-    {
-      title: '6. Data Retention',
-      content: `We retain personal information for as long as necessary to:
-      • Provide our services
-      • Comply with legal obligations
-      • Resolve disputes
-      • Enforce our agreements
-      • Support business operations
-
-      We regularly review and delete inactive accounts and unnecessary data.`
-    },
-    {
-      title: '7. Your Rights',
-      content: `You have certain rights regarding your personal information:
-      • Access and review your personal data
-      • Correct inaccurate or incomplete information
-      • Delete your account and associated data
-      • Object to or restrict certain processing
-      • Data portability
-      • Withdraw consent where applicable`
-    },
-    {
-      title: '8. Cookies and Tracking',
-      content: `We use cookies and similar technologies to:
-      • Remember your preferences and settings
-      • Analyze website usage and performance
-      • Provide personalized content and advertising
-      • Enable social media features
-
-      You can control cookie settings through your browser preferences.`
-    },
-    {
-      title: '9. Third-Party Services',
-      content: `Our service may contain links to third-party websites or services:
-      • We are not responsible for their privacy practices
-      • We encourage you to review their privacy policies
-      • Our privacy policy applies only to our services`
-    },
-    {
-      title: '10. Changes to Privacy Policy',
-      content: `We may update this Privacy Policy from time to time. We will:
-      • Notify you of material changes via email or website
-      • Update the "Last Updated" date
-      • Give you time to review changes before they take effect
-
-      Your continued use after changes constitutes acceptance.`
-    }
-  ];
+  const sections = t('legal.privacy.sections', { returnObjects: true });
 
   return (
-    <div className="legal-page">
+    <div className="pt-5" style={{ background: 'linear-gradient(180deg, #fff4ea 0%, #ffe8d6 100%)', minHeight: '100vh' }}>
       <motion.section
-        className="legal-hero"
+        className="d-flex align-items-center justify-content-center text-center text-white"
+        style={{ minHeight: '320px', background: 'linear-gradient(135deg, #ff7a3d 0%, #fa8831 28%, #cd7955 52%, #9d8f8d 74%, #4e97ef 100%)' }}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 1 }}
       >
-        <div className="legal-hero-content">
+        <div className="container py-4">
           <motion.h1
+            className="display-5 fw-700 mb-2"
+            style={{ textShadow: '2px 2px 6px rgba(0,0,0,0.35)' }}
             initial={{ y: 30, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.2, duration: 0.8 }}
           >
-            Privacy Policy
+            {t('legal.privacy.title')}
           </motion.h1>
           <motion.p
+            className="mb-0"
+            style={{ color: '#f8fafc' }}
             initial={{ y: 30, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.4, duration: 0.8 }}
           >
-            Last updated: {new Date().toLocaleDateString()}
+            {t('legal.lastUpdated')}: {new Date().toLocaleDateString(i18n.language)}
           </motion.p>
         </div>
       </motion.section>
 
       <motion.section
-        className="legal-content"
+        className="py-5"
         initial={{ opacity: 0, y: 50 }}
         whileInView={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8 }}
         viewport={{ once: true }}
       >
-        <div className="container">
-          <div className="legal-text">
+        <div className="container" style={{ maxWidth: '900px' }}>
+          <motion.div
+            className="p-4 rounded-4 border shadow-sm mb-4"
+            style={{ backgroundColor: '#fffaf5', borderColor: 'rgba(255, 107, 0, 0.2)' }}
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            transition={{ delay: 0.2, duration: 0.6 }}
+            viewport={{ once: true }}
+          >
+            <p className="mb-0" style={{ lineHeight: '1.8', color: '#4b5563' }}>
+              {t('legal.privacy.intro')}
+            </p>
+          </motion.div>
+
+          {sections.map((section, index) => (
             <motion.div
-              className="intro-section"
-              initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
-              transition={{ delay: 0.2, duration: 0.6 }}
+              key={index}
+              className="p-4 rounded-4 border shadow-sm mb-4"
+              style={{ backgroundColor: '#fffaf5', borderColor: 'rgba(255, 107, 0, 0.2)' }}
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.08, duration: 0.6 }}
               viewport={{ once: true }}
             >
-              <p>
-                At Droppin Delivery, we are committed to protecting your privacy and personal information.
-                This Privacy Policy explains how we collect, use, disclose, and safeguard your information
-                when you use our Last-mile Delivery services, website, and mobile application.
-              </p>
+              <h2 className="h4 fw-700 mb-3" style={{ color: '#FF6B00' }}>{section.title}</h2>
+              <p className="mb-0" style={{ lineHeight: '1.8', color: '#4b5563', whiteSpace: 'pre-line' }}>{section.content}</p>
             </motion.div>
+          ))}
 
-            {sections.map((section, index) => (
-              <motion.div
-                key={index}
-                className="legal-section"
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1, duration: 0.6 }}
-                viewport={{ once: true }}
-              >
-                <h2>{section.title}</h2>
-                <p>{section.content}</p>
-              </motion.div>
-            ))}
-
-            <motion.div
-              className="contact-section"
-              initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
-              transition={{ delay: 0.5, duration: 0.6 }}
-              viewport={{ once: true }}
-            >
-              <h2>Contact Us About Privacy</h2>
-              <p>
-                If you have questions about this Privacy Policy or our privacy practices, please contact us:
-              </p>
-              <ul>
-                <li><strong>Email:</strong> droppin.eg@gmail.com</li>
-                <li><strong>Phone:</strong> +20 103 136 9893</li>
-                <li><strong>Service Area:</strong> Cairo & Giza, Egypt</li>
-              </ul>
-              <p>
-                <strong>Privacy Officer:</strong> You can contact our Privacy Officer
-                directly at droppin.eg@gmail.com for privacy-related inquiries.
-              </p>
-            </motion.div>
-          </div>
+          <motion.div
+            className="p-4 rounded-4 border shadow-sm"
+            style={{ backgroundColor: '#fffaf5', borderColor: 'rgba(35, 87, 137, 0.22)' }}
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            transition={{ delay: 0.5, duration: 0.6 }}
+            viewport={{ once: true }}
+          >
+            <h2 className="h4 fw-700 mb-3" style={{ color: '#235789' }}>{t('legal.privacyContact.title')}</h2>
+            <p style={{ color: '#4b5563' }}>
+              {t('legal.privacyContact.subtitle')}
+            </p>
+            <ul className="list-unstyled" style={{ color: '#4b5563', lineHeight: '1.8' }}>
+              <li><strong>{t('legal.contactInfo.emailLabel')}</strong> {t('legal.contactInfo.email')}</li>
+              <li><strong>{t('legal.contactInfo.phoneLabel')}</strong> {t('legal.contactInfo.phone')}</li>
+              <li><strong>{t('legal.contactInfo.serviceAreaLabel')}</strong> {t('legal.contactInfo.serviceArea')}</li>
+            </ul>
+            <p className="mb-0" style={{ color: '#4b5563' }}>
+              <strong>{t('legal.privacyContact.officerLabel')}</strong> {t('legal.privacyContact.officerText')}
+            </p>
+          </motion.div>
         </div>
       </motion.section>
+
+      <PublicFooter />
     </div>
   );
 };

@@ -1,0 +1,466 @@
+{
+  "shop": {
+    "createPackage": {
+      "title": "إنشاء شحنة جديدة",
+      "subtitle": "أضف تفاصيل الشحنة وبيانات المستلم في خطوة واحدة سهلة.",
+      "sections": {
+        "packageInfo": "بيانات الشحنة",
+        "deliveryInfo": "بيانات التسليم",
+        "additionalInfo": "معلومات إضافية"
+      },
+      "fields": {
+        "description": "الوصف*",
+        "category": "الفئة*",
+        "weight": "الوزن (كجم)*",
+        "length": "الطول (سم)",
+        "width": "العرض (سم)",
+        "height": "الارتفاع (سم)",
+        "itemsNo": "عدد العناصر داخل الشحنة*",
+        "quantity": "الكمية*",
+        "codPerUnit": "الدفع عند الاستلام لكل وحدة",
+        "totalCod": "إجمالي الدفع عند الاستلام",
+        "shownShippingFees": "رسوم الشحن الظاهرة",
+        "contactName": "اسم المستلم*",
+        "contactPhone": "هاتف المستلم*",
+        "streetAddress": "العنوان التفصيلي*",
+        "city": "المدينة*",
+        "state": "المحافظة",
+        "zipCode": "الرمز البريدي",
+        "country": "الدولة*",
+        "shopNotes": "ملاحظات المتجر"
+      },
+      "placeholders": {
+        "description": "اكتب محتوى الشحنة",
+        "selectCategory": "اختر الفئة",
+        "weight": "الوزن",
+        "length": "الطول",
+        "width": "العرض",
+        "height": "الارتفاع",
+        "itemsNo": "أدخل عدد العناصر",
+        "itemDescription": "وصف العنصر",
+        "shownShippingFees": "اتركها فارغة لاستخدام الرسوم الافتراضية",
+        "contactName": "اسم المستلم",
+        "streetAddress": "العنوان التفصيلي",
+        "city": "المدينة",
+        "state": "المحافظة",
+        "zipCode": "الرمز البريدي",
+        "country": "الدولة",
+        "shopNotes": "ملاحظات إضافية من المتجر"
+      },
+      "categories": {
+        "shoes": "أحذية",
+        "perfumes": "عطور",
+        "clothes": "ملابس",
+        "electronics": "إلكترونيات",
+        "accessories": "إكسسوارات",
+        "books": "كتب",
+        "other": "أخرى"
+      },
+      "items": {
+        "title": "تفاصيل العناصر ({{count}} عنصر)",
+        "itemNumber": "العنصر {{number}}",
+        "totalCodAmount": "إجمالي مبلغ الدفع عند الاستلام"
+      },
+      "actions": {
+        "creating": "جارٍ الإنشاء...",
+        "createPackage": "إنشاء الشحنة"
+      },
+      "success": {
+        "title": "تم إنشاء الشحنة بنجاح!",
+        "subtitle": "تم إنشاء الشحنة وهي جاهزة للاستلام.",
+        "redirecting": "جارٍ التحويل إلى قائمة الشحنات..."
+      },
+      "errors": {
+        "loadShopAddress": "تعذر تحميل عنوان المتجر.",
+        "requiredFields": "يرجى تعبئة جميع الحقول المطلوبة",
+        "deliveryAddressRequired": "يرجى استكمال جميع حقول عنوان التسليم",
+        "phoneFormat": "رقم الهاتف يجب أن يكون بالشكل: 01xxxxxxxxx (11 رقمًا يبدأ بـ 01)",
+        "itemsCountRequired": "يرجى تحديد عدد العناصر",
+        "itemsDetailsRequired": "يرجى استكمال جميع تفاصيل العناصر",
+        "itemDescriptionRequired": "يرجى إدخال وصف للعنصر رقم {{number}}",
+        "itemQuantityInvalid": "يرجى إدخال كمية صحيحة للعنصر رقم {{number}}",
+        "itemCodNegative": "قيمة الدفع عند الاستلام للعنصر رقم {{number}} لا يمكن أن تكون سالبة",
+        "createFailed": "تعذر إنشاء الشحنة. يرجى المحاولة مرة أخرى."
+      }
+    },
+    "bulkImport": {
+      "title": "استيراد الشحنات بالجملة",
+      "subtitle": "ارفع ملف الإكسل، راجع الشحنات التي تم تحليلها، ثم أكد الإنشاء.",
+      "actions": {
+        "downloadTemplate": "تحميل قالب الاستيراد بالجملة",
+        "chooseFile": "اختيار ملف",
+        "uploadPreview": "رفع ومعاينة",
+        "parsing": "جارٍ التحليل...",
+        "cancel": "إلغاء",
+        "confirmImport": "تأكيد والاستيراد",
+        "importing": "جارٍ الاستيراد..."
+      },
+      "rowErrors": {
+        "title": "تم تخطي بعض الصفوف بسبب أخطاء:",
+        "rowPrefix": "الصف {{row}}"
+      },
+      "preview": {
+        "title": "المعاينة ({{count}} شحنة)",
+        "subtitle": "يمكنك مراجعة البيانات بالأسفل. للتعديل، غيّر ملف الإكسل ثم أعد الرفع.",
+        "newPackage": "شحنة جديدة",
+        "ref": "المرجع",
+        "codTotal": "إجمالي الدفع عند الاستلام",
+        "customer": "العميل",
+        "phone": "الهاتف",
+        "address": "العنوان",
+        "weight": "الوزن",
+        "notes": "الملاحظات",
+        "item": "العنصر",
+        "qty": "الكمية",
+        "codPerUnit": "الدفع لكل وحدة",
+        "total": "الإجمالي",
+        "noItems": "لا توجد عناصر",
+        "itemsCodTotal": "إجمالي الدفع للعناصر"
+      },
+      "success": {
+        "imported": "تم استيراد {{count}} شحنة بنجاح."
+      },
+      "errors": {
+        "selectFileFirst": "يرجى اختيار ملف إكسل أولاً.",
+        "parseFailed": "تعذر تحليل الملف. يرجى مراجعة القالب والمحاولة مرة أخرى.",
+        "noValidPackages": "لا توجد شحنات صالحة للاستيراد.",
+        "importFailed": "تعذر استيراد الشحنات. يرجى المحاولة مرة أخرى."
+      }
+    },
+    "newPickup": {
+      "title": "جدولة استلام جديد",
+      "loading": "جارٍ تحميل الشحنات...",
+      "sections": {
+        "selectPackages": "اختر الشحنات",
+        "pickupDetails": "تفاصيل الاستلام"
+      },
+      "fields": {
+        "pickupAddress": "عنوان الاستلام",
+        "pickupDate": "تاريخ الاستلام",
+        "pickupTime": "وقت الاستلام"
+      },
+      "actions": {
+        "selectAll": "تحديد الكل",
+        "deselectAll": "إلغاء تحديد الكل",
+        "cancel": "إلغاء",
+        "schedulePickup": "جدولة الاستلام",
+        "scheduling": "جارٍ الجدولة..."
+      },
+      "empty": "لا توجد شحنات معلقة متاحة للاستلام",
+      "cod": "الدفع عند الاستلام",
+      "na": "غير متوفر",
+      "errors": {
+        "loadData": "تعذر تحميل البيانات. يرجى المحاولة مرة أخرى لاحقاً.",
+        "selectPackage": "يرجى اختيار شحنة واحدة على الأقل للاستلام",
+        "selectDateTime": "يرجى اختيار التاريخ والوقت للاستلام",
+        "scheduleFailed": "تعذر جدولة الاستلام. يرجى المحاولة مرة أخرى."
+      }
+    },
+    "wallet": {
+      "title": "المحفظة",
+      "loading": "جارٍ تحميل بيانات المحفظة...",
+      "toCollect": "مبالغ قيد التحصيل",
+      "collectedWaitingWithdraw": "تم التحصيل (بانتظار السحب)",
+      "settled": "تمت التسوية",
+      "transactionHistory": "سجل المعاملات",
+      "startDate": "تاريخ البداية",
+      "endDate": "تاريخ النهاية",
+      "allAttributes": "كل البنود",
+      "attributeToCollect": "قيد التحصيل",
+      "attributeTotalCollected": "إجمالي المحصل",
+      "allTypes": "كل الأنواع",
+      "typeIncrease": "زيادة",
+      "typeDecrease": "نقص",
+      "searchPlaceholder": "ابحث في المعاملات...",
+      "noTransactions": "لا توجد معاملات.",
+      "date": "التاريخ",
+      "attribute": "البند",
+      "type": "النوع",
+      "amountEgp": "المبلغ (جنيه)",
+      "currentAmount": "القيمة الحالية",
+      "description": "الوصف",
+      "errors": {
+        "loadData": "تعذر تحميل البيانات. يرجى المحاولة مرة أخرى لاحقاً."
+      }
+    },
+    "profile": {
+      "title": "ملف المتجر",
+      "api": {
+        "title": "مفتاح API لتكامل Shopify",
+        "subtitle": "استخدم هذا المفتاح لربط تطبيق Shopify بحساب متجرك في دروبين."
+      },
+      "fields": {
+        "shopName": "اسم المتجر",
+        "defaultContactName": "اسم جهة التواصل الافتراضية",
+        "defaultContactPhone": "هاتف جهة التواصل الافتراضية",
+        "defaultPickupLocation": "موقع الاستلام الافتراضي",
+        "shippingFees": "رسوم الشحن (جنيه)",
+        "shownShippingFees": "رسوم الشحن الظاهرة (جنيه)"
+      },
+      "placeholders": {
+        "street": "الشارع",
+        "city": "المدينة",
+        "state": "المحافظة",
+        "zipCode": "الرمز البريدي",
+        "country": "الدولة"
+      },
+      "password": {
+        "title": "تغيير كلمة المرور",
+        "current": "كلمة المرور الحالية",
+        "new": "كلمة المرور الجديدة",
+        "confirm": "تأكيد كلمة المرور الجديدة"
+      },
+      "actions": {
+        "copy": "نسخ",
+        "generating": "جارٍ الإنشاء...",
+        "generateApiKey": "إنشاء مفتاح API",
+        "save": "حفظ",
+        "cancel": "إلغاء",
+        "edit": "تعديل",
+        "changePassword": "تغيير كلمة المرور",
+        "saving": "جارٍ الحفظ...",
+        "saveChanges": "حفظ التغييرات"
+      },
+      "success": {
+        "updated": "تم تحديث الملف بنجاح!",
+        "passwordChanged": "تم تغيير كلمة المرور بنجاح!",
+        "apiGenerated": "تم إنشاء مفتاح API!",
+        "apiCopied": "تم نسخ مفتاح API!"
+      },
+      "errors": {
+        "loadProfile": "تعذر تحميل الملف.",
+        "saveProfile": "تعذر حفظ الملف.",
+        "passwordFieldsRequired": "جميع حقول كلمة المرور مطلوبة.",
+        "passwordMismatch": "كلمتا المرور الجديدتان غير متطابقتين.",
+        "changePassword": "تعذر تغيير كلمة المرور.",
+        "generateApiKey": "تعذر إنشاء مفتاح API.",
+        "copyApiKey": "تعذر نسخ مفتاح API.",
+        "shownShippingFeesExceeded": "لا يمكن أن تكون رسوم الشحن الظاهرة أكبر من رسوم الشحن."
+      }
+    },
+    "packages": {
+      "title": "الشحنات",
+      "searchPlaceholder": "ابحث في الشحنات...",
+      "loadingPackages": "جارٍ تحميل الشحنات...",
+      "loadingPickups": "جارٍ تحميل عمليات الاستلام...",
+      "emptyPackages": "لا توجد شحنات.",
+      "emptyPickups": "لا توجد عمليات استلام.",
+      "na": "غير متوفر",
+      "noDescription": "لا يوجد وصف",
+      "noAddress": "لا يوجد عنوان",
+      "tabs": {
+        "all": "الكل",
+        "awaiting_schedule": "بانتظار الجدولة",
+        "scheduled_for_pickup": "مجدولة للاستلام",
+        "pending": "قيد الانتظار",
+        "in-transit": "قيد التوصيل",
+        "delivered": "تم التسليم",
+        "return-to-shop": "إرجاع للمتجر",
+        "return-requests": "طلبات الإرجاع",
+        "exchange-requests": "طلبات الاستبدال",
+        "pickups": "الاستلامات"
+      },
+      "actions": {
+        "importExcel": "استيراد الشحنات (Excel)",
+        "printAwbSelected": "طباعة بوليصة الشحن للمحدد ({{count}})",
+        "printAwb": "طباعة بوليصة الشحن",
+        "viewPackages": "عرض الشحنات",
+        "cancel": "إلغاء",
+        "yesCancel": "نعم، إلغاء",
+        "no": "لا",
+        "selectAll": "تحديد الكل",
+        "deselectAll": "إلغاء تحديد الكل",
+        "close": "إغلاق",
+        "edit": "تعديل",
+        "requestReturn": "طلب إرجاع",
+        "requestExchange": "طلب استبدال",
+        "submit": "إرسال",
+        "submitting": "جارٍ الإرسال...",
+        "addItem": "إضافة عنصر",
+        "remove": "حذف"
+      },
+      "table": {
+        "trackingNumber": "رقم التتبع",
+        "description": "الوصف",
+        "recipient": "المستلم",
+        "status": "الحالة",
+        "cod": "الدفع عند الاستلام",
+        "date": "التاريخ",
+        "actions": "الإجراءات"
+      },
+      "pickups": {
+        "pickupDate": "تاريخ الاستلام",
+        "address": "العنوان",
+        "status": "الحالة",
+        "action": "إجراء"
+      },
+      "badges": {
+        "return": "إرجاع",
+        "exchange": "استبدال",
+        "returnRequest": "طلب إرجاع",
+        "exchangeRequest": "طلب استبدال"
+      },
+      "modals": {
+        "cancelPackage": {
+          "title": "إلغاء الشحنة",
+          "confirm": "هل أنت متأكد أنك تريد إلغاء هذه الشحنة؟"
+        },
+        "pickupPackages": {
+          "title": "شحنات الاستلام",
+          "empty": "لا توجد شحنات لهذه العملية."
+        },
+        "cancelPickup": {
+          "title": "إلغاء الاستلام",
+          "confirm": "هل أنت متأكد أنك تريد إلغاء هذا الاستلام؟ سيتم إعادة كل الشحنات إلى قيد الانتظار."
+        },
+        "packageDetails": {
+          "title": "تفاصيل الشحنة"
+        },
+        "requestReturn": {
+          "title": "طلب إرجاع",
+          "subtitle": "اختر العناصر المراد إرجاعها وأدخل مبلغ الاسترداد للعميل (يمكن أن يكون 0).",
+          "returnQty": "كمية الإرجاع",
+          "refundLabel": "قيمة المرتجع للعميل (جنيه)"
+        },
+        "requestExchange": {
+          "title": "طلب استبدال",
+          "itemsTake": "عناصر تؤخذ من العميل",
+          "itemsGive": "عناصر تُسلَّم للعميل",
+          "moneyGive": "مبلغ يُعطى للعميل",
+          "moneyTake": "مبلغ يُؤخذ من العميل",
+          "amountPlaceholder": "المبلغ (جنيه)",
+          "moneyHint": "سيؤثر هذا على إجمالي المحصل عند اكتمال الاستبدال."
+        }
+      },
+      "labels": {
+        "qty": "الكمية",
+        "money": "المال"
+      },
+      "placeholders": {
+        "itemDescription": "وصف العنصر"
+      },
+      "errors": {
+        "exchangeFailed": "تعذر إرسال طلب الاستبدال.",
+        "returnFailed": "تعذر إرسال طلب الإرجاع."
+      },
+      "notifications": {
+        "exchangeFailedTitle": "فشل طلب الاستبدال",
+        "returnRequestedTitle": "تم طلب الإرجاع",
+        "returnRequestedDescription": "تم إرسال طلب الإرجاع بنجاح!",
+        "returnFailedTitle": "فشل طلب الإرجاع"
+      }
+    },
+    "dashboard": {
+      "nav": {
+        "dashboard": "لوحة التحكم",
+        "packages": "الشحنات",
+        "newPackage": "شحنة جديدة",
+        "newPickup": "استلام جديد",
+        "wallet": "المحفظة",
+        "profile": "الملف الشخصي",
+        "menuTitle": "قائمة المتجر",
+        "menuSubtitle": "تنقل بين صفحاتك بسهولة"
+      },
+      "menu": {
+        "open": "فتح القائمة",
+        "close": "إغلاق القائمة"
+      },
+      "hero": {
+        "welcome": "مرحباً، {{name}}",
+        "defaultOwner": "صاحب المتجر",
+        "subtitle": "أدر عمليات التوصيل بسهولة",
+        "defaultBusiness": "المتجر",
+        "accountType": "حساب متجر"
+      },
+      "stats": {
+        "pending": "قيد الانتظار",
+        "inTransit": "قيد التوصيل",
+        "delivered": "تم التسليم",
+        "total": "الإجمالي",
+        "distribution": "توزيع الشحنات"
+      },
+      "finance": {
+        "toCollect": "مبالغ قيد التحصيل",
+        "collectedWaitingWithdraw": "تم التحصيل (بانتظار السحب)",
+        "settled": "تمت التسوية"
+      },
+      "recent": {
+        "title": "أحدث الشحنات",
+        "rows": "الصفوف",
+        "page": "الصفحة",
+        "viewAll": "عرض الكل",
+        "loading": "جاري تحميل أحدث الشحنات...",
+        "emptyTitle": "لا توجد شحنات حالياً. أنشئ أول شحنة توصيل الآن.",
+        "createPackage": "إنشاء شحنة",
+        "noDescription": "لا يوجد وصف",
+        "noAddress": "لا يوجد عنوان",
+        "na": "غير متوفر"
+      },
+      "table": {
+        "trackingNumber": "رقم التتبع",
+        "description": "الوصف",
+        "recipient": "المستلم",
+        "status": "الحالة",
+        "codAmount": "مبلغ الدفع عند الاستلام",
+        "actions": "الإجراءات"
+      },
+      "actions": {
+        "view": "عرض",
+        "cancel": "إلغاء",
+        "markReturned": "تأكيد الإرجاع",
+        "close": "إغلاق",
+        "no": "لا",
+        "yesCancel": "نعم، إلغاء"
+      },
+      "modals": {
+        "cancelPackageTitle": "إلغاء الشحنة",
+        "cancelPackageConfirm": "هل أنت متأكد أنك تريد إلغاء هذه الشحنة؟",
+        "packageDetailsTitle": "تفاصيل الشحنة"
+      },
+      "details": {
+        "trackingNumber": "رقم التتبع",
+        "status": "الحالة",
+        "created": "تاريخ الإنشاء",
+        "description": "الوصف",
+        "recipient": "المستلم",
+        "recipientPhone": "هاتف المستلم",
+        "deliveryAddress": "عنوان التسليم",
+        "cod": "الدفع عند الاستلام",
+        "deliveryCost": "تكلفة التوصيل",
+        "rejectionShippingFeesPaid": "رسوم شحن المرتجع المدفوعة",
+        "weight": "الوزن",
+        "dimensions": "الأبعاد",
+        "notes": "الملاحظات",
+        "shopNotes": "ملاحظات المتجر",
+        "noDescription": "لا يوجد وصف"
+      },
+      "money": {
+        "empty": "لا توجد معاملات.",
+        "startDate": "تاريخ البداية",
+        "endDate": "تاريخ النهاية",
+        "allAttributes": "كل البنود",
+        "attributeToCollect": "قيد التحصيل",
+        "attributeTotalCollected": "إجمالي المحصل",
+        "attributeRevenue": "الإيراد",
+        "allTypes": "كل الأنواع",
+        "typeIncrease": "زيادة",
+        "typeDecrease": "نقص",
+        "searchPlaceholder": "ابحث في المعاملات...",
+        "date": "التاريخ",
+        "attribute": "البند",
+        "type": "النوع",
+        "amount": "المبلغ",
+        "amountEgp": "المبلغ (جنيه)",
+        "description": "الوصف"
+      },
+      "errors": {
+        "loadData": "تعذر تحميل البيانات. يرجى المحاولة مرة أخرى لاحقاً.",
+        "cancelPackage": "تعذر إلغاء الشحنة.",
+        "markReturned": "تعذر تأكيد إرجاع الشحنة. يرجى المحاولة مرة أخرى."
+      },
+      "labels": {
+        "droppin": "دروبين"
+      }
+    }
+  }
+}

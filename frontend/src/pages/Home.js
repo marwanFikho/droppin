@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
-import { motion, useScroll, useTransform, useInView } from 'framer-motion';
-import '../App.css';
+import { motion } from 'framer-motion';
+import PublicFooter from '../components/PublicFooter';
 
 const Home = () => {
+  const { t } = useTranslation();
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   
   useEffect(() => {
@@ -19,10 +21,8 @@ const Home = () => {
   }, []);
   
   const { currentUser } = useAuth();
-
-  // Scroll animations - disabled on mobile for performance
-  const { scrollYProgress } = useScroll();
-  const y = useTransform(scrollYProgress, [0, 1], [0, -100]);
+  const whatCards = t('home.what.cards', { returnObjects: true });
+  const featureCards = t('home.features.cards', { returnObjects: true });
 
   // Redirect to the appropriate dashboard if logged in
   const getDashboardLink = () => {
@@ -41,539 +41,545 @@ const Home = () => {
   };
 
   return (
-    <div className="home-container">
+    <div>
       {/* Modern Hero Section */}
       <motion.div
-        className="hero-section"
+        className="position-relative overflow-hidden"
+        style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #ff7a3d 0%, #fa8831 28%, #cd7955 52%, #9d8f8d 74%, #4e97ef 100%)' }}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 1 }}
       >
         {/* Background with gradient and geometric shapes */}
-        <div className="hero-background">
-          <div className="hero-gradient"></div>
-          <div className="hero-shapes">
-            <motion.div
-              className="shape shape-1"
-              animate={!isMobile ? {
-                rotate: 360,
-                scale: [1, 1.1, 1]
-              } : {}}
-              transition={!isMobile ? {
-                rotate: { duration: 20, repeat: Infinity, ease: "linear" },
-                scale: { duration: 4, repeat: Infinity, ease: "easeInOut" }
-              } : {}}
-            ></motion.div>
-            <motion.div
-              className="shape shape-2"
-              animate={!isMobile ? {
-                rotate: -360,
-                scale: [1, 0.9, 1]
-              } : {}}
-              transition={!isMobile ? {
-                rotate: { duration: 15, repeat: Infinity, ease: "linear" },
-                scale: { duration: 5, repeat: Infinity, ease: "easeInOut" }
-              } : {}}
-            ></motion.div>
-            <motion.div
-              className="shape shape-3"
-              animate={!isMobile ? {
-                rotate: 360,
-                y: [0, -20, 0]
-              } : {}}
-              transition={!isMobile ? {
-                rotate: { duration: 25, repeat: Infinity, ease: "linear" },
-                y: { duration: 6, repeat: Infinity, ease: "easeInOut" }
-              } : {}}
-            ></motion.div>
-          </div>
-
-          {/* Jumping Delivery Emojis - Desktop Only */}
-          {!isMobile && (
-            <div className="jumping-emojis">
-              {/* Left Side Emojis */}
-              <motion.div
-                className="emoji emoji-left-1"
-                animate={{
-                  y: [0, -15, 0],
-                  rotate: [0, 5, -5, 0]
-                }}
-                transition={{
-                  duration: 3,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                  delay: 0
-                }}
-              >
-                🚚
-              </motion.div>
-              <motion.div
-                className="emoji emoji-left-2"
-                animate={{
-                  y: [0, -20, 0],
-                  rotate: [0, -3, 3, 0]
-                }}
-                transition={{
-                  duration: 2.5,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                  delay: 0.5
-                }}
-              >
-                📦
-              </motion.div>
-              <motion.div
-                className="emoji emoji-left-3"
-                animate={{
-                  y: [0, -18, 0],
-                  rotate: [0, 4, -4, 0]
-                }}
-                transition={{
-                  duration: 3.5,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                  delay: 1
-                }}
-              >
-                🚛
-              </motion.div>
-              <motion.div
-                className="emoji emoji-left-4"
-                animate={{
-                  y: [0, -12, 0],
-                  rotate: [0, -2, 2, 0]
-                }}
-                transition={{
-                  duration: 2.8,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                  delay: 1.5
-                }}
-              >
-                📬
-              </motion.div>
-
-              {/* Right Side Emojis */}
-              <motion.div
-                className="emoji emoji-right-1"
-                animate={{
-                  y: [0, -17, 0],
-                  rotate: [0, -4, 4, 0]
-                }}
-                transition={{
-                  duration: 3.2,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                  delay: 0.8
-                }}
-              >
-                🛵
-              </motion.div>
-              <motion.div
-                className="emoji emoji-right-2"
-                animate={{
-                  y: [0, -14, 0],
-                  rotate: [0, 3, -3, 0]
-                }}
-                transition={{
-                  duration: 2.6,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                  delay: 0.3
-                }}
-              >
-                🚴‍♂️
-              </motion.div>
-              <motion.div
-                className="emoji emoji-right-3"
-                animate={{
-                  y: [0, -19, 0],
-                  rotate: [0, -5, 5, 0]
-                }}
-                transition={{
-                  duration: 3.8,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                  delay: 1.2
-                }}
-              >
-                🏍️
-              </motion.div>
-              <motion.div
-                className="emoji emoji-right-4"
-                animate={{
-                  y: [0, -16, 0],
-                  rotate: [0, 2, -2, 0]
-                }}
-                transition={{
-                  duration: 2.9,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                  delay: 0.7
-                }}
-              >
-                📱
-              </motion.div>
-            </div>
-          )}
+        <div className="position-absolute w-100 h-100" style={{ top: 0, left: 0, zIndex: 0, pointerEvents: 'none' }}>
+          {/* Geometric shapes - using CSS shapes via styled divs */}
+          <motion.div
+            className="position-absolute rounded-circle"
+            animate={!isMobile ? {
+              rotate: 360,
+              scale: [1, 1.1, 1]
+            } : {}}
+            transition={!isMobile ? {
+              rotate: { duration: 20, repeat: Infinity, ease: "linear" },
+              scale: { duration: 4, repeat: Infinity, ease: "easeInOut" }
+            } : {}}
+            style={{
+              top: '10%',
+              left: '5%',
+              width: '200px',
+              height: '200px',
+              backgroundColor: 'rgba(255, 107, 0, 0.1)',
+              zIndex: 0
+            }}
+          ></motion.div>
+          <motion.div
+            className="position-absolute rounded-circle"
+            animate={!isMobile ? {
+              rotate: -360,
+              scale: [1, 0.9, 1]
+            } : {}}
+            transition={!isMobile ? {
+              rotate: { duration: 15, repeat: Infinity, ease: "linear" },
+              scale: { duration: 5, repeat: Infinity, ease: "easeInOut" }
+            } : {}}
+            style={{
+              top: '60%',
+              right: '10%',
+              width: '150px',
+              height: '150px',
+              backgroundColor: 'rgba(35, 87, 137, 0.08)',
+              zIndex: 0
+            }}
+          ></motion.div>
         </div>
 
+        {/* Jumping Delivery Emojis - Desktop Only */}
+        {!isMobile && (
+          <div className="position-absolute w-100 h-100" style={{ top: 0, left: 0, zIndex: 1, pointerEvents: 'none', overflow: 'hidden' }}>
+            {/* Left Side Emojis */}
+            <motion.div
+              className="position-absolute"
+              animate={{
+                y: [0, -15, 0],
+                rotate: [0, 5, -5, 0]
+              }}
+              transition={{
+                duration: 3,
+                repeat: Infinity,
+                ease: "easeInOut",
+                delay: 0
+              }}
+              style={{ left: '5%', top: '15%', fontSize: '3rem', zIndex: 2 }}
+            >
+              🚚
+            </motion.div>
+            <motion.div
+              className="position-absolute"
+              animate={{
+                y: [0, -20, 0],
+                rotate: [0, -3, 3, 0]
+              }}
+              transition={{
+                duration: 2.5,
+                repeat: Infinity,
+                ease: "easeInOut",
+                delay: 0.5
+              }}
+              style={{ left: '10%', top: '60%', fontSize: '2.5rem', zIndex: 2 }}
+            >
+              📦
+            </motion.div>
+            <motion.div
+              className="position-absolute"
+              animate={{
+                y: [0, -18, 0],
+                rotate: [0, 4, -4, 0]
+              }}
+              transition={{
+                duration: 3.5,
+                repeat: Infinity,
+                ease: "easeInOut",
+                delay: 1
+              }}
+              style={{ left: '8%', top: '35%', fontSize: '3rem', zIndex: 2 }}
+            >
+              🚛
+            </motion.div>
+            <motion.div
+              className="position-absolute"
+              animate={{
+                y: [0, -12, 0],
+                rotate: [0, -2, 2, 0]
+              }}
+              transition={{
+                duration: 2.8,
+                repeat: Infinity,
+                ease: "easeInOut",
+                delay: 1.5
+              }}
+              style={{ left: '3%', top: '80%', fontSize: '2.2rem', zIndex: 2 }}
+            >
+              📬
+            </motion.div>
+
+            {/* Right Side Emojis */}
+            <motion.div
+              className="position-absolute"
+              animate={{
+                y: [0, -17, 0],
+                rotate: [0, -4, 4, 0]
+              }}
+              transition={{
+                duration: 3.2,
+                repeat: Infinity,
+                ease: "easeInOut",
+                delay: 0.8
+              }}
+              style={{ right: '5%', top: '20%', fontSize: '2.8rem', zIndex: 2 }}
+            >
+              🛵
+            </motion.div>
+            <motion.div
+              className="position-absolute"
+              animate={{
+                y: [0, -14, 0],
+                rotate: [0, 3, -3, 0]
+              }}
+              transition={{
+                duration: 2.6,
+                repeat: Infinity,
+                ease: "easeInOut",
+                delay: 0.3
+              }}
+              style={{ right: '8%', top: '65%', fontSize: '2.5rem', zIndex: 2 }}
+            >
+              🚴‍♂️
+            </motion.div>
+            <motion.div
+              className="position-absolute"
+              animate={{
+                y: [0, -19, 0],
+                rotate: [0, -5, 5, 0]
+              }}
+              transition={{
+                duration: 3.8,
+                repeat: Infinity,
+                ease: "easeInOut",
+                delay: 1.2
+              }}
+              style={{ right: '12%', top: '40%', fontSize: '3rem', zIndex: 2 }}
+            >
+              🏍️
+            </motion.div>
+            <motion.div
+              className="position-absolute"
+              animate={{
+                y: [0, -16, 0],
+                rotate: [0, 2, -2, 0]
+              }}
+              transition={{
+                duration: 2.9,
+                repeat: Infinity,
+                ease: "easeInOut",
+                delay: 0.7
+              }}
+              style={{ right: '3%', top: '75%', fontSize: '2.3rem', zIndex: 2 }}
+            >
+              📱
+            </motion.div>
+          </div>
+        )}
+
+        {/* Hero Content */}
         <motion.div
-          className="hero-content"
+          className="container position-relative d-flex align-items-center justify-content-center"
+          style={{ minHeight: '100vh', zIndex: 10 }}
           initial={{ y: 50, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.5, duration: 0.8 }}
         >
-          <motion.div
-            className="hero-badge"
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ delay: 0.3, duration: 0.6, type: "spring" }}
-          >
-            🚚 Fast & Reliable Delivery
-          </motion.div>
+          <div className="row w-100">
+            <div className="col-lg-8 mx-auto text-center">
+              <motion.div
+                className="badge mb-3 px-3 py-2"
+                style={{ display: 'inline-block', backgroundColor: 'rgba(255, 255, 255, 0.2)', color: '#fff', backdropFilter: 'blur(10px)' }}
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ delay: 0.3, duration: 0.6, type: "spring" }}
+              >
+                {`🚚 ${t('home.heroBadge')}`}
+              </motion.div>
 
-          <motion.h1
-            initial={{ y: 30, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.7, duration: 0.8 }}
-          >
-            Droppin Delivery
-          </motion.h1>
+              <motion.h1
+                className="display-3 fw-700 mb-3"
+                style={{ color: '#fff' }}
+                initial={{ y: 30, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.7, duration: 0.8 }}
+              >
+                {t('home.heroTitle')}
+              </motion.h1>
 
-          <motion.h2
-            initial={{ y: 30, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.9, duration: 0.8 }}
-          >
-            Revolutionizing Last-mile Delivery Logistics
-          </motion.h2>
+              <motion.h2
+                className="h3 fw-600 mb-3"
+                style={{ color: '#f8f9fa' }}
+                initial={{ y: 30, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.9, duration: 0.8 }}
+              >
+                {t('home.heroSubtitle')}
+              </motion.h2>
 
-          <motion.p
-            initial={{ y: 30, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 1.1, duration: 0.8 }}
-          >
-            Connecting businesses with professional drivers for seamless, trackable deliveries across Egypt.
-          </motion.p>
+              <motion.p
+                className="lead mb-4"
+                style={{ color: '#f1f5f9' }}
+                initial={{ y: 30, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 1.1, duration: 0.8 }}
+              >
+                {t('home.heroDescription')}
+              </motion.p>
 
-          <motion.div
-            className="hero-stats"
-            initial={{ y: 30, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 1.3, duration: 0.8 }}
-          >
-            <div className="stat-item">
-              <span className="stat-number">50+</span>
-              <span className="stat-label">Partner Shops</span>
+              <motion.div
+                className="row gap-3 justify-content-center mb-4"
+                initial={{ y: 30, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 1.3, duration: 0.8 }}
+              >
+                <div className="col-md-3 col-sm-6 col-6">
+                  <h4 className="fw-700" style={{ color: '#fff', fontSize: '1.8rem' }}>50+</h4>
+                  <p className="small" style={{ color: '#f1f5f9' }}>{t('home.stats.partnerShops')}</p>
+                </div>
+                <div className="col-md-3 col-sm-6 col-6">
+                  <h4 className="fw-700" style={{ color: '#fff', fontSize: '1.8rem' }}>100+</h4>
+                  <p className="small" style={{ color: '#f1f5f9' }}>{t('home.stats.dailyDeliveries')}</p>
+                </div>
+                <div className="col-md-3 col-sm-6 col-6">
+                  <h4 className="fw-700" style={{ color: '#fff', fontSize: '1.8rem' }}>99.5%</h4>
+                  <p className="small" style={{ color: '#f1f5f9' }}>{t('home.stats.onTimeRate')}</p>
+                </div>
+              </motion.div>
+
+              {!currentUser && (
+                <motion.div
+                  className="d-flex gap-2 justify-content-center flex-wrap mb-3"
+                  initial={{ y: 30, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 1.5, duration: 0.8 }}
+                >
+                  <Link to="/register/shop" className="btn btn-primary btn-lg fw-600">
+                    {t('home.cta.registerShop')}
+                  </Link>
+                  <Link to="/register/driver" className="btn btn-outline-primary btn-lg fw-600">
+                    {t('home.cta.registerDriver')}
+                  </Link>
+                </motion.div>
+              )}
+
+              {currentUser && (
+                <motion.div
+                  className="mb-3"
+                  initial={{ y: 30, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 1.5, duration: 0.8 }}
+                >
+                  <Link to={getDashboardLink()} className="btn btn-primary btn-lg fw-600">
+                    {`${t('home.cta.accessDashboard')} →`}
+                  </Link>
+                </motion.div>
+              )}
+
+              <motion.div
+                initial={{ y: 30, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 1.7, duration: 0.8 }}
+              >
+                <Link to="/track" className="fw-600 text-decoration-none" style={{ color: '#fff' }}>
+                  {`📍 ${t('home.cta.trackPackage')}`}
+                </Link>
+              </motion.div>
             </div>
-            <div className="stat-item">
-              <span className="stat-number">100+</span>
-              <span className="stat-label">Daily Deliveries</span>
-            </div>
-            <div className="stat-item">
-              <span className="stat-number">99.5%</span>
-              <span className="stat-label">On-Time Rate</span>
-            </div>
-          </motion.div>
-
-          {currentUser && (
-            <motion.div
-              initial={{ y: 30, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 1.5, duration: 0.8 }}
-            >
-              <Link to={getDashboardLink()} className="cta-button">
-                Access Dashboard
-              </Link>
-            </motion.div>
-          )}
+          </div>
         </motion.div>
       </motion.div>
 
       {/* About Section - Golden Circle Framework */}
       <motion.section
-        className="about-section"
+        className="py-5"
+        style={{ background: 'linear-gradient(180deg, #fff4ea 0%, #ffe9d6 100%)' }}
         initial={{ opacity: 0, y: 50 }}
         whileInView={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8 }}
         viewport={{ once: true }}
       >
-        <div className="about-container">
+        <div className="container">
           <motion.h2
-            className="section-title"
+            className="text-center h2 fw-700 mb-5"
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2, duration: 0.6 }}
             viewport={{ once: true }}
+            style={{ color: '#1f2937' }}
           >
-            About Droppin
+            {t('home.aboutSectionTitle')}
           </motion.h2>
 
           {/* WHY Section */}
           <motion.div
-            className="golden-circle-section why-section"
+            className="row mb-4 align-items-center p-4 rounded-4 border shadow-sm"
             initial={{ opacity: 0, x: -50 }}
             whileInView={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.3, duration: 0.8 }}
             viewport={{ once: true }}
+            style={{ backgroundColor: 'rgba(255, 255, 255, 0.6)', borderColor: 'rgba(255, 107, 0, 0.2)' }}
           >
-            <div className="circle-icon">💡</div>
-            <div className="circle-content">
-              <h3>WHY we do what we do</h3>
-              <p>
-                In today's fast-paced business world, reliable delivery services are the backbone of successful e-commerce.
-                We believe that every package represents a promise to customers, and every delivery builds trust between businesses and their clients.
-                Our mission is to eliminate delivery uncertainties and create seamless logistics experiences that empower businesses to focus on what they do best.
+            <div className="col-md-2 text-center mb-3 mb-md-0">
+              <div style={{ fontSize: '4rem' }}>💡</div>
+            </div>
+            <div className="col-md-10">
+              <h3 className="fw-700 mb-3" style={{ color: '#FF6B00' }}>{t('home.why.title')}</h3>
+              <p style={{ fontSize: '1rem', lineHeight: '1.6', color: '#6b7280' }}>
+                {t('home.why.description')}
               </p>
             </div>
           </motion.div>
 
           {/* HOW Section */}
           <motion.div
-            className="golden-circle-section how-section"
+            className="row mb-4 align-items-center flex-row-reverse p-4 rounded-4 border shadow-sm"
             initial={{ opacity: 0, x: 50 }}
             whileInView={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.4, duration: 0.8 }}
             viewport={{ once: true }}
+            style={{ backgroundColor: 'rgba(255, 255, 255, 0.6)', borderColor: 'rgba(35, 87, 137, 0.2)' }}
           >
-            <div className="circle-icon">⚙️</div>
-            <div className="circle-content">
-              <h3>HOW we do it</h3>
-              <p>
-                Through cutting-edge technology and a network of professional drivers, we provide real-time tracking,
-                automated routing optimization, and seamless communication between all stakeholders.
-                Our platform integrates with popular e-commerce systems, ensuring smooth data flow and minimal manual intervention.
-                We prioritize efficiency, transparency, and reliability in every step of the delivery process.
+            <div className="col-md-2 text-center mb-3 mb-md-0">
+              <div style={{ fontSize: '4rem' }}>⚙️</div>
+            </div>
+            <div className="col-md-10">
+              <h3 className="fw-700 mb-3" style={{ color: '#235789' }}>{t('home.how.title')}</h3>
+              <p style={{ fontSize: '1rem', lineHeight: '1.6', color: '#6b7280' }}>
+                {t('home.how.description')}
               </p>
             </div>
           </motion.div>
 
           {/* WHAT Section */}
           <motion.div
-            className="golden-circle-section what-section"
+            className="mb-4 p-4 rounded-4 border shadow-sm"
             initial={{ opacity: 0, y: 50 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5, duration: 0.8 }}
             viewport={{ once: true }}
+            style={{ backgroundColor: 'rgba(255, 255, 255, 0.6)', borderColor: 'rgba(255, 107, 0, 0.2)' }}
           >
-            <div className="circle-icon">🎯</div>
-            <div className="circle-content">
-              <h3>WHAT we offer</h3>
-              <div className="services-grid">
-                <div className="service-item">
-                  <h4>🚚 Same-Day Delivery</h4>
-                  <p>Express delivery within city limits for urgent orders, of maximum <b>2 days</b> policy</p>
-                </div>
-                <div className="service-item">
-                  <h4>📍 Real-Time Tracking</h4>
-                  <p>Live updates and GPS tracking for all packages. <b>[Soon]</b></p>
-                </div>
-                <div className="service-item">
-                  <h4>🔄 Return Management</h4>
-                  <p>Streamlined return and exchange processes</p>
-                </div>
-                <div className="service-item">
-                  <h4>📊 Analytics Dashboard</h4>
-                  <p>Comprehensive insights and performance metrics</p>
-                </div>
-                <div className="service-item">
-                  <h4>🛡️ Insurance Coverage</h4>
-                  <p>Package protection and liability coverage. <b>[Soon]</b></p>
-                </div>
-                <div className="service-item">
-                  <h4>🤝 API Integration</h4>
-                  <p>Seamless integration with your existing systems</p>
-                </div>
+            <div className="row mb-4 align-items-center">
+              <div className="col-md-2 text-center">
+                <div style={{ fontSize: '4rem' }}>🎯</div>
               </div>
+              <div className="col-md-10">
+                <h3 className="fw-700" style={{ color: '#FF6B00' }}>{t('home.what.title')}</h3>
+              </div>
+            </div>
+            <div className="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+              {whatCards.map((card, index) => (
+                <div key={index} className="col">
+                  <div className="card h-100 border shadow-sm" style={{ backgroundColor: '#fffaf5', borderColor: 'rgba(255, 107, 0, 0.18)' }}>
+                    <div className="card-body">
+                      <h5 className="card-title fw-600 mb-3">{card.title}</h5>
+                      <p className="card-text" style={{ fontSize: '0.95rem', color: '#6b7280' }}>
+                        {card.description}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </motion.div>
 
           {/* WHO Section */}
           <motion.div
-            className="golden-circle-section who-section"
+            className="mb-5 p-4 rounded-4 border shadow-sm"
             initial={{ opacity: 0, y: 50 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.6, duration: 0.8 }}
             viewport={{ once: true }}
+            style={{ backgroundColor: 'rgba(255, 255, 255, 0.6)', borderColor: 'rgba(35, 87, 137, 0.18)' }}
           >
-            <div className="circle-icon">👥</div>
-            <div className="circle-content">
-              <h3>WHO we are</h3>
-              <div className="team-info">
-                <div className="company-stats">
-                  <div className="stat">
-                    <span className="stat-number">50+</span>
-                    <span className="stat-label">Partner Shops</span>
-                  </div>
-                  <div className="stat">
-                    <span className="stat-number">100+</span>
-                    <span className="stat-label">Deliveries Daily</span>
-                  </div>
-                  <div className="stat">
-                    <span className="stat-number">10+</span>
-                    <span className="stat-label">Professional Drivers</span>
-                  </div>
-                  <div className="stat">
-                    <span className="stat-number">99.5%</span>
-                    <span className="stat-label">On-Time Delivery</span>
-                  </div>
-                </div>
-                <p className="team-description">
-                  Founded in 2025, Droppin has rapidly become Egypt's leading Last-mile Delivery platform.
-                  Our team consists of logistics experts, technology innovators, and customer service professionals
-                  dedicated to revolutionizing the delivery industry. We partner with businesses of all sizes,
-                  from local boutiques to major e-commerce platforms, ensuring their success through reliable logistics.
-                </p>
+            <div className="row mb-4 align-items-center">
+              <div className="col-md-2 text-center">
+                <div style={{ fontSize: '4rem' }}>👥</div>
+              </div>
+              <div className="col-md-10">
+                <h3 className="fw-700" style={{ color: '#235789' }}>{t('home.who.title')}</h3>
               </div>
             </div>
+            <div className="row row-cols-1 row-cols-md-4 g-4 mb-4">
+              <div className="col">
+                <div className="text-center p-3 rounded-3 border" style={{ backgroundColor: '#fffaf5', borderColor: 'rgba(255, 107, 0, 0.18)' }}>
+                  <div className="h5 fw-700" style={{ color: '#FF6B00' }}>50+</div>
+                  <p style={{ color: '#6b7280', fontSize: '0.9rem' }}>{t('home.stats.partnerShops')}</p>
+                </div>
+              </div>
+              <div className="col">
+                <div className="text-center p-3 rounded-3 border" style={{ backgroundColor: '#fffaf5', borderColor: 'rgba(255, 107, 0, 0.18)' }}>
+                  <div className="h5 fw-700" style={{ color: '#FF6B00' }}>100+</div>
+                  <p style={{ color: '#6b7280', fontSize: '0.9rem' }}>{t('home.who.stats.deliveriesDaily')}</p>
+                </div>
+              </div>
+              <div className="col">
+                <div className="text-center p-3 rounded-3 border" style={{ backgroundColor: '#fffaf5', borderColor: 'rgba(255, 107, 0, 0.18)' }}>
+                  <div className="h5 fw-700" style={{ color: '#FF6B00' }}>10+</div>
+                  <p style={{ color: '#6b7280', fontSize: '0.9rem' }}>{t('home.who.stats.professionalDrivers')}</p>
+                </div>
+              </div>
+              <div className="col">
+                <div className="text-center p-3 rounded-3 border" style={{ backgroundColor: '#fffaf5', borderColor: 'rgba(255, 107, 0, 0.18)' }}>
+                  <div className="h5 fw-700" style={{ color: '#FF6B00' }}>99.5%</div>
+                  <p style={{ color: '#6b7280', fontSize: '0.9rem' }}>{t('home.who.stats.onTimeDelivery')}</p>
+                </div>
+              </div>
+            </div>
+            <p style={{ fontSize: '1rem', lineHeight: '1.6', color: '#6b7280' }}>
+              {t('home.who.description')}
+            </p>
           </motion.div>
         </div>
       </motion.section>
 
       {/* Features Section */}
-      <motion.div
-        className="features-section"
+      <motion.section
+        className="py-5"
+        style={{ background: 'linear-gradient(180deg, #ffefd9 0%, #ffe7cf 100%)' }}
         initial={{ opacity: 0 }}
         whileInView={{ opacity: 1 }}
         transition={{ duration: 0.8 }}
         viewport={{ once: true }}
       >
-        <motion.h2
-          initial={{ y: 30, opacity: 0 }}
-          whileInView={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.2, duration: 0.6 }}
-          viewport={{ once: true }}
-        >
-          Why Choose Droppin?
-        </motion.h2>
+        <div className="container">
+          <motion.h2
+            className="text-center h2 fw-700 mb-5"
+            initial={{ y: 30, opacity: 0 }}
+            whileInView={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.2, duration: 0.6 }}
+            viewport={{ once: true }}
+            style={{ color: '#1f2937' }}
+          >
+            {t('home.features.title')}
+          </motion.h2>
 
-        <div className="features-grid">
-          {[
-            { icon: '📦', title: 'For Shops', description: 'Manage your deliveries, track packages, and ensure customer satisfaction.' },
-            { icon: '🚚', title: 'For Drivers', description: 'Pick up and deliver packages efficiently with our easy-to-use platform.' },
-            { icon: '👤', title: 'For Customers', description: 'Track your packages in real-time and receive timely updates.' }
-          ].map((feature, index) => (
-            <motion.div
-              key={index}
-              className="feature-card"
-              initial={{ y: 50, opacity: 0 }}
-              whileInView={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.2 * index, duration: 0.6 }}
-              viewport={{ once: true }}
-              whileHover={{
-                scale: 1.05,
-                boxShadow: "0 20px 40px rgba(0,0,0,0.1)"
-              }}
-            >
-              <motion.div
-                className="feature-icon"
-                whileHover={{ scale: 1.2, rotate: 5 }}
-                transition={{ type: "spring", stiffness: 400, damping: 10 }}
-              >
-                {feature.icon}
-              </motion.div>
-              <h3>{feature.title}</h3>
-              <p>{feature.description}</p>
-            </motion.div>
-          ))}
+          <div className="row row-cols-1 row-cols-md-3 g-4">
+            {featureCards.map((feature, index) => (
+              <div key={index} className="col">
+                <motion.div
+                  className="card h-100 border shadow-sm"
+                  initial={{ y: 50, opacity: 0 }}
+                  whileInView={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 0.2 * index, duration: 0.6 }}
+                  viewport={{ once: true }}
+                  whileHover={{
+                    scale: 1.05,
+                    boxShadow: "0 20px 40px rgba(0,0,0,0.1)"
+                  }}
+                  style={{ backgroundColor: '#fff8ef', borderColor: 'rgba(255, 107, 0, 0.2)' }}
+                >
+                  <div className="card-body text-center">
+                    <motion.div
+                      style={{ fontSize: '3rem', marginBottom: '1rem' }}
+                      whileHover={{ scale: 1.2, rotate: 5 }}
+                      transition={{ type: "spring", stiffness: 400, damping: 10 }}
+                    >
+                      {feature.icon}
+                    </motion.div>
+                    <h5 className="card-title fw-700 mb-3" style={{ color: '#FF6B00' }}>{feature.title}</h5>
+                    <p className="card-text" style={{ color: '#6b7280', fontSize: '0.95rem', lineHeight: '1.6' }}>
+                      {feature.description}
+                    </p>
+                  </div>
+                </motion.div>
+              </div>
+            ))}
+          </div>
         </div>
-      </motion.div>
+      </motion.section>
 
       {/* Tracking Section */}
-      <motion.div
-        className="tracking-section"
+      <motion.section
+        className="py-5"
+        style={{ background: 'linear-gradient(180deg, #ffe7cf 0%, #ffe2c4 100%)' }}
         initial={{ opacity: 0, y: 50 }}
         whileInView={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8 }}
         viewport={{ once: true }}
       >
-        <motion.h2
-          initial={{ y: 30, opacity: 0 }}
-          whileInView={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.2, duration: 0.6 }}
-          viewport={{ once: true }}
-        >
-          Track Your Package
-        </motion.h2>
-        <motion.div
-          className="tracking-box"
-          whileHover={{ scale: 1.02 }}
-          transition={{ type: "spring", stiffness: 300, damping: 10 }}
-        >
-          <Link to="/track" className="track-link">
-            Enter Tracking Number
-          </Link>
-        </motion.div>
-      </motion.div>
-
-      {/* Enhanced Footer */}
-      <motion.footer
-        className="home-footer"
-        initial={{ opacity: 0 }}
-        whileInView={{ opacity: 1 }}
-        transition={{ duration: 0.8 }}
-        viewport={{ once: true }}
-      >
-        <div className="footer-content">
-          <div className="footer-main">
-            <div className="footer-brand">
-              <h3>Droppin Delivery</h3>
-              <p>Revolutionizing Last-mile Delivery in Egypt</p>
-            </div>
-
-            {/* <div className="footer-section">
-              <h4>Services</h4>
-              <ul>
-                <li><Link to="/services">Same-Day Delivery</Link></li>
-                <li><Link to="/services">Real-Time Tracking</Link></li>
-                <li><Link to="/services">Return Management</Link></li>
-                <li><Link to="/services">API Integration</Link></li>
-              </ul>
-            </div> */}
-
-            <div className="footer-section">
-              <h4>Company</h4>
-              <ul>
-                <li><Link to="/about">About Us</Link></li>
-                {/* <li><Link to="/careers">Careers</Link></li> */}
-                <li><Link to="/contact">Contact Us</Link></li>
-              </ul>
-            </div>
-
-            <div className="footer-section">
-              <h4>Support</h4>
-              <ul>
-                <li><Link to="/help">Help Center</Link></li>
-                <li><Link to="/terms">Terms of Service</Link></li>
-                <li><Link to="/privacy">Privacy Policy</Link></li>
-              </ul>
-            </div>
-          </div>
-
-          <div className="footer-bottom">
-            <div className="footer-copyright">
-              &copy; {new Date().getFullYear()} Droppin Delivery. All rights reserved.
-            </div>
-            <div className="footer-social">
-              <a href="https://www.instagram.com/droppin.eg/" target="_blank" rel="noopener noreferrer" className="social-link" title="Follow us on Instagram">
-                <span className="social-icon instagram">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
-                  </svg>
-                </span>
-              </a>
-              <a href="https://www.tiktok.com/@droppin.eg" target="_blank" rel="noopener noreferrer" className="social-link" title="Follow us on TikTok">
-                <span className="social-icon tiktok">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/>
-                  </svg>
-                </span>
-              </a>
-            </div>
-          </div>
+        <div className="container text-center">
+          <motion.h2
+            className="h2 fw-700 mb-5"
+            initial={{ y: 30, opacity: 0 }}
+            whileInView={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.2, duration: 0.6 }}
+            viewport={{ once: true }}
+            style={{ color: '#1f2937' }}
+          >
+            {t('home.tracking.title')}
+          </motion.h2>
+          <motion.div
+            className="d-inline-block p-4 rounded-4 border shadow-sm"
+            style={{ backgroundColor: '#fff8ef', borderColor: 'rgba(255, 107, 0, 0.22)' }}
+            initial={{ scale: 0.95, opacity: 0 }}
+            whileInView={{ scale: 1, opacity: 1 }}
+            whileHover={{ scale: 1.02 }}
+            transition={{ type: "spring", stiffness: 300, damping: 10 }}
+            viewport={{ once: true }}
+          >
+            <Link to="/track" className="btn btn-primary btn-lg fw-600 px-5">
+              {t('home.tracking.button')}
+            </Link>
+          </motion.div>
         </div>
-      </motion.footer>
+      </motion.section>
+
+      <PublicFooter />
     </div>
   );
 };

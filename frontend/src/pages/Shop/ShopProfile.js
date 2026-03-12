@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { packageService } from '../../services/api';
 import api from '../../services/api';
-import './ShopDashboard.css';
-import { sanitizeNameInput, validateName, validatePhone } from '../../utils/inputValidators';
+import { sanitizeNameInput, validateName } from '../../utils/inputValidators';
+import { useTranslation } from 'react-i18next';
 
 const initialAddress = {
   street: '',
@@ -23,7 +23,7 @@ function joinAddress(addressObj) {
 }
 
 const ShopProfile = () => {
-  const [loading, setLoading] = useState(true);
+  const { t } = useTranslation();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
@@ -49,7 +49,6 @@ const ShopProfile = () => {
 
   useEffect(() => {
     const fetchProfile = async () => {
-      setLoading(true);
       try {
         const res = await packageService.getShopProfile();
         const shop = res.data;
@@ -61,13 +60,11 @@ const ShopProfile = () => {
         setShownShippingFees(shop.shownShippingFees !== undefined && shop.shownShippingFees !== null ? shop.shownShippingFees : '');
         setShownShippingFeesDraft(shop.shownShippingFees !== undefined && shop.shownShippingFees !== null ? shop.shownShippingFees : '');
       } catch (err) {
-        setError('Failed to load profile.');
-      } finally {
-        setLoading(false);
+        setError(t('shop.profile.errors.loadProfile'));
       }
     };
     fetchProfile();
-  }, []);
+  }, [t]);
 
   const handleAddressChange = (e) => {
     const { name, value } = e.target;
@@ -86,9 +83,9 @@ const ShopProfile = () => {
         address: joinAddress(pickupAddress),
         shownShippingFees: shownShippingFees !== '' ? parseFloat(shownShippingFees) : null
       });
-      setSuccess('Profile updated successfully!');
+      setSuccess(t('shop.profile.success.updated'));
     } catch (err) {
-      setError('Failed to save profile.');
+      setError(t('shop.profile.errors.saveProfile'));
     } finally {
       setSaving(false);
     }
@@ -98,19 +95,19 @@ const ShopProfile = () => {
     setPwError(null);
     setPwSuccess(null);
     if (!currentPassword || !newPassword || !confirmPassword) {
-      setPwError('All password fields are required.');
+      setPwError(t('shop.profile.errors.passwordFieldsRequired'));
       return;
     }
     if (newPassword !== confirmPassword) {
-      setPwError('New passwords do not match.');
+      setPwError(t('shop.profile.errors.passwordMismatch'));
       return;
     }
     try {
       const res = await api.post('/auth/change-password', { currentPassword, newPassword });
-      setPwSuccess(res.data.message || 'Password changed successfully!');
+      setPwSuccess(res.data.message || t('shop.profile.success.passwordChanged'));
       setCurrentPassword(''); setNewPassword(''); setConfirmPassword('');
     } catch (err) {
-      setPwError(err.response?.data?.message || 'Failed to change password.');
+      setPwError(err.response?.data?.message || t('shop.profile.errors.changePassword'));
     }
   };
 
@@ -121,9 +118,9 @@ const ShopProfile = () => {
     try {
       const res = await api.post('/shops/generate-api-key');
       setApiKey(res.data.apiKey);
-      setApiKeySuccess('API key generated!');
+      setApiKeySuccess(t('shop.profile.success.apiGenerated'));
     } catch (err) {
-      setApiKeyError('Failed to generate API key.');
+      setApiKeyError(t('shop.profile.errors.generateApiKey'));
     } finally {
       setApiKeyLoading(false);
     }
@@ -133,7 +130,7 @@ const ShopProfile = () => {
     if (apiKey) {
       if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
         navigator.clipboard.writeText(apiKey);
-        setApiKeySuccess('API key copied to clipboard!');
+        setApiKeySuccess(t('shop.profile.success.apiCopied'));
         setTimeout(() => setApiKeySuccess(null), 2000);
       } else {
         // Fallback for unsupported browsers or insecure context
@@ -143,10 +140,10 @@ const ShopProfile = () => {
         textarea.select();
         try {
           document.execCommand('copy');
-          setApiKeySuccess('API key copied to clipboard!');
+          setApiKeySuccess(t('shop.profile.success.apiCopied'));
           setTimeout(() => setApiKeySuccess(null), 2000);
         } catch (err) {
-          setApiKeyError('Failed to copy API key.');
+          setApiKeyError(t('shop.profile.errors.copyApiKey'));
         }
         document.body.removeChild(textarea);
       }
@@ -165,30 +162,34 @@ const ShopProfile = () => {
   }, []);
 
   return (
-    <div className="shop-profile-page">
-      <h2>Shop Profile</h2>
-      {/* API Key Section */}
-      <div className="api-key-section" style={{ marginBottom: '2rem', background: '#f8f9fa', padding: '1rem', borderRadius: '8px' }}>
-        <h3>Shopify Integration API Key</h3>
-        <p>Use this API key to connect your Shopify app to your Droppin shop account.</p>
+    <div className="container-fluid px-3 px-md-4 py-4" style={{ maxWidth: '1100px' }}>
+      <div className="rounded-4 shadow-sm p-4 mb-4 text-white" style={{ background: 'linear-gradient(135deg, #ff7a3d 0%, #fa8831 28%, #cd7955 52%, #9d8f8d 74%, #4e97ef 100%)' }}>
+        <h2 className="h3 fw-bold mb-0">{t('shop.profile.title')}</h2>
+      </div>
+
+      <div className="rounded-4 shadow-sm p-3 p-md-4 mb-4" style={{ background: '#fffaf5' }}>
+        <h3 className="h5 fw-bold">{t('shop.profile.api.title')}</h3>
+        <p className="text-muted">{t('shop.profile.api.subtitle')}</p>
         {apiKey ? (
-          <div className="api-key-actions" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <input type="text" value={apiKey} readOnly style={{ width: '300px', fontFamily: 'monospace' }} />
-            <button type="button" onClick={handleCopyApiKey} style={{ background: '#007bff', color: 'white', border: 'none', padding: '0.5rem 1rem', borderRadius: '4px' }}>Copy</button>
+          <div className="d-flex flex-column flex-md-row align-items-md-center gap-2">
+            <input type="text" value={apiKey} readOnly className="form-control" style={{ fontFamily: 'monospace' }} />
+            <button type="button" onClick={handleCopyApiKey} className="btn btn-primary">{t('shop.profile.actions.copy')}</button>
           </div>
         ) : (
-          <button type="button" onClick={fetchApiKey} disabled={apiKeyLoading} style={{ background: '#007bff', color: 'white', border: 'none', padding: '0.5rem 1rem', borderRadius: '4px' }}>{apiKeyLoading ? 'Generating...' : 'Generate API Key'}</button>
+          <button type="button" onClick={fetchApiKey} disabled={apiKeyLoading} className="btn btn-primary">{apiKeyLoading ? t('shop.profile.actions.generating') : t('shop.profile.actions.generateApiKey')}</button>
         )}
-        {apiKeyError && <div className="error-message">{apiKeyError}</div>}
-        {apiKeySuccess && <div className="success-message">{apiKeySuccess}</div>}
+        {apiKeyError && <div className="alert alert-danger py-2 mt-2 mb-0">{apiKeyError}</div>}
+        {apiKeySuccess && <div className="alert alert-success py-2 mt-2 mb-0">{apiKeySuccess}</div>}
       </div>
-      <form className="shop-profile-form" onSubmit={handleSave}>
-        <div className="form-group">
-          <label>Shop Name</label>
-          <input type="text" value={shopName} disabled />
+
+      <form className="rounded-4 shadow-sm p-3 p-md-4" style={{ background: '#fffaf5' }} onSubmit={handleSave}>
+        <div className="mb-3">
+          <label className="form-label fw-semibold">{t('shop.profile.fields.shopName')}</label>
+          <input type="text" value={shopName} disabled className="form-control" />
         </div>
-        <div className="form-group">
-          <label>Default Contact Name</label>
+
+        <div className="mb-3">
+          <label className="form-label fw-semibold">{t('shop.profile.fields.defaultContactName')}</label>
           <input
             type="text"
             value={contactName}
@@ -201,10 +202,12 @@ const ShopProfile = () => {
             pattern="[A-Za-z\u0600-\u06FF ]+"
             inputMode="text"
             autoComplete="off"
+            className="form-control"
           />
         </div>
-        <div className="form-group">
-          <label>Default Contact Phone</label>
+
+        <div className="mb-3">
+          <label className="form-label fw-semibold">{t('shop.profile.fields.defaultContactPhone')}</label>
           <input
             type="tel"
             value={contactPhone}
@@ -218,39 +221,44 @@ const ShopProfile = () => {
             inputMode="numeric"
             maxLength={11}
             autoComplete="tel"
+            className="form-control"
           />
         </div>
-        <div className="form-group">
-          <label>Default Pickup Location</label>
-          <input type="text" name="street" placeholder="Street" value={pickupAddress.street} onChange={handleAddressChange} required />
-          <input type="text" name="city" placeholder="City" value={pickupAddress.city} onChange={handleAddressChange} required />
-          <input type="text" name="state" placeholder="State" value={pickupAddress.state} onChange={handleAddressChange} required />
-          <input type="text" name="zipCode" placeholder="Zip Code" value={pickupAddress.zipCode} onChange={handleAddressChange} required />
-          <input type="text" name="country" placeholder="Country" value={pickupAddress.country} onChange={handleAddressChange} required />
+
+        <div className="mb-3">
+          <label className="form-label fw-semibold">{t('shop.profile.fields.defaultPickupLocation')}</label>
+          <div className="row g-2">
+            <div className="col-12"><input className="form-control" type="text" name="street" placeholder={t('shop.profile.placeholders.street')} value={pickupAddress.street} onChange={handleAddressChange} required /></div>
+            <div className="col-md-6"><input className="form-control" type="text" name="city" placeholder={t('shop.profile.placeholders.city')} value={pickupAddress.city} onChange={handleAddressChange} required /></div>
+            <div className="col-md-6"><input className="form-control" type="text" name="state" placeholder={t('shop.profile.placeholders.state')} value={pickupAddress.state} onChange={handleAddressChange} required /></div>
+            <div className="col-md-6"><input className="form-control" type="text" name="zipCode" placeholder={t('shop.profile.placeholders.zipCode')} value={pickupAddress.zipCode} onChange={handleAddressChange} required /></div>
+            <div className="col-md-6"><input className="form-control" type="text" name="country" placeholder={t('shop.profile.placeholders.country')} value={pickupAddress.country} onChange={handleAddressChange} required /></div>
+          </div>
         </div>
-        <div className="form-group">
-          <label>Shipping Fees (EGP)</label>
-          <input type="number" value={shippingFees} disabled />
+
+        <div className="mb-3">
+          <label className="form-label fw-semibold">{t('shop.profile.fields.shippingFees')}</label>
+          <input type="number" value={shippingFees} disabled className="form-control" />
         </div>
-        <div className="form-group">
-          <label>Shown Shipping Fees (EGP)</label>
+
+        <div className="mb-3">
+          <label className="form-label fw-semibold">{t('shop.profile.fields.shownShippingFees')}</label>
           {editingShownShippingFees ? (
-            <div className="shipping-fees-actions" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <div className="d-flex gap-2 align-items-center">
               <input
                 type="number"
                 value={shownShippingFeesDraft}
                 onChange={e => setShownShippingFeesDraft(e.target.value)}
                 min="0"
                 step="0.01"
-                style={{ flex: 1 }}
+                className="form-control"
               />
               <button
                 type="button"
-                className="profile-save-btn"
-                style={{ background: '#28a745', padding: '0.3rem 1rem', fontSize: '0.95rem' }}
+                className="btn btn-success btn-sm"
                 onClick={async () => {
                   if (parseFloat(shownShippingFeesDraft) > parseFloat(shippingFees)) {
-                    setShownShippingFeesError('Shown Shipping Fees cannot be greater than Shipping Fees.');
+                    setShownShippingFeesError(t('shop.profile.errors.shownShippingFeesExceeded'));
                     return;
                   }
                   setShownShippingFeesError('');
@@ -262,57 +270,58 @@ const ShopProfile = () => {
                     // Optionally show error
                   }
                 }}
-              >Save</button>
+              >{t('shop.profile.actions.save')}</button>
               <button
                 type="button"
-                className="profile-save-btn"
-                style={{ background: '#888', padding: '0.3rem 1rem', fontSize: '0.95rem' }}
+                className="btn btn-secondary btn-sm"
                 onClick={() => {
                   setEditingShownShippingFees(false);
                   setShownShippingFeesDraft(shownShippingFees);
                 }}
-              >Cancel</button>
+              >{t('shop.profile.actions.cancel')}</button>
             </div>
           ) : (
-            <div className="shipping-fees-actions" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <div className="d-flex gap-2 align-items-center">
               <input
                 type="number"
                 value={shownShippingFees}
                 disabled
-                style={{ flex: 1 }}
+                className="form-control"
               />
               <button
                 type="button"
-                className="profile-save-btn"
-                style={{ background: '#007bff', padding: '0.3rem 1rem', fontSize: '0.95rem' }}
+                className="btn btn-primary btn-sm"
                 onClick={() => setEditingShownShippingFees(true)}
-              >Edit</button>
+              >{t('shop.profile.actions.edit')}</button>
             </div>
           )}
         </div>
-        {shownShippingFeesError && <div className="error-message">{shownShippingFeesError}</div>}
+
+        {shownShippingFeesError && <div className="alert alert-danger py-2">{shownShippingFeesError}</div>}
+
         {!showChangePassword && (
-          <button type="button" className="profile-save-btn" style={{marginBottom: '1rem', background: '#007bff'}} onClick={() => setShowChangePassword(true)}>
-            Change Password
+          <button type="button" className="btn btn-primary mb-3" onClick={() => setShowChangePassword(true)}>
+            {t('shop.profile.actions.changePassword')}
           </button>
         )}
         {showChangePassword && (
-          <div className="change-password-fields">
-            <h3>Change Password</h3>
-            <input style={{ marginBottom: '10px', width: '100%' }} type="password" placeholder="Current Password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} />
-            <input style={{ marginBottom: '10px', width: '100%' }} type="password" placeholder="New Password" value={newPassword} onChange={e => setNewPassword(e.target.value)} />
-            <input style={{ marginBottom: '10px', width: '100%' }} type="password" placeholder="Confirm New Password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} />
-            {pwError && <div className="error-message">{pwError}</div>}
-            {pwSuccess && <div className="success-message">{pwSuccess}</div>}
-            <div className="password-actions" style={{display:'flex',gap:'0.5rem'}}>
-              <button type="button" className="profile-save-btn" style={{background:'#888'}} onClick={() => { setShowChangePassword(false); setCurrentPassword(''); setNewPassword(''); setConfirmPassword(''); setPwError(null); setPwSuccess(null); }}>Cancel</button>
-              <button type="button" className="profile-save-btn" style={{background:'#007bff'}} onClick={handleChangePassword}>Change Password</button>
+          <div className="border rounded-3 p-3 mb-3" style={{ backgroundColor: '#fff' }}>
+            <h3 className="h6 fw-bold">{t('shop.profile.password.title')}</h3>
+            <input className="form-control mb-2" type="password" placeholder={t('shop.profile.password.current')} value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} />
+            <input className="form-control mb-2" type="password" placeholder={t('shop.profile.password.new')} value={newPassword} onChange={e => setNewPassword(e.target.value)} />
+            <input className="form-control mb-2" type="password" placeholder={t('shop.profile.password.confirm')} value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} />
+            {pwError && <div className="alert alert-danger py-2">{pwError}</div>}
+            {pwSuccess && <div className="alert alert-success py-2">{pwSuccess}</div>}
+            <div className="d-flex gap-2">
+              <button type="button" className="btn btn-secondary" onClick={() => { setShowChangePassword(false); setCurrentPassword(''); setNewPassword(''); setConfirmPassword(''); setPwError(null); setPwSuccess(null); }}>{t('shop.profile.actions.cancel')}</button>
+              <button type="button" className="btn btn-primary" onClick={handleChangePassword}>{t('shop.profile.actions.changePassword')}</button>
             </div>
           </div>
         )}
-        {error && <div className="error-message">{error}</div>}
-        {success && <div className="success-message">{success}</div>}
-        <button type="submit" className="profile-save-btn" disabled={saving}>{saving ? 'Saving...' : 'Save Changes'}</button>
+
+        {error && <div className="alert alert-danger py-2">{error}</div>}
+        {success && <div className="alert alert-success py-2">{success}</div>}
+        <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? t('shop.profile.actions.saving') : t('shop.profile.actions.saveChanges')}</button>
       </form>
     </div>
   );

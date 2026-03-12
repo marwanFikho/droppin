@@ -1,24 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { packageService, shopService } from '../../services/api';
+import { packageService } from '../../services/api';
 import { useLocation } from 'react-router-dom';
-import './ShopDashboard.css';
 import QRCode from 'qrcode';
-import { useAuth } from '../../context/AuthContext';
 import { notification } from 'antd';
-import { toArabicName } from '../../utils/arabicTransliteration';
+import { formatEnglishWithArabic } from '../../utils/arabicTransliteration';
 import ReactDOM from 'react-dom'; // Add import for createPortal
+import { useTranslation } from 'react-i18next';
 
 const TABS = [
-  { label: 'All', value: 'all' },
-  { label: 'Awaiting Schedule', value: 'awaiting_schedule' },
-  { label: 'Scheduled for Pickup', value: 'scheduled_for_pickup' },
-  { label: 'Pending', value: 'pending' },
-  { label: 'In Transit', value: 'in-transit' },
-  { label: 'Delivered', value: 'delivered' },
-  { label: 'Return to Shop', value: 'return-to-shop' },
-  { label: 'Return Requests', value: 'return-requests' },
-  { label: 'Exchange Requests', value: 'exchange-requests' },
-  { label: 'Pickups', value: 'pickups' },
+  { value: 'all' },
+  { value: 'awaiting_schedule' },
+  { value: 'scheduled_for_pickup' },
+  { value: 'pending' },
+  { value: 'in-transit' },
+  { value: 'delivered' },
+  { value: 'return-to-shop' },
+  { value: 'return-requests' },
+  { value: 'exchange-requests' },
+  { value: 'pickups' },
 ];
 
 const inTransitStatuses = ['assigned', 'pickedup', 'in-transit'];
@@ -34,38 +33,32 @@ const returnToShopStatuses = [
 ];
 
 export function getStatusBadge(status) {
-  let className = 'status-badge';
-  if (status === 'awaiting_schedule') className += ' status-awaiting-schedule';
-  else if (status === 'awaiting_pickup') className += ' status-awaiting-pickup';
-  else if (status === 'scheduled_for_pickup') className += ' status-scheduled-for-pickup';
-  else if (status === 'pending') className += ' status-pending';
-  else if (status === 'assigned') className += ' status-assigned';
-  else if (status === 'pickedup') className += ' status-pickedup';
-  else if (status === 'in-transit') className += ' status-in-transit';
-  else if (status === 'delivered') className += ' status-delivered';
-  else if (status === 'cancelled') className += ' status-cancelled';
-  else if (status === 'cancelled-awaiting-return') className += ' status-cancelled-awaiting-return';
-  else if (status === 'cancelled-returned') className += ' status-cancelled-returned';
-  else className += ' status-other';
+  let className = 'badge rounded-pill';
+  if (['awaiting_schedule', 'scheduled_for_pickup', 'awaiting_pickup'].includes(status)) className += ' bg-primary-subtle text-primary-emphasis';
+  else if (['pending'].includes(status)) className += ' bg-warning-subtle text-warning-emphasis';
+  else if (['assigned', 'pickedup', 'in-transit'].includes(status)) className += ' bg-info-subtle text-info-emphasis';
+  else if (['delivered', 'delivered-returned'].includes(status)) className += ' bg-success-subtle text-success-emphasis';
+  else if (['cancelled', 'cancelled-awaiting-return', 'cancelled-returned'].includes(status)) className += ' bg-danger-subtle text-danger-emphasis';
+  else className += ' bg-secondary-subtle text-secondary-emphasis';
   return <span className={className}>{status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, ' ').replace('-', ' ')}</span>;
 }
 
 export function getCodBadge(isPaid) {
   return isPaid
-    ? <span className="cod-badge cod-paid">Paid</span>
-    : <span className="cod-badge cod-unpaid">Unpaid</span>;
+    ? <span className="badge bg-success-subtle text-success-emphasis">Paid</span>
+    : <span className="badge bg-danger-subtle text-danger-emphasis">Unpaid</span>;
 }
 
 function getPickupStatusBadge(status) {
-  let colorClass = 'status-badge';
-  if (status === 'pending' || status === 'scheduled') colorClass += ' status-pending';
-  else if (status === 'cancelled') colorClass += ' status-other';
-  else if (status === 'completed' || status === 'pickedup') colorClass += ' status-delivered';
-  else colorClass += ' status-other';
+  let colorClass = 'badge rounded-pill';
+  if (status === 'pending' || status === 'scheduled') colorClass += ' bg-warning-subtle text-warning-emphasis';
+  else if (status === 'completed' || status === 'pickedup') colorClass += ' bg-success-subtle text-success-emphasis';
+  else colorClass += ' bg-secondary-subtle text-secondary-emphasis';
   return <span className={colorClass}>{status.charAt(0).toUpperCase() + status.slice(1).replace('-', ' ')}</span>;
 }
 
 const ShopPackages = () => {
+  const { t } = useTranslation();
   const [packages, setPackages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -78,7 +71,7 @@ const ShopPackages = () => {
   const [pickups, setPickups] = useState([]);
   const [pickupLoading, setPickupLoading] = useState(false);
   const [showPickupModal, setShowPickupModal] = useState(false);
-  const [selectedPickup, setSelectedPickup] = useState(null);
+  const [, setSelectedPickup] = useState(null);
   const [pickupPackages, setPickupPackages] = useState([]);
   const [pickupPackagesLoading, setPickupPackagesLoading] = useState(false);
   const [showPickupCancelModal, setShowPickupCancelModal] = useState(false);
@@ -86,18 +79,13 @@ const ShopPackages = () => {
   const [pickupCancelError, setPickupCancelError] = useState(null);
   const [showPackageDetailsModal, setShowPackageDetailsModal] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState(null);
-  const [editingNotes, setEditingNotes] = useState('');
-  const [notesSaving, setNotesSaving] = useState(false);
-  const [notesError, setNotesError] = useState(null);
   const [selectedPackages, setSelectedPackages] = useState([]);
-  const [shippingFees, setShippingFees] = useState(null);
   const [shopFees, setShopFees] = useState({ shownShippingFees: null, shippingFees: null });
   const [editingShownDeliveryCost, setEditingShownDeliveryCost] = useState(false);
   const [newShownDeliveryCost, setNewShownDeliveryCost] = useState('');
   const [savingShownDeliveryCost, setSavingShownDeliveryCost] = useState(false);
   const [shownDeliveryCostError, setShownDeliveryCostError] = useState('');
   const location = useLocation();
-  const { currentUser } = useAuth();
 
   const [showReturnModal, setShowReturnModal] = useState(false);
   const [returnItems, setReturnItems] = useState({});
@@ -146,7 +134,6 @@ const ShopPackages = () => {
     const parts = addr.split(',').map(s => s.trim());
     const street = parts[0] || '';
     const cityAndState = parts[1] || '';
-    const stateZip = cityAndState.includes(' ') ? cityAndState.split(' ') : [];
     let city = cityAndState;
     let state = '';
     let zipCode = '';
@@ -246,7 +233,7 @@ const ShopPackages = () => {
         // Check if we need to reopen a package modal after refresh
         const reopenPackageId = localStorage.getItem('reopenPackageModal');
         if (reopenPackageId) {
-          const packageToReopen = (res.data?.packages || res.data || []).find(pkg => pkg.id == reopenPackageId);
+          const packageToReopen = (res.data?.packages || res.data || []).find(pkg => String(pkg.id) === String(reopenPackageId));
           if (packageToReopen) {
             const _normalized = (() => {
               let d = packageToReopen.deliveredItems ?? packageToReopen.delivereditems ?? null;
@@ -276,21 +263,6 @@ const ShopPackages = () => {
       setActiveTab(tab);
     }
   }, [location.search]);
-
-  useEffect(() => {
-    // Fetch the shop profile and get shippingFees directly
-    async function fetchShopShippingFees() {
-      try {
-        const profileRes = await packageService.getShopProfile();
-        console.log('DEBUG: shop profile response:', profileRes.data);
-        setShippingFees(profileRes.data?.shippingFees ?? null);
-      } catch (err) {
-        console.error('DEBUG: error fetching shop shippingFees', err);
-        setShippingFees(null);
-      }
-    }
-    fetchShopShippingFees();
-  }, []);
 
   useEffect(() => {
     async function fetchShopFees() {
@@ -472,18 +444,6 @@ const ShopPackages = () => {
     setShowPackageDetailsModal(true);
   };
 
-  const handleMarkAsReturned = async (pkg) => {
-    try {
-      await packageService.markAsReturned(pkg.id);
-      setPackages(prev => prev.map(p => p.id === pkg.id ? { ...p, status: 'cancelled-returned' } : p));
-      setShowCancelModal(false);
-      setPackageToCancel(null);
-      setCancelError(null);
-    } catch (err) {
-      setCancelError(err.response?.data?.message || 'Failed to mark as returned.');
-    }
-  };
-
   const handlePrintAWB = async (pkg) => {
     // Fetch full package with Items if not present
     let packageForAwb = pkg;
@@ -530,10 +490,11 @@ const ShopPackages = () => {
       : `<tr><td>Sub Total:</td><td>${subTotal.toFixed(2)} EGP</td></tr>`
         + `<tr><td>Shipping:</td><td>${deliveryFees.toFixed(2)} EGP</td></tr>`
         + `<tr><td><b>Total:</b></td><td><b>${total.toFixed(2)} EGP</b></td></tr>`;
-    const shopName = shopFees.businessName || '-';
-    const shopNameAr = toArabicName(shopName);
-    const recipientNameAr = toArabicName(awbPkg.deliveryContactName || '-');
-    const addressAr = toArabicName(awbPkg.deliveryAddress || '-');
+    const [shopNameDisplay, recipientNameDisplay, addressDisplay] = await Promise.all([
+      formatEnglishWithArabic(shopFees.businessName || '-'),
+      formatEnglishWithArabic(awbPkg.deliveryContactName || '-'),
+      formatEnglishWithArabic(awbPkg.deliveryAddress || '-')
+    ]);
     // Build content depending on package type
     const isExchange = (awbPkg.type === 'exchange');
     // Normalize exchange details
@@ -663,15 +624,15 @@ const ShopPackages = () => {
               <table class="awb-info-table">
                 <tr>
                   <td><span class="awb-row"><b class="awb-tracking">Tracking #:</b><span class="awb-tracking awb-data">${awbPkg.trackingNumber || '-'}</span></span>
-                  <div class="awb-shop-name">Shop Name: ${shopName} | ${shopNameAr}</div>
+                  <div class="awb-shop-name">Shop Name: ${shopNameDisplay}</div>
                 </td>
                   <td><b>Date:</b> ${awbPkg.createdAt ? new Date(awbPkg.createdAt).toLocaleDateString() : '-'}</td>
                 </tr>
                 <tr>
                   <td colspan="2">
-                    <span class="awb-row"><b class="awb-recipient">Recipient: ${awbPkg.deliveryContactName || '-'} | ${recipientNameAr}</b></span><br/>
+                    <span class="awb-row"><b class="awb-recipient">Recipient: ${recipientNameDisplay}</b></span><br/>
                     <span class="awb-row"><b class="awb-phone">Phone: ${awbPkg.deliveryContactPhone || '-'}</b></span><br/>
-                    <span class="awb-row"><b class="awb-address">Address: ${awbPkg.deliveryAddress || '-'} | ${addressAr}</b></span>
+                    <span class="awb-row"><b class="awb-address">Address: ${addressDisplay}</b></span>
                     ${isShopify ? `<div><b>Shopify Order:</b> ${awbPkg.shopifyOrderName || awbPkg.shopifyOrderId}</div>` : ''}
                   </td>
                 </tr>
@@ -758,8 +719,11 @@ const ShopPackages = () => {
           + `<tr><td>Shipping:</td><td>${deliveryFees.toFixed(2)} EGP</td></tr>`
           + `<tr><td><b>Total:</b></td><td><b>${total.toFixed(2)} EGP</b></td></tr>`;
 
-      const shopName = shopFees.businessName || '-';
-      const shopNameAr = toArabicName(shopName);
+      const [shopNameDisplay, packageRecipientDisplay, packageAddressDisplay] = await Promise.all([
+        formatEnglishWithArabic(shopFees.businessName || '-'),
+        formatEnglishWithArabic(packageData.deliveryContactName || '-'),
+        formatEnglishWithArabic(packageData.deliveryAddress || '-')
+      ]);
       const breakStyle = (i < pkgsToPrint.length - 1) ? 'page-break-after: always; break-after: page;' : '';
 
       const isExchange = (packageData.type === 'exchange');
@@ -821,7 +785,7 @@ const ShopPackages = () => {
                           <td>Qty: ${(parseInt(it.quantity) || 0)}</td>
                         </tr>
                       `).join('')
-                    : `<tr><td colspan=\"2\">None</td></tr>`
+                    : `<tr><td colspan="2">None</td></tr>`
                 }
               </tbody>
             </table>
@@ -838,7 +802,7 @@ const ShopPackages = () => {
                           <td>Qty: ${(parseInt(it.quantity) || 0)}</td>
                         </tr>
                       `).join('')
-                    : `<tr><td colspan=\"2\">None</td></tr>`
+                    : `<tr><td colspan="2">None</td></tr>`
                 }
               </tbody>
             </table>
@@ -863,15 +827,15 @@ const ShopPackages = () => {
               <tr>
                 <td>
                   <span class="awb-row"><b class="awb-tracking">Tracking #:</b><span class="awb-tracking awb-data">${packageData.trackingNumber || pkg.trackingNumber || '-'}</span></span>
-                  <div class="awb-shop-name">Shop Name: ${shopName} | ${shopNameAr}</div>
+                  <div class="awb-shop-name">Shop Name: ${shopNameDisplay}</div>
                 </td>
                 <td><b>Date:</b> ${packageData.createdAt ? new Date(packageData.createdAt).toLocaleDateString() : (pkg.createdAt ? new Date(pkg.createdAt).toLocaleDateString() : '-')}</td>
               </tr>
               <tr>
                 <td colspan="2">
-                  <span class="awb-row"><b class="awb-recipient">Recipient:</b><span class="awb-recipient awb-data">${packageData.deliveryContactName || '-'} | ${toArabicName(packageData.deliveryContactName || '-')}</span></span><br/>
+                  <span class="awb-row"><b class="awb-recipient">Recipient:</b><span class="awb-recipient awb-data">${packageRecipientDisplay}</span></span><br/>
                   <span class="awb-row"><b class="awb-phone">Phone:</b><span class="awb-phone awb-data">${packageData.deliveryContactPhone || '-'}</span></span><br/>
-                  <span class="awb-row"><b class="awb-address">Address:</b><span class="awb-address awb-data">${packageData.deliveryAddress || '-'} | ${toArabicName(packageData.deliveryAddress || '-')}</span></span>
+                  <span class="awb-row"><b class="awb-address">Address:</b><span class="awb-address awb-data">${packageAddressDisplay}</span></span>
                 </td>
               </tr>
             </table>
@@ -954,8 +918,6 @@ const ShopPackages = () => {
   const updateRow = (setter, idx, key, value) => setter(prev => prev.map((r, i) => i === idx ? { ...r, [key]: value } : r));
   const removeRow = (setter, idx) => setter(prev => prev.filter((_, i) => i !== idx));
 
-  const canEditExchange = (pkg) => !['exchange-in-process', 'exchange-in-transit', 'exchange-awaiting-return', 'exchange-returned'].includes(pkg?.status);
-
   // Simple validation helpers for enabling submit
   const hasValidItems = (arr) => Array.isArray(arr) && arr.some(r => (r.description || '').trim() !== '' && (parseInt(r.quantity) || 0) > 0);
   const canSubmitExchange = hasValidItems(takeItems) || hasValidItems(giveItems) || (moneyAmount !== '' && Number.isFinite(parseFloat(moneyAmount)) && parseFloat(moneyAmount) >= 0);
@@ -988,8 +950,8 @@ const ShopPackages = () => {
         try { window.location.reload(); } catch (_) {}
       }, 800);
     } catch (err) {
-      setExchangeError(err.response?.data?.message || 'Failed to submit exchange request.');
-      notification.error({ message: 'Exchange request failed', description: err.response?.data?.message || 'Failed to submit exchange request.', placement: 'topRight', duration: 4 });
+      setExchangeError(err.response?.data?.message || t('shop.packages.errors.exchangeFailed'));
+      notification.error({ message: t('shop.packages.notifications.exchangeFailedTitle'), description: err.response?.data?.message || t('shop.packages.errors.exchangeFailed'), placement: 'topRight', duration: 4 });
     } finally {
       setRequestingExchange(false);
     }
@@ -1014,7 +976,7 @@ const ShopPackages = () => {
       setReturnItems({});
       setReturnRefund('');
       setReturnError('');
-      notification.success({ message: 'Return requested', description: 'Return request submitted successfully!', placement: 'topRight', duration: 3 });
+      notification.success({ message: t('shop.packages.notifications.returnRequestedTitle'), description: t('shop.packages.notifications.returnRequestedDescription'), placement: 'topRight', duration: 3 });
       // Refresh list without full page reload
       // Prefer staying on the same tab
       try {
@@ -1029,63 +991,77 @@ const ShopPackages = () => {
         try { window.location.reload(); } catch (_) {}
       }, 800);
     } catch (err) {
-      setReturnError(err.response?.data?.message || 'Failed to submit return request.');
-      notification.error({ message: 'Return request failed', description: err.response?.data?.message || 'Failed to submit return request.', placement: 'topRight', duration: 4 });
+      setReturnError(err.response?.data?.message || t('shop.packages.errors.returnFailed'));
+      notification.error({ message: t('shop.packages.notifications.returnFailedTitle'), description: err.response?.data?.message || t('shop.packages.errors.returnFailed'), placement: 'topRight', duration: 4 });
     } finally {
       setRequestingReturn(false);
     }
   };
 
   return (
-    <div className="shop-packages-page">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', marginBottom: '0.5rem' }}>
-        <h2 style={{ margin: 0 }}>Packages</h2>
+    <div className="container-fluid px-3 px-md-4 py-4" style={{ maxWidth: '1400px' }}>
+      <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
+        <h2 className="h4 fw-bold mb-0">{t('shop.packages.title')}</h2>
         <button
           className="btn btn-primary"
           onClick={() => window.open('/shop/packages/bulk-import', '_blank')}
           style={{ whiteSpace: 'nowrap' }}
         >
-          Import Packages (Excel)
+          {t('shop.packages.actions.importExcel')}
         </button>
       </div>
       {/* Print AWB for selected packages button at the top */}
       {selectedPackages.length > 0 && (
-        <button className="btn btn-primary" style={{marginBottom:'1rem'}} onClick={handleBulkPrintAWB}>
-          Print AWB for Selected ({selectedPackages.length})
+        <button className="btn btn-primary mb-3" onClick={handleBulkPrintAWB}>
+          {t('shop.packages.actions.printAwbSelected', { count: selectedPackages.length })}
         </button>
       )}
-      <div className="packages-tabs">
-        {TABS.map(tab => (
-          <button
-            key={tab.value}
-            className={`tab-btn${activeTab === tab.value ? ' active' : ''}`}
-            onClick={() => setActiveTab(tab.value)}
+      <div className="rounded-4 shadow-sm p-3 mb-3" style={{ background: '#fffaf5' }}>
+        <div className="position-relative mb-2">
+          {isMobile && (
+            <>
+              <div className="position-absolute top-0 start-0 h-100" style={{ width: '20px', background: 'linear-gradient(90deg, #fffaf5 10%, rgba(255,250,245,0))', pointerEvents: 'none', zIndex: 2 }} />
+              <div className="position-absolute top-0 end-0 h-100" style={{ width: '24px', background: 'linear-gradient(270deg, #fffaf5 10%, rgba(255,250,245,0))', pointerEvents: 'none', zIndex: 2 }} />
+            </>
+          )}
+          <div
+            className={isMobile ? 'd-flex flex-nowrap gap-2 overflow-auto pb-1' : 'd-flex flex-wrap gap-2'}
+            style={isMobile ? { scrollbarWidth: 'thin' } : undefined}
           >
-            {tab.label}
-          </button>
-        ))}
+            {TABS.map(tab => (
+              <button
+                key={tab.value}
+                className={activeTab === tab.value ? 'btn btn-primary btn-sm' : 'btn btn-outline-secondary btn-sm'}
+                onClick={() => setActiveTab(tab.value)}
+                style={isMobile ? { whiteSpace: 'nowrap', flex: '0 0 auto' } : undefined}
+              >
+                {t(`shop.packages.tabs.${tab.value}`)}
+              </button>
+            ))}
+          </div>
+        </div>
         <input
-          className="package-search"
+          className="form-control"
           type="text"
-          placeholder="Search packages..."
+          placeholder={t('shop.packages.searchPlaceholder')}
           value={search}
           onChange={e => setSearch(e.target.value)}
         />
       </div>
       {activeTab === 'pickups' ? (
         pickupLoading ? (
-          <div>Loading pickups...</div>
+          <div>{t('shop.packages.loadingPickups')}</div>
         ) : pickups.length === 0 ? (
-          <div>No pickups found.</div>
+          <div>{t('shop.packages.emptyPickups')}</div>
         ) : (
-          <div className="pickups-table-wrapper">
-            <table className="packages-table">
+          <div className="table-responsive rounded-4 shadow-sm p-2" style={{ background: '#fffaf5' }}>
+            <table className="table align-middle mb-0">
               <thead>
                 <tr>
-                  <th>Pickup Date</th>
-                  <th>Address</th>
-                  <th>Status</th>
-                  <th>Action</th>
+                  <th>{t('shop.packages.pickups.pickupDate')}</th>
+                  <th>{t('shop.packages.pickups.address')}</th>
+                  <th>{t('shop.packages.pickups.status')}</th>
+                  <th>{t('shop.packages.pickups.action')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -1094,15 +1070,17 @@ const ShopPackages = () => {
                     <td>{new Date(pickup.scheduledTime).toLocaleString()}</td>
                     <td>{pickup.pickupAddress}</td>
                     <td>{getPickupStatusBadge(pickup.status)}</td>
-                    <td style={{display:'flex',gap:'0.5rem'}}>
-                      <button className="btn btn-primary" onClick={() => handlePickupClick(pickup)}>
-                        View Packages
+                    <td>
+                      <div className="d-flex gap-2 flex-wrap">
+                      <button className="btn btn-primary btn-sm" onClick={() => handlePickupClick(pickup)}>
+                        {t('shop.packages.actions.viewPackages')}
                       </button>
                       {pickup.status === 'scheduled' && (
-                        <button className="btn btn-danger" onClick={() => { setPickupToCancel(pickup); setShowPickupCancelModal(true); }}>
-                          Cancel
+                        <button className="btn btn-danger btn-sm" onClick={() => { setPickupToCancel(pickup); setShowPickupCancelModal(true); }}>
+                          {t('shop.packages.actions.cancel')}
                         </button>
                       )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -1111,28 +1089,28 @@ const ShopPackages = () => {
           </div>
         )
       ) : loading ? (
-        <div>Loading packages...</div>
+        <div>{t('shop.packages.loadingPackages')}</div>
       ) : error ? (
-        <div className="error-message">{error}</div>
+        <div className="alert alert-danger">{error}</div>
       ) : (
         <>
           {showCancelModal && (
-            <div className="confirmation-overlay" onClick={() => { setShowCancelModal(false); setCancelError(null); }}>
-              <div className="confirmation-dialog warning-dialog" onClick={e => e.stopPropagation()}>
-                <h3>Cancel Package</h3>
-                <p>Are you sure you want to cancel this package?</p>
+            <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center p-3" style={{ zIndex: 1200, backgroundColor: 'rgba(0,0,0,0.35)' }} onClick={() => { setShowCancelModal(false); setCancelError(null); }}>
+              <div className="bg-white rounded-4 shadow p-4" style={{ width: '100%', maxWidth: '460px' }} onClick={e => e.stopPropagation()}>
+                <h3 className="h5 fw-bold mb-2">{t('shop.packages.modals.cancelPackage.title')}</h3>
+                <p className="mb-3">{t('shop.packages.modals.cancelPackage.confirm')}</p>
                 {cancelError && <div style={{color:'#dc3545',marginBottom:'0.5rem'}}>{cancelError}</div>}
-                <div className="confirmation-buttons">
-                  <button className="btn-secondary" onClick={() => { setShowCancelModal(false); setCancelError(null); }}>No</button>
-                  <button className="btn-primary danger" onClick={handleCancel}>Yes, Cancel</button>
+                <div className="d-flex justify-content-end gap-2">
+                  <button className="btn btn-outline-secondary" onClick={() => { setShowCancelModal(false); setCancelError(null); }}>{t('shop.packages.actions.no')}</button>
+                  <button className="btn btn-danger" onClick={handleCancel}>{t('shop.packages.actions.yesCancel')}</button>
                 </div>
               </div>
             </div>
           )}
           {isMobile ? (
-            <div className="packages-cards-wrapper">
+            <div className="rounded-4 shadow-sm p-3" style={{ background: '#fffaf5' }}>
               {filterPackages().length === 0 ? (
-                <div style={{textAlign:'center', padding: '2rem', color: '#888'}}>No packages found.</div>
+                <div style={{textAlign:'center', padding: '2rem', color: '#888'}}>{t('shop.packages.emptyPackages')}</div>
               ) : (
                 <>
                   {allSelectablePackages.length > 0 && (
@@ -1153,24 +1131,26 @@ const ShopPackages = () => {
                         style={{ width: '16px', height: '16px' }}
                       />
                       <span style={{ fontSize: '12px', fontWeight: '600', color: '#495057' }}>
-                        {allSelected ? 'Deselect All' : 'Select All'} ({allSelectablePackages.length})
+                        {allSelected ? t('shop.packages.actions.deselectAll') : t('shop.packages.actions.selectAll')} ({allSelectablePackages.length})
                       </span>
                     </div>
                   )}
-                  <div className="packages-cards">
+                  <div className="row g-3">
                     {filterPackages().map(pkg => (
                     <div
                       key={pkg.id}
-                      className="package-card recent-package-card"
+                      className="col-12"
                       role="button"
                       tabIndex={0}
                       onClick={() => openDetailsModal(pkg)}
                       onKeyDown={(e) => { if (e.key === 'Enter') openDetailsModal(pkg); }}
                     >
-                      <div className="card-header-row">
-                        <span className="tracking">{pkg.trackingNumber || 'N/A'}</span>
+                      <div className="card border-0 shadow-sm rounded-4 h-100">
+                      <div className="card-body">
+                      <div className="d-flex justify-content-between align-items-start gap-2">
+                        <span className="fw-semibold text-dark small">{pkg.trackingNumber || t('shop.packages.na')}</span>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span className="status">{getStatusBadge(pkg.status)}</span>
+                          <span>{getStatusBadge(pkg.status)}</span>
                           <input
                             type="checkbox"
                             checked={selectedPackages.includes(pkg.id)}
@@ -1183,31 +1163,31 @@ const ShopPackages = () => {
                           />
                         </div>
                       </div>
-                      <div className="card-main-text">{pkg.packageDescription || 'No description provided'}</div>
-                      <div className="card-address">{pkg.deliveryAddress || 'No address available'}</div>
+                      <div className="fw-semibold mt-2">{pkg.packageDescription || t('shop.packages.noDescription')}</div>
+                      <div className="text-secondary small mt-1">{pkg.deliveryAddress || t('shop.packages.noAddress')}</div>
                       {(pkg.deliveryContactName || pkg.deliveryContactPhone) && (
-                        <div className="card-contact">
-                          {pkg.deliveryContactName || 'N/A'}{pkg.deliveryContactPhone ? ` · ${pkg.deliveryContactPhone}` : ''}
+                        <div className="text-muted small mt-1">
+                          {pkg.deliveryContactName || t('shop.packages.na')}{pkg.deliveryContactPhone ? ` · ${pkg.deliveryContactPhone}` : ''}
                         </div>
                       )}
-                      <div className="card-footer-row">
-                        <span className="cod">EGP {parseFloat(pkg.codAmount || 0).toFixed(2)} {getCodBadge(pkg.isPaid)}</span>
-                        <span className="date">{new Date(pkg.createdAt).toLocaleDateString()}</span>
+                      <div className="d-flex justify-content-between align-items-center mt-3 pt-2 border-top">
+                        <span className="small fw-semibold">EGP {parseFloat(pkg.codAmount || 0).toFixed(2)} {getCodBadge(pkg.isPaid)}</span>
+                        <span className="text-muted small">{new Date(pkg.createdAt).toLocaleDateString()}</span>
                       </div>
                       {activeTab === 'return-requests' && (
                         <div style={{ marginTop: '4px' }}>
-                          <span className="special-badge" style={{background: '#f55247', color: 'white', padding: '2px 6px', borderRadius: '4px', fontSize: '10px'}}>Return Request</span>
+                          <span className="special-badge" style={{background: '#f55247', color: 'white', padding: '2px 6px', borderRadius: '4px', fontSize: '10px'}}>{t('shop.packages.badges.returnRequest')}</span>
                         </div>
                       )}
                       {activeTab === 'exchange-requests' && (
                         <div style={{ marginTop: '4px' }}>
-                          <span className="special-badge" style={{background: '#7b1fa2', color: 'white', padding: '2px 6px', borderRadius: '4px', fontSize: '10px'}}>Exchange Request</span>
+                          <span className="special-badge" style={{background: '#7b1fa2', color: 'white', padding: '2px 6px', borderRadius: '4px', fontSize: '10px'}}>{t('shop.packages.badges.exchangeRequest')}</span>
                         </div>
                       )}
                       {activeTab !== 'cancelled' && activeTab !== 'return-to-shop' && pkg.status !== 'cancelled' && pkg.status !== 'delivered' && pkg.status !== 'delivered-returned' && pkg.status !== 'cancelled-returned' && pkg.status !== 'cancelled-awaiting-return' && pkg.status !== 'rejected' && pkg.status !== 'rejected-awaiting-return' && pkg.status !== 'rejected-returned' && pkg.status !== 'return-requested' && pkg.status !== 'return-in-transit' && pkg.status !== 'return-pending' && pkg.status !== 'return-completed' && (
                         <div style={{ marginTop: '6px', borderTop: '1px solid #eee', paddingTop: '6px' }}>
                           <button
-                            className="action-button cancel-btn"
+                            className="btn btn-sm btn-outline-danger"
                             onClick={(e) => {
                               e.stopPropagation();
                               setPackageToCancel(pkg);
@@ -1215,10 +1195,12 @@ const ShopPackages = () => {
                             }}
                             style={{ fontSize: '11px', padding: '4px 8px', backgroundColor: '#dc3545', color: 'white', border: 'none', borderRadius: '4px' }}
                           >
-                            Cancel
+                            {t('shop.packages.actions.cancel')}
                           </button>
                         </div>
                       )}
+                      </div>
+                      </div>
                     </div>
                   ))}
                   </div>
@@ -1226,8 +1208,8 @@ const ShopPackages = () => {
               )}
             </div>
           ) : (
-            <div className="packages-table-wrapper">
-              <table className="packages-table">
+            <div className="table-responsive rounded-4 shadow-sm p-2" style={{ background: '#fffaf5' }}>
+              <table className="table align-middle mb-0">
                 <thead>
                   <tr>
                     <th>
@@ -1237,24 +1219,24 @@ const ShopPackages = () => {
                         onChange={toggleSelectAll}
                       />
                     </th>
-                    <th>Tracking #</th>
-                    <th>Description</th>
-                    <th>Recipient</th>
-                    <th>Status</th>
-                    <th>COD</th>
-                    <th>Date</th>
-                    {activeTab !== 'cancelled' && activeTab !== 'return-to-shop' && <th>Action</th>}
+                    <th>{t('shop.packages.table.trackingNumber')}</th>
+                    <th>{t('shop.packages.table.description')}</th>
+                    <th>{t('shop.packages.table.recipient')}</th>
+                    <th>{t('shop.packages.table.status')}</th>
+                    <th>{t('shop.packages.table.cod')}</th>
+                    <th>{t('shop.packages.table.date')}</th>
+                    {activeTab !== 'cancelled' && activeTab !== 'return-to-shop' && <th>{t('shop.packages.table.actions')}</th>}
                   </tr>
                 </thead>
                 <tbody>
                   {filterPackages().length === 0 ? (
-                    <tr><td colSpan={8} style={{textAlign:'center'}}>No packages found.</td></tr>
+                    <tr><td colSpan={8} style={{textAlign:'center'}}>{t('shop.packages.emptyPackages')}</td></tr>
                   ) : filterPackages().map(pkg => (
                     <tr key={pkg.id} style={{cursor:'pointer'}} onClick={e => {
                       if (e.target.closest('button') || e.target.type === 'checkbox') return;
                       openDetailsModal(pkg);
                     }}>
-                      <td className="package-select-cell" data-label="Select">
+                      <td data-label="Select">
                         <input
                           type="checkbox"
                           checked={selectedPackages.includes(pkg.id)}
@@ -1262,44 +1244,44 @@ const ShopPackages = () => {
                           disabled={pkg.status === 'cancelled' || pkg.status === 'delivered' || pkg.status === 'cancelled-returned' || pkg.status === 'cancelled-awaiting-return' || pkg.status === 'rejected'}
                         />
                       </td>
-                      <td className="tracking-number" data-label="Tracking #">{pkg.trackingNumber}</td>
-                      <td className="package-description" data-label="Description">
-                        <div className="package-title">{pkg.packageDescription}</div>
-                        <div className="package-address" style={{ color: '#666', marginTop: 4 }}>{pkg.deliveryAddress}</div>
+                      <td className="fw-semibold" data-label="Tracking #">{pkg.trackingNumber}</td>
+                      <td data-label="Description">
+                        <div className="fw-semibold">{pkg.packageDescription}</div>
+                        <div className="text-secondary small mt-1">{pkg.deliveryAddress}</div>
                         {(pkg.deliveryContactName || pkg.deliveryContactPhone) && (
-                          <div className="package-contact" style={{ fontSize: 12, color: '#555', marginTop: 2 }}>
-                            {pkg.deliveryContactName || 'N/A'}{pkg.deliveryContactPhone ? ` · ${pkg.deliveryContactPhone}` : ''}
+                          <div className="text-muted small mt-1">
+                            {pkg.deliveryContactName || t('shop.packages.na')}{pkg.deliveryContactPhone ? ` · ${pkg.deliveryContactPhone}` : ''}
                           </div>
                         )}
                       </td>
-                      <td className="recipient-name" data-label="Recipient">{pkg.deliveryContactName}</td>
-                      <td className="status-cell" data-label="Status">
+                      <td data-label="Recipient">{pkg.deliveryContactName}</td>
+                      <td data-label="Status">
                         {getStatusBadge(pkg.status)}
                         {activeTab === 'return-requests' && (
-                          <span className="special-badge" style={{background: '#f55247', marginLeft: '5px'}}>Return</span>
+                          <span className="special-badge" style={{background: '#f55247', marginLeft: '5px'}}>{t('shop.packages.badges.return')}</span>
                         )}
                         {activeTab === 'exchange-requests' && (
-                          <span className="special-badge" style={{background: '#7b1fa2', marginLeft: '5px'}}>Exchange</span>
+                          <span className="special-badge" style={{background: '#7b1fa2', marginLeft: '5px'}}>{t('shop.packages.badges.exchange')}</span>
                         )}
                       </td>
-                      <td className="package-cod" data-label="COD">
-                        <span className="cod-amount">EGP {parseFloat(pkg.codAmount || 0).toFixed(2)}</span>
+                      <td data-label="COD">
+                        <span className="fw-semibold">EGP {parseFloat(pkg.codAmount || 0).toFixed(2)}</span>{' '}
                         {getCodBadge(pkg.isPaid)}
                       </td>
-                      <td className="package-date" data-label="Date">{new Date(pkg.createdAt).toLocaleDateString()}</td>
+                      <td className="text-muted" data-label="Date">{new Date(pkg.createdAt).toLocaleDateString()}</td>
                       {activeTab !== 'cancelled' && (
-                        <td data-label="Actions" className="actions-cell">
+                        <td data-label="Actions">
                           {pkg.status !== 'cancelled' && pkg.status !== 'delivered' && pkg.status !== 'delivered-returned' && pkg.status !== 'cancelled-returned' && pkg.status !== 'cancelled-awaiting-return' && pkg.status !== 'rejected' && pkg.status !== 'rejected-awaiting-return' && pkg.status !== 'rejected-returned' && pkg.status !== 'return-requested' && pkg.status !== 'return-in-transit' && pkg.status !== 'return-pending' && pkg.status !== 'return-completed' &&(
                             <>
                               <button
-                                className="action-button cancel-btn"
+                                className="btn btn-sm btn-outline-danger"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setPackageToCancel(pkg);
                                   setShowCancelModal(true);
                                 }}
                               >
-                                Cancel
+                                {t('shop.packages.actions.cancel')}
                               </button>
 
                             </>
@@ -1316,13 +1298,13 @@ const ShopPackages = () => {
       )}
       {/* Pickup Modal - always render so it works in any tab */}
       {showPickupModal && (
-        <div className="confirmation-overlay" onClick={() => setShowPickupModal(false)}>
-          <div className="confirmation-dialog" onClick={e => e.stopPropagation()} style={{minWidth:'350px'}}>
-            <h3>Pickup Packages</h3>
+        <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center p-3" style={{ zIndex: 1200, backgroundColor: 'rgba(0,0,0,0.35)' }} onClick={() => setShowPickupModal(false)}>
+          <div className="bg-white rounded-4 shadow p-4" style={{ width: '100%', maxWidth: '560px' }} onClick={e => e.stopPropagation()}>
+            <h3 className="h5 fw-bold mb-3">{t('shop.packages.modals.pickupPackages.title')}</h3>
             {pickupPackagesLoading ? (
-              <div>Loading packages...</div>
+              <div>{t('shop.packages.loadingPackages')}</div>
             ) : pickupPackages.length === 0 ? (
-              <div>No packages found for this pickup.</div>
+              <div>{t('shop.packages.modals.pickupPackages.empty')}</div>
             ) : (
               <ul style={{paddingLeft:0}}>
                 {pickupPackages.map(pkg => (
@@ -1332,41 +1314,43 @@ const ShopPackages = () => {
                 ))}
               </ul>
             )}
-            <button className="btn btn-secondary" onClick={() => setShowPickupModal(false)} style={{marginTop:'1rem'}}>Close</button>
+            <button className="btn btn-outline-secondary mt-3" onClick={() => setShowPickupModal(false)}>{t('shop.packages.actions.close')}</button>
           </div>
         </div>
       )}
       {/* Pickup Cancel Modal */}
       {showPickupCancelModal && (
-        <div className="confirmation-overlay" onClick={() => { setShowPickupCancelModal(false); setPickupCancelError(null); }}>
-          <div className="confirmation-dialog warning-dialog" onClick={e => e.stopPropagation()}>
-            <h3>Cancel Pickup</h3>
-            <p>Are you sure you want to cancel this pickup? All packages will be reset to pending.</p>
+        <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center p-3" style={{ zIndex: 1200, backgroundColor: 'rgba(0,0,0,0.35)' }} onClick={() => { setShowPickupCancelModal(false); setPickupCancelError(null); }}>
+          <div className="bg-white rounded-4 shadow p-4" style={{ width: '100%', maxWidth: '500px' }} onClick={e => e.stopPropagation()}>
+            <h3 className="h5 fw-bold mb-2">{t('shop.packages.modals.cancelPickup.title')}</h3>
+            <p className="mb-3">{t('shop.packages.modals.cancelPickup.confirm')}</p>
             {pickupCancelError && <div style={{color:'#dc3545',marginBottom:'0.5rem'}}>{pickupCancelError}</div>}
-            <div className="confirmation-buttons">
-              <button className="btn-secondary" onClick={() => { setShowPickupCancelModal(false); setPickupCancelError(null); }}>No</button>
-              <button className="btn-danger" onClick={handleCancelPickup}>Yes, Cancel</button>
+            <div className="d-flex justify-content-end gap-2">
+              <button className="btn btn-outline-secondary" onClick={() => { setShowPickupCancelModal(false); setPickupCancelError(null); }}>{t('shop.packages.actions.no')}</button>
+              <button className="btn btn-danger" onClick={handleCancelPickup}>{t('shop.packages.actions.yesCancel')}</button>
             </div>
           </div>
         </div>
       )}
       {/* Package Details Modal */}
       {showPackageDetailsModal && selectedPackage && ReactDOM.createPortal(
-        <div className="modal-overlay" onClick={() => setShowPackageDetailsModal(false)}>
-          <div className="modal-content package-details-modal" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>Package Details</h2>
+        <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center p-3" style={{ zIndex: 1200, backgroundColor: 'rgba(0,0,0,0.4)' }} onClick={() => setShowPackageDetailsModal(false)}>
+          <div className="bg-white rounded-4 shadow p-3 p-md-4" style={{ width: 'min(1100px, 96vw)', maxHeight: '92vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
+            <div className="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+              <h2 className="h5 fw-bold mb-0">{t('shop.packages.modals.packageDetails.title')}</h2>
+              <div className="d-flex align-items-center gap-2">
               {canEditThisPackage(selectedPackage) && !isEditingDetails && (
-                <button className="btn" style={{ background: '#007bff', color: '#fff', marginRight: 8 }} onClick={() => openEditDetails(selectedPackage)}>
-                  Edit
+                <button className="btn btn-primary" onClick={() => openEditDetails(selectedPackage)}>
+                  {t('shop.packages.actions.edit')}
                 </button>
               )}
-              <button className="btn" style={{ background: '#6c757d', color: '#fff', marginRight: 8 }} onClick={() => handlePrintAWB(selectedPackage)}>
-                Print AWB
+              <button className="btn btn-outline-secondary" onClick={() => handlePrintAWB(selectedPackage)}>
+                {t('shop.packages.actions.printAwb')}
               </button>
-              <button className="btn close-btn" onClick={() => setShowPackageDetailsModal(false)}>&times;</button>
+              <button className="btn btn-outline-secondary" onClick={() => setShowPackageDetailsModal(false)}>&times;</button>
+              </div>
             </div>
-            <div className="modal-body">
+            <div>
               
               {isEditingDetails && (
                 <div className="edit-details-panel" style={{ border: '1px solid #eaeaea', borderRadius: 12, padding: '1rem', marginBottom: '1rem', background: '#ffffff', boxShadow: '0 1px 2px rgba(16,24,40,0.06)' }}>
@@ -1456,7 +1440,7 @@ const ShopPackages = () => {
                   <div style={{ background:'#fafafa', border:'1px solid #f1f1f1', borderRadius: 10, padding: 12, marginBottom: 12 }}>
                     <div style={{ display: 'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
                       <h5 style={{ margin: 0 }}>Items</h5>
-                      <button className="btn" style={{ background: '#17a2b8', color: '#fff' }} onClick={() => setEditItems(prev => [...prev, { description: '', quantity: 1, codPerUnit: '0' }])}>Add Item</button>
+                      <button className="btn btn-info text-white" onClick={() => setEditItems(prev => [...prev, { description: '', quantity: 1, codPerUnit: '0' }])}>Add Item</button>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                       {editItems.map((it, idx) => (
@@ -1465,7 +1449,7 @@ const ShopPackages = () => {
                             <input type="text" placeholder="Description" value={it.description} onChange={e => setEditItems(prev => prev.map((p,i)=> i===idx?{...p, description: e.target.value}:p))} />
                             <input type="number" placeholder="Qty" min="1" value={it.quantity} onChange={e => setEditItems(prev => prev.map((p,i)=> i===idx?{...p, quantity: e.target.value}:p))} />
                             <input type="number" placeholder="COD / unit" step="0.01" value={it.codPerUnit} onChange={e => setEditItems(prev => prev.map((p,i)=> i===idx?{...p, codPerUnit: e.target.value}:p))} />
-                            <button className="btn" style={{ background: '#dc3545', color: '#fff' }} onClick={() => setEditItems(prev => prev.filter((_,i)=> i!==idx))}>Remove</button>
+                            <button className="btn btn-danger" onClick={() => setEditItems(prev => prev.filter((_,i)=> i!==idx))}>Remove</button>
                           </div>
                         </div>
                       ))}
@@ -1501,71 +1485,71 @@ const ShopPackages = () => {
                   </div>
 
                   <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: 12 }}>
-                    <button className="btn" style={{ background: '#6c757d', color: '#fff' }} onClick={() => setIsEditingDetails(false)} disabled={savingDetails}>Cancel</button>
-                    <button className="btn" style={{ background: '#28a745', color: '#fff' }} onClick={saveEditedDetails} disabled={savingDetails}>{savingDetails ? 'Saving...' : 'Save'}</button>
+                    <button className="btn btn-outline-secondary" onClick={() => setIsEditingDetails(false)} disabled={savingDetails}>Cancel</button>
+                    <button className="btn btn-success" onClick={saveEditedDetails} disabled={savingDetails}>{savingDetails ? 'Saving...' : 'Save'}</button>
                   </div>
                 </div>
               )}
 
               {!isEditingDetails && (
-                <div className="details-grid">
-                  <div className="detail-item">
-                    <span className="label">Tracking #</span>
+                <div className="row g-3">
+                  <div className="col-md-6">
+                    <span className="small text-muted d-block">Tracking #</span>
                     <span>{selectedPackage.trackingNumber}</span>
                   </div>
                   {selectedPackage.shopifyOrderId && (
-                    <div className="detail-item">
-                      <span className="label">Shopify Order</span>
+                    <div className="col-md-6">
+                      <span className="small text-muted d-block">Shopify Order</span>
                       <span>{selectedPackage.shopifyOrderName}</span>
                     </div>
                   )}
-                  <div className="detail-item">
-                    <span className="label">Status</span>
+                  <div className="col-md-6">
+                    <span className="small text-muted d-block">Status</span>
                     <span>{getStatusBadge(selectedPackage.status)}</span>
                   </div>
-                  <div className="detail-item">
-                    <span className="label">Created</span>
+                  <div className="col-md-6">
+                    <span className="small text-muted d-block">Created</span>
                     <span>{new Date(selectedPackage.createdAt).toLocaleString()}</span>
                   </div>
-                  <div className="detail-item full-width">
-                    <span className="label">Description</span>
+                  <div className="col-12">
+                    <span className="small text-muted d-block">Description</span>
                     <span>{selectedPackage.packageDescription || 'No description'}</span>
                   </div>
-                  <div className="detail-item">
-                    <span className="label">Recipient</span>
+                  <div className="col-md-6">
+                    <span className="small text-muted d-block">Recipient</span>
                     <span>{selectedPackage.deliveryContactName || 'N/A'}</span>
                   </div>
                   {selectedPackage.deliveryContactPhone && (
-                    <div className="detail-item">
-                      <span className="label">Recipient Phone</span>
+                    <div className="col-md-6">
+                      <span className="small text-muted d-block">Recipient Phone</span>
                       <span>{selectedPackage.deliveryContactPhone}</span>
                     </div>
                   )}
                   {selectedPackage.deliveryAddress && (
-                    <div className="detail-item full-width">
-                      <span className="label">Delivery Address</span>
+                    <div className="col-12">
+                      <span className="small text-muted d-block">Delivery Address</span>
                       <span>{selectedPackage.deliveryAddress}</span>
                     </div>
                   )}
-                  <div className="detail-item">
-                    <span className="label">COD</span>
+                  <div className="col-md-6">
+                    <span className="small text-muted d-block">COD</span>
                     <span>EGP {parseFloat(selectedPackage.codAmount || 0).toFixed(2)} {getCodBadge(selectedPackage.isPaid)}</span>
                   </div>
-                  <div className="detail-item">
-                    <span className="label">Type</span>
+                  <div className="col-md-6">
+                    <span className="small text-muted d-block">Type</span>
                     <span>{selectedPackage.type === 'return' ? 'Return' : (selectedPackage.type || 'new')}</span>
                   </div>
-                  <div className="detail-item">
-                    <span className="label">Delivery Cost</span>
+                  <div className="col-md-6">
+                    <span className="small text-muted d-block">Delivery Cost</span>
                     <span>EGP {parseFloat(selectedPackage.deliveryCost || 0).toFixed(2)}</span>
                   </div>
                   {Array.isArray(selectedPackage.returnDetails) && selectedPackage.returnDetails.length > 0 && (
-                    <div className="detail-item full-width">
-                      <span className="label">Returned Items</span>
-                      <div className="nested-details">
+                    <div className="col-12">
+                      <span className="small text-muted d-block">Returned Items</span>
+                      <div className="d-flex flex-column gap-2 mt-2">
                         {selectedPackage.returnDetails.map((it, idx) => (
-                          <div key={idx} className="nested-detail">
-                            <span className="nested-label">{it.description || `Item ${it.itemId}`}:</span>
+                          <div key={idx} className="d-flex justify-content-between border rounded-3 p-2 bg-light">
+                            <span className="fw-semibold">{it.description || `Item ${it.itemId}`}:</span>
                             <span>Qty: {it.quantity}</span>
                           </div>
                         ))}
@@ -1573,14 +1557,14 @@ const ShopPackages = () => {
                     </div>
                   )}
                   {(selectedPackage.returnRefundAmount !== null && selectedPackage.returnRefundAmount !== undefined) && (
-                    <div className="detail-item">
-                      <span className="label">Return Refund</span>
+                    <div className="col-md-6">
+                      <span className="small text-muted d-block">Return Refund</span>
                       <span>EGP {parseFloat(selectedPackage.returnRefundAmount || 0).toFixed(2)}</span>
                     </div>
                   )}
                   {selectedPackage.shownDeliveryCost !== undefined && selectedPackage.shownDeliveryCost !== null && (
-                    <div className="detail-item">
-                      <span className="label">Shown Delivery Cost</span>
+                    <div className="col-md-6">
+                      <span className="small text-muted d-block">Shown Delivery Cost</span>
                       {editingShownDeliveryCost ? (
                         <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <input
@@ -1650,26 +1634,26 @@ const ShopPackages = () => {
                     </div>
                   )}
                   {selectedPackage.weight && (
-                    <div className="detail-item">
-                      <span className="label">Weight</span>
+                    <div className="col-md-6">
+                      <span className="small text-muted d-block">Weight</span>
                       <span>{selectedPackage.weight} kg</span>
                     </div>
                   )}
                   {selectedPackage.dimensions && (
-                    <div className="detail-item">
-                      <span className="label">Dimensions</span>
+                    <div className="col-md-6">
+                      <span className="small text-muted d-block">Dimensions</span>
                       <span>{selectedPackage.dimensions}</span>
                     </div>
                   )}
-                  <div className="detail-item">
-                    <span className="label">Number of Items</span>
+                  <div className="col-md-6">
+                    <span className="small text-muted d-block">Number of Items</span>
                     <span>{selectedPackage.itemsNo ?? '-'}</span>
                   </div>
 
                   {/* Exchange Details */}
                   {(selectedPackage.type === 'exchange' || (selectedPackage.status || '').startsWith('exchange-')) && selectedPackage.exchangeDetails && (
-                    <div className="detail-item full-width">
-                      <span className="label">Exchange Details</span>
+                    <div className="col-12">
+                      <span className="small text-muted d-block">Exchange Details</span>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                         <div>
                           <div style={{ fontWeight: 600, marginBottom: 6 }}>Items to take from customer</div>
@@ -1709,8 +1693,8 @@ const ShopPackages = () => {
                   
                   {/* Items Section */}
                   {selectedPackage.Items && selectedPackage.Items.length > 0 && (
-                    <div className="detail-item full-width">
-                      <span className="label">Items</span>
+                    <div className="col-12">
+                      <span className="small text-muted d-block">Items</span>
                       <div style={{ 
                         backgroundColor: '#f8f9fa', 
                         padding: '1rem', 
@@ -1757,8 +1741,8 @@ const ShopPackages = () => {
 
                   {/* Delivered Items Section */}
                   {selectedPackage?.deliveredItems && Array.isArray(selectedPackage.deliveredItems) && selectedPackage.deliveredItems.length > 0 && (
-                    <div className="detail-item full-width">
-                      <span className="label">Delivered Items</span>
+                    <div className="col-12">
+                      <span className="small text-muted d-block">Delivered Items</span>
                       <div style={{ 
                         backgroundColor: '#f8f9fa', 
                         padding: '1rem', 
@@ -1806,8 +1790,8 @@ const ShopPackages = () => {
                         .filter(r => r.quantity > 0);
                       
                       return remaining.length > 0 ? (
-                        <div className="detail-item full-width">
-                          <span className="label">Returning Items</span>
+                        <div className="col-12">
+                          <span className="small text-muted d-block">Returning Items</span>
                           <div style={{ 
                             backgroundColor: '#f8f9fa', 
                             padding: '1rem', 
@@ -1839,23 +1823,23 @@ const ShopPackages = () => {
                     })()
                   )}
 
-                  <div className="detail-item">
-                    <span className="label">Paid Amount</span>
+                  <div className="col-md-6">
+                    <span className="small text-muted d-block">Paid Amount</span>
                     <span>EGP {parseFloat(selectedPackage.paidAmount || 0).toFixed(2)}</span>
                   </div>
                   
-                  <div className="detail-item">
-                    <span className="label">COD</span>
+                  <div className="col-md-6">
+                    <span className="small text-muted d-block">COD</span>
                     <span>EGP {parseFloat(selectedPackage.codAmount || 0).toFixed(2)} {getCodBadge(selectedPackage.isPaid)}</span>
                   </div>
                   
-                  <div className="detail-item">
-                    <span className="label">Type</span>
+                  <div className="col-md-6">
+                    <span className="small text-muted d-block">Type</span>
                     <span>{selectedPackage.type === 'return' ? 'Return' : (selectedPackage.type || 'new')}</span>
                   </div>
                   
-                  <div className="detail-item">
-                    <span className="label">Delivery Cost</span>
+                  <div className="col-md-6">
+                    <span className="small text-muted d-block">Delivery Cost</span>
                     <span>EGP {parseFloat(selectedPackage.deliveryCost || 0).toFixed(2)}</span>
                   </div>
                 </div>
@@ -1896,26 +1880,25 @@ const ShopPackages = () => {
                   })()}
                 </div>
               </div>
-              <div className="modal-actions">
+              <div className="d-flex justify-content-end gap-2 flex-wrap">
                 {['delivered', 'delivered-returned'].includes(selectedPackage.status) && (
                   <>
                     <button
-                      className="btn"
-                      style={{ background: '#ff8c00', color: '#fff', marginRight: 8 }}
+                      className="btn text-white"
+                      style={{ background: '#ff8c00' }}
                       onClick={() => setShowReturnModal(true)}
                     >
-                      Request Return
+                      {t('shop.packages.actions.requestReturn')}
                     </button>
                     <button
-                      className="btn"
-                      style={{ background: '#0d6efd', color: '#fff', marginRight: 8 }}
+                      className="btn btn-primary"
                       onClick={() => setShowExchangeModal(true)}
                     >
-                      Request Exchange
+                      {t('shop.packages.actions.requestExchange')}
                     </button>
                   </>
                 )}
-                <button className="btn close-btn" onClick={() => setShowPackageDetailsModal(false)}>Close</button>
+                <button className="btn btn-outline-secondary" onClick={() => setShowPackageDetailsModal(false)}>{t('shop.packages.actions.close')}</button>
               </div>
             </div>
           </div>
@@ -1924,15 +1907,15 @@ const ShopPackages = () => {
       )}
 
       {showReturnModal && selectedPackage && ReactDOM.createPortal(
-        <div className="modal-overlay return-overlay" onClick={() => setShowReturnModal(false)}>
-          <div className="confirmation-dialog" onClick={e => e.stopPropagation()} style={{ position: 'relative', zIndex: 12010 }}>
-            <h3>Request Return</h3>
-            <p>Select items to return and enter the refund to give to the customer (can be 0).</p>
+        <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center p-3" style={{ zIndex: 1210, backgroundColor: 'rgba(0,0,0,0.4)' }} onClick={() => setShowReturnModal(false)}>
+          <div className="bg-white rounded-4 shadow p-4" style={{ width: '100%', maxWidth: '620px' }} onClick={e => e.stopPropagation()}>
+            <h3 className="h5 fw-bold mb-2">{t('shop.packages.modals.requestReturn.title')}</h3>
+            <p className="mb-3">{t('shop.packages.modals.requestReturn.subtitle')}</p>
             <div style={{ maxHeight: 300, overflowY: 'auto', border: '1px solid #eee', borderRadius: 8, padding: 8, marginBottom: 8 }}>
               {(selectedPackage.Items || []).map((it, idx) => (
                 <div key={it.id} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 8, alignItems: 'center', marginBottom: 8 }}>
                   <div><b>{it.description}</b></div>
-                  <div>Qty: {it.quantity}</div>
+                  <div>{t('shop.packages.labels.qty')}: {it.quantity}</div>
                   <div>
                     <input
                       type="number"
@@ -1940,21 +1923,21 @@ const ShopPackages = () => {
                       max={it.quantity}
                       value={(returnItems[it.id]?.quantity ?? 0)}
                       onChange={e => setReturnItems(prev => ({ ...prev, [it.id]: { quantity: Math.min(Math.max(0, parseInt(e.target.value || '0', 10)), it.quantity) } }))}
-                      placeholder="Return qty"
+                      placeholder={t('shop.packages.modals.requestReturn.returnQty')}
                     />
                   </div>
                 </div>
               ))}
             </div>
             <div style={{ marginTop: 8 }}>
-              <label>Returned items COD to customer (EGP)</label>
+              <label>{t('shop.packages.modals.requestReturn.refundLabel')}</label>
               <input type="number" min="0" step="0.01" value={returnRefund} onChange={e => setReturnRefund(e.target.value)} />
             </div>
             {returnError && <div style={{ color: '#dc3545', marginTop: 8 }}>{returnError}</div>}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
-              <button className="btn" onClick={() => setShowReturnModal(false)}>Cancel</button>
-              <button className="btn" style={{ background: '#28a745', color: '#fff' }} disabled={requestingReturn} onClick={submitReturnRequest}>
-                {requestingReturn ? 'Submitting...' : 'Submit'}
+              <button className="btn btn-outline-secondary" onClick={() => setShowReturnModal(false)}>{t('shop.packages.actions.cancel')}</button>
+              <button className="btn btn-success" disabled={requestingReturn} onClick={submitReturnRequest}>
+                {requestingReturn ? t('shop.packages.actions.submitting') : t('shop.packages.actions.submit')}
               </button>
             </div>
           </div>
@@ -1963,21 +1946,21 @@ const ShopPackages = () => {
       )}
 
       {showExchangeModal && selectedPackage && ReactDOM.createPortal(
-        <div className="modal-overlay exchange-overlay" onClick={() => setShowExchangeModal(false)}>
-          <div className="confirmation-dialog" onClick={e => e.stopPropagation()} style={{ maxWidth: 900, width: '95vw', padding: 16, position: 'relative', zIndex: 12010 }}>
-            <h3 style={{ marginBottom: 12 }}>Request Exchange</h3>
+        <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center p-3" style={{ zIndex: 1210, backgroundColor: 'rgba(0,0,0,0.4)' }} onClick={() => setShowExchangeModal(false)}>
+          <div className="bg-white rounded-4 shadow p-4" onClick={e => e.stopPropagation()} style={{ maxWidth: 900, width: '95vw', maxHeight: '92vh', overflowY: 'auto' }}>
+            <h3 style={{ marginBottom: 12 }}>{t('shop.packages.modals.requestExchange.title')}</h3>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, alignItems: 'start' }}>
               <div style={{ background: '#fafafa', border: '1px solid #e9ecef', borderRadius: 8, padding: 12 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                  <h4 style={{ margin: 0, fontSize: 16 }}>Items to take from customer</h4>
-                  <button className="btn" onClick={() => addRow(setTakeItems)} style={{ padding: '4px 10px' }}>Add Item</button>
+                  <h4 style={{ margin: 0, fontSize: 16 }}>{t('shop.packages.modals.requestExchange.itemsTake')}</h4>
+                  <button className="btn btn-outline-primary btn-sm" onClick={() => addRow(setTakeItems)} style={{ padding: '4px 10px' }}>{t('shop.packages.actions.addItem')}</button>
                 </div>
                 <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 220, overflowY: 'auto' }}>
                   {takeItems.map((row, idx) => (
                     <div key={`take-${idx}`} style={{ display: 'grid', gridTemplateColumns: '1fr 90px auto', gap: 8, alignItems: 'center' }}>
                       <input
                         type="text"
-                        placeholder="Item description"
+                        placeholder={t('shop.packages.placeholders.itemDescription')}
                         value={row.description}
                         onChange={e => updateRow(setTakeItems, idx, 'description', e.target.value)}
                         style={{ padding: '8px 10px', border: '1px solid #ced4da', borderRadius: 6 }}
@@ -1989,7 +1972,7 @@ const ShopPackages = () => {
                         onChange={e => updateRow(setTakeItems, idx, 'quantity', parseInt(e.target.value || '1', 10))}
                         style={{ padding: '8px 10px', border: '1px solid #ced4da', borderRadius: 6 }}
                       />
-                      <button className="btn" onClick={() => removeRow(setTakeItems, idx)} style={{ padding: '6px 10px', background: '#fff', border: '1px solid #dc3545', color: '#dc3545' }}>Remove</button>
+                      <button className="btn btn-outline-danger btn-sm" onClick={() => removeRow(setTakeItems, idx)} style={{ padding: '6px 10px' }}>{t('shop.packages.actions.remove')}</button>
                     </div>
                   ))}
                 </div>
@@ -1997,15 +1980,15 @@ const ShopPackages = () => {
 
               <div style={{ background: '#fafafa', border: '1px solid #e9ecef', borderRadius: 8, padding: 12 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                  <h4 style={{ margin: 0, fontSize: 16 }}>Items to give to customer</h4>
-                  <button className="btn" onClick={() => addRow(setGiveItems)} style={{ padding: '4px 10px' }}>Add Item</button>
+                  <h4 style={{ margin: 0, fontSize: 16 }}>{t('shop.packages.modals.requestExchange.itemsGive')}</h4>
+                  <button className="btn btn-outline-primary btn-sm" onClick={() => addRow(setGiveItems)} style={{ padding: '4px 10px' }}>{t('shop.packages.actions.addItem')}</button>
                 </div>
                 <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 220, overflowY: 'auto' }}>
                   {giveItems.map((row, idx) => (
                     <div key={`give-${idx}`} style={{ display: 'grid', gridTemplateColumns: '1fr 90px auto', gap: 8, alignItems: 'center' }}>
                       <input
                         type="text"
-                        placeholder="Item description"
+                        placeholder={t('shop.packages.placeholders.itemDescription')}
                         value={row.description}
                         onChange={e => updateRow(setGiveItems, idx, 'description', e.target.value)}
                         style={{ padding: '8px 10px', border: '1px solid #ced4da', borderRadius: 6 }}
@@ -2017,7 +2000,7 @@ const ShopPackages = () => {
                         onChange={e => updateRow(setGiveItems, idx, 'quantity', parseInt(e.target.value || '1', 10))}
                         style={{ padding: '8px 10px', border: '1px solid #ced4da', borderRadius: 6 }}
                       />
-                      <button className="btn" onClick={() => removeRow(setGiveItems, idx)} style={{ padding: '6px 10px', background: '#fff', border: '1px solid #dc3545', color: '#dc3545' }}>Remove</button>
+                      <button className="btn btn-outline-danger btn-sm" onClick={() => removeRow(setGiveItems, idx)} style={{ padding: '6px 10px' }}>{t('shop.packages.actions.remove')}</button>
                     </div>
                   ))}
                 </div>
@@ -2025,34 +2008,34 @@ const ShopPackages = () => {
             </div>
 
             <div style={{ marginTop: 16, background: '#f8f9fa', border: '1px solid #e9ecef', borderRadius: 8, padding: 12 }}>
-              <h4 style={{ margin: '0 0 8px 0', fontSize: 16 }}>Money</h4>
+              <h4 style={{ margin: '0 0 8px 0', fontSize: 16 }}>{t('shop.packages.labels.money')}</h4>
               <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <input type="radio" name="moneyType" value="give" checked={moneyType === 'give'} onChange={() => setMoneyType('give')} />
-                  Money to give to customer
+                  {t('shop.packages.modals.requestExchange.moneyGive')}
                 </label>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <input type="radio" name="moneyType" value="take" checked={moneyType === 'take'} onChange={() => setMoneyType('take')} />
-                  Money to take from customer
+                  {t('shop.packages.modals.requestExchange.moneyTake')}
                 </label>
                 <input
                   type="number"
                   min="0"
                   step="0.01"
-                  placeholder="Amount (EGP)"
+                  placeholder={t('shop.packages.modals.requestExchange.amountPlaceholder')}
                   value={moneyAmount}
                   onChange={e => setMoneyAmount(e.target.value)}
                   style={{ padding: '8px 10px', border: '1px solid #ced4da', borderRadius: 6, width: 200 }}
                 />
               </div>
-              <div style={{ marginTop: 6, color: '#666', fontSize: 12 }}>This will adjust your Total Collected accordingly when the exchange is completed.</div>
+              <div style={{ marginTop: 6, color: '#666', fontSize: 12 }}>{t('shop.packages.modals.requestExchange.moneyHint')}</div>
             </div>
 
             {exchangeError && <div style={{ color: '#dc3545', marginTop: 8 }}>{exchangeError}</div>}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 14 }}>
-              <button className="btn" onClick={() => setShowExchangeModal(false)} style={{ background: '#f1f3f5' }}>Cancel</button>
-              <button className="btn" style={{ background: canSubmitExchange ? '#0d6efd' : '#9bbcf5', color: '#fff' }} disabled={requestingExchange || !canSubmitExchange} onClick={submitExchangeRequest}>
-                {requestingExchange ? 'Submitting...' : 'Submit'}
+              <button className="btn btn-outline-secondary" onClick={() => setShowExchangeModal(false)}>{t('shop.packages.actions.cancel')}</button>
+              <button className="btn btn-primary" style={{ opacity: canSubmitExchange ? 1 : 0.6 }} disabled={requestingExchange || !canSubmitExchange} onClick={submitExchangeRequest}>
+                {requestingExchange ? t('shop.packages.actions.submitting') : t('shop.packages.actions.submit')}
               </button>
             </div>
           </div>

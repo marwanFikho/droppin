@@ -1,346 +1,185 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import '../App.css';
-import './Services.css';
+import { useTranslation } from 'react-i18next';
+import PublicFooter from '../components/PublicFooter';
 
 const Services = () => {
+  const { t } = useTranslation();
+
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
+
   const [activeService, setActiveService] = useState('same-day');
 
-  const services = [
-    {
-      id: 'same-day',
-      title: 'Same-Day Delivery',
-      icon: '🚚',
-      shortDesc: 'Express delivery within city limits',
-      description: 'Get your packages delivered on the same day with our lightning-fast same-day delivery service. Perfect for urgent orders, medical supplies, and time-sensitive deliveries.',
-      features: [
-        'Delivery within 2-4 hours',
-        'Real-time tracking included',
-        'Priority customer support',
-        'Insurance coverage up to EGP 10,000',
-        'Professional drivers',
-        'SMS & email notifications'
-      ],
-      pricing: 'Starting from EGP 80',
-      popular: true
-    },
-    {
-      id: 'tracking',
-      title: 'Real-Time Tracking',
-      icon: '📍',
-      shortDesc: 'Live updates and GPS tracking',
-      description: 'Stay informed every step of the way with our advanced real-time tracking system. Know exactly where your package is and when it will arrive.',
-      features: [
-        'GPS tracking technology',
-        'Live driver location',
-        'Estimated delivery time',
-        'Delivery status updates',
-        'Photo proof of delivery',
-        'Delivery history'
-      ],
-      pricing: 'Included with all deliveries',
-      popular: false
-    },
-    {
-      id: 'returns',
-      title: 'Return Management',
-      icon: '🔄',
-      shortDesc: 'Streamlined return processes',
-      description: 'Handle returns effortlessly with our comprehensive return management system. Process refunds, exchanges, and failed deliveries with ease.',
-      features: [
-        'Automated return requests',
-        'Return label generation',
-        'Driver pickup coordination',
-        'Return tracking',
-        'Refund processing',
-        'Return analytics'
-      ],
-      pricing: 'Free',
-      popular: false
-    },
-    {
-      id: 'api',
-      title: 'API Integration',
-      icon: '🤝',
-      shortDesc: 'Seamless system integration',
-      description: 'Connect your existing systems with our robust API. Automate your delivery processes and integrate with popular e-commerce platforms.',
-      features: [
-        'RESTful API access',
-        'Webhook notifications',
-        'Bulk order processing',
-        'Multi-platform integration',
-        'Real-time synchronization',
-        'Developer documentation'
-      ],
-      pricing: "",
-      popular: false
-    }
-  ];
+  const servicesRaw = t('services.serviceCards', { returnObjects: true });
+  const benefitsRaw = t('services.benefits', { returnObjects: true });
+  const testimonialsRaw = t('services.testimonials', { returnObjects: true });
 
-  const benefits = [
-    {
-      icon: '⚡',
-      title: 'Fast & Reliable',
-      description: '99.5% on-time delivery rate with lightning-fast service'
-    },
-    {
-      icon: '🛡️',
-      title: 'Fully Insured',
-      description: 'Comprehensive insurance coverage for peace of mind'
-    },
-    {
-      icon: '📱',
-      title: 'Mobile Optimized',
-      description: 'Manage everything from your smartphone or desktop'
-    },
-    {
-      icon: '💰',
-      title: 'Cost Effective',
-      description: 'Competitive pricing with transparent fee structure'
-    },
-    {
-      icon: '🌍',
-      title: 'Cairo / Giza Coverage',
-      description: 'Extensive network covering all major Egyptian cities'
-    },
-    {
-      icon: '🎯',
-      title: 'Tailored Solutions',
-      description: 'Custom solutions for businesses of all sizes'
-    }
-  ];
+  const services = Array.isArray(servicesRaw) ? servicesRaw : [];
+  const benefits = Array.isArray(benefitsRaw) ? benefitsRaw : [];
+  const testimonials = Array.isArray(testimonialsRaw) ? testimonialsRaw : [];
 
-  const testimonials = [
-    // {
-    //   name: 'Ahmed Hassan',
-    //   company: 'Fashion Forward',
-    //   role: 'Operations Manager',
-    //   content: 'Droppin\'s same-day delivery has transformed our e-commerce business. Our customers love the speed and reliability.',
-    //   rating: 5
-    // },
-    {
-      name: 'Sara Mahmoud',
-      company: 'Tech Solutions',
-      role: 'CEO',
-      content: 'The API integration is seamless. We\'ve automated our entire delivery process, saving us hours every day.',
-      rating: 5
-    },
-    {
-      name: 'Mohamed Ali',
-      company: 'Fresh Market',
-      role: 'Store Owner',
-      content: 'The return management system is a lifesaver. Handling returns used to be a nightmare, now it\'s effortless.',
-      rating: 5
-    }
-  ];
-
-  const activeServiceData = services.find(service => service.id === activeService);
+  const activeServiceData = services.find(service => service.id === activeService) || services[0] || null;
 
   return (
-    <div className="services-page">
-      {/* Hero Section */}
+    <div className="pt-5" style={{ background: 'linear-gradient(180deg, #fff4ea 0%, #ffe8d6 100%)', minHeight: '100vh' }}>
       <motion.section
-        className="services-hero"
+        className="d-flex align-items-center justify-content-center text-center text-white"
+        style={{ minHeight: '400px', background: 'linear-gradient(135deg, #ff7a3d 0%, #fa8831 28%, #cd7955 52%, #9d8f8d 74%, #4e97ef 100%)' }}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 1 }}
       >
-        <div className="services-hero-content">
+        <div className="container py-4">
           <motion.h1
+            className="display-5 fw-700 mb-2"
+            style={{ textShadow: '2px 2px 6px rgba(0,0,0,0.35)' }}
             initial={{ y: 30, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.2, duration: 0.8 }}
           >
-            Our Services
+            {t('services.hero.title')}
           </motion.h1>
           <motion.p
+            className="lead mb-0"
+            style={{ color: '#f8fafc' }}
             initial={{ y: 30, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.4, duration: 0.8 }}
           >
-            Comprehensive delivery solutions designed for modern businesses
+            {t('services.hero.subtitle')}
           </motion.p>
         </div>
       </motion.section>
 
-      {/* Services Overview */}
-      <motion.section
-        className="services-overview"
-        initial={{ opacity: 0, y: 50 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.8 }}
-        viewport={{ once: true }}
-      >
+      <motion.section className="py-5" style={{ background: 'linear-gradient(180deg, #fff0e1 0%, #ffe7d3 100%)' }} initial={{ opacity: 0, y: 50 }} whileInView={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }} viewport={{ once: true }}>
         <div className="container">
-          <div className="services-grid">
+          <div className="row row-cols-1 row-cols-md-2 row-cols-xl-4 g-4">
             {services.map((service, index) => (
-              <motion.div
-                key={service.id}
-                className={`service-card ${activeService === service.id ? 'active' : ''} ${service.popular ? 'popular' : ''}`}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1, duration: 0.6 }}
-                viewport={{ once: true }}
-                whileHover={{ scale: 1.05 }}
-                onClick={() => setActiveService(service.id)}
-              >
-                {service.popular && <div className="popular-badge">Most Popular</div>}
-                <div className="service-icon">{service.icon}</div>
-                <h3>{service.title}</h3>
-                <p>{service.shortDesc}</p>
-                <div className="service-pricing">{service.pricing}</div>
-              </motion.div>
+              <div key={service.id} className="col">
+                <motion.div
+                  className="h-100 p-4 rounded-4 border shadow-sm position-relative text-center"
+                  style={{
+                    background: activeService === service.id ? 'linear-gradient(135deg, #fff9f2, #fff)' : '#fffaf5',
+                    borderColor: activeService === service.id ? '#FF6B00' : 'rgba(255, 107, 0, 0.2)',
+                    cursor: 'pointer'
+                  }}
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1, duration: 0.6 }}
+                  viewport={{ once: true }}
+                  whileHover={{ scale: 1.04 }}
+                  onClick={() => setActiveService(service.id)}
+                >
+                  {service.popular && (
+                    <span className="position-absolute top-0 end-0 translate-middle badge rounded-pill bg-primary">{t('services.mostPopular')}</span>
+                  )}
+                  <div style={{ fontSize: '2.8rem' }}>{service.icon}</div>
+                  <h3 className="h5 fw-700 mt-3 mb-2" style={{ color: '#FF6B00' }}>{service.title}</h3>
+                  <p className="mb-3" style={{ color: '#4b5563' }}>{service.shortDesc}</p>
+                  <div className="fw-700" style={{ color: '#235789' }}>{service.pricing}</div>
+                </motion.div>
+              </div>
             ))}
           </div>
         </div>
       </motion.section>
 
-      {/* Service Details */}
-      <motion.section
-        className="service-details"
-        key={activeService}
-        initial={{ opacity: 0, y: 50 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.8 }}
-      >
+      {activeServiceData && (
+      <motion.section className="py-5" key={activeService} initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }}>
         <div className="container">
-          <div className="service-detail-content">
-            <motion.div
-              className="service-info"
-              initial={{ opacity: 0, x: -50 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.2, duration: 0.8 }}
-            >
-              <div className="service-header">
-                <div className="service-icon-large">{activeServiceData.icon}</div>
-                <div>
-                  <h2>{activeServiceData.title}</h2>
-                  <p className="service-description">{activeServiceData.description}</p>
+          <div className="row g-4 align-items-start">
+            <motion.div className="col-lg-7" initial={{ opacity: 0, x: -50 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2, duration: 0.8 }}>
+              <div className="p-4 rounded-4 border shadow-sm" style={{ backgroundColor: '#fffaf5', borderColor: 'rgba(255, 107, 0, 0.2)' }}>
+                <div className="d-flex gap-3 align-items-start mb-3">
+                  <div style={{ fontSize: '3rem' }}>{activeServiceData.icon}</div>
+                  <div>
+                    <h2 className="h3 fw-700 mb-2" style={{ color: '#1f2937' }}>{activeServiceData.title}</h2>
+                    <p className="mb-0" style={{ color: '#4b5563', lineHeight: '1.7' }}>{activeServiceData.description}</p>
+                  </div>
                 </div>
-              </div>
 
-              <div className="service-features">
-                <h3>Key Features</h3>
-                <ul>
+                <h3 className="h5 fw-700 mt-4 mb-3" style={{ color: '#FF6B00' }}>{t('services.keyFeatures')}</h3>
+                <ul className="list-unstyled mb-4">
                   {activeServiceData.features.map((feature, index) => (
-                    <li key={index}>
-                      <span className="feature-icon">✓</span>
-                      {feature}
+                    <li key={index} className="d-flex align-items-start mb-2" style={{ color: '#4b5563' }}>
+                      <span className="me-2 fw-700" style={{ color: '#FF6B00' }}>✓</span>
+                      <span>{feature}</span>
                     </li>
                   ))}
                 </ul>
-              </div>
 
-              <div className="service-pricing-detail">
-                <h3>Pricing</h3>
-                <div className="pricing-card">
-                  <div className="pricing-amount">{activeServiceData.pricing}</div>
-                  <button className="get-started-btn">Get Started</button>
+                <h3 className="h5 fw-700 mb-3" style={{ color: '#FF6B00' }}>{t('services.pricingTitle')}</h3>
+                <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 p-3 rounded-3" style={{ background: 'linear-gradient(135deg, #fff9f2, #ffe8d3)' }}>
+                  <div className="fw-700 h5 mb-0" style={{ color: '#FF6B00' }}>{activeServiceData.pricing || t('services.contactUs')}</div>
+                  <button className="btn btn-primary fw-600">{t('services.getStarted')}</button>
                 </div>
               </div>
             </motion.div>
 
-            <motion.div
-              className="service-visual"
-              initial={{ opacity: 0, x: 50 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.4, duration: 0.8 }}
-            >
-              <div className="service-placeholder">
-                <div className="visual-icon">{activeServiceData.icon}</div>
-                <h4>{activeServiceData.title}</h4>
-                <p>Advanced technology for seamless delivery</p>
+            <motion.div className="col-lg-5" initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4, duration: 0.8 }}>
+              <div className="p-5 rounded-4 border border-2 border-dashed text-center" style={{ background: 'linear-gradient(135deg, #fff9f2, #ffe9d5)', borderColor: 'rgba(255, 107, 0, 0.35)' }}>
+                <div style={{ fontSize: '3.5rem' }}>{activeServiceData.icon}</div>
+                <h4 className="h5 fw-700 mt-3 mb-2" style={{ color: '#FF6B00' }}>{activeServiceData.title}</h4>
+                <p className="mb-0" style={{ color: '#4b5563' }}>{t('services.techBlurb')}</p>
               </div>
             </motion.div>
           </div>
         </div>
       </motion.section>
+      )}
 
-      {/* Benefits Section */}
-      <motion.section
-        className="benefits-section"
-        initial={{ opacity: 0 }}
-        whileInView={{ opacity: 1 }}
-        transition={{ duration: 0.8 }}
-        viewport={{ once: true }}
-      >
+      <motion.section className="py-5" style={{ background: 'linear-gradient(180deg, #fff0e1 0%, #ffe7d3 100%)' }} initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} transition={{ duration: 0.8 }} viewport={{ once: true }}>
         <div className="container">
-          <h2>Why Choose Our Services?</h2>
-          <div className="benefits-grid">
+          <h2 className="text-center h3 fw-700 mb-4" style={{ color: '#1f2937' }}>{t('services.whyChooseTitle')}</h2>
+          <div className="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4">
             {benefits.map((benefit, index) => (
-              <motion.div
-                key={index}
-                className="benefit-card"
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1, duration: 0.6 }}
-                viewport={{ once: true }}
-                whileHover={{ scale: 1.05 }}
-              >
-                <div className="benefit-icon">{benefit.icon}</div>
-                <h4>{benefit.title}</h4>
-                <p>{benefit.description}</p>
-              </motion.div>
+              <div key={index} className="col">
+                <motion.div className="h-100 p-4 rounded-4 border shadow-sm text-center" style={{ backgroundColor: '#fffaf5', borderColor: 'rgba(255, 107, 0, 0.2)' }} initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.1, duration: 0.6 }} viewport={{ once: true }} whileHover={{ scale: 1.04 }}>
+                  <div style={{ fontSize: '2.5rem' }}>{benefit.icon}</div>
+                  <h4 className="h5 fw-700 mt-2 mb-2" style={{ color: '#FF6B00' }}>{benefit.title}</h4>
+                  <p className="mb-0" style={{ color: '#4b5563' }}>{benefit.description}</p>
+                </motion.div>
+              </div>
             ))}
           </div>
         </div>
       </motion.section>
 
-      {/* Testimonials */}
-      <motion.section
-        className="testimonials-section"
-        initial={{ opacity: 0, y: 50 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.8 }}
-        viewport={{ once: true }}
-      >
+      <motion.section className="py-5" initial={{ opacity: 0, y: 50 }} whileInView={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }} viewport={{ once: true }}>
         <div className="container">
-          <h2>What Our Clients Say</h2>
-          <div className="testimonials-grid">
+          <h2 className="text-center h3 fw-700 mb-4" style={{ color: '#1f2937' }}>{t('services.testimonialsTitle')}</h2>
+          <div className="row row-cols-1 row-cols-lg-2 g-4">
             {testimonials.map((testimonial, index) => (
-              <motion.div
-                key={index}
-                className="testimonial-card"
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1, duration: 0.6 }}
-                viewport={{ once: true }}
-              >
-                <div className="rating">
-                  {'⭐'.repeat(testimonial.rating)}
-                </div>
-                <p className="testimonial-content">"{testimonial.content}"</p>
-                <div className="testimonial-author">
-                  <div className="author-name">{testimonial.name}</div>
-                  <div className="author-company">{testimonial.company}</div>
-                  <div className="author-role">{testimonial.role}</div>
-                </div>
-              </motion.div>
+              <div key={index} className="col">
+                <motion.div className="h-100 p-4 rounded-4 border shadow-sm" style={{ background: 'linear-gradient(135deg, #fff9f2, #ffe8d3)', borderColor: 'rgba(255, 107, 0, 0.2)' }} initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.1, duration: 0.6 }} viewport={{ once: true }}>
+                  <div className="mb-2">{'⭐'.repeat(testimonial.rating)}</div>
+                  <p className="mb-3 fst-italic" style={{ color: '#4b5563' }}>"{testimonial.content}"</p>
+                  <div className="pt-3 border-top">
+                    <div className="fw-700" style={{ color: '#FF6B00' }}>{testimonial.name}</div>
+                    <div className="small fw-600" style={{ color: '#235789' }}>{testimonial.company}</div>
+                    <div className="small" style={{ color: '#4b5563' }}>{testimonial.role}</div>
+                  </div>
+                </motion.div>
+              </div>
             ))}
           </div>
         </div>
       </motion.section>
 
-      {/* CTA Section */}
-      <motion.section
-        className="services-cta"
-        initial={{ opacity: 0 }}
-        whileInView={{ opacity: 1 }}
-        transition={{ duration: 0.8 }}
-        viewport={{ once: true }}
-      >
+      <motion.section className="py-5 text-center text-white" style={{ background: 'linear-gradient(135deg, #ff7a3d 0%, #fa8831 28%, #cd7955 52%, #9d8f8d 74%, #4e97ef 100%)' }} initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} transition={{ duration: 0.8 }} viewport={{ once: true }}>
         <div className="container">
-          <h2>Ready to Transform Your Delivery Process?</h2>
-          <p>Join hundreds of businesses already using our services</p>
-          <div className="cta-buttons">
-            <a href="/register/shop" className="cta-btn primary">Start Free Trial</a>
-            <a href="/contact" className="cta-btn secondary">Contact Sales</a>
+          <h2 className="h2 fw-700 mb-2" style={{ textShadow: '2px 2px 4px rgba(0, 0, 0, 0.3)' }}>{t('services.cta.title')}</h2>
+          <p className="lead mb-4" style={{ color: '#f8fafc' }}>{t('services.cta.subtitle')}</p>
+          <div className="d-flex justify-content-center gap-3 flex-wrap">
+            <a href="/register/shop" className="btn btn-light fw-700 px-4 py-2" style={{ color: '#FF6B00' }}>{t('services.cta.startTrial')}</a>
+            <a href="/contact" className="btn btn-outline-light fw-600 px-4 py-2">{t('services.cta.contactSales')}</a>
           </div>
         </div>
       </motion.section>
+
+      <PublicFooter />
     </div>
   );
 };

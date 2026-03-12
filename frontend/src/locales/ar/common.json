@@ -1,0 +1,18 @@
+{
+  "brand": {
+    "name": "دروبين",
+    "delivery": "دروبين للتوصيل"
+  },
+  "language": {
+    "switchToArabic": "العربية",
+    "switchToEnglish": "English",
+    "english": "English",
+    "arabic": "العربية"
+  },
+  "actions": {
+    "goBack": "الرجوع"
+  },
+  "status": {
+    "loading": "جاري التحميل..."
+  }
+}

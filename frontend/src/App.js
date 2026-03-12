@@ -1,8 +1,8 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { useTranslation } from 'react-i18next';
 import Navigation from './components/Navigation';
-import './App.css';
 
 // Pages (no more generic Register import)
 import Home from './pages/Home';
@@ -32,22 +32,31 @@ import Terms from './pages/Terms';
 import Privacy from './pages/Privacy';
 
 // Unauthorized page component
-const Unauthorized = () => (
-  <div className="unauthorized-container">
-    <h1>Access Denied</h1>
-    <p>You don't have permission to access this page.</p>
-    <button onClick={() => window.history.back()}>Go Back</button>
-  </div>
-);
+const Unauthorized = () => {
+  const { t } = useTranslation();
+
+  return (
+    <div className="d-flex flex-column justify-content-center align-items-center min-vh-100 text-center px-3" style={{ backgroundColor: '#faf5f0' }}>
+      <h1 className="text-danger fw-700 mb-3">{t('unauthorized.title')}</h1>
+      <p className="text-muted mb-4" style={{ fontSize: '1.1rem' }}>{t('unauthorized.message')}</p>
+      <button onClick={() => window.history.back()} className="btn btn-primary fw-600">
+        {t('actions.goBack')}
+      </button>
+    </div>
+  );
+};
 
 // Protected route component (no user role references)
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const { currentUser, loading } = useAuth();
+  const { t } = useTranslation();
   
   if (loading) {
     return (
-      <div className="loading-container">
-        <div className="loading-spinner">Loading...</div>
+      <div className="d-flex justify-content-center align-items-center min-vh-100" style={{ backgroundColor: '#faf5f0' }}>
+        <div className="spinner-border text-primary" role="status">
+          <span className="visually-hidden">{t('status.loading')}</span>
+        </div>
       </div>
     );
   }
@@ -73,72 +82,6 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
   
   return children;
 };
-
-// Add some CSS for the loading container and unauthorized page
-const styles = `
-  .loading-container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 100vh;
-    background-color: #f8f9fa;
-  }
-  
-  .loading-spinner {
-    width: 50px;
-    height: 50px;
-    border: 5px solid #f3f3f3;
-    border-top: 5px solid #3498db;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-  }
-  
-  @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-  }
-
-  .unauthorized-container {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    min-height: 100vh;
-    background-color: #f8f9fa;
-    text-align: center;
-    padding: 20px;
-  }
-
-  .unauthorized-container h1 {
-    color: #dc3545;
-    margin-bottom: 20px;
-  }
-
-  .unauthorized-container p {
-    color: #6c757d;
-    margin-bottom: 30px;
-  }
-
-  .unauthorized-container button {
-    padding: 10px 20px;
-    background-color: #007bff;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    font-size: 16px;
-    transition: background-color 0.2s;
-  }
-
-  .unauthorized-container button:hover {
-    background-color: #0056b3;
-  }
-`;
-
-// Add styles to document
-const styleSheet = document.createElement("style");
-styleSheet.innerText = styles;
-document.head.appendChild(styleSheet);
 
 // DashboardHome component for the main dashboard content
 const DashboardHome = () => <Outlet />;

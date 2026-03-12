@@ -22,6 +22,7 @@ if (
 
 const host = new URL(process.env.SHOPIFY_APP_URL || "http://localhost")
   .hostname;
+const productionHost = "shopify.droppin-eg.com";
 let hmrConfig;
 
 if (host === "localhost") {
@@ -42,11 +43,18 @@ if (host === "localhost") {
 
 export default defineConfig({
   server: {
-    allowedHosts: [host],
+    // Explicitly allow production host and wildcard variant behind reverse proxies.
+    allowedHosts: [
+      host,
+      ".droppin-eg.com",
+      "localhost",
+      "127.0.0.1",
+    ],
     cors: {
       preflightContinue: true,
     },
     port: PORT,
+    strictPort: true,
     hmr: hmrConfig,
     fs: {
       // See https://vitejs.dev/config/server-options.html#server-fs-allow for more information

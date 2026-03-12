@@ -3,7 +3,6 @@ import { packageService } from '../../services/api';
 import jsQR from 'jsqr';
 
 const ScanPickup = () => {
-  const [scanResult, setScanResult] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [cameraError, setCameraError] = useState('');
@@ -176,7 +175,6 @@ const ScanPickup = () => {
       if (navigator.vibrate) {
         navigator.vibrate(200);
       }
-      setScanResult(data);
       setLoading(true);
       setMessage('');
       try {
@@ -198,7 +196,6 @@ const ScanPickup = () => {
       } finally {
         setLoading(false);
         setTimeout(() => {
-          setScanResult('');
           setMessage('');
           lastScanned.current = '';
         }, 2000);

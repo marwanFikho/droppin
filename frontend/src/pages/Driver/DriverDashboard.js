@@ -1,12 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import { Link } from 'react-router-dom';
 import { driverService, packageService, pickupService } from '../../services/api';
 import { Doughnut } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
-import './DriverDashboard.css';
 import { useTranslation } from 'react-i18next';
-import { useLocation } from 'react-router-dom';
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
@@ -24,9 +21,7 @@ const pickupCategories = {
   all: ['scheduled', 'pending', 'in_storage', 'picked_up', 'completed', 'cancelled']
 };
 
-const getStatusBadge = (status) => (
-  <span className={`status-badge status-${status}`}>{status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ')}</span>
-);
+const DEFAULT_TOP_NAV_OFFSET = 64;
 
 const getStatusColorHex = (status) => {
   switch (status) {
@@ -73,9 +68,6 @@ const getNextStatus = (status, type) => {
 };
 
 const DriverDashboard = () => {
-  const { currentUser } = useAuth();
-  const location = useLocation();
-  const [driverProfile, setDriverProfile] = useState(null);
   const [driverStats, setDriverStats] = useState(null);
   const [packages, setPackages] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -84,7 +76,6 @@ const DriverDashboard = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [showProfile, setShowProfile] = useState(false);
-  const [availabilityLoading, setAvailabilityLoading] = useState(false);
   const [statusUpdating, setStatusUpdating] = useState({});
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState(null);
@@ -95,9 +86,6 @@ const DriverDashboard = () => {
   const [notesError, setNotesError] = useState(null);
   const [confirmAction, setConfirmAction] = useState(null);
   const { t, i18n } = useTranslation();
-  const [lang, setLang] = useState(i18n.language || 'en');
-  const [savingLang, setSavingLang] = useState(false);
-  const [langError, setLangError] = useState(null);
   const [pickups, setPickups] = useState([]);
   const [pickupModalOpen, setPickupModalOpen] = useState(false);
   const [selectedPickup, setSelectedPickup] = useState(null);
@@ -110,22 +98,19 @@ const DriverDashboard = () => {
   const [isPartialDelivery, setIsPartialDelivery] = useState(false);
   const [deliveredQuantities, setDeliveredQuantities] = useState({});
   const [paymentMethodChoice, setPaymentMethodChoice] = useState('CASH');
+  const [topNavOffset, setTopNavOffset] = useState(DEFAULT_TOP_NAV_OFFSET);
 
-  const handleToggleLanguage = async () => {
-    const newLang = lang === 'en' ? 'ar' : 'en';
-    setSavingLang(true);
-    setLangError(null);
-    try {
-      i18n.changeLanguage(newLang);
-      setLang(newLang);
-      localStorage.setItem('selectedLanguage', newLang);
-      await driverService.updateLanguage(newLang);
-    } catch (err) {
-      setLangError(t('profile.languageSaveError') || 'Failed to save language preference.');
-    } finally {
-      setSavingLang(false);
-    }
-  };
+  useEffect(() => {
+    const readNavOffset = () => {
+      const cssValue = getComputedStyle(document.documentElement).getPropertyValue('--app-nav-height').trim();
+      const parsed = Number.parseFloat(cssValue);
+      setTopNavOffset(Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_TOP_NAV_OFFSET);
+    };
+
+    readNavOffset();
+    window.addEventListener('resize', readNavOffset);
+    return () => window.removeEventListener('resize', readNavOffset);
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -133,17 +118,14 @@ const DriverDashboard = () => {
       setError(null);
       try {
         const profileRes = await driverService.getDriverProfile();
-        setDriverProfile(profileRes.data);
         setDriverStats(profileRes.data);
         // Set language from profile
         const userLang = (profileRes.data.User?.lang || profileRes.data.user?.lang || 'en').toLowerCase();
         if (userLang === 'ar' || userLang === 'AR') {
           i18n.changeLanguage('ar');
-          setLang('ar');
           localStorage.setItem('selectedLanguage', 'ar');
         } else {
           i18n.changeLanguage('en');
-          setLang('en');
           localStorage.setItem('selectedLanguage', 'en');
         }
         const packagesRes = await packageService.getPackages({ assignedToMe: true, page: 1, limit: 10000 });
@@ -157,7 +139,7 @@ const DriverDashboard = () => {
       }
     };
     fetchData();
-  }, []);
+  }, [i18n]);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearchQuery(searchQuery), 300);
@@ -215,19 +197,6 @@ const DriverDashboard = () => {
       setPickupModalError('Failed to mark pickup as picked up.');
     } finally {
       setPickupActionLoading(false);
-    }
-  };
-
-  const handleToggleAvailability = async () => {
-    if (!driverProfile) return;
-    setAvailabilityLoading(true);
-    try {
-      await driverService.updateAvailability(!driverProfile.isAvailable);
-      setDriverProfile(prev => ({ ...prev, isAvailable: !prev.isAvailable }));
-    } catch (err) {
-      setError('Failed to update availability.');
-    } finally {
-      setAvailabilityLoading(false);
     }
   };
 
@@ -326,21 +295,6 @@ const DriverDashboard = () => {
     setSelectedPackage(null);
   };
 
-  const handleSaveNotes = async () => {
-    if (!selectedPackage) return;
-    setNotesSaving(true);
-    setNotesError(null);
-    try {
-      const res = await packageService.updatePackageNotes(selectedPackage.id, editingNotes);
-      setSelectedPackage(prev => ({ ...prev, notes: res.data.notes }));
-      setEditingNotes('');
-    } catch (err) {
-      setNotesError('Failed to save notes.');
-    } finally {
-      setNotesSaving(false);
-    }
-  };
-
   const getFilteredPackages = useCallback(() => {
     let filtered = packages;
     if (activeTab !== 'all') {
@@ -417,21 +371,24 @@ const DriverDashboard = () => {
     };
   }, [isModalOpen, pickupModalOpen, deliveryModalOpen, confirmAction]);
 
-  if (loading) return <div className="driver-dashboard-loading">{t('driver.dashboard.loading')}</div>;
-  if (error) return <div className="driver-dashboard-error">{t('driver.dashboard.error')}</div>;
+  if (loading) return <div className="container py-5 text-center">{t('driver.dashboard.loading')}</div>;
+  if (error) return <div className="container py-5"><div className="alert alert-danger">{t('driver.dashboard.error')}</div></div>;
+
+  const modalOverlayStyle = {
+    paddingTop: `calc(${topNavOffset}px + 0.5rem)`,
+    alignItems: 'flex-start'
+  };
+
+  const modalDialogStyle = {
+    maxHeight: `calc(100vh - ${topNavOffset}px - 1rem)`,
+    overflowY: 'auto'
+  };
 
   return (
-    <div className="driver-dashboard">
-      <div className="driver-dashboard-container" style={{ padding: '0.5rem 1rem', marginLeft: 0 }}>
+    <div className="container-fluid px-3 px-md-4 py-4" style={{ maxWidth: '1400px' }}>
+      <div style={{ background: 'linear-gradient(180deg, #fff4ea 0%, #ffe8d6 100%)', borderRadius: 16, padding: '1rem' }}>
         {/* Action Buttons Header - Mark as Pickup + Profile */}
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'center', 
-          alignItems: 'center', 
-          gap: '1rem', 
-          marginBottom: '1.5rem',
-          flexWrap: 'wrap'
-        }}>
+        <div className="rounded-4 shadow-sm p-3 mb-3 d-flex justify-content-center align-items-center gap-2 flex-wrap" style={{ background: '#fffaf5' }}>
           <button
             className="btn btn-primary"
             style={{ 
@@ -450,7 +407,7 @@ const DriverDashboard = () => {
               display: 'flex', 
               alignItems: 'center', 
               gap: '0.5rem',
-              background: 'linear-gradient(135deg, #f36325 0%, #004b6f 100%)',
+              background: 'linear-gradient(135deg, #ff7a3d 0%, #fa8831 40%, #4e97ef 100%)',
               color: 'white',
               padding: '12px 20px',
               borderRadius: 24,
@@ -465,11 +422,11 @@ const DriverDashboard = () => {
               justifyContent: 'center'
             }}
             onMouseEnter={(e) => {
-              e.target.style.background = 'linear-gradient(135deg, #e55a1f 0%, #003d5a 100%)';
+              e.target.style.background = 'linear-gradient(135deg, #ff6b2a 0%, #ea7c27 40%, #3f86dc 100%)';
               e.target.style.boxShadow = '0 6px 20px rgba(243, 99, 37, 0.4)';
             }}
             onMouseLeave={(e) => {
-              e.target.style.background = 'linear-gradient(135deg, #f36325 0%, #004b6f 100%)';
+              e.target.style.background = 'linear-gradient(135deg, #ff7a3d 0%, #fa8831 40%, #4e97ef 100%)';
               e.target.style.boxShadow = '0 4px 12px rgba(243, 99, 37, 0.3)';
             }}
           >
@@ -479,7 +436,7 @@ const DriverDashboard = () => {
         </div>
 
         {/* Stats Overview - Now First Content */}
-        <div className="driver-dashboard-stats-row">
+        <div className="row g-3 mb-3">
           {[
             { label: t('driver.dashboard.assignedToday'), value: driverStats?.assignedToday|| 0, color: '#007bff', icon: '📦' },
             { label: t('driver.dashboard.totalAssigned'), value: driverStats?.totalAssigned || 0, color: '#28a745', icon: '📋' },
@@ -487,26 +444,30 @@ const DriverDashboard = () => {
             { label: t('driver.dashboard.activeAssignments'), value: driverStats?.activeAssign || 0, color: '#ffc107', icon: '⏳' },
             { label: t('driver.dashboard.cancelled'), value: driverStats?.totalCancelled || 0, color: '#dc3545', icon: '❌' },
           ].map((stat, idx) => (
-            <div key={idx} className="driver-dashboard-stat-card" style={{ background: stat.color }}>
-              <span className="driver-dashboard-stat-icon">{stat.icon}</span>
-              <div className="driver-dashboard-stat-value">{stat.value}</div>
-              <div className="driver-dashboard-stat-label">{stat.label}</div>
+            <div key={idx} className="col-6 col-md-4 col-lg">
+              <div className="rounded-4 shadow-sm p-3 h-100" style={{ background: '#fffaf5', borderLeft: `4px solid ${stat.color}` }}>
+                <div className="d-flex align-items-center justify-content-between">
+                  <span style={{ fontSize: 20 }}>{stat.icon}</span>
+                  <span className="h5 fw-bold mb-0" style={{ color: stat.color }}>{stat.value}</span>
+                </div>
+                <small className="text-muted d-block mt-1">{stat.label}</small>
+              </div>
             </div>
           ))}
         </div>
 
         {/* Assigned Pickups Section with Tabs */}
-        <div className="driver-dashboard-section">
-          <h2 className="driver-dashboard-section-title">Assigned Pickups</h2>
-          <div className="driver-dashboard-tabs-modern" style={{ marginBottom: 12 }}>
+        <div className="rounded-4 shadow-sm p-3 p-md-4 mb-3" style={{ background: '#fffaf5' }}>
+          <h2 className="h5 fw-bold mb-3">Assigned Pickups</h2>
+          <div className="d-flex gap-2 overflow-auto pb-1 mb-3" style={{ scrollbarWidth: 'thin' }}>
             {Object.keys(pickupCategories).map(tab => (
               <button
                 key={tab}
-                className={`driver-dashboard-tab-modern${activePickupTab === tab ? ' active' : ''}`}
+                className={activePickupTab === tab ? 'btn btn-primary btn-sm text-nowrap' : 'btn btn-outline-secondary btn-sm text-nowrap'}
                 onClick={() => setActivePickupTab(tab)}
               >
                 {t(`driver.dashboard.pickupTab_${tab}`, tab === 'notPickedUp' ? 'Not Picked Up' : tab === 'pickedUp' ? 'Picked Up' : 'All')}
-                <span className="driver-dashboard-tab-count">
+                <span className="badge bg-light text-dark ms-1">
                   {pickups.filter(pickup => tab === 'all' ? true : pickupCategories[tab].includes(pickup.status)).length}
                 </span>
               </button>
@@ -516,78 +477,80 @@ const DriverDashboard = () => {
             <div style={{ color: '#888', textAlign: 'center', padding: '1rem' }}>No assigned pickups.</div>
           ) : (
             getFilteredPickups().map(pickup => (
-              <div key={pickup.id} className="driver-dashboard-pickup-card" style={{marginBottom: 16, background: '#fff', borderRadius: 12, boxShadow: '0 2px 4px rgba(0,0,0,0.07)', padding: 16}}>
+              <div key={pickup.id} className="card border-0 shadow-sm rounded-4 mb-3">
+                <div className="card-body">
                 <div><strong>Shop:</strong> {pickup.Shop?.businessName || 'N/A'}</div>
                 <div><strong>Scheduled:</strong> {pickup.scheduledTime ? new Date(pickup.scheduledTime).toLocaleString() : '-'}</div>
                 <div><strong>Status:</strong> {pickup.status}</div>
                 <div><strong>Packages:</strong> {pickup.Packages?.length || 0}</div>
-                <button className="btn btn-primary" style={{marginTop: 8}} onClick={() => openPickupModal(pickup)}>
+                <button className="btn btn-primary btn-sm mt-2" onClick={() => openPickupModal(pickup)}>
                   View Details
                 </button>
+                </div>
               </div>
             ))
           )}
         </div>
 
         {/* Stats & Chart */}
-        <div className="driver-dashboard-section" style={{ marginBottom: 16 }}>
-          <h2 className="driver-dashboard-section-title">{t('driver.dashboard.deliveryStats')}</h2>
+        <div className="rounded-4 shadow-sm p-3 p-md-4 mb-3" style={{ background: '#fffaf5' }}>
+          <h2 className="h5 fw-bold mb-3">{t('driver.dashboard.deliveryStats')}</h2>
           <div style={{ width: '100%', maxWidth: 260, margin: '0 auto', height: 180 }}>
             <Doughnut data={chartData} options={chartOptions} />
           </div>
         </div>
 
         {/* Package Tabs & Search */}
-        <div className="driver-dashboard-section" style={{ marginBottom: 16 }}>
-          <div className="driver-dashboard-tabs-modern">
+        <div className="rounded-4 shadow-sm p-3 p-md-4 mb-3" style={{ background: '#fffaf5' }}>
+          <div className="d-flex gap-2 overflow-auto pb-1" style={{ scrollbarWidth: 'thin' }}>
             {Object.keys(packageCategories).map(tab => (
               <button
                 key={tab}
-                className={`driver-dashboard-tab-modern${activeTab === tab ? ' active' : ''}`}
+                className={activeTab === tab ? 'btn btn-primary btn-sm text-nowrap' : 'btn btn-outline-secondary btn-sm text-nowrap'}
                 onClick={() => setActiveTab(tab)}
               >
                 {t(`driver.dashboard.tab_${tab}`)}
-                <span className="driver-dashboard-tab-count">
+                <span className="badge bg-light text-dark ms-1">
                   {packages.filter(pkg => tab === 'all' ? true : packageCategories[tab].includes(pkg.status)).length}
                 </span>
               </button>
             ))}
           </div>
-          <div className="driver-dashboard-search-bar">
+          <div className="mt-3">
             <input
               type="text"
               placeholder={t('driver.dashboard.searchPlaceholder')}
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
+              className="form-control"
             />
           </div>
         </div>
 
         {/* Packages List */}
-        <div className="driver-dashboard-section">
-          <h2 className="driver-dashboard-section-title">{t('driver.dashboard.myPackages')}</h2>
-          <div className="driver-dashboard-deliveries">
+        <div className="rounded-4 shadow-sm p-3 p-md-4" style={{ background: '#fffaf5' }}>
+          <h2 className="h5 fw-bold mb-3">{t('driver.dashboard.myPackages')}</h2>
+          <div className="d-flex flex-column gap-3">
             {getFilteredPackages().length === 0 ? (
               <div style={{ color: '#888', textAlign: 'center', padding: '1rem' }}>{t('driver.dashboard.noPackages')}</div>
             ) : (
               getFilteredPackages().map(pkg => {
                 const nextStatus = getNextStatus(pkg.status, pkg.type);
                 const currentColor = getStatusColorHex(pkg.status);
-                const nextColor = nextStatus ? getStatusColorHex(nextStatus.next) : '#bdbdbd';
-                const gradient = `linear-gradient(90deg, ${currentColor} 0%, ${nextColor} 100%)`;
                 return (
-                  <div key={pkg.id} className="driver-dashboard-delivery">
-                    <div className="driver-dashboard-delivery-header">
-                      <div className="driver-dashboard-delivery-id">{pkg.trackingNumber}{pkg.type === 'return' && (<span style={{ marginLeft: 6, padding: '2px 6px', fontSize: 10, borderRadius: 10, background: '#ffe8cc', color: '#b45309' }}>Return</span>)}</div>
-                      <div className="driver-dashboard-delivery-status" style={{ background: currentColor, color: '#fff' }}>
+                  <div key={pkg.id} className="card border-0 shadow-sm rounded-4">
+                    <div className="card-body">
+                    <div className="d-flex justify-content-between align-items-start gap-2 flex-wrap">
+                      <div className="fw-bold">{pkg.trackingNumber}{pkg.type === 'return' && (<span style={{ marginLeft: 6, padding: '2px 6px', fontSize: 10, borderRadius: 10, background: '#ffe8cc', color: '#b45309' }}>Return</span>)}</div>
+                      <div className="badge rounded-pill" style={{ background: currentColor, color: '#fff' }}>
                         {pkg.status.charAt(0).toUpperCase() + pkg.status.slice(1).replace('_', ' ')}
                       </div>
                     </div>
-                    <div className="driver-dashboard-delivery-details">
-                      <div className="driver-dashboard-delivery-tracking">
+                    <div className="mt-2">
+                      <div>
                         <strong>{t('driver.dashboard.description')}:</strong> {pkg.packageDescription || '-'}
                       </div>
-                      <div className="driver-dashboard-delivery-address">
+                      <div>
                         <strong>{t('driver.dashboard.address')}:</strong> {pkg.deliveryAddress || '-'}
                       </div>
                       {pkg.status === 'return-in-transit' && Array.isArray(pkg.returnDetails) && pkg.returnDetails.length > 0 && (
@@ -604,7 +567,7 @@ const DriverDashboard = () => {
                           </ul>
                         </div>
                       )}
-                      <div className="driver-dashboard-delivery-time">
+                      <div className="mt-1">
                         {(pkg.status === 'return-in-transit' || pkg.status === 'return-pending') ? (
                           <>
                             <strong>{t('driver.dashboard.returnRefundAmount')}:</strong> EGP {parseFloat(pkg.returnRefundAmount || 0).toFixed(2)}
@@ -618,16 +581,16 @@ const DriverDashboard = () => {
                         ))}
                       </div>
                     </div>
-                    <div className="driver-dashboard-delivery-actions">
+                    <div className="d-flex flex-wrap gap-2 mt-3">
                       <button
-                        className="driver-dashboard-delivery-track-btn"
+                        className="btn btn-outline-primary btn-sm"
                         onClick={() => openPackageDetailsModal(pkg)}
                       >
                         {t('driver.dashboard.viewDetails')}
                       </button>
                       {nextStatus && (
                         <button
-                          className="driver-dashboard-delivery-start-btn"
+                          className="btn btn-primary btn-sm"
                           onClick={() => handleStatusAction(pkg, nextStatus.next)}
                           disabled={statusUpdating[pkg.id]}
                         >
@@ -637,14 +600,14 @@ const DriverDashboard = () => {
                       {/* Reject button: only show if not delivered, cancelled, or rejected */}
                       {![ 'delivered', 'cancelled', 'cancelled-awaiting-return', 'cancelled-returned', 'rejected' ].includes(pkg.status) && (
                         <button
-                          className="driver-dashboard-delivery-reject-btn"
-                          style={{ background: '#e53935', color: '#fff', border: 'none', marginLeft: 8, borderRadius: 18, padding: '7px 18px', fontWeight: 600, fontSize: 14, cursor: 'pointer' }}
+                          className="btn btn-danger btn-sm"
                           onClick={() => handleRejectPackage(pkg)}
                           disabled={statusUpdating[pkg.id]}
                         >
                           {statusUpdating[pkg.id] ? t('driver.dashboard.cancelling') : t('driver.dashboard.cancel')}
                         </button>
                       )}
+                    </div>
                     </div>
                   </div>
                 );
@@ -655,8 +618,8 @@ const DriverDashboard = () => {
       </div>
       {/* Rest of the modals and other content remain the same */}
       {isModalOpen && (
-        <div className="modal-overlay" onClick={closePackageDetailsModal}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
+        <div className="modal-overlay" style={modalOverlayStyle} onClick={closePackageDetailsModal}>
+          <div className="modal-content" style={modalDialogStyle} onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h3>{t('driver.dashboard.packageDetails')}</h3>
               <button className="modal-close" onClick={closePackageDetailsModal}>&times;</button>
@@ -897,8 +860,8 @@ const DriverDashboard = () => {
         </div>
       )}
       {pickupModalOpen && selectedPickup && (
-        <div className="modal-overlay" onClick={closePickupModal}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{maxWidth: 340}}>
+        <div className="modal-overlay" style={modalOverlayStyle} onClick={closePickupModal}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 340, ...modalDialogStyle }}>
             <div className="modal-header">
               <h3>Pickup Details</h3>
               <button className="modal-close" onClick={closePickupModal}>&times;</button>
@@ -933,8 +896,8 @@ const DriverDashboard = () => {
         </div>
       )}
       {confirmAction && (
-        <div className="modal-overlay" onClick={() => setConfirmAction(null)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{maxWidth: 340, textAlign: 'center'}}>
+        <div className="modal-overlay" style={modalOverlayStyle} onClick={() => setConfirmAction(null)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 340, textAlign: 'center', ...modalDialogStyle }}>
             <div className="modal-header">
               <h3>{t('driver.dashboard.confirmAction')}</h3>
               <button className="modal-close" onClick={() => setConfirmAction(null)}>&times;</button>
@@ -1034,8 +997,8 @@ const DriverDashboard = () => {
         </div>
       )}
       {deliveryModalOpen && deliveryModalPackage && (
-        <div className="modal-overlay" onClick={() => setDeliveryModalOpen(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{maxWidth: 360}}>
+        <div className="modal-overlay" style={modalOverlayStyle} onClick={() => setDeliveryModalOpen(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 360, ...modalDialogStyle }}>
             <div className="modal-header">
               <h3>{t('driver.dashboard.markAsDelivered')}</h3>
               <button className="modal-close" onClick={() => setDeliveryModalOpen(false)}>&times;</button>

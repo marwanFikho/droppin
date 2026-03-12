@@ -1,0 +1,480 @@
+{
+  "footer": {
+    "tagline": "Revolutionizing Last-mile Delivery in Egypt",
+    "company": "Company",
+    "aboutUs": "About Us",
+    "contactUs": "Contact Us",
+    "support": "Support",
+    "helpCenter": "Help Center",
+    "terms": "Terms of Service",
+    "privacy": "Privacy Policy",
+    "followUs": "Follow Us",
+    "copyright": "All rights reserved."
+  },
+  "home": {
+    "heroBadge": "Fast and Reliable Delivery",
+    "heroTitle": "Droppin Delivery",
+    "heroSubtitle": "Revolutionizing Last-mile Delivery Logistics",
+    "heroDescription": "Connecting businesses with professional drivers for seamless, trackable deliveries across Egypt.",
+    "stats": {
+      "partnerShops": "Partner Shops",
+      "dailyDeliveries": "Daily Deliveries",
+      "onTimeRate": "On-Time Rate"
+    },
+    "cta": {
+      "registerShop": "Register as Shop",
+      "registerDriver": "Register as Driver",
+      "accessDashboard": "Access Dashboard",
+      "trackPackage": "Track your package"
+    },
+    "aboutSectionTitle": "About Droppin",
+    "why": {
+      "title": "WHY we do what we do",
+      "description": "In today's fast-paced business world, reliable delivery services are the backbone of successful e-commerce. We believe that every package represents a promise to customers, and every delivery builds trust between businesses and their clients. Our mission is to eliminate delivery uncertainties and create seamless logistics experiences that empower businesses to focus on what they do best."
+    },
+    "how": {
+      "title": "HOW we do it",
+      "description": "Through cutting-edge technology and a network of professional drivers, we provide real-time tracking, automated routing optimization, and seamless communication between all stakeholders. Our platform integrates with popular e-commerce systems, ensuring smooth data flow and minimal manual intervention. We prioritize efficiency, transparency, and reliability in every step of the delivery process."
+    },
+    "what": {
+      "title": "WHAT we offer",
+      "cards": [
+        {
+          "title": "Same-Day Delivery",
+          "description": "Express delivery within city limits for urgent orders, with a maximum 2-day policy"
+        },
+        {
+          "title": "Real-Time Tracking",
+          "description": "Live updates and GPS tracking for all packages. [Soon]"
+        },
+        {
+          "title": "Return Management",
+          "description": "Streamlined return and exchange processes"
+        },
+        {
+          "title": "Analytics Dashboard",
+          "description": "Comprehensive insights and performance metrics"
+        },
+        {
+          "title": "Insurance Coverage",
+          "description": "Package protection and liability coverage. [Soon]"
+        },
+        {
+          "title": "API Integration",
+          "description": "Seamless integration with your existing systems"
+        }
+      ]
+    },
+    "who": {
+      "title": "WHO we are",
+      "stats": {
+        "deliveriesDaily": "Deliveries Daily",
+        "professionalDrivers": "Professional Drivers",
+        "onTimeDelivery": "On-Time Delivery"
+      },
+      "description": "Founded in 2025, Droppin has rapidly become Egypt's leading last-mile delivery platform. Our team consists of logistics experts, technology innovators, and customer service professionals dedicated to revolutionizing the delivery industry. We partner with businesses of all sizes, from local boutiques to major e-commerce platforms, ensuring their success through reliable logistics."
+    },
+    "features": {
+      "title": "Why Choose Droppin?",
+      "cards": [
+        {
+          "title": "For Shops",
+          "description": "Manage your deliveries, track packages, and ensure customer satisfaction."
+        },
+        {
+          "title": "For Drivers",
+          "description": "Pick up and deliver packages efficiently with our easy-to-use platform."
+        },
+        {
+          "title": "For Customers",
+          "description": "Track your packages in real-time and receive timely updates."
+        }
+      ]
+    },
+    "tracking": {
+      "title": "Track Your Package",
+      "button": "Enter Tracking Number"
+    }
+  },
+  "about": {
+    "hero": {
+      "title": "About Droppin Delivery",
+      "subtitle": "Revolutionizing Last-mile delivery in Egypt with technology-driven solutions"
+    },
+    "story": {
+      "title": "Our Story",
+      "paragraph1": "Founded in 2025, Droppin Delivery was built to solve a clear market need: dependable, transparent, and modern last-mile logistics for Egypt.",
+      "paragraph2": "What started as a focused team has grown into a trusted delivery platform connecting shops with professional drivers for smooth nationwide fulfillment."
+    },
+    "growthChart": "Growth Chart",
+    "impactTitle": "Our Impact in Numbers",
+    "stats": {
+      "partnerShops": "Partner Shops",
+      "dailyDeliveries": "Daily Deliveries",
+      "professionalDrivers": "Professional Drivers",
+      "onTimeRate": "On-Time Rate"
+    },
+    "mission": {
+      "title": "Our Mission",
+      "description": "To modernize last-mile delivery in Egypt through reliable operations, transparent tracking, and practical logistics technology that supports business growth."
+    },
+    "vision": {
+      "title": "Our Vision",
+      "description": "To become the most trusted delivery platform in Egypt by setting high standards in reliability, service quality, and operational excellence."
+    },
+    "values": {
+      "title": "Our Core Values",
+      "innovation": {
+        "title": "Innovation",
+        "description": "We use modern technology to improve delivery quality and control."
+      },
+      "partnership": {
+        "title": "Partnership",
+        "description": "We grow with our shops, drivers, and customers through long-term trust."
+      },
+      "speed": {
+        "title": "Speed",
+        "description": "Fast execution and dependable timing are central to our model."
+      },
+      "quality": {
+        "title": "Quality",
+        "description": "We maintain high standards in customer experience and service delivery."
+      }
+    },
+    "cta": {
+      "title": "Ready to Join Our Network?",
+      "subtitle": "Become part of Egypt's leading Last-mile Delivery platform",
+      "joinShop": "Join as Shop",
+      "joinDriver": "Join as Driver"
+    }
+  },
+  "services": {
+    "hero": {
+      "title": "Our Services",
+      "subtitle": "Comprehensive delivery solutions designed for modern businesses"
+    },
+    "mostPopular": "Most Popular",
+    "keyFeatures": "Key Features",
+    "pricingTitle": "Pricing",
+    "contactUs": "Contact us",
+    "getStarted": "Get Started",
+    "techBlurb": "Advanced technology for seamless delivery",
+    "whyChooseTitle": "Why Choose Our Services?",
+    "testimonialsTitle": "What Our Clients Say",
+    "serviceCards": [
+      {
+        "id": "same-day",
+        "title": "Same-Day Delivery",
+        "icon": "🚚",
+        "shortDesc": "Express delivery within city limits",
+        "description": "Get your packages delivered on the same day with a fast and reliable workflow for urgent orders.",
+        "features": [
+          "Delivery within 2-4 hours",
+          "Real-time tracking included",
+          "Priority customer support",
+          "Insurance coverage up to EGP 10,000",
+          "Professional drivers",
+          "SMS and email notifications"
+        ],
+        "pricing": "Starting from EGP 80",
+        "popular": true
+      },
+      {
+        "id": "tracking",
+        "title": "Real-Time Tracking",
+        "icon": "📍",
+        "shortDesc": "Live updates and GPS tracking",
+        "description": "Monitor every shipment stage with clear status updates and live visibility.",
+        "features": [
+          "GPS tracking technology",
+          "Live driver location",
+          "Estimated delivery time",
+          "Delivery status updates",
+          "Photo proof of delivery",
+          "Delivery history"
+        ],
+        "pricing": "Included with all deliveries",
+        "popular": false
+      },
+      {
+        "id": "returns",
+        "title": "Return Management",
+        "icon": "🔄",
+        "shortDesc": "Streamlined return processes",
+        "description": "Manage returns and exchanges through a clear and efficient operational flow.",
+        "features": [
+          "Automated return requests",
+          "Return label generation",
+          "Driver pickup coordination",
+          "Return tracking",
+          "Refund processing",
+          "Return analytics"
+        ],
+        "pricing": "Free",
+        "popular": false
+      },
+      {
+        "id": "api",
+        "title": "API Integration",
+        "icon": "🤝",
+        "shortDesc": "Seamless system integration",
+        "description": "Integrate your systems with Droppin for automated shipment creation and status synchronization.",
+        "features": [
+          "RESTful API access",
+          "Webhook notifications",
+          "Bulk order processing",
+          "Multi-platform integration",
+          "Real-time synchronization",
+          "Developer documentation"
+        ],
+        "pricing": "",
+        "popular": false
+      }
+    ],
+    "benefits": [
+      { "icon": "⚡", "title": "Fast and Reliable", "description": "High on-time rates with dependable delivery operations" },
+      { "icon": "🛡️", "title": "Fully Insured", "description": "Coverage options that reduce operational risk" },
+      { "icon": "📱", "title": "Mobile Optimized", "description": "Manage orders from desktop or mobile with ease" },
+      { "icon": "💰", "title": "Cost Effective", "description": "Clear pricing with practical value for daily operations" },
+      { "icon": "🌍", "title": "Cairo and Giza Coverage", "description": "Strong local network focused on core service regions" },
+      { "icon": "🎯", "title": "Tailored Solutions", "description": "Flexible workflows that match different business models" }
+    ],
+    "testimonials": [
+      {
+        "name": "Sara Mahmoud",
+        "company": "Tech Solutions",
+        "role": "CEO",
+        "content": "The API integration is seamless and saved us significant operational time every week.",
+        "rating": 5
+      },
+      {
+        "name": "Mohamed Ali",
+        "company": "Fresh Market",
+        "role": "Store Owner",
+        "content": "Return handling became much easier and more structured after moving to Droppin.",
+        "rating": 5
+      }
+    ],
+    "cta": {
+      "title": "Ready to Transform Your Delivery Process?",
+      "subtitle": "Join hundreds of businesses already using our services",
+      "startTrial": "Start Free Trial",
+      "contactSales": "Contact Sales"
+    }
+  },
+  "contact": {
+    "hero": {
+      "title": "Get in Touch",
+      "subtitle": "We are here to help you succeed with reliable delivery operations"
+    },
+    "infoCards": [
+      {
+        "icon": "📧",
+        "title": "Email Us",
+        "details": ["droppin.eg@gmail.com"],
+        "contact": "Business support during official hours"
+      },
+      {
+        "icon": "📞",
+        "title": "Call Us",
+        "details": ["Phone: +20 103 136 9893", "WhatsApp: +20 103 136 9893"],
+        "contact": "Operational support available daily"
+      },
+      {
+        "icon": "🌍",
+        "title": "Service Area",
+        "details": ["Cairo, Egypt"],
+        "contact": "Cairo and Giza coverage"
+      }
+    ],
+    "formTitle": "Send us a Message",
+    "formTabs": [
+      { "id": "general", "label": "General Inquiry" },
+      { "id": "sales", "label": "Sales" },
+      { "id": "support", "label": "Support" },
+      { "id": "partnership", "label": "Partnership" }
+    ],
+    "form": {
+      "fullName": "Full Name *",
+      "fullNamePlaceholder": "Your full name",
+      "email": "Email Address *",
+      "emailPlaceholder": "your.email@example.com",
+      "subject": "Subject *",
+      "subjectPlaceholder": "What can we help you with?",
+      "message": "Message *",
+      "messagePlaceholder": "Tell us more about your inquiry...",
+      "sendMessage": "Send Message"
+    },
+    "serviceArea": {
+      "title": "Our Service Area",
+      "subtitle": "Covering Cairo and Giza cities",
+      "primaryLabel": "Primary Location:",
+      "primaryValue": "Cairo, Egypt",
+      "coverageLabel": "Coverage:",
+      "coverageValue": "Cairo and Giza delivery network",
+      "availabilityLabel": "Availability:",
+      "availabilityValue": "24/7 operations"
+    },
+    "responseTime": {
+      "title": "Response Time",
+      "averageValue": "4h",
+      "averageLabel": "Average Response",
+      "supportValue": "24/7",
+      "supportLabel": "Support Available",
+      "satisfactionValue": "98%",
+      "satisfactionLabel": "Satisfaction Rate"
+    },
+    "faqTitle": "Frequently Asked Questions",
+    "faqs": [
+      {
+        "question": "How do I sign up as a shop?",
+        "answer": "Go to registration and choose shop account, then complete your business details for review."
+      },
+      {
+        "question": "What areas do you serve?",
+        "answer": "Our primary operational coverage is Cairo and Giza with ongoing expansion support."
+      },
+      {
+        "question": "How much does delivery cost?",
+        "answer": "Pricing depends on shipment type, destination, and service level. Contact sales for a tailored quote."
+      },
+      {
+        "question": "How can I track my packages?",
+        "answer": "Use the tracking number on the tracking page to follow shipment status in real time."
+      },
+      {
+        "question": "What if my package is damaged?",
+        "answer": "Contact support immediately with package details and evidence to start review and claim handling."
+      }
+    ],
+    "cta": {
+      "title": "Ready to Get Started?",
+      "subtitle": "Join hundreds of businesses already using Droppin",
+      "joinShop": "Join as Shop",
+      "joinDriver": "Join as Driver"
+    }
+  },
+  "careers": {
+    "hero": {
+      "title": "Join Our Team",
+      "subtitle": "Shape the future of Last-mile Delivery in Egypt",
+      "stats": {
+        "teamMembers": "Team Members",
+        "openPositions": "Open Positions",
+        "employeeSatisfaction": "Employee Satisfaction"
+      }
+    },
+    "whyChooseTitle": "Why Choose Droppin?",
+    "openPositionsTitle": "Open Positions",
+    "requirementsTitle": "Requirements:",
+    "benefitsTitle": "Benefits:",
+    "salaryLabel": "Salary:",
+    "applyNow": "Apply Now",
+    "jobCategories": [
+      { "id": "all", "name": "All Positions", "count": 12 },
+      { "id": "tech", "name": "Technology", "count": 5 },
+      { "id": "operations", "name": "Operations", "count": 4 },
+      { "id": "sales", "name": "Sales and Marketing", "count": 3 }
+    ],
+    "perks": [
+      { "icon": "💼", "title": "Flexible Work", "description": "Work from anywhere with flexible hours" },
+      { "icon": "🏥", "title": "Health and Wellness", "description": "Comprehensive health insurance coverage" },
+      { "icon": "📚", "title": "Learning Budget", "description": "Annual budget for courses and conferences" },
+      { "icon": "🚀", "title": "Career Growth", "description": "Clear career progression and mentorship" },
+      { "icon": "🎉", "title": "Team Events", "description": "Regular team building and social events" },
+      { "icon": "💰", "title": "Competitive Pay", "description": "Strong compensation and performance incentives" }
+    ],
+    "jobOpenings": [
+      {
+        "id": 1,
+        "title": "Senior Full-Stack Developer",
+        "category": "tech",
+        "type": "Full-time",
+        "location": "Cairo, Egypt",
+        "salary": "Competitive",
+        "description": "Join our engineering team to build and scale reliable delivery products.",
+        "requirements": [
+          "5+ years of full-stack development experience",
+          "Strong skills in React and Node.js",
+          "Experience with cloud infrastructure",
+          "Excellent analytical problem solving"
+        ],
+        "benefits": ["Health Insurance", "Flexible Hours", "Learning Support", "Performance Incentives"]
+      },
+      {
+        "id": 2,
+        "title": "Delivery Operations Manager",
+        "category": "operations",
+        "type": "Full-time",
+        "location": "Cairo, Egypt",
+        "salary": "Competitive",
+        "description": "Lead day-to-day delivery operations and optimize service quality.",
+        "requirements": [
+          "3+ years in operations or logistics",
+          "Experience in team and process management",
+          "Strong reporting and communication skills",
+          "Data-driven operational mindset"
+        ],
+        "benefits": ["Health Insurance", "Performance Bonuses", "Career Development", "Team Support"]
+      },
+      {
+        "id": 3,
+        "title": "Business Development Manager",
+        "category": "sales",
+        "type": "Full-time",
+        "location": "Cairo, Egypt",
+        "salary": "Competitive + Commission",
+        "description": "Grow our merchant network and build strategic partnerships.",
+        "requirements": [
+          "2+ years in business development or B2B sales",
+          "Background in e-commerce or logistics",
+          "Strong negotiation and presentation skills",
+          "Track record in target achievement"
+        ],
+        "benefits": ["Commission Plan", "Health Insurance", "Travel Allowance", "Growth Path"]
+      },
+      {
+        "id": 4,
+        "title": "DevOps Engineer",
+        "category": "tech",
+        "type": "Full-time",
+        "location": "Remote",
+        "salary": "Competitive",
+        "description": "Build secure deployment pipelines and infrastructure reliability.",
+        "requirements": [
+          "3+ years in DevOps",
+          "Strong cloud and container experience",
+          "CI/CD automation skills",
+          "Scripting and monitoring expertise"
+        ],
+        "benefits": ["Remote Work", "Health Insurance", "Flexible Hours", "Learning Budget"]
+      },
+      {
+        "id": 5,
+        "title": "Customer Success Specialist",
+        "category": "operations",
+        "type": "Full-time",
+        "location": "Cairo, Egypt",
+        "salary": "Competitive",
+        "description": "Support merchants with onboarding, adoption, and service continuity.",
+        "requirements": [
+          "2+ years in customer success or account support",
+          "Strong communication and ownership",
+          "Problem-solving and coordination skills",
+          "Service quality mindset"
+        ],
+        "benefits": ["Health Insurance", "Performance Bonuses", "Career Growth", "Team Culture"]
+      }
+    ],
+    "cta": {
+      "title": "Do not See the Right Fit?",
+      "subtitle": "We are always looking for strong talent to join our growing team.",
+      "button": "Send General Inquiry"
+    }
+  },
+  "notFound": {
+    "title": "Page Not Found",
+    "message": "The page you are looking for does not exist or may have been moved.",
+    "backHome": "Back to Home"
+  }
+}

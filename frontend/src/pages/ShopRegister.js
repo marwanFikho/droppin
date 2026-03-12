@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { validateName, sanitizeNameInput, validatePhone } from '../utils/inputValidators';
 
@@ -30,7 +31,12 @@ const ShopRegister = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const { register } = useAuth();
+  const { t } = useTranslation();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -86,24 +92,24 @@ const ShopRegister = () => {
       formData.businessAddress?.country?.trim()
     ];
     if (required.some(v => !v)) {
-      setFormError('Please fill in all required fields. Zip/Postal Code is optional.');
+      setFormError(t('shopRegister.errors.requiredFields'));
       return;
     }
 
     // Validation
     if (formData.password !== formData.confirmPassword) {
-      setFormError('Passwords do not match');
+      setFormError(t('shopRegister.errors.passwordMismatch'));
       return;
     }
     
     if (formData.password.length < 6) {
-      setFormError('Password must be at least 6 characters');
+      setFormError(t('shopRegister.errors.passwordMinLength'));
       return;
     }
 
     // Business phone must match 01xxxxxxxxx
     if (!validatePhone(formData.phone)) {
-      setFormError('Please enter a valid business phone number (01xxxxxxxxx)');
+      setFormError(t('shopRegister.errors.invalidBusinessPhone'));
       return;
     }
     
@@ -120,279 +126,284 @@ const ShopRegister = () => {
       navigate('/registration-success', { 
         state: { 
           userType: 'shop', 
-          message: 'Your shop account has been registered successfully! An administrator will review your application. You will be able to sign in once your account has been approved.' 
+          message: t('shopRegister.successMessage')
         } 
       });
     } catch (error) {
-      setFormError(error.response?.data?.message || 'Registration failed. Please try again.');
+      setFormError(error.response?.data?.message || t('shopRegister.errors.registrationFailed'));
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="auth-container">
-      <div className="auth-form-container">
-        <div className="auth-header">
-          <h2>Register Your Shop</h2>
-          <p>Create a shop account to manage your deliveries</p>
-          <div className="approval-notice">
-            <p><strong>Note:</strong> Shop accounts require administrator approval before you can sign in. You will be notified once your account has been approved.</p>
-          </div>
-        </div>
-        
-        {formError && <div className="auth-error">{formError}</div>}
-        
-  <form onSubmit={handleSubmit} noValidate className="auth-form">
-          <h3>Business Information</h3>
-          <div className="form-group">
-            <label htmlFor="businessName">Business Name</label>
-            <input
-              type="text"
-              id="businessName"
-              name="businessName"
-              value={formData.businessName}
-              onChange={handleChange}
-              placeholder="Enter your business name"
-              required
-              pattern="[A-Za-z\u0600-\u06FF ]+"
-              inputMode="text"
-              autoComplete="off"
-            />
-          </div>
-          
-          <div className="form-row">
-            <div className="form-group">
-              <label htmlFor="email">Email (Used in login)</label>
-              <input
-                type="email"
-                id="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                placeholder="Enter business email"
-                required
-              />
+    <div className="container-fluid d-flex align-items-center justify-content-center" style={{ minHeight: 'calc(100vh - 80px)', background: 'linear-gradient(135deg, #ff7a3d 0%, #fa8831 28%, #cd7955 52%, #9d8f8d 74%, #4e97ef 100%)', padding: '2rem 0' }}>
+      <div className="w-100" style={{ maxWidth: '980px' }}>
+        <div className="card shadow-lg border-3" style={{ borderColor: '#FF6B00' }}>
+          <div className="card-body p-4 p-md-5">
+            <div className="text-center mb-4">
+              <h2 className="card-title fw-700 mb-2" style={{ color: '#1f2937' }}>{t('shopRegister.title')}</h2>
+              <p className="text-muted mb-3">{t('shopRegister.subtitle')}</p>
+              <div className="alert alert-warning py-2 mb-0">
+                <strong>{t('shopRegister.noteLabel')}</strong> {t('shopRegister.noteText')}
+              </div>
             </div>
-            
-            <div className="form-group">
-              <label htmlFor="phone">Business Phone Number</label>
-              <input
-                type="tel"
-                id="phone"
-                name="phone"
-                value={formData.phone}
-                onChange={handleChange}
-                placeholder="Enter business phone number"
-                required
-                inputMode="numeric"
-                maxLength={11}
-                pattern="01[0-9]{9}"
-                autoComplete="tel"
-              />
+
+            {formError && (
+              <div className="alert alert-danger alert-dismissible fade show mb-4" role="alert">
+                {formError}
+                <button type="button" className="btn-close" onClick={() => setFormError('')}></button>
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} noValidate>
+              <h4 className="fw-bold mb-3" style={{ color: '#FF6B00' }}>{t('shopRegister.sections.businessInfo')}</h4>
+              <div className="row g-3 mb-4">
+                <div className="col-12">
+                  <label htmlFor="businessName" className="form-label fw-600">{t('shopRegister.fields.businessName')}</label>
+                  <input
+                    type="text"
+                    id="businessName"
+                    name="businessName"
+                    value={formData.businessName}
+                    onChange={handleChange}
+                    className="form-control"
+                    placeholder={t('shopRegister.placeholders.businessName')}
+                    required
+                    pattern="[A-Za-z\u0600-\u06FF ]+"
+                    inputMode="text"
+                    autoComplete="off"
+                  />
+                </div>
+                <div className="col-md-6">
+                  <label htmlFor="email" className="form-label fw-600">{t('shopRegister.fields.email')}</label>
+                  <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    className="form-control"
+                    placeholder={t('shopRegister.placeholders.email')}
+                    required
+                  />
+                </div>
+                <div className="col-md-6">
+                  <label htmlFor="phone" className="form-label fw-600">{t('shopRegister.fields.businessPhone')}</label>
+                  <input
+                    type="tel"
+                    id="phone"
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleChange}
+                    className="form-control"
+                    placeholder={t('shopRegister.placeholders.phone')}
+                    required
+                    inputMode="numeric"
+                    maxLength={11}
+                    pattern="01[0-9]{9}"
+                    autoComplete="tel"
+                  />
+                </div>
+                <div className="col-md-6">
+                  <label htmlFor="password" className="form-label fw-600">{t('shopRegister.fields.password')}</label>
+                  <input
+                    type="password"
+                    id="password"
+                    name="password"
+                    value={formData.password}
+                    onChange={handleChange}
+                    className="form-control"
+                    placeholder={t('shopRegister.placeholders.password')}
+                    required
+                  />
+                </div>
+                <div className="col-md-6">
+                  <label htmlFor="confirmPassword" className="form-label fw-600">{t('shopRegister.fields.confirmPassword')}</label>
+                  <input
+                    type="password"
+                    id="confirmPassword"
+                    name="confirmPassword"
+                    value={formData.confirmPassword}
+                    onChange={handleChange}
+                    className="form-control"
+                    placeholder={t('shopRegister.placeholders.confirmPassword')}
+                    required
+                  />
+                </div>
+                <div className="col-12">
+                  <label htmlFor="businessType" className="form-label fw-600">{t('shopRegister.fields.businessType')}</label>
+                  <input
+                    type="text"
+                    id="businessType"
+                    name="businessType"
+                    value={formData.businessType}
+                    onChange={handleChange}
+                    className="form-control"
+                    placeholder={t('shopRegister.placeholders.businessType')}
+                    required
+                  />
+                </div>
+              </div>
+
+              <h4 className="fw-bold mb-2" style={{ color: '#FF6B00' }}>{t('shopRegister.sections.contactInfo')}</h4>
+              <p className="text-muted small mb-3">{t('shopRegister.contactInfoDescription')}</p>
+              <div className="row g-3 mb-4">
+                <div className="col-md-6">
+                  <label htmlFor="contactPerson.name" className="form-label fw-600">{t('shopRegister.fields.contactName')}</label>
+                  <input
+                    type="text"
+                    id="contactPerson.name"
+                    name="contactPerson.name"
+                    value={formData.contactPerson.name}
+                    onChange={handleChange}
+                    className="form-control"
+                    placeholder={t('shopRegister.placeholders.contactName')}
+                    required
+                    pattern="[A-Za-z\u0600-\u06FF ]+"
+                    inputMode="text"
+                    autoComplete="off"
+                  />
+                </div>
+                <div className="col-md-6">
+                  <label htmlFor="contactPerson.phone" className="form-label fw-600">{t('shopRegister.fields.contactPhone')}</label>
+                  <input
+                    type="tel"
+                    id="contactPerson.phone"
+                    name="contactPerson.phone"
+                    value={formData.contactPerson.phone}
+                    onChange={handleChange}
+                    className="form-control"
+                    placeholder={t('shopRegister.placeholders.phone')}
+                    required
+                    inputMode="numeric"
+                    maxLength={11}
+                    autoComplete="tel"
+                  />
+                </div>
+                <div className="col-12">
+                  <label htmlFor="contactPerson.email" className="form-label fw-600">{t('shopRegister.fields.contactEmail')}</label>
+                  <input
+                    type="email"
+                    id="contactPerson.email"
+                    name="contactPerson.email"
+                    value={formData.contactPerson.email}
+                    onChange={handleChange}
+                    className="form-control"
+                    placeholder={t('shopRegister.placeholders.contactEmail')}
+                    required
+                  />
+                </div>
+              </div>
+
+              <h4 className="fw-bold mb-3" style={{ color: '#FF6B00' }}>{t('shopRegister.sections.address')}</h4>
+              <div className="row g-3 mb-4">
+                <div className="col-12">
+                  <label htmlFor="businessAddress.street" className="form-label fw-600">{t('shopRegister.fields.streetAddress')}</label>
+                  <input
+                    type="text"
+                    id="businessAddress.street"
+                    name="businessAddress.street"
+                    value={formData.businessAddress.street}
+                    onChange={handleChange}
+                    className="form-control"
+                    placeholder={t('shopRegister.placeholders.streetAddress')}
+                    required
+                  />
+                </div>
+                <div className="col-md-6">
+                  <label htmlFor="businessAddress.city" className="form-label fw-600">{t('shopRegister.fields.city')}</label>
+                  <input
+                    type="text"
+                    id="businessAddress.city"
+                    name="businessAddress.city"
+                    value={formData.businessAddress.city}
+                    onChange={handleChange}
+                    className="form-control"
+                    placeholder={t('shopRegister.placeholders.city')}
+                    required
+                  />
+                </div>
+                <div className="col-md-6">
+                  <label htmlFor="businessAddress.state" className="form-label fw-600">{t('shopRegister.fields.state')}</label>
+                  <input
+                    type="text"
+                    id="businessAddress.state"
+                    name="businessAddress.state"
+                    value={formData.businessAddress.state}
+                    onChange={handleChange}
+                    className="form-control"
+                    placeholder={t('shopRegister.placeholders.state')}
+                    required
+                  />
+                </div>
+                <div className="col-md-6">
+                  <label htmlFor="businessAddress.zipCode" className="form-label fw-600">{t('shopRegister.fields.zipCodeOptional')}</label>
+                  <input
+                    type="text"
+                    id="businessAddress.zipCode"
+                    name="businessAddress.zipCode"
+                    value={formData.businessAddress.zipCode}
+                    onChange={handleChange}
+                    className="form-control"
+                    placeholder={t('shopRegister.placeholders.zipCodeOptional')}
+                  />
+                </div>
+                <div className="col-md-6">
+                  <label htmlFor="businessAddress.country" className="form-label fw-600">{t('shopRegister.fields.country')}</label>
+                  <input
+                    type="text"
+                    id="businessAddress.country"
+                    name="businessAddress.country"
+                    value={formData.businessAddress.country}
+                    onChange={handleChange}
+                    className="form-control"
+                    placeholder={t('shopRegister.placeholders.country')}
+                    required
+                  />
+                </div>
+              </div>
+
+              <h4 className="fw-bold mb-3" style={{ color: '#FF6B00' }}>{t('shopRegister.sections.legal')}</h4>
+              <div className="row g-3 mb-4">
+                <div className="col-md-6">
+                  <label htmlFor="registrationNumber" className="form-label fw-600">{t('shopRegister.fields.registrationNumber')}</label>
+                  <input
+                    type="text"
+                    id="registrationNumber"
+                    name="registrationNumber"
+                    value={formData.registrationNumber}
+                    onChange={handleChange}
+                    className="form-control"
+                    placeholder={t('shopRegister.placeholders.registrationNumberOptional')}
+                  />
+                </div>
+                <div className="col-md-6">
+                  <label htmlFor="taxId" className="form-label fw-600">{t('shopRegister.fields.taxId')}</label>
+                  <input
+                    type="text"
+                    id="taxId"
+                    name="taxId"
+                    value={formData.taxId}
+                    onChange={handleChange}
+                    className="form-control"
+                    placeholder={t('shopRegister.placeholders.taxIdOptional')}
+                  />
+                </div>
+              </div>
+
+              <button type="submit" className="btn btn-primary w-100 fw-600 py-2" disabled={isSubmitting}>
+                {isSubmitting ? t('shopRegister.submitting') : t('shopRegister.submit')}
+              </button>
+            </form>
+
+            <hr className="my-4" />
+            <div className="text-center">
+              <p className="mb-2 text-muted">
+                {t('shopRegister.alreadyHaveAccount')} <Link to="/login" className="text-decoration-none">{t('shopRegister.login')}</Link>
+              </p>
+              <Link to="/register/driver" className="btn btn-outline-secondary btn-sm">{t('shopRegister.registerAsDriver')}</Link>
             </div>
-          </div>
-          
-          <div className="form-row">
-            <div className="form-group">
-              <label htmlFor="password">Password</label>
-              <input
-                type="password"
-                id="password"
-                name="password"
-                value={formData.password}
-                onChange={handleChange}
-                placeholder="Create a password"
-                required
-              />
-            </div>
-            
-            <div className="form-group">
-              <label htmlFor="confirmPassword">Confirm Password</label>
-              <input
-                type="password"
-                id="confirmPassword"
-                name="confirmPassword"
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                placeholder="Confirm your password"
-                required
-              />
-            </div>
-          </div>
-          
-          <div className="form-group">
-            <label htmlFor="businessType">Business Type</label>
-            <input
-              type="text"
-              id="businessType"
-              name="businessType"
-              value={formData.businessType}
-              onChange={handleChange}
-              placeholder="E.g., Retail, Restaurant, etc."
-              required
-            />
-          </div>
-          
-          <h4>Contact Person Information</h4>
-          <p className="form-info">Please provide details of the person we should contact regarding this account.</p>
-          <div className="form-row">
-            <div className="form-group">
-              <label htmlFor="contactPerson.name">Contact Person Name</label>
-              <input
-                type="text"
-                id="contactPerson.name"
-                name="contactPerson.name"
-                value={formData.contactPerson.name}
-                onChange={handleChange}
-                placeholder="Contact person name"
-                required
-                pattern="[A-Za-z\u0600-\u06FF ]+"
-                inputMode="text"
-                autoComplete="off"
-              />
-            </div>
-            
-            <div className="form-group">
-              <label htmlFor="contactPerson.phone">Contact Person Phone</label>
-              <input
-                type="tel"
-                id="contactPerson.phone"
-                name="contactPerson.phone"
-                onChange={handleChange}
-                placeholder="Contact person phone"
-                required
-                inputMode="numeric"
-                maxLength={11}
-                autoComplete="tel"
-              />
-            </div>
-          </div>
-          
-          <div className="form-group">
-            <label htmlFor="contactPerson.email">Contact Person Email</label>
-            <input
-              type="email"
-              id="contactPerson.email"
-              name="contactPerson.email"
-              value={formData.contactPerson.email}
-              onChange={handleChange}
-              placeholder="Contact person email"
-              required
-            />
-          </div>
-          
-          <h4>Business Address</h4>
-          <div className="form-group">
-            <label htmlFor="businessAddress.street">Street Address</label>
-            <input
-              type="text"
-              id="businessAddress.street"
-              name="businessAddress.street"
-              value={formData.businessAddress.street}
-              onChange={handleChange}
-              placeholder="Street address"
-              required
-            />
-          </div>
-          
-          <div className="form-row">
-            <div className="form-group">
-              <label htmlFor="businessAddress.city">City</label>
-              <input
-                type="text"
-                id="businessAddress.city"
-                name="businessAddress.city"
-                value={formData.businessAddress.city}
-                onChange={handleChange}
-                placeholder="City"
-                required
-              />
-            </div>
-            
-            <div className="form-group">
-              <label htmlFor="businessAddress.state">State/Province</label>
-              <input
-                type="text"
-                id="businessAddress.state"
-                name="businessAddress.state"
-                value={formData.businessAddress.state}
-                onChange={handleChange}
-                placeholder="State/Province"
-                required
-              />
-            </div>
-          </div>
-          
-          <div className="form-row">
-            <div className="form-group">
-              <label htmlFor="businessAddress.zipCode">Zip/Postal Code (optional)</label>
-              <input
-                type="text"
-                id="businessAddress.zipCode"
-                name="businessAddress.zipCode"
-                value={formData.businessAddress.zipCode}
-                onChange={handleChange}
-                placeholder="Zip/Postal code (optional)"
-              />
-            </div>
-            
-            <div className="form-group">
-              <label htmlFor="businessAddress.country">Country</label>
-              <input
-                type="text"
-                id="businessAddress.country"
-                name="businessAddress.country"
-                value={formData.businessAddress.country}
-                onChange={handleChange}
-                placeholder="Country"
-                required
-              />
-            </div>
-          </div>
-          
-          <div className="form-row">
-            <div className="form-group">
-              <label htmlFor="registrationNumber">Business Registration Number</label>
-              <input
-                type="text"
-                id="registrationNumber"
-                name="registrationNumber"
-                value={formData.registrationNumber}
-                onChange={handleChange}
-                placeholder="Registration number (optional)"
-              />
-            </div>
-            
-            <div className="form-group">
-              <label htmlFor="taxId">Tax ID</label>
-              <input
-                type="text"
-                id="taxId"
-                name="taxId"
-                value={formData.taxId}
-                onChange={handleChange}
-                placeholder="Tax ID (optional)"
-              />
-            </div>
-          </div>
-          
-          <button 
-            type="submit" 
-            className="auth-button" 
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? 'Creating Account...' : 'Register Shop'}
-          </button>
-        </form>
-        
-        <div className="auth-links">
-          <p>
-            Already have an account?{' '}
-            <Link to="/login">Login</Link>
-          </p>
-          <div className="role-specific-links">
-            <Link to="/register/driver">Register as a Driver</Link>
           </div>
         </div>
       </div>

@@ -1,292 +1,125 @@
 import React, { useState, useEffect } from 'react';
-import { color, motion } from 'framer-motion';
-import '../App.css';
-import './Careers.css';
+import { motion } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
+import PublicFooter from '../components/PublicFooter';
 
 const Careers = () => {
+  const { t } = useTranslation();
+
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
+
   const [selectedCategory, setSelectedCategory] = useState('all');
 
-  const jobCategories = [
-    { id: 'all', name: 'All Positions', count: 12 },
-    { id: 'tech', name: 'Technology', count: 5 },
-    { id: 'operations', name: 'Operations', count: 4 },
-    { id: 'sales', name: 'Sales & Marketing', count: 3 }
-  ];
+  const jobCategoriesRaw = t('careers.jobCategories', { returnObjects: true });
+  const jobOpeningsRaw = t('careers.jobOpenings', { returnObjects: true });
+  const perksRaw = t('careers.perks', { returnObjects: true });
 
-  const jobOpenings = [
-    {
-      id: 1,
-      title: 'Senior Full-Stack Developer',
-      category: 'tech',
-      type: 'Full-time',
-      location: 'Cairo, Egypt',
-      salary: 'Competitive',
-      description: 'We are looking for a Senior Full-Stack Developer to join our growing tech team...',
-      requirements: [
-        '5+ years of experience in full-stack development',
-        'Proficiency in React, Node.js, and MongoDB',
-        'Experience with AWS or similar cloud platforms',
-        'Strong problem-solving skills'
-      ],
-      benefits: ['Health Insurance', 'Flexible Hours', 'Professional Development', 'Stock Options']
-    },
-    {
-      id: 2,
-      title: 'Delivery Operations Manager',
-      category: 'operations',
-      type: 'Full-time',
-      location: 'Cairo, Egypt',
-      salary: 'Competitive',
-      description: 'Lead our delivery operations team to ensure exceptional service quality...',
-      requirements: [
-        '3+ years in logistics or operations management',
-        'Experience with fleet management systems',
-        'Strong leadership and communication skills',
-        'Data analysis and reporting experience'
-      ],
-      benefits: ['Health Insurance', 'Company Car', 'Performance Bonuses', 'Team Building Events']
-    },
-    {
-      id: 3,
-      title: 'Business Development Manager',
-      category: 'sales',
-      type: 'Full-time',
-      location: 'Cairo, Egypt',
-      salary: 'Competitive + Commission',
-      description: 'Drive business growth by acquiring new shop partnerships...',
-      requirements: [
-        '2+ years in Last-mile Delivery sales or business development',
-        'Experience in e-commerce or logistics industry',
-        'Excellent negotiation and presentation skills',
-        'Track record of meeting sales targets'
-      ],
-      benefits: ['Uncapped Commission', 'Health Insurance', 'Travel Allowance', 'Professional Development']
-    },
-    {
-      id: 4,
-      title: 'DevOps Engineer',
-      category: 'tech',
-      type: 'Full-time',
-      location: 'Remote',
-      salary: 'Competitive',
-      description: 'Build and maintain our cloud infrastructure and deployment pipelines...',
-      requirements: [
-        '3+ years of DevOps experience',
-        'Expertise in AWS, Docker, and Kubernetes',
-        'Experience with CI/CD pipelines',
-        'Strong scripting skills (Python, Bash)'
-      ],
-      benefits: ['Remote Work', 'Health Insurance', 'Flexible Hours', 'Learning Budget']
-    },
-    {
-      id: 5,
-      title: 'Customer Success Specialist',
-      category: 'operations',
-      type: 'Full-time',
-      location: 'Cairo, Egypt',
-      salary: 'Competitive',
-      description: 'Ensure our shop partners have exceptional onboarding and ongoing support...',
-      requirements: [
-        '2+ years in customer success or account management',
-        'Experience with SaaS or logistics platforms',
-        'Strong communication and problem-solving skills',
-        'Data-driven approach to customer satisfaction'
-      ],
-      benefits: ['Health Insurance', 'Performance Bonuses', 'Team Building', 'Career Growth']
-    }
-  ];
+  const jobCategories = Array.isArray(jobCategoriesRaw) ? jobCategoriesRaw : [];
+  const jobOpenings = Array.isArray(jobOpeningsRaw) ? jobOpeningsRaw : [];
+  const perks = Array.isArray(perksRaw) ? perksRaw : [];
 
   const filteredJobs = selectedCategory === 'all'
     ? jobOpenings
     : jobOpenings.filter(job => job.category === selectedCategory);
 
-  const perks = [
-    { icon: '💼', title: 'Flexible Work', description: 'Work from anywhere with flexible hours' },
-    { icon: '🏥', title: 'Health & Wellness', description: 'Comprehensive health insurance coverage' },
-    { icon: '📚', title: 'Learning Budget', description: 'Annual budget for courses and conferences' },
-    { icon: '🚀', title: 'Career Growth', description: 'Clear career progression and mentorship' },
-    { icon: '🎉', title: 'Team Events', description: 'Regular team building and social events' },
-    { icon: '💰', title: 'Competitive Pay', description: 'Above-market salaries and performance bonuses' }
-  ];
-
   return (
-    <div className="careers-page">
-      {/* Hero Section */}
+    <div className="pt-5" style={{ background: 'linear-gradient(180deg, #fff4ea 0%, #ffe8d6 100%)', minHeight: '100vh' }}>
       <motion.section
-        className="careers-hero"
+        className="d-flex align-items-center justify-content-center text-center text-white"
+        style={{ minHeight: '420px', background: 'linear-gradient(135deg, #ff7a3d 0%, #fa8831 28%, #cd7955 52%, #9d8f8d 74%, #4e97ef 100%)' }}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 1 }}
       >
-        <div className="careers-hero-content">
-          <motion.h1
-            initial={{ y: 30, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.2, duration: 0.8 }}
-          >
-            Join Our Team
+        <div className="container py-4">
+          <motion.h1 className="display-5 fw-bold mb-2" style={{ textShadow: '2px 2px 6px rgba(0,0,0,0.35)' }} initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2, duration: 0.8 }}>
+            {t('careers.hero.title')}
           </motion.h1>
-          <motion.p
-            initial={{ y: 30, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.4, duration: 0.8 }}
-          >
-            Shape the future of Last-mile Delivery in Egypt
+          <motion.p className="lead mb-4" style={{ color: '#f8fafc' }} initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.4, duration: 0.8 }}>
+            {t('careers.hero.subtitle')}
           </motion.p>
-          <motion.div
-            className="hero-stats"
-            initial={{ y: 30, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.6, duration: 0.8 }}
-          >
-            <div className="hero-stat">
-              <span className="stat-number">50+</span>
-              <span className="stat-label">Team Members</span>
-            </div>
-            <div className="hero-stat">
-              <span className="stat-number">12</span>
-              <span className="stat-label">Open Positions</span>
-            </div>
-            <div className="hero-stat">
-              <span className="stat-number">95%</span>
-              <span className="stat-label">Employee Satisfaction</span>
-            </div>
+          <motion.div className="row row-cols-3 g-2 justify-content-center" initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.6, duration: 0.8 }}>
+            <div className="col-auto text-center px-3"><div className="h3 fw-bold mb-0">50+</div><small>{t('careers.hero.stats.teamMembers')}</small></div>
+            <div className="col-auto text-center px-3"><div className="h3 fw-bold mb-0">12</div><small>{t('careers.hero.stats.openPositions')}</small></div>
+            <div className="col-auto text-center px-3"><div className="h3 fw-bold mb-0">95%</div><small>{t('careers.hero.stats.employeeSatisfaction')}</small></div>
           </motion.div>
         </div>
       </motion.section>
 
-      {/* Why Join Us Section */}
-      <motion.section
-        className="why-join-section"
-        initial={{ opacity: 0, y: 50 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.8 }}
-        viewport={{ once: true }}
-      >
+      <motion.section className="py-5" style={{ background: 'linear-gradient(180deg, #ffeedc 0%, #ffe4cd 100%)' }} initial={{ opacity: 0, y: 50 }} whileInView={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }} viewport={{ once: true }}>
         <div className="container">
-          <h2>Why Choose Droppin?</h2>
-          <div className="perks-grid">
+          <h2 className="text-center h3 fw-bold mb-4" style={{ color: '#1f2937' }}>{t('careers.whyChooseTitle')}</h2>
+          <div className="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4">
             {perks.map((perk, index) => (
-              <motion.div
-                key={index}
-                className="perk-card"
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1, duration: 0.6 }}
-                viewport={{ once: true }}
-                whileHover={{ scale: 1.05 }}
-              >
-                <div className="perk-icon">{perk.icon}</div>
-                <h4>{perk.title}</h4>
-                <p>{perk.description}</p>
-              </motion.div>
+              <div key={index} className="col">
+                <motion.div className="h-100 p-4 rounded-4 border shadow-sm text-center" style={{ backgroundColor: '#fffaf5', borderColor: 'rgba(255, 107, 0, 0.22)' }} initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.1, duration: 0.6 }} viewport={{ once: true }} whileHover={{ scale: 1.04 }}>
+                  <div style={{ fontSize: '2.4rem' }}>{perk.icon}</div>
+                  <h4 className="h5 fw-bold mt-2 mb-2" style={{ color: '#FF6B00' }}>{perk.title}</h4>
+                  <p className="mb-0" style={{ color: '#4b5563' }}>{perk.description}</p>
+                </motion.div>
+              </div>
             ))}
           </div>
         </div>
       </motion.section>
 
-      {/* Job Openings Section */}
-      <motion.section
-        className="jobs-section"
-        initial={{ opacity: 0 }}
-        whileInView={{ opacity: 1 }}
-        transition={{ duration: 0.8 }}
-        viewport={{ once: true }}
-      >
+      <motion.section className="py-5" initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} transition={{ duration: 0.8 }} viewport={{ once: true }}>
         <div className="container">
-          <h2>Open Positions</h2>
-
-          {/* Job Categories Filter */}
-          <motion.div
-            className="job-categories"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2, duration: 0.6 }}
-            viewport={{ once: true }}
-          >
+          <h2 className="text-center h3 fw-bold mb-4" style={{ color: '#1f2937' }}>{t('careers.openPositionsTitle')}</h2>
+          <motion.div className="d-flex flex-wrap justify-content-center gap-2 mb-4" initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} transition={{ delay: 0.2, duration: 0.6 }} viewport={{ once: true }}>
             {jobCategories.map((category) => (
-              <button
-                key={category.id}
-                className={`category-btn ${selectedCategory === category.id ? 'active' : ''}`}
-                onClick={() => setSelectedCategory(category.id)}
-              >
-                {category.name}
-                <span className="category-count">({category.count})</span>
+              <button key={category.id} className={selectedCategory === category.id ? 'btn btn-primary fw-semibold' : 'btn btn-outline-secondary fw-semibold'} onClick={() => setSelectedCategory(category.id)}>
+                {category.name} ({category.count})
               </button>
             ))}
           </motion.div>
 
-          {/* Job Listings */}
-          <div className="jobs-grid">
+          <div className="row row-cols-1 row-cols-lg-2 g-4">
             {filteredJobs.map((job, index) => (
-              <motion.div
-                key={job.id}
-                className="job-card"
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1, duration: 0.6 }}
-                viewport={{ once: true }}
-                whileHover={{ scale: 1.02 }}
-              >
-                <div className="job-header">
-                  <h3>{job.title}</h3>
-                  <div className="job-meta">
-                    <span className="job-type">{job.type}</span>
-                    <span className="job-location">{job.location}</span>
+              <div key={job.id} className="col">
+                <motion.div className="h-100 p-4 rounded-4 border shadow-sm" style={{ background: 'linear-gradient(135deg, #fff9f2, #ffe8d3)', borderColor: 'rgba(255, 107, 0, 0.2)' }} initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.1, duration: 0.6 }} viewport={{ once: true }} whileHover={{ scale: 1.01 }}>
+                  <h3 className="h5 fw-bold mb-2" style={{ color: '#FF6B00' }}>{job.title}</h3>
+                  <div className="d-flex gap-2 flex-wrap mb-3">
+                    <span className="badge rounded-pill bg-warning-subtle text-warning-emphasis">{job.type}</span>
+                    <span className="badge rounded-pill bg-info-subtle text-info-emphasis">{job.location}</span>
                   </div>
-                </div>
-
-                <p className="job-description">{job.description}</p>
-
-                <div className="job-details">
-                  <div className="job-requirements">
-                    <h4>Requirements:</h4>
-                    <ul>
-                      {job.requirements.map((req, i) => (
-                        <li key={i}>{req}</li>
-                      ))}
-                    </ul>
+                  <p style={{ color: '#4b5563' }}>{job.description}</p>
+                  <div className="row g-3">
+                    <div className="col-md-6">
+                      <h4 className="h6 fw-bold">{t('careers.requirementsTitle')}</h4>
+                      <ul className="ps-3 mb-0" style={{ color: '#4b5563' }}>
+                        {job.requirements.map((req, i) => (<li key={i}>{req}</li>))}
+                      </ul>
+                    </div>
+                    <div className="col-md-6">
+                      <h4 className="h6 fw-bold">{t('careers.benefitsTitle')}</h4>
+                      <ul className="ps-3 mb-0" style={{ color: '#4b5563' }}>
+                        {job.benefits.map((benefit, i) => (<li key={i}>{benefit}</li>))}
+                      </ul>
+                    </div>
                   </div>
-
-                  <div className="job-benefits">
-                    <h4>Benefits:</h4>
-                    <ul>
-                      {job.benefits.map((benefit, i) => (
-                        <li key={i}>{benefit}</li>
-                      ))}
-                    </ul>
+                  <div className="d-flex justify-content-between align-items-center mt-4">
+                    <div style={{ color: '#1f2937' }}><strong>{t('careers.salaryLabel')}</strong> {job.salary}</div>
+                    <button className="btn btn-primary fw-semibold">{t('careers.applyNow')}</button>
                   </div>
-                </div>
-
-                <div className="job-footer">
-                  <div className="job-salary">
-                    <strong>Salary:</strong> {job.salary}
-                  </div>
-                  <button className="apply-btn">Apply Now</button>
-                </div>
-              </motion.div>
+                </motion.div>
+              </div>
             ))}
           </div>
         </div>
       </motion.section>
 
-      {/* CTA Section */}
-      <motion.section
-        className="careers-cta"
-        initial={{ opacity: 0 }}
-        whileInView={{ opacity: 1 }}
-        transition={{ duration: 0.8 }}
-        viewport={{ once: true }}
-      >
+      <motion.section className="py-5 text-center text-white" style={{ background: 'linear-gradient(135deg, #ff7a3d 0%, #fa8831 28%, #cd7955 52%, #9d8f8d 74%, #4e97ef 100%)' }} initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} transition={{ duration: 0.8 }} viewport={{ once: true }}>
         <div className="container">
-          <h2>Don't See the Right Fit?</h2>
-          <p>We're always looking for talented individuals to join our growing team.</p>
-          <button className="general-inquiry-btn">Send General Inquiry</button>
+          <h2 className="h3 fw-bold mb-2">{t('careers.cta.title')}</h2>
+          <p className="mb-4" style={{ color: '#f8fafc' }}>{t('careers.cta.subtitle')}</p>
+          <button className="btn btn-light fw-bold" style={{ color: '#FF6B00' }}>{t('careers.cta.button')}</button>
         </div>
       </motion.section>
+
+      <PublicFooter />
     </div>
   );
 };

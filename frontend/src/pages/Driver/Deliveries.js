@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { packageService } from '../../services/api';
-import './DriverDashboard.css';
 
 const packageCategories = {
   current: ['assigned', 'pickedup', 'in-transit'],
@@ -39,9 +38,9 @@ const DriverDeliveries = () => {
   const [statusUpdating, setStatusUpdating] = useState({});
 
   const [showDeliveryModal, setShowDeliveryModal] = useState(false);
-  const [modalPackage, setModalPackage] = useState(null);
-  const [isPartial, setIsPartial] = useState(false);
-  const [deliveredQuantities, setDeliveredQuantities] = useState({});
+  const [, setModalPackage] = useState(null);
+  const [, setIsPartial] = useState(false);
+  const [, setDeliveredQuantities] = useState({});
 
   const fetchPackages = useCallback(async () => {
     setLoading(true);
@@ -86,20 +85,6 @@ const DriverDeliveries = () => {
     setShowDeliveryModal(true);
   };
 
-  const buildDeliveryPayload = () => {
-    if (!isPartial) return { status: 'delivered' };
-    const items = Array.isArray(modalPackage?.Items) ? modalPackage.Items : [];
-    const deliveredItems = items
-      .map(it => {
-        const maxQty = parseInt(it.quantity, 10) || 0;
-        const qty = parseInt(deliveredQuantities[it.id], 10) || 0;
-        const clamped = Math.min(Math.max(0, qty), maxQty);
-        return clamped > 0 ? { itemId: it.id, deliveredQuantity: clamped } : null;
-      })
-      .filter(Boolean);
-    return { status: 'delivered-awaiting-return', deliveredItems };
-  };
-
   const handleStatusAction = async (pkg, nextStatus) => {
     setStatusUpdating((prev) => ({ ...prev, [pkg.id]: true }));
     try {
@@ -115,75 +100,6 @@ const DriverDeliveries = () => {
       setStatusUpdating((prev) => ({ ...prev, [pkg.id]: false }));
     }
   };
-
-  {showDeliveryModal && modalPackage && (
-    <div className="modal-overlay" onClick={() => setShowDeliveryModal(false)}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <h3>Mark as Delivered</h3>
-          <button className="modal-close" onClick={() => setShowDeliveryModal(false)}>×</button>
-        </div>
-        <div className="modal-body">
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-            <input type="checkbox" checked={isPartial} onChange={(e) => setIsPartial(e.target.checked)} />
-            Partial delivery
-          </label>
-          {isPartial ? (
-            Array.isArray(modalPackage.Items) && modalPackage.Items.length > 0 ? (
-              <div>
-                {modalPackage.Items.map((it) => {
-                  const maxQty = parseInt(it.quantity, 10) || 0;
-                  return (
-                    <div key={it.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                      <div style={{ flex: 1, marginRight: 8 }}>
-                        {it.description} (max {maxQty})
-                        {typeof it.codAmount !== 'undefined' && (
-                          <div style={{ fontSize: 12, color: '#555' }}>
-                            Price: {(() => { const qty = parseInt(it.quantity, 10) || 0; const total = parseFloat(it.codAmount || 0) || 0; return (qty > 0 ? (total / qty) : 0).toFixed(2); })()}
-                          </div>
-                        )}
-                      </div>
-                      <input
-                        type="number"
-                        min="0"
-                        max={maxQty}
-                        value={deliveredQuantities[it.id] ?? ''}
-                        onChange={(e) => setDeliveredQuantities(prev => ({ ...prev, [it.id]: e.target.value }))}
-                        placeholder="0"
-                        style={{ width: 80, padding: 6 }}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div style={{ color: '#666' }}>No items available for partial selection. Uncheck partial to deliver completely.</div>
-            )
-          ) : (
-            <div style={{ color: '#444' }}>Deliver package completely to the customer.</div>
-          )}
-        </div>
-        <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-          <button className="modal-btn" onClick={() => setShowDeliveryModal(false)}>Cancel</button>
-          <button
-            className="modal-btn primary"
-            onClick={async () => {
-              try {
-                const payload = buildDeliveryPayload();
-                await packageService.updatePackageStatus(modalPackage.id, payload);
-                setShowDeliveryModal(false);
-                await fetchPackages();
-              } catch (e) {
-                setError('Failed to update package status.');
-              }
-            }}
-          >
-            Confirm
-          </button>
-        </div>
-      </div>
-    </div>
-  )}
 
   const getFilteredPackages = useCallback(() => {
     const categoryPackages = packages.filter(pkg => packageCategories[activeTab].includes(pkg.status));

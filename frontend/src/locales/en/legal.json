@@ -1,0 +1,113 @@
+{
+  "legal": {
+    "lastUpdated": "Last updated",
+    "contactInfo": {
+      "title": "Contact Information",
+      "subtitle": "If you have any questions, please contact us at:",
+      "emailLabel": "Email:",
+      "email": "droppin.eg@gmail.com",
+      "phoneLabel": "Phone:",
+      "phone": "+20 103 136 9893",
+      "serviceAreaLabel": "Service Area:",
+      "serviceArea": "Cairo & Giza, Egypt"
+    },
+    "terms": {
+      "title": "Terms of Service",
+      "intro": "Welcome to Droppin Delivery. These Terms of Service govern your use of our delivery services, platform, and related features. By using our service, you agree to these terms.",
+      "sections": [
+        {
+          "title": "1. Acceptance of Terms",
+          "content": "By accessing and using Droppin services, you agree to be bound by this agreement. If you do not agree, please do not use the service."
+        },
+        {
+          "title": "2. Description of Service",
+          "content": "Droppin provides last-mile delivery services connecting shops, drivers, and customers across Egypt."
+        },
+        {
+          "title": "3. User Accounts",
+          "content": "You must provide accurate account details, protect your credentials, and remain responsible for activity under your account."
+        },
+        {
+          "title": "4. Service Usage",
+          "content": "You agree to lawful use only. Misuse, unauthorized access attempts, and harmful activities are strictly prohibited."
+        },
+        {
+          "title": "5. Payment Terms",
+          "content": "Service fees are applied according to the active pricing model. Late or unresolved balances may affect service access."
+        },
+        {
+          "title": "6. Delivery Terms",
+          "content": "Delivery windows are estimates. External conditions such as traffic or force majeure may affect timing."
+        },
+        {
+          "title": "7. Liability and Insurance",
+          "content": "Liability is limited according to declared package value and applicable coverage policies."
+        },
+        {
+          "title": "8. Privacy and Data Protection",
+          "content": "We process personal data according to our privacy policy and applicable legal requirements."
+        },
+        {
+          "title": "9. Termination",
+          "content": "Either party may terminate access according to policy. Outstanding obligations remain enforceable."
+        },
+        {
+          "title": "10. Governing Law",
+          "content": "These terms are governed by Egyptian law, and disputes are handled under Egyptian jurisdiction."
+        }
+      ]
+    },
+    "privacy": {
+      "title": "Privacy Policy",
+      "intro": "At Droppin Delivery, we protect your personal data and process it responsibly. This policy explains what we collect, how we use it, and your related rights.",
+      "sections": [
+        {
+          "title": "1. Information We Collect",
+          "content": "We collect information you provide directly, including account and contact details needed to deliver the service."
+        },
+        {
+          "title": "2. Automatically Collected Information",
+          "content": "We may collect device, usage, and operational data to secure and improve platform performance."
+        },
+        {
+          "title": "3. How We Use Your Information",
+          "content": "We use information to operate deliveries, provide support, process transactions, and improve service quality."
+        },
+        {
+          "title": "4. Information Sharing",
+          "content": "Information may be shared with essential service providers and operational parties where required for fulfillment."
+        },
+        {
+          "title": "5. Data Security",
+          "content": "We use technical and organizational safeguards to protect data confidentiality and integrity."
+        },
+        {
+          "title": "6. Data Retention",
+          "content": "Data is retained only as necessary for service operation, legal obligations, and legitimate business purposes."
+        },
+        {
+          "title": "7. Your Rights",
+          "content": "You may request access, correction, or deletion of eligible personal data according to applicable law."
+        },
+        {
+          "title": "8. Cookies and Tracking",
+          "content": "Cookies are used for functionality, analytics, and user experience improvements."
+        },
+        {
+          "title": "9. Third-Party Services",
+          "content": "Our platform may link to third-party services that are governed by their own privacy policies."
+        },
+        {
+          "title": "10. Policy Updates",
+          "content": "We may update this policy and will reflect changes with an updated date and notice when material."
+        }
+      ]
+    },
+    "privacyContact": {
+      "title": "Contact Us About Privacy",
+      "subtitle": "If you have questions about this Privacy Policy, contact us via:",
+      "officerLabel": "Privacy Officer:",
+      "officerText": "You can send privacy inquiries directly to droppin.eg@gmail.com."
+    }
+  }
+}

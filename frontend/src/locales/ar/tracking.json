@@ -1,0 +1,48 @@
+{
+	"tracking": {
+		"packageTracking": {
+			"title": "تتبع شحنتك",
+			"subtitle": "أدخل رقم التتبع للحصول على تحديثات فورية",
+			"loadingInfo": "جارٍ تحميل بيانات الشحنة...",
+			"packageFallback": "شحنة",
+			"notAvailable": "غير متاح",
+			"unknownDate": "تاريخ غير معروف",
+			"noNotes": "لا توجد ملاحظات بعد.",
+			"sections": {
+				"packageInfo": "بيانات الشحنة",
+				"shopInfo": "بيانات المتجر",
+				"driverInfo": "بيانات السائق",
+				"deliveryInfo": "بيانات التسليم",
+				"notesLog": "سجل الملاحظات"
+			},
+			"labels": {
+				"trackingNumber": "رقم التتبع",
+				"status": "الحالة",
+				"description": "الوصف",
+				"priority": "الأولوية",
+				"weight": "الوزن",
+				"dimensions": "الأبعاد",
+				"businessName": "اسم النشاط",
+				"name": "الاسم",
+				"phone": "الهاتف",
+				"vehicleType": "نوع المركبة",
+				"workingArea": "منطقة العمل",
+				"contactName": "اسم المستلم",
+				"address": "العنوان",
+				"estimatedDelivery": "موعد التسليم المتوقع",
+				"deliveredOn": "تم التسليم في"
+			},
+			"units": {
+				"kg": "كجم"
+			},
+			"form": {
+				"placeholder": "أدخل رقم التتبع (مثال: DP123456789)",
+				"submit": "تتبع",
+				"submitting": "جارٍ التتبع..."
+			},
+			"errors": {
+				"notFound": "لم يتم العثور على الشحنة. يرجى التحقق من رقم التتبع والمحاولة مرة أخرى."
+			}
+		}
+	}
+}

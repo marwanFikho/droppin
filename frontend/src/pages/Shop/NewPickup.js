@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { packageService } from '../../services/api';
-import './ShopDashboard.css';
+import { useTranslation } from 'react-i18next';
 
 const NewPickup = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [packages, setPackages] = useState([]);
   const [selectedPackages, setSelectedPackages] = useState([]);
@@ -30,7 +31,7 @@ const NewPickup = () => {
           setShopAddress(shopResponse.data.address);
         }
       } catch (err) {
-        setError('Failed to load data. Please try again later.');
+        setError(t('shop.newPickup.errors.loadData'));
         console.error('Error fetching data:', err);
       } finally {
         setLoading(false);
@@ -38,7 +39,7 @@ const NewPickup = () => {
     };
 
     fetchData();
-  }, []);
+  }, [t]);
 
   const handlePackageSelect = (packageId) => {
     setSelectedPackages(prev => {
@@ -63,13 +64,13 @@ const NewPickup = () => {
     if (isSubmitting) return;
     setIsSubmitting(true);
       if (selectedPackages.length === 0) {
-      setError('Please select at least one package for pickup');
+      setError(t('shop.newPickup.errors.selectPackage'));
       setIsSubmitting(false);
       return;
     }
 
     if (!pickupDate || !pickupTime) {
-      setError('Please select both date and time for pickup');
+      setError(t('shop.newPickup.errors.selectDateTime'));
       setIsSubmitting(false);
       return;
     }
@@ -85,140 +86,111 @@ const NewPickup = () => {
       await packageService.createPickup(pickupData);
       navigate('/shop/packages');
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to schedule pickup. Please try again.');
+      setError(err.response?.data?.message || t('shop.newPickup.errors.scheduleFailed'));
     } finally {
       setIsSubmitting(false);
     }
   };
 
   if (loading) {
-    return <div className="loading-message">Loading packages...</div>;
+    return <div className="container py-5 text-center">{t('shop.newPickup.loading')}</div>;
   }
 
   return (
-    <div className="shop-packages-page new-pickup-page" style={{ minHeight: '100vh', background: '#f7f9fb', padding: '32px 0', marginLeft:'auto', marginRight:'auto'}}>
-      <div className="page-header" style={{ textAlign: 'center', marginBottom: '2rem' }}>
-        <h1>Schedule New Pickup</h1>
+    <div className="container-fluid px-3 px-md-4 py-4" style={{ maxWidth: '1400px' }}>
+      <div className="rounded-4 shadow-sm p-4 mb-4 text-white" style={{ background: 'linear-gradient(135deg, #ff7a3d 0%, #fa8831 28%, #cd7955 52%, #9d8f8d 74%, #4e97ef 100%)' }}>
+        <h1 className="h3 fw-bold mb-0">{t('shop.newPickup.title')}</h1>
       </div>
-      <div className="new-pickup-layout" style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', gap: '2.5rem', width: '100%' }}>
-        {/* Select Packages Card (Left) */}
-        <div className="packages-section pickup-card" style={{
-          width: '450px',
-          backgroundColor: 'white',
-          borderRadius: '8px',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.07)',
-          padding: '2rem 1.5rem',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'flex-start'
-        }}>
-          <h3 style={{ marginTop: 0, marginBottom: '1rem' }}>Select Packages</h3>
-          {error && <div className="error-message">{error}</div>}
-          <button type="button" className="btn btn-select-all" onClick={handleSelectAll} style={{ marginBottom: '1rem', width: 'fit-content' }}>
-            {selectedPackages.length === packages.length ? 'Deselect All' : 'Select All'}
-          </button>
-          <div className="packages-list" style={{
-            width: '100%',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '0.75rem',
-            height: 'auto',
-            overflow: 'visible',
-          }}>
+
+      <div className="row g-4 align-items-start">
+        <div className="col-lg-7">
+          <div className="rounded-4 shadow-sm p-3 p-md-4" style={{ background: '#fffaf5' }}>
+            <h3 className="h5 fw-bold mb-3">{t('shop.newPickup.sections.selectPackages')}</h3>
+            {error && <div className="alert alert-danger py-2">{error}</div>}
+            <button type="button" className="btn btn-outline-secondary btn-sm mb-3" onClick={handleSelectAll}>
+            {selectedPackages.length === packages.length ? t('shop.newPickup.actions.deselectAll') : t('shop.newPickup.actions.selectAll')}
+            </button>
+
             {packages.length === 0 ? (
-              <p>No pending packages available for pickup</p>
+              <p className="mb-0">{t('shop.newPickup.empty')}</p>
             ) : (
-              packages.map(pkg => (
-                <label key={pkg.id} className={`package-list-item${selectedPackages.includes(pkg.id) ? ' selected' : ''}`}
-                  style={{
-                    padding: '1rem',
-                    border: '1px solid #e0e0e0',
-                    borderRadius: '4px',
-                    display: 'flex',
-                    gap: '1rem',
-                    alignItems: 'center',
-                    cursor: 'pointer',
-                    transition: 'background-color 0.2s',
-                    background: selectedPackages.includes(pkg.id) ? '#fff8e1' : ((pkg.type === 'exchange' || (pkg.status || '').startsWith('exchange-')) ? '#f3e5f5' : 'white'),
-                    borderLeft: (pkg.type === 'exchange' || (pkg.status || '').startsWith('exchange-')) ? '3px solid #7b1fa2' : '3px solid transparent',
-                    fontWeight: selectedPackages.includes(pkg.id) ? 'bold' : 'normal',
-                    height: 'auto',
-                    overflow: 'visible',
-                  }}>
-                  <input
-                    type="checkbox"
-                    checked={selectedPackages.includes(pkg.id)}
-                    onChange={() => handlePackageSelect(pkg.id)}
-                    style={{ width: '20px', height: '20px' }}
-                  />
-                  <div className="package-info" style={{ display: 'flex', flexDirection: 'column', overflow: 'visible', width: '100%' }}>
-                    <span style={{ fontWeight: 'bold', color: '#ff8c00' }}>{pkg.trackingNumber}</span>
-                    <span>{pkg.packageDescription}</span>
-                    <span className="package-cod">{pkg.deliveryAddress}</span>
-                    {(pkg.deliveryContactName || pkg.deliveryContactPhone) && (
-                      <span style={{ fontSize: 13, color: '#444' }}>
-                        {pkg.deliveryContactName || 'N/A'}{pkg.deliveryContactPhone ? ` · ${pkg.deliveryContactPhone}` : ''}
-                      </span>
-                    )}
-                    <span className="package-cod" style={{ color: '#666' }}>COD: EGP {pkg.codAmount}</span>
-                  </div>
-                </label>
-              ))
+              <div className="d-flex flex-column gap-2">
+                {packages.map(pkg => (
+                  <label
+                    key={pkg.id}
+                    className="d-flex gap-3 align-items-start rounded-3 border p-3"
+                    style={{
+                      cursor: 'pointer',
+                      background: selectedPackages.includes(pkg.id) ? '#fff8e1' : ((pkg.type === 'exchange' || (pkg.status || '').startsWith('exchange-')) ? '#f3e5f5' : 'white'),
+                      borderLeft: (pkg.type === 'exchange' || (pkg.status || '').startsWith('exchange-')) ? '3px solid #7b1fa2' : '3px solid transparent'
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedPackages.includes(pkg.id)}
+                      onChange={() => handlePackageSelect(pkg.id)}
+                      className="form-check-input mt-1"
+                    />
+                    <div className="w-100">
+                      <div className="fw-bold" style={{ color: '#ff8c00' }}>{pkg.trackingNumber}</div>
+                      <div>{pkg.packageDescription}</div>
+                      <div className="text-muted small">{pkg.deliveryAddress}</div>
+                      {(pkg.deliveryContactName || pkg.deliveryContactPhone) && (
+                        <div className="small text-secondary">
+                          {pkg.deliveryContactName || t('shop.newPickup.na')}{pkg.deliveryContactPhone ? ` · ${pkg.deliveryContactPhone}` : ''}
+                        </div>
+                      )}
+                      <div className="small">{t('shop.newPickup.cod')}: EGP {pkg.codAmount}</div>
+                    </div>
+                  </label>
+                ))}
+              </div>
             )}
           </div>
         </div>
-        {/* Pickup Details Card (Right) */}
-        <div className="pickup-details-section pickup-card" style={{
-          width: '370px',
-          backgroundColor: 'white',
-          borderRadius: '8px',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.07)',
-          padding: '2rem 1.5rem',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'flex-start',
-        }}>
-          <form onSubmit={handleSubmit} className="pickup-form" style={{ width: '100%' }}>
-            <h3 style={{ marginTop: 0, marginBottom: '1rem' }}>Pickup Details</h3>
-            <div className="form-group">
-              <label>Pickup Address:</label>
-              <input
-                type="text"
-                value={shopAddress}
-                onChange={e => setShopAddress(e.target.value)}
-                className="form-control"
-              />
-            </div>
-            <div className="form-group">
-              <label>Pickup Date:</label>
-              <input
-                type="date"
-                value={pickupDate}
-                onChange={(e) => setPickupDate(e.target.value)}
-                min={new Date().toISOString().split('T')[0]}
-                className="form-control"
-                required
-              />
-            </div>
-            <div className="form-group">
-              <label>Pickup Time:</label>
-              <input
-                type="time"
-                value={pickupTime}
-                onChange={(e) => setPickupTime(e.target.value)}
-                className="form-control"
-                required
-              />
-            </div>
-            <div className="form-actions" style={{ display: 'flex', gap: '1rem' }}>
-              <button type="button" onClick={() => navigate('/shop/packages')} className="btn btn-secondary">
-                Cancel
-              </button>
-              <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
-                {isSubmitting ? 'Scheduling...' : 'Schedule Pickup'}
-              </button>
-            </div>
-          </form>
+
+        <div className="col-lg-5">
+          <div className="rounded-4 shadow-sm p-3 p-md-4" style={{ background: '#fffaf5' }}>
+            <form onSubmit={handleSubmit}>
+              <h3 className="h5 fw-bold mb-3">{t('shop.newPickup.sections.pickupDetails')}</h3>
+              <div className="mb-3">
+                <label className="form-label fw-semibold">{t('shop.newPickup.fields.pickupAddress')}</label>
+                <input
+                  type="text"
+                  value={shopAddress}
+                  onChange={e => setShopAddress(e.target.value)}
+                  className="form-control"
+                />
+              </div>
+              <div className="mb-3">
+                <label className="form-label fw-semibold">{t('shop.newPickup.fields.pickupDate')}</label>
+                <input
+                  type="date"
+                  value={pickupDate}
+                  onChange={(e) => setPickupDate(e.target.value)}
+                  min={new Date().toISOString().split('T')[0]}
+                  className="form-control"
+                  required
+                />
+              </div>
+              <div className="mb-3">
+                <label className="form-label fw-semibold">{t('shop.newPickup.fields.pickupTime')}</label>
+                <input
+                  type="time"
+                  value={pickupTime}
+                  onChange={(e) => setPickupTime(e.target.value)}
+                  className="form-control"
+                  required
+                />
+              </div>
+              <div className="d-flex gap-2">
+                <button type="button" onClick={() => navigate('/shop/packages')} className="btn btn-outline-secondary">{t('shop.newPickup.actions.cancel')}</button>
+                <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
+                  {isSubmitting ? t('shop.newPickup.actions.scheduling') : t('shop.newPickup.actions.schedulePickup')}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       </div>
     </div>

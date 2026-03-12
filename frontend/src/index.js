@@ -1,9 +1,17 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
 import i18n from './i18n';
+
+const syncDocumentLanguage = (language) => {
+  const normalizedLanguage = language === 'ar' ? 'ar' : 'en';
+  document.documentElement.lang = normalizedLanguage;
+  document.documentElement.dir = normalizedLanguage === 'ar' ? 'rtl' : 'ltr';
+};
+
+syncDocumentLanguage(i18n.language);
+i18n.on('languageChanged', syncDocumentLanguage);
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(

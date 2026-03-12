@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { packageService } from '../../services/api';
-import './ShopDashboard.css';
+import { useTranslation } from 'react-i18next';
 
 const Wallet = () => {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [financialStats, setFinancialStats] = useState({
@@ -52,7 +53,7 @@ const Wallet = () => {
         const moneyResponse = await packageService.getMoneyTransactions(moneyFilters);
         setMoneyTransactions(moneyResponse.data.transactions || []);
       } catch (err) {
-        setError('Failed to load data. Please try again later.');
+        setError(t('shop.wallet.errors.loadData'));
         console.error('Error fetching data:', err);
       } finally {
         setLoading(false);
@@ -60,7 +61,7 @@ const Wallet = () => {
     };
 
     fetchData();
-  }, [moneyFilters]);
+  }, [moneyFilters, t]);
 
   // Add function to handle money transaction filters
   const handleMoneyFilterChange = (field, value) => {
@@ -95,156 +96,148 @@ const Wallet = () => {
   };
 
   if (loading) {
-    return <div className="loading-message">Loading wallet data...</div>;
+    return <div className="container py-5 text-center">{t('shop.wallet.loading')}</div>;
   }
 
   if (error) {
-    return <div className="error-message">{error}</div>;
+    return <div className="container py-5"><div className="alert alert-danger mb-0">{error}</div></div>;
   }
 
   return (
-    <div className="wallet-page">
-      <div className="page-header">
-        <h1>Wallet</h1>
+    <div className="container-fluid px-3 px-md-4 py-4" style={{ maxWidth: '1400px' }}>
+      <div className="rounded-4 shadow-sm p-4 mb-4 text-white" style={{ background: 'linear-gradient(135deg, #ff7a3d 0%, #fa8831 28%, #cd7955 52%, #9d8f8d 74%, #4e97ef 100%)' }}>
+        <h1 className="h3 fw-bold mb-0">{t('shop.wallet.title')}</h1>
       </div>
 
-      {/* Financial Stats */}
-      <div className="dashboard-stats financial-stats">
-        <div className="stat-card">
-          <div className="stat-value">
+      <div className="row g-3 mb-4">
+        <div className="col-md-4">
+          <div className="rounded-4 shadow-sm p-3" style={{ background: '#fffaf5' }}>
+            <div className="h5 fw-bold mb-0" style={{ color: '#235789' }}>
             EGP {(parseFloat(financialStats.rawToCollect || 0)).toFixed(2)}
+            </div>
+            <small className="text-muted">{t('shop.wallet.toCollect')}</small>
           </div>
-          <div className="stat-label">To Collect</div>
         </div>
-        <div className="stat-card">
-          <div className="stat-value">
+        <div className="col-md-4">
+          <div className="rounded-4 shadow-sm p-3" style={{ background: '#fffaf5' }}>
+            <div className="h5 fw-bold mb-0" style={{ color: '#235789' }}>
             EGP {(parseFloat(financialStats.rawTotalCollected || 0)).toFixed(2)}
+            </div>
+            <small className="text-muted">{t('shop.wallet.collectedWaitingWithdraw')}</small>
           </div>
-          <div className="stat-label">Collected (Waiting Withdraw)</div>
         </div>
-        <div className="stat-card">
-          <div className="stat-value">
+        <div className="col-md-4">
+          <div className="rounded-4 shadow-sm p-3" style={{ background: '#fffaf5' }}>
+            <div className="h5 fw-bold mb-0" style={{ color: '#235789' }}>
             EGP {(parseFloat(financialStats.rawSettelled || 0)).toFixed(2)}
+            </div>
+            <small className="text-muted">{t('shop.wallet.settled')}</small>
           </div>
-          <div className="stat-label">Settled</div>
         </div>
       </div>
 
-      {/* Money Transactions */}
-      <div className="money-transactions-container">
-        <h3>Transaction History</h3>
-        <div className="money-transactions-section">
-          <div className="filters-section">
-            <div className="filter-group">
-              <input
-                type="date"
-                className="filter-input"
-                value={moneyFilters.startDate}
-                onChange={e => handleMoneyFilterChange('startDate', e.target.value)}
-                placeholder="Start Date"
-              />
-              <input
-                type="date"
-                className="filter-input"
-                value={moneyFilters.endDate}
-                onChange={e => handleMoneyFilterChange('endDate', e.target.value)}
-                placeholder="End Date"
-              />
-            </div>
-            <div className="filter-group">
-              <select
-                className="filter-select"
-                value={moneyFilters.attribute}
-                onChange={e => handleMoneyFilterChange('attribute', e.target.value)}
-              >
-                <option value="">All Attributes</option>
-                <option value="ToCollect">To Collect</option>
-                <option value="TotalCollected">Total Collected</option>
-              </select>
-              <select
-                className="filter-select"
-                value={moneyFilters.changeType}
-                onChange={e => handleMoneyFilterChange('changeType', e.target.value)}
-              >
-                <option value="">All Types</option>
-                <option value="increase">Increase</option>
-                <option value="decrease">Decrease</option>
-              </select>
-            </div>
-            <div className="filter-group">
-              <input
-                type="text"
-                className="filter-input"
-                value={moneyFilters.search}
-                onChange={e => handleMoneyFilterChange('search', e.target.value)}
-                placeholder="Search transactions..."
-              />
-            </div>
+      <div className="rounded-4 shadow-sm p-3 p-md-4" style={{ background: '#fffaf5' }}>
+        <h3 className="h5 fw-bold mb-3">{t('shop.wallet.transactionHistory')}</h3>
+        <div className="row g-2 mb-3">
+          <div className="col-md-3">
+            <input
+              type="date"
+              className="form-control"
+              value={moneyFilters.startDate}
+              onChange={e => handleMoneyFilterChange('startDate', e.target.value)}
+              placeholder={t('shop.wallet.startDate')}
+            />
           </div>
+          <div className="col-md-3">
+            <input
+              type="date"
+              className="form-control"
+              value={moneyFilters.endDate}
+              onChange={e => handleMoneyFilterChange('endDate', e.target.value)}
+              placeholder={t('shop.wallet.endDate')}
+            />
+          </div>
+          <div className="col-md-3">
+            <select
+              className="form-select"
+              value={moneyFilters.attribute}
+              onChange={e => handleMoneyFilterChange('attribute', e.target.value)}
+            >
+              <option value="">{t('shop.wallet.allAttributes')}</option>
+              <option value="ToCollect">{t('shop.wallet.attributeToCollect')}</option>
+              <option value="TotalCollected">{t('shop.wallet.attributeTotalCollected')}</option>
+            </select>
+          </div>
+          <div className="col-md-3">
+            <select
+              className="form-select"
+              value={moneyFilters.changeType}
+              onChange={e => handleMoneyFilterChange('changeType', e.target.value)}
+            >
+              <option value="">{t('shop.wallet.allTypes')}</option>
+              <option value="increase">{t('shop.wallet.typeIncrease')}</option>
+              <option value="decrease">{t('shop.wallet.typeDecrease')}</option>
+            </select>
+          </div>
+          <div className="col-12">
+            <input
+              type="text"
+              className="form-control"
+              value={moneyFilters.search}
+              onChange={e => handleMoneyFilterChange('search', e.target.value)}
+              placeholder={t('shop.wallet.searchPlaceholder')}
+            />
+          </div>
+        </div>
 
-          {moneyTransactions.length === 0 ? (
-            <p style={{textAlign:'center'}}>No transactions found.</p>
-          ) : (
-            <table className="admin-table money-table">
+        {moneyTransactions.length === 0 ? (
+          <p className="text-center mb-0">{t('shop.wallet.noTransactions')}</p>
+        ) : (
+          <div className="table-responsive">
+            <table className="table align-middle mb-0">
               <thead>
                 <tr>
-                  <th 
-                    onClick={() => handleMoneyFilterChange('sortBy', 'createdAt')} 
-                    className="sortable-header"
-                  >
-                    Date {renderSortIcon('createdAt')}
+                  <th onClick={() => handleMoneyFilterChange('sortBy', 'createdAt')} style={{ cursor: 'pointer' }}>
+                    {t('shop.wallet.date')} {renderSortIcon('createdAt')}
                   </th>
-                  <th 
-                    onClick={() => handleMoneyFilterChange('sortBy', 'attribute')} 
-                    className="sortable-header"
-                  >
-                    Attribute {renderSortIcon('attribute')}
+                  <th onClick={() => handleMoneyFilterChange('sortBy', 'attribute')} style={{ cursor: 'pointer' }}>
+                    {t('shop.wallet.attribute')} {renderSortIcon('attribute')}
                   </th>
-                  <th 
-                    onClick={() => handleMoneyFilterChange('sortBy', 'changeType')} 
-                    className="sortable-header"
-                  >
-                    Type {renderSortIcon('changeType')}
+                  <th onClick={() => handleMoneyFilterChange('sortBy', 'changeType')} style={{ cursor: 'pointer' }}>
+                    {t('shop.wallet.type')} {renderSortIcon('changeType')}
                   </th>
-                  <th 
-                    onClick={() => handleMoneyFilterChange('sortBy', 'amount')} 
-                    className="sortable-header"
-                  >
-                    Amount (EGP) {renderSortIcon('amount')}
+                  <th onClick={() => handleMoneyFilterChange('sortBy', 'amount')} style={{ cursor: 'pointer' }}>
+                    {t('shop.wallet.amountEgp')} {renderSortIcon('amount')}
                   </th>
-                  <th>
-                    Current Amount
-                  </th>
-                  <th>Description</th>
+                  <th>{t('shop.wallet.currentAmount')}</th>
+                  <th>{t('shop.wallet.description')}</th>
                 </tr>
               </thead>
               <tbody>
                 {moneyTransactions.map(tx => (
                   <tr key={tx.id}>
-                    <td data-label="Date" className="wallet-date">{new Date(tx.createdAt).toLocaleString()}</td>
-                    <td data-label="Attribute" className="wallet-attribute">{tx.attribute}</td>
-                    <td data-label="Type" className="wallet-type">
-                      <span className={`change-type ${tx.changeType}`}>
+                    <td>{new Date(tx.createdAt).toLocaleString()}</td>
+                    <td>{tx.attribute}</td>
+                    <td>
+                      <span className={`badge ${tx.changeType === 'increase' ? 'bg-success-subtle text-success-emphasis' : 'bg-danger-subtle text-danger-emphasis'}`}>
                         {tx.changeType}
                       </span>
                     </td>
-                    <td data-label="Amount (EGP)" className={`financial-cell ${tx.changeType} wallet-amount`}>
+                    <td className={tx.changeType === 'increase' ? 'text-success fw-semibold' : 'text-danger fw-semibold'}>
                       EGP {parseFloat(tx.amount).toFixed(2)}
                     </td>
-                    <td data-label="Current Amount" className="wallet-amount">
-                      {tx.attribute === 'ToCollect' || tx.attribute === 'TotalCollected' ? (
-                        tx.currentAmount != null ? `EGP ${parseFloat(tx.currentAmount).toFixed(2)}` : '-'
-                      ) : (
-                        '-'
-                      )}
+                    <td>
+                      {tx.attribute === 'ToCollect' || tx.attribute === 'TotalCollected'
+                        ? (tx.currentAmount != null ? `EGP ${parseFloat(tx.currentAmount).toFixed(2)}` : '-')
+                        : '-'}
                     </td>
-                    <td data-label="Description" className="wallet-description">{tx.description || '-'}</td>
+                    <td>{tx.description || '-'}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Routes, Route, Link, useNavigate, Outlet, useLocation } from 'react-router-dom';
+import { Routes, Route, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { packageService } from '../../services/api';
 import CreatePackage from './CreatePackage';
@@ -10,8 +10,8 @@ import NewPickup from './NewPickup';
 import Wallet from './Wallet';
 import { Pie } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
-import './ShopDashboard.css';
 import SwipeMenuHint from '../../components/SwipeMenuHint.jsx';
+import { useTranslation } from 'react-i18next';
 
 // Register ChartJS components
 ChartJS.register(ArcElement, Tooltip, Legend);
@@ -19,23 +19,12 @@ ChartJS.register(ArcElement, Tooltip, Legend);
 // Create a context to share the refresh function with child components
 export const ShopDashboardContext = React.createContext();
 
-const TABS = [
-  { label: 'All', value: 'all' },
-  { label: 'Awaiting Schedule', value: 'awaiting_schedule' },
-  { label: 'Scheduled for Pickup', value: 'scheduled_for_pickup' },
-  { label: 'Pending', value: 'pending' },
-  { label: 'In Transit', value: 'in-transit' },
-  { label: 'Delivered', value: 'delivered' },
-  { label: 'Return to Shop', value: 'return-to-shop' },
-  { label: 'Cancelled', value: 'cancelled' },
-  { label: 'Pickups', value: 'pickups' },
-];
-
-const inTransitStatuses = ['assigned', 'pickedup', 'in-transit'];
-const returnToShopStatuses = ['cancelled-awaiting-return', 'cancelled-returned'];
+const DEFAULT_TOP_NAV_OFFSET = 64;
+const SIDEBAR_TOP_GAP = 10;
 
 const ShopDashboard = () => {
   const { currentUser } = useAuth();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -52,45 +41,36 @@ const ShopDashboard = () => {
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [packageToCancel, setPackageToCancel] = useState(null);
   const [cancelError, setCancelError] = useState(null);
-  const [activeTab, setActiveTab] = useState('all');
-  const [search, setSearch] = useState('');
+  const [recentPage, setRecentPage] = useState(1);
+  const [recentPerPage, setRecentPerPage] = useState(5);
 
   // Responsive
   const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth <= 768 : false);
+  const [topNavOffset, setTopNavOffset] = useState(DEFAULT_TOP_NAV_OFFSET);
   useEffect(() => {
     const onResize = () => setIsMobile(window.innerWidth <= 768);
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
+  useEffect(() => {
+    const readNavOffset = () => {
+      const cssValue = getComputedStyle(document.documentElement).getPropertyValue('--app-nav-height').trim();
+      const parsed = Number.parseFloat(cssValue);
+      setTopNavOffset(Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_TOP_NAV_OFFSET);
+    };
+
+    readNavOffset();
+    window.addEventListener('resize', readNavOffset);
+    return () => window.removeEventListener('resize', readNavOffset);
+  }, []);
+
   // Money/Wallet state
-  const [moneyFilters, setMoneyFilters] = useState({
-    startDate: '',
-    endDate: '',
-    attribute: '',
-    changeType: '',
-    sortBy: 'createdAt',
-    sortOrder: 'DESC',
-    search: ''
-  });
-  const [moneyTransactions, setMoneyTransactions] = useState([]);
   const [financialStats, setFinancialStats] = useState({
     rawToCollect: 0,
     rawTotalCollected: 0,
     rawSettelled: 0
   });
-
-  // Helper to refetch packages list
-  const fetchPackages = async () => {
-    try {
-      // Fetch all packages for accurate stats and lists
-      const packagesResponse = await packageService.getPackages({ page: 1, limit: 10000 });
-      const pkgs = packagesResponse.data?.packages || packagesResponse.data || [];
-      setPackages(pkgs);
-    } catch (e) {
-      console.error('Error fetching packages:', e);
-    }
-  };
 
   // Fetch packages, shop profile, and money transactions
   useEffect(() => {
@@ -151,12 +131,8 @@ const ShopDashboard = () => {
             rawTotalCollected: String(totalCollected)
           });
         }
-
-        // Fetch money transactions
-        const moneyResponse = await packageService.getMoneyTransactions(moneyFilters);
-        setMoneyTransactions(moneyResponse.data.transactions || []);
       } catch (err) {
-        setError('Failed to load data. Please try again later.');
+        setError(t('shop.dashboard.errors.loadData'));
         console.error('Error fetching data:', err);
       } finally {
         setLoading(false);
@@ -164,7 +140,7 @@ const ShopDashboard = () => {
     };
 
     fetchData();
-  }, [refreshData, moneyFilters]); // Add moneyFilters to dependencies
+  }, [refreshData, t]);
 
   // Global ESC-to-close for top-most modal on this page
   useEffect(() => {
@@ -189,7 +165,11 @@ const ShopDashboard = () => {
     const delivered = packages.filter(p => p.status === 'delivered').length;
 
     return {
-      labels: ['Pending', 'In Transit', 'Delivered'],
+      labels: [
+        t('shop.dashboard.stats.pending'),
+        t('shop.dashboard.stats.inTransit'),
+        t('shop.dashboard.stats.delivered')
+      ],
       datasets: [
         {
           data: [pending, inTransit, delivered],
@@ -218,146 +198,15 @@ const ShopDashboard = () => {
     }
   };
 
-  // Add function to handle money transaction filters
-  const handleMoneyFilterChange = (field, value) => {
-    if (field === 'sortBy') {
-      // Toggle sort order if clicking the same column
-      if (moneyFilters.sortBy === value) {
-        setMoneyFilters(prev => ({
-          ...prev,
-          sortOrder: prev.sortOrder === 'DESC' ? 'ASC' : 'DESC'
-        }));
-      } else {
-        // New column selected, set it with default DESC order
-        setMoneyFilters(prev => ({
-          ...prev,
-          sortBy: value,
-          sortOrder: 'DESC'
-        }));
-      }
-    } else {
-      setMoneyFilters(prev => ({
-        ...prev,
-        [field]: value
-      }));
-    }
-  };
+  const sortedRecentPackages = packages
+    .slice()
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  const totalRecentPages = Math.max(1, Math.ceil(sortedRecentPackages.length / recentPerPage));
 
-  // Add function to render money transactions table
-  const renderMoneyTable = () => {
-    if (moneyTransactions.length === 0) {
-      return <p style={{textAlign:'center'}}>No transactions found.</p>;
-    }
+  useEffect(() => {
+    setRecentPage(prev => Math.min(prev, totalRecentPages));
+  }, [totalRecentPages]);
 
-    const renderSortIcon = (field) => {
-      if (moneyFilters.sortBy === field) {
-        return <span className="sort-icon">{moneyFilters.sortOrder === 'DESC' ? '▼' : '▲'}</span>;
-      }
-      return null;
-    };
-
-    return (
-      <div className="money-transactions-section">
-        <div className="filters-section">
-          <div className="filter-group">
-            <input
-              type="date"
-              className="filter-input"
-              value={moneyFilters.startDate}
-              onChange={e => handleMoneyFilterChange('startDate', e.target.value)}
-              placeholder="Start Date"
-            />
-            <input
-              type="date"
-              className="filter-input"
-              value={moneyFilters.endDate}
-              onChange={e => handleMoneyFilterChange('endDate', e.target.value)}
-              placeholder="End Date"
-            />
-          </div>
-          <div className="filter-group">
-            <select
-              className="filter-select"
-              value={moneyFilters.attribute}
-              onChange={e => handleMoneyFilterChange('attribute', e.target.value)}
-            >
-              <option value="">All Attributes</option>
-              <option value="ToCollect">To Collect</option>
-              <option value="TotalCollected">Total Collected</option>
-              <option value="Revenue">Revenue</option>
-            </select>
-            <select
-              className="filter-select"
-              value={moneyFilters.changeType}
-              onChange={e => handleMoneyFilterChange('changeType', e.target.value)}
-            >
-              <option value="">All Types</option>
-              <option value="increase">Increase</option>
-              <option value="decrease">Decrease</option>
-            </select>
-          </div>
-          <div className="filter-group">
-            <input
-              type="text"
-              className="filter-input"
-              value={moneyFilters.search}
-              onChange={e => handleMoneyFilterChange('search', e.target.value)}
-              placeholder="Search transactions..."
-            />
-          </div>
-        </div>
-
-        <table className="admin-table money-table">
-          <thead>
-            <tr>
-              <th 
-                onClick={() => handleMoneyFilterChange('sortBy', 'createdAt')} 
-                className="sortable-header"
-              >
-                Date {renderSortIcon('createdAt')}
-              </th>
-              <th 
-                onClick={() => handleMoneyFilterChange('sortBy', 'attribute')} 
-                className="sortable-header"
-              >
-                Attribute {renderSortIcon('attribute')}
-              </th>
-              <th 
-                onClick={() => handleMoneyFilterChange('sortBy', 'changeType')} 
-                className="sortable-header"
-              >
-                Type {renderSortIcon('changeType')}
-              </th>
-              <th 
-                onClick={() => handleMoneyFilterChange('sortBy', 'amount')} 
-                className="sortable-header"
-              >
-                Amount (EGP) {renderSortIcon('amount')}
-              </th>
-              <th>Description</th>
-            </tr>
-          </thead>
-          <tbody>
-            {moneyTransactions.map(tx => (
-              <tr key={tx.id}>
-                <td>{new Date(tx.createdAt).toLocaleString()}</td>
-                <td>{tx.attribute}</td>
-                <td>
-                  <span className={`change-type ${tx.changeType}`}>
-                    {tx.changeType}
-                  </span>
-                </td>
-                <td className={`financial-cell ${tx.changeType}`}>
-              EGP {parseFloat(tx.amount).toFixed(2)}
-                </td>
-                <td>{tx.description || '-'}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    );
-  };
 
   const handleCancel = async () => {
     if (!packageToCancel) return;
@@ -368,112 +217,12 @@ const ShopDashboard = () => {
       setPackageToCancel(null);
       setCancelError(null);
     } catch (err) {
-      setCancelError(err.response?.data?.message || 'Failed to cancel package.');
-    }
-  };
-
-  const filterPackages = () => {
-    let filtered = [...packages];
-
-    // Filter by search term
-    if (search) {
-      const searchLower = search.toLowerCase();
-      filtered = filtered.filter(pkg => 
-        pkg.trackingNumber?.toLowerCase().includes(searchLower) ||
-        pkg.packageDescription?.toLowerCase().includes(searchLower) ||
-        pkg.deliveryContactName?.toLowerCase().includes(searchLower) ||
-        pkg.status?.toLowerCase().includes(searchLower) ||
-        pkg.User?.name?.toLowerCase().includes(searchLower) ||
-        pkg.Shop?.businessName?.toLowerCase().includes(searchLower)
-      );
-    }
-
-    // Filter by active tab
-    if (activeTab === 'all') {
-      return filtered;
-    } else if (activeTab === 'in-transit') {
-      return filtered.filter(pkg => inTransitStatuses.includes(pkg.status));
-    } else if (activeTab === 'return-to-shop') {
-      return filtered.filter(pkg => returnToShopStatuses.includes(pkg.status));
-    } else if (activeTab === 'pickups') {
-      return filtered; // This will be handled by the pickups tab
-    } else {
-      return filtered.filter(pkg => pkg.status === activeTab);
+      setCancelError(err.response?.data?.message || t('shop.dashboard.errors.cancelPackage'));
     }
   };
 
   const handleStatClick = (tab) => {
     navigate(`/shop/packages?tab=${tab}`);
-  };
-
-  // Add the handleMarkAsReturned function
-  const handleMarkAsReturned = async (pkg) => {
-    try {
-      await packageService.updatePackageStatus(pkg.id, { status: 'cancelled-returned' });
-      // Refresh packages list
-      fetchPackages();
-    } catch (error) {
-      console.error('Error marking package as returned:', error);
-      alert('Failed to mark package as returned. Please try again.');
-    }
-  };
-
-  // We'll show this in the modal for now
-  const openDetailsModal = (pkg) => {
-    // Implementation of openDetailsModal function
-    console.log('Opening details modal for package:', pkg);
-  };
-
-  // Create a new function to render the table body to avoid cluttering the main return
-  const renderTableBody = () => {
-    return (
-      <tbody>
-        {filterPackages().map(pkg => (
-          <tr key={pkg.id}>
-            <td data-label="Tracking #">{pkg.trackingNumber}</td>
-            <td data-label="Description">
-              <div>{pkg.packageDescription}</div>
-              <div style={{ color: '#666', marginTop: 4 }}>{pkg.deliveryAddress}</div>
-              {(pkg.deliveryContactName || pkg.deliveryContactPhone) && (
-                <div style={{ fontSize: 12, color: '#555', marginTop: 2 }}>
-                  {pkg.deliveryContactName || 'N/A'}{pkg.deliveryContactPhone ? ` · ${pkg.deliveryContactPhone}` : ''}
-                </div>
-              )}
-            </td>
-            <td data-label="Recipient">{pkg.deliveryContactName}</td>
-            <td data-label="Status">{getStatusBadge(pkg.status)}</td>
-            <td data-label="COD Amount">EGP {parseFloat(pkg.codAmount || 0).toFixed(2)}</td>
-            <td data-label="Actions" className="actions-cell">
-              <button
-                className="action-button view-btn"
-                onClick={() => openDetailsModal(pkg)}
-              >
-                View
-              </button>
-              {pkg.status === 'pending' && (
-                <button
-                  className="action-button cancel-btn"
-                  onClick={() => {
-                    setPackageToCancel(pkg);
-                    setShowCancelModal(true);
-                  }}
-                >
-                  Cancel
-                </button>
-              )}
-              {pkg.status === 'cancelled-awaiting-return' && (
-                <button
-                  className="action-button return-btn"
-                  onClick={() => handleMarkAsReturned(pkg)}
-                >
-                  Mark Returned
-                </button>
-              )}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    );
   };
 
   // State for menu (toggled only by button now)
@@ -495,325 +244,389 @@ const ShopDashboard = () => {
     };
   }, [isMenuOpen]);
 
+  const isDesktop = !isMobile;
+  const isRtl = i18n.dir() === 'rtl';
+  const showSidebar = isDesktop || isMenuOpen;
+  const renderNavIcon = (iconKey) => {
+    const iconProps = { width: 14, height: 14, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' };
+    switch (iconKey) {
+      case 'dashboard':
+        return <svg {...iconProps}><rect x="3" y="3" width="8" height="8" /><rect x="13" y="3" width="8" height="5" /><rect x="13" y="10" width="8" height="11" /><rect x="3" y="13" width="8" height="8" /></svg>;
+      case 'packages':
+        return <svg {...iconProps}><path d="M21 8V21H3V8" /><path d="M1 8L12 2L23 8" /><path d="M10 13H14" /></svg>;
+      case 'newPackage':
+        return <svg {...iconProps}><path d="M21 14V21H3V14" /><path d="M12 2V14" /><path d="M7 7H17" /></svg>;
+      case 'pickup':
+        return <svg {...iconProps}><path d="M3 16V6H15V16" /><path d="M15 10H19L21 13V16H15" /><circle cx="7" cy="17" r="2" /><circle cx="18" cy="17" r="2" /></svg>;
+      case 'wallet':
+        return <svg {...iconProps}><rect x="2" y="6" width="20" height="12" rx="2" /><path d="M16 12H22" /><circle cx="16" cy="12" r="1" /></svg>;
+      case 'profile':
+        return <svg {...iconProps}><circle cx="12" cy="8" r="4" /><path d="M4 21C4 17 7 15 12 15C17 15 20 17 20 21" /></svg>;
+      default:
+        return <svg {...iconProps}><circle cx="12" cy="12" r="9" /></svg>;
+    }
+  };
+
+  const navItems = [
+    { to: '/shop', label: t('shop.dashboard.nav.dashboard'), icon: 'dashboard', isActive: location.pathname === '/shop' },
+    { to: '/shop/packages', label: t('shop.dashboard.nav.packages'), icon: 'packages', isActive: location.pathname.startsWith('/shop/packages') },
+    { to: '/shop/create-package', label: t('shop.dashboard.nav.newPackage'), icon: 'newPackage', isActive: location.pathname === '/shop/create-package' },
+    { to: '/shop/new-pickup', label: t('shop.dashboard.nav.newPickup'), icon: 'pickup', isActive: location.pathname === '/shop/new-pickup' },
+    { to: '/shop/wallet', label: t('shop.dashboard.nav.wallet'), icon: 'wallet', isActive: location.pathname === '/shop/wallet' },
+    { to: '/shop/profile', label: t('shop.dashboard.nav.profile'), icon: 'profile', isActive: location.pathname === '/shop/profile' }
+  ];
+
   // Tutorial hint for first-time mobile users (one-time overlay)
   return (
     <ShopDashboardContext.Provider value={{ refreshDashboard }}>
-      <div 
-        className={`dashboard-container ${isMenuOpen ? 'menu-open' : 'menu-closed'}`}
-        ref={dashboardContainerRef}
-      >
-        {/* Floating bottom-left menu toggle button */}
-        <button
-          className="menu-fab"
-          aria-label={isMenuOpen ? 'Close menu' : 'Open menu'}
-          onClick={() => setIsMenuOpen(o => !o)}
-          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setIsMenuOpen(o => !o); } }}
+      <div ref={dashboardContainerRef} className="position-relative" style={{ minHeight: '100vh', background: 'linear-gradient(180deg, #fff4ea 0%, #ffe8d6 100%)' }}>
+        {isMobile && isMenuOpen && (
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={() => setIsMenuOpen(false)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                setIsMenuOpen(false);
+              }
+            }}
+            className="position-fixed start-0 w-100"
+            style={{ backgroundColor: 'rgba(0,0,0,0.25)', zIndex: 1030, top: `${topNavOffset}px`, height: `calc(100vh - ${topNavOffset}px)` }}
+          />
+        )}
+
+        {isMobile && (
+          <button
+            className="menu-fab position-fixed rounded-circle border-0 shadow"
+            style={{
+              [isRtl ? 'right' : 'left']: '14px',
+              bottom: '18px',
+              width: '52px',
+              height: '52px',
+              background: '#FF6B00',
+              color: '#fff',
+              zIndex: 1050,
+              fontSize: '1.2rem',
+              fontWeight: 700
+            }}
+            aria-label={isMenuOpen ? t('shop.dashboard.menu.close') : t('shop.dashboard.menu.open')}
+            onClick={() => setIsMenuOpen(o => !o)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                setIsMenuOpen(o => !o);
+              }
+            }}
+          >
+            {isMenuOpen ? '✕' : '☰'}
+          </button>
+        )}
+
+        <aside
+          className="position-fixed p-3 border-end"
+          style={{
+            width: '260px',
+            background: 'linear-gradient(180deg, #fffaf5 0%, #fff2e7 100%)',
+            borderColor: 'rgba(255, 107, 0, 0.2)',
+            zIndex: 1040,
+            top: `${topNavOffset + SIDEBAR_TOP_GAP}px`,
+            height: `calc(100vh - ${topNavOffset + SIDEBAR_TOP_GAP}px)`,
+            overflowY: 'auto',
+            transform: showSidebar ? 'translateX(0)' : `translateX(${isRtl ? '100%' : '-100%'})`,
+            [isRtl ? 'right' : 'left']: 0,
+            transition: 'transform 0.25s ease'
+          }}
         >
-          <span className={`icon icon-arrow ${isMenuOpen ? 'hide' : 'show'}`} aria-hidden="true">→</span>
-          <span className={`icon icon-hamburger ${isMenuOpen ? 'show' : 'hide'}`} aria-hidden="true">☰</span>
-        </button>
-        <div className="dashboard-sidebar">
-          <div className="sidebar-header">
-            <h2>Droppin</h2>
-            <p>Shop Portal</p>
+          <div className="rounded-4 p-3 mb-4 mt-1 shadow-sm" style={{ background: 'linear-gradient(135deg, #ff7a3d 0%, #fa8831 30%, #d37d57 64%, #7095cf 100%)' }}>
+            <small className="text-white-50 fw-semibold text-uppercase" style={{ letterSpacing: '0.08em', fontSize: '0.68rem' }}>{t('shop.dashboard.labels.droppin')}</small>
+            <h2 className="h5 fw-bold text-white mb-1">{t('shop.dashboard.nav.menuTitle')}</h2>
+            <small className="text-white" style={{ opacity: 0.9 }}>{t('shop.dashboard.nav.menuSubtitle')}</small>
           </div>
-        
-          <div className="sidebar-menu">
-            <Link to="/shop" className={`menu-item${location.pathname === '/shop' ? ' active' : ''}`} onClick={() => setIsMenuOpen(false)}> 
-              <i className="menu-icon">📊</i>
-              Dashboard
-            </Link>
-            <Link to="/shop/packages" className={`menu-item${location.pathname.startsWith('/shop/packages') ? ' active' : ''}`} onClick={() => setIsMenuOpen(false)}> 
-              <i className="menu-icon">📦</i>
-              Packages
-            </Link>
-            <Link to="/shop/create-package" className={`menu-item${location.pathname === '/shop/create-package' ? ' active' : ''}`} onClick={() => setIsMenuOpen(false)}> 
-              <i className="menu-icon">➕</i>
-              New Package
-            </Link>
-            <Link to="/shop/new-pickup" className={`menu-item${location.pathname === '/shop/new-pickup' ? ' active' : ''}`} onClick={() => setIsMenuOpen(false)}> 
-              <i className="menu-icon">🚚</i>
-              New Pickup
-            </Link>
-            <Link to="/shop/wallet" className={`menu-item${location.pathname === '/shop/wallet' ? ' active' : ''}`} onClick={() => setIsMenuOpen(false)}> 
-              <i className="menu-icon">💰</i>
-              Wallet
-            </Link>
-            <Link to="/shop/profile" className={`menu-item${location.pathname === '/shop/profile' ? ' active' : ''}`} onClick={() => setIsMenuOpen(false)}> 
-              <i className="menu-icon">👤</i>
-              Profile
-            </Link>
-          </div>
-        </div>
-        
-  <Routes>
+
+          <nav className="d-flex flex-column gap-2">
+            {navItems.map((item) => (
+              <Link
+                key={item.to}
+                to={item.to}
+                onClick={() => setIsMenuOpen(false)}
+                className="text-decoration-none"
+                style={{
+                  borderRadius: '14px',
+                  padding: '0.62rem 0.72rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.62rem',
+                  fontWeight: 700,
+                  fontSize: '0.92rem',
+                  letterSpacing: '0.01em',
+                  background: item.isActive ? 'linear-gradient(135deg, #ff7a3d 0%, #fa8831 65%, #f5aa62 100%)' : 'rgba(255,255,255,0.85)',
+                  color: item.isActive ? '#ffffff' : '#4b5563',
+                  border: item.isActive ? '1px solid rgba(255,122,61,0.55)' : '1px solid rgba(255, 107, 0, 0.16)',
+                  boxShadow: item.isActive ? '0 8px 20px rgba(255,122,61,0.25)' : '0 1px 3px rgba(15,23,42,0.06)'
+                }}
+              >
+                <span
+                  className="d-inline-flex align-items-center justify-content-center"
+                  style={{
+                    width: '28px',
+                    height: '28px',
+                    borderRadius: '9px',
+                    fontSize: '0.68rem',
+                    fontWeight: 800,
+                    background: item.isActive ? 'rgba(255,255,255,0.22)' : '#ff6b00',
+                    color: '#ffffff'
+                  }}
+                >
+                  {renderNavIcon(item.icon)}
+                </span>
+                <span>{item.label}</span>
+              </Link>
+            ))}
+          </nav>
+        </aside>
+
+        <main
+          style={{
+            marginLeft: isDesktop && !isRtl ? '260px' : '0',
+            marginRight: isDesktop && isRtl ? '260px' : '0',
+            transition: 'margin 0.25s ease'
+          }}
+        >
+          <Routes>
           <Route path="create-package" element={<CreatePackage />} />
-    <Route path="packages" element={<ShopPackages />} />
-    <Route path="packages/bulk-import" element={<BulkImportPackages />} />
+          <Route path="packages" element={<ShopPackages />} />
+          <Route path="packages/bulk-import" element={<BulkImportPackages />} />
           <Route path="profile" element={<ShopProfile />} />
           <Route path="new-pickup" element={<NewPickup />} />
           <Route path="wallet" element={<Wallet />} />
           <Route path="*" element={
-            <div className="dashboard-content-shop">
-              <div className="dashboard-header">
-                <div className="welcome-message">
-                  <h1 style={{color:'white'}}>Welcome, {currentUser?.name || 'Shop Owner'}</h1>
-                  <p style={{color:'white'}}>Manage your deliveries with ease</p>
-                </div>
-                <div className="user-info">
-                  <span className="business-name">{currentUser?.businessName}</span>
-                  <span>Shop Account</span>
+            <div className="container-fluid px-3 px-md-4 py-4" style={{ maxWidth: '1400px' }}>
+              <div className="rounded-4 shadow-sm p-4 p-md-5 mb-4 text-white" style={{ background: 'linear-gradient(135deg, #ff7a3d 0%, #fa8831 28%, #cd7955 52%, #9d8f8d 74%, #4e97ef 100%)' }}>
+                <div className="d-flex flex-column flex-md-row justify-content-between align-items-start gap-3">
+                  <div>
+                    <h1 className="h3 fw-bold mb-1">{t('shop.dashboard.hero.welcome', { name: currentUser?.name || t('shop.dashboard.hero.defaultOwner') })}</h1>
+                    <p className="mb-0" style={{ color: '#f8fafc' }}>{t('shop.dashboard.hero.subtitle')}</p>
+                  </div>
+                  <div className="text-md-end">
+                    <div className="fw-semibold">{currentUser?.businessName || t('shop.dashboard.hero.defaultBusiness')}</div>
+                    <small style={{ color: '#f8fafc' }}>{t('shop.dashboard.hero.accountType')}</small>
+                  </div>
                 </div>
               </div>
               
-              <div className="dashboard-stats-container">
-                {/* Package Stats and Chart Row */}
-                <div className="stats-and-chart-row">
-                  {/* Package Stats */}
-                  <div className="dashboard-stats package-stats">
-                    <div className="stat-card" style={{cursor:'pointer'}} onClick={() => handleStatClick('pending')}>
-                      <div className="stat-value">{packages.filter(p => p.status === 'pending').length}</div>
-                      <div className="stat-label">Pending</div>
+              <div className="row g-4 mb-4">
+                <div className="col-lg-7">
+                  <div className="row g-3">
+                    <div className="col-6 col-md-3">
+                      <button type="button" className="w-100 border-0 rounded-4 p-3 shadow-sm text-start" style={{ background: '#fffaf5' }} onClick={() => handleStatClick('pending')}>
+                        <div className="h4 fw-bold mb-0" style={{ color: '#FF6B00' }}>{packages.filter(p => p.status === 'pending').length}</div>
+                        <small className="text-muted">{t('shop.dashboard.stats.pending')}</small>
+                      </button>
                     </div>
-                    <div className="stat-card" style={{cursor:'pointer'}} onClick={() => handleStatClick('in-transit')}>
-                      <div className="stat-value">{packages.filter(p => ['assigned', 'pickedup', 'in-transit'].includes(p.status)).length}</div>
-                      <div className="stat-label">In Transit</div>
+                    <div className="col-6 col-md-3">
+                      <button type="button" className="w-100 border-0 rounded-4 p-3 shadow-sm text-start" style={{ background: '#fffaf5' }} onClick={() => handleStatClick('in-transit')}>
+                        <div className="h4 fw-bold mb-0" style={{ color: '#FF6B00' }}>{packages.filter(p => ['assigned', 'pickedup', 'in-transit'].includes(p.status)).length}</div>
+                        <small className="text-muted">{t('shop.dashboard.stats.inTransit')}</small>
+                      </button>
                     </div>
-                    <div className="stat-card" style={{cursor:'pointer'}} onClick={() => handleStatClick('delivered')}>
-                      <div className="stat-value">{packages.filter(p => p.status === 'delivered').length}</div>
-                      <div className="stat-label">Delivered</div>
+                    <div className="col-6 col-md-3">
+                      <button type="button" className="w-100 border-0 rounded-4 p-3 shadow-sm text-start" style={{ background: '#fffaf5' }} onClick={() => handleStatClick('delivered')}>
+                        <div className="h4 fw-bold mb-0" style={{ color: '#FF6B00' }}>{packages.filter(p => p.status === 'delivered').length}</div>
+                        <small className="text-muted">{t('shop.dashboard.stats.delivered')}</small>
+                      </button>
                     </div>
-                    <div className="stat-card" style={{cursor:'pointer'}} onClick={() => handleStatClick('all')}>
-                      <div className="stat-value">{packages.length}</div>
-                      <div className="stat-label">Total</div>
+                    <div className="col-6 col-md-3">
+                      <button type="button" className="w-100 border-0 rounded-4 p-3 shadow-sm text-start" style={{ background: '#fffaf5' }} onClick={() => handleStatClick('all')}>
+                        <div className="h4 fw-bold mb-0" style={{ color: '#FF6B00' }}>{packages.length}</div>
+                        <small className="text-muted">{t('shop.dashboard.stats.total')}</small>
+                      </button>
                     </div>
                   </div>
+                </div>
 
-                  {/* Package Distribution Chart */}
-                  <div className="chart-container">
-                    <h3>Package Distribution</h3>
-                    <div className="chart-wrapper">
+                <div className="col-lg-5">
+                  <div className="rounded-4 shadow-sm p-4" style={{ background: '#fffaf5' }}>
+                    <h3 className="h6 fw-bold mb-3">{t('shop.dashboard.stats.distribution')}</h3>
+                    <div style={{ height: '220px' }}>
                       <Pie data={getChartData()} options={chartOptions} />
                     </div>
                   </div>
                 </div>
+              </div>
 
-                {/* Financial Stats Row */}
-                <div className="dashboard-stats financial-stats">
-                  <div className="stat-card">
-                                    <div className="stat-value">
-                  EGP {(parseFloat(financialStats.rawToCollect || 0)).toFixed(2)}
-                </div>
-                    <div className="stat-label">To Collect</div>
+              <div className="row g-3 mb-4">
+                <div className="col-md-4">
+                  <div className="rounded-4 shadow-sm p-3" style={{ background: '#fffaf5' }}>
+                    <div className="h5 fw-bold mb-0" style={{ color: '#235789' }}>EGP {(parseFloat(financialStats.rawToCollect || 0)).toFixed(2)}</div>
+                    <small className="text-muted">{t('shop.dashboard.finance.toCollect')}</small>
                   </div>
-                  <div className="stat-card">
-                                    <div className="stat-value">
-                  EGP {(parseFloat(financialStats.rawTotalCollected || 0)).toFixed(2)}
                 </div>
-                    <div className="stat-label">Collected (Waiting Withdraw)</div>
+                <div className="col-md-4">
+                  <div className="rounded-4 shadow-sm p-3" style={{ background: '#fffaf5' }}>
+                    <div className="h5 fw-bold mb-0" style={{ color: '#235789' }}>EGP {(parseFloat(financialStats.rawTotalCollected || 0)).toFixed(2)}</div>
+                    <small className="text-muted">{t('shop.dashboard.finance.collectedWaitingWithdraw')}</small>
                   </div>
-                  <div className="stat-card">
-                                    <div className="stat-value">
-                  EGP {(parseFloat(financialStats.rawSettelled || 0)).toFixed(2)}
                 </div>
-                    <div className="stat-label">Settled</div>
+                <div className="col-md-4">
+                  <div className="rounded-4 shadow-sm p-3" style={{ background: '#fffaf5' }}>
+                    <div className="h5 fw-bold mb-0" style={{ color: '#235789' }}>EGP {(parseFloat(financialStats.rawSettelled || 0)).toFixed(2)}</div>
+                    <small className="text-muted">{t('shop.dashboard.finance.settled')}</small>
                   </div>
                 </div>
               </div>
-              
-              <div className="dashboard-main">
-                <div className="recent-packages">
-                  <div className="section-header">
-                    <h2>Recent Packages</h2>
-                    <Link to="/shop/packages" className="view-all">View All</Link>
-                  </div>
-                  {loading ? (
-                    <div className="loading-message">Loading recent packages...</div>
-                  ) : error ? (
-                    <div className="error-message">{error}</div>
-                  ) : packages.length === 0 ? (
-                    <div className="empty-state">
-                      <p>No packages found. Create your first delivery package now!</p>
-                      <Link to="/shop/create-package" className="action-button">Create Package</Link>
+
+              <div className="rounded-4 shadow-sm p-3 p-md-4" style={{ background: '#fffaf5' }}>
+                <div className="d-flex justify-content-between align-items-center mb-3">
+                  <h2 className="h5 fw-bold mb-0">{t('shop.dashboard.recent.title')}</h2>
+                  <div className="d-flex align-items-center gap-2 flex-wrap justify-content-end">
+                    <div className="d-flex align-items-center gap-2">
+                      <small className="text-muted">{t('shop.dashboard.recent.rows')}</small>
+                      <select
+                        className="form-select form-select-sm"
+                        style={{ width: '90px' }}
+                        value={recentPerPage}
+                        onChange={(e) => {
+                          setRecentPerPage(Number(e.target.value));
+                          setRecentPage(1);
+                        }}
+                      >
+                        <option value={5}>5</option>
+                        <option value={10}>10</option>
+                        <option value={15}>15</option>
+                      </select>
                     </div>
-                  ) : (
-                    isMobile ? (
-                      <div className="recent-packages-cards">
-                        {packages
-                          .slice()
-                          .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-                          .slice(0, 5)
-                          .map(pkg => (
-                            <div
-                              key={pkg.id}
-                              className="recent-package-card"
-                              role="button"
-                              tabIndex={0}
-                              onClick={() => { setSelectedPackage(pkg); setShowPackageDetailsModal(true); }}
-                              onKeyDown={(e) => { if (e.key === 'Enter') { setSelectedPackage(pkg); setShowPackageDetailsModal(true); } }}
-                            >
-                              <div className="card-header-row">
-                                <span className="tracking">{pkg.trackingNumber || 'N/A'}</span>
-                                <span className="status">{getStatusBadge(pkg.status)}</span>
-                              </div>
-                              <div className="card-main-text">{pkg.packageDescription || 'No description provided'}</div>
-                              <div className="card-address">{pkg.deliveryAddress || 'No address available'}</div>
-                              {(pkg.deliveryContactName || pkg.deliveryContactPhone) && (
-                                <div className="card-contact">
-                                  {pkg.deliveryContactName || 'N/A'}{pkg.deliveryContactPhone ? ` · ${pkg.deliveryContactPhone}` : ''}
-                                </div>
-                              )}
-                              <div className="card-footer-row">
-                                <span className="cod">EGP {parseFloat(pkg.codAmount || 0).toFixed(2)} {getCodBadge(pkg.isPaid)}</span>
-                                <span className="date">{new Date(pkg.createdAt).toLocaleDateString()}</span>
-                              </div>
-                            </div>
+                    {totalRecentPages > 1 && (
+                      <div className="d-flex align-items-center gap-2">
+                        <small className="text-muted">{t('shop.dashboard.recent.page')}</small>
+                        <select
+                          className="form-select form-select-sm"
+                          style={{ width: '110px' }}
+                          value={recentPage}
+                          onChange={(e) => setRecentPage(Number(e.target.value))}
+                        >
+                          {Array.from({ length: totalRecentPages }, (_, i) => i + 1).map(page => (
+                            <option key={page} value={page}>{page} / {totalRecentPages}</option>
                           ))}
+                        </select>
                       </div>
-                    ) : (
-                      <div className="package-list">
-                        <table className="packages-table recent-packages-table">
-                          <tbody>
-                            {packages
-                              .slice()
-                              .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-                              .slice(0, 5)
-                              .map(pkg => (
-                                <tr key={pkg.id} className="package-list-item" style={{cursor:'pointer'}}
-                                  onClick={e => {
-                                    if (e.target.closest('button')) return;
-                                    setSelectedPackage(pkg);
-                                    setShowPackageDetailsModal(true);
-                                  }}
-                                >
-                                  <td className="tracking-number" data-label="Tracking #">{pkg.trackingNumber || 'N/A'}</td>
-                                  <td className="package-description" data-label="Package">
-                                    <div>{pkg.packageDescription || 'No description provided'}</div>
-                                    <div className="package-address">{pkg.deliveryAddress || 'No address available'}</div>
-                                    {(pkg.deliveryContactName || pkg.deliveryContactPhone) && (
-                                      <div className="package-contact">
-                                        {pkg.deliveryContactName || 'N/A'}{pkg.deliveryContactPhone ? ` · ${pkg.deliveryContactPhone}` : ''}
-                                      </div>
-                                    )}
-                                  </td>
-                                  <td className="recipient-name" data-label="Recipient">{pkg.deliveryContactName || 'N/A'}</td>
-                                  <td data-label="Status">{getStatusBadge(pkg.status)}</td>
-                                  <td className="package-cod" data-label="COD">
-                                    <span className="cod-amount">EGP {parseFloat(pkg.codAmount || 0).toFixed(2)}</span>
-                                    {getCodBadge(pkg.isPaid)}
-                                  </td>
-                                  <td data-label="Created On">{new Date(pkg.createdAt).toLocaleDateString()}</td>
-                                </tr>
-                              ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )
-                  )}
+                    )}
+                    <Link to="/shop/packages" className="btn btn-sm btn-outline-primary">{t('shop.dashboard.recent.viewAll')}</Link>
+                  </div>
                 </div>
+                {loading ? (
+                  <div className="text-center py-4">{t('shop.dashboard.recent.loading')}</div>
+                ) : error ? (
+                  <div className="alert alert-danger py-2 mb-0">{error}</div>
+                ) : packages.length === 0 ? (
+                  <div className="text-center py-4">
+                    <p className="mb-3">{t('shop.dashboard.recent.emptyTitle')}</p>
+                    <Link to="/shop/create-package" className="btn btn-primary">{t('shop.dashboard.recent.createPackage')}</Link>
+                  </div>
+                ) : (
+                  <div className="table-responsive">
+                    <table className="table align-middle mb-0">
+                      <tbody>
+                        {sortedRecentPackages
+                          .slice((recentPage - 1) * recentPerPage, recentPage * recentPerPage)
+                          .map(pkg => (
+                            <tr key={pkg.id} style={{ cursor: 'pointer' }} onClick={e => {
+                              if (e.target.closest('button')) return;
+                              setSelectedPackage(pkg);
+                              setShowPackageDetailsModal(true);
+                            }}>
+                              <td style={{ minWidth: '130px' }}><strong>{pkg.trackingNumber || t('shop.dashboard.recent.na')}</strong></td>
+                              <td style={{ minWidth: '260px' }}>
+                                <div>{pkg.packageDescription || t('shop.dashboard.recent.noDescription')}</div>
+                                <div className="small text-muted">{pkg.deliveryAddress || t('shop.dashboard.recent.noAddress')}</div>
+                                {(pkg.deliveryContactName || pkg.deliveryContactPhone) && (
+                                  <div className="small text-secondary">
+                                    {pkg.deliveryContactName || t('shop.dashboard.recent.na')}{pkg.deliveryContactPhone ? ` · ${pkg.deliveryContactPhone}` : ''}
+                                  </div>
+                                )}
+                              </td>
+                              <td>{pkg.deliveryContactName || t('shop.dashboard.recent.na')}</td>
+                              <td>{getStatusBadge(pkg.status)}</td>
+                              <td>
+                                <span className="me-2">EGP {parseFloat(pkg.codAmount || 0).toFixed(2)}</span>
+                                {getCodBadge(pkg.isPaid)}
+                              </td>
+                              <td>{new Date(pkg.createdAt).toLocaleDateString()}</td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             </div>
           } />
         </Routes>
+        </main>
       </div>
-      {/* One-time mobile swipe menu tutorial */}
       <SwipeMenuHint isMenuOpen={isMenuOpen} />
       {showCancelModal && (
-        <div className="confirmation-overlay" onClick={() => { setShowCancelModal(false); setCancelError(null); }}>
-          <div className="confirmation-dialog warning-dialog" onClick={e => e.stopPropagation()}>
-            <h3>Cancel Package</h3>
-            <p>Are you sure you want to cancel this package?</p>
-            {cancelError && <div style={{color:'#dc3545',marginBottom:'0.5rem'}}>{cancelError}</div>}
-            <div className="confirmation-buttons">
-              <button className="btn-secondary" onClick={() => { setShowCancelModal(false); setCancelError(null); }}>No</button>
-              <button className="btn-danger" onClick={handleCancel}>Yes, Cancel</button>
+        <div className="modal d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.4)' }} onClick={() => { setShowCancelModal(false); setCancelError(null); }}>
+          <div className="modal-dialog modal-dialog-centered" onClick={e => e.stopPropagation()}>
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">{t('shop.dashboard.modals.cancelPackageTitle')}</h5>
+                <button type="button" className="btn-close" onClick={() => { setShowCancelModal(false); setCancelError(null); }}></button>
+              </div>
+              <div className="modal-body">
+                <p>{t('shop.dashboard.modals.cancelPackageConfirm')}</p>
+                {cancelError && <div className="alert alert-danger py-2 mb-0">{cancelError}</div>}
+              </div>
+              <div className="modal-footer">
+                <button className="btn btn-outline-secondary" onClick={() => { setShowCancelModal(false); setCancelError(null); }}>{t('shop.dashboard.actions.no')}</button>
+                <button className="btn btn-danger" onClick={handleCancel}>{t('shop.dashboard.actions.yesCancel')}</button>
+              </div>
             </div>
           </div>
         </div>
       )}
-      {/* Package Details Modal */}
       {showPackageDetailsModal && selectedPackage && (
-        <div className="modal-overlay" onClick={() => setShowPackageDetailsModal(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>Package Details</h2>
-              <button className="btn close-btn" onClick={() => setShowPackageDetailsModal(false)}>&times;</button>
-            </div>
-            <div className="modal-body">
-              <div className="details-grid">
-                <div className="detail-item">
-                  <span className="label">Tracking #</span>
-                  <span>{selectedPackage.trackingNumber}</span>
-                </div>
-                <div className="detail-item">
-                  <span className="label">Status</span>
-                  <span>{getStatusBadge(selectedPackage.status)}</span>
-                </div>
-                <div className="detail-item">
-                  <span className="label">Created</span>
-                  <span>{new Date(selectedPackage.createdAt).toLocaleString()}</span>
-                </div>
-                <div className="detail-item full-width">
-                  <span className="label">Description</span>
-                  <span>{selectedPackage.packageDescription || 'No description'}</span>
-                </div>
-                <div className="detail-item">
-                  <span className="label">Recipient</span>
-                  <span>{selectedPackage.deliveryContactName || 'N/A'}</span>
-                </div>
-                {selectedPackage.deliveryContactPhone && (
-                  <div className="detail-item">
-                    <span className="label">Recipient Phone</span>
-                    <span>{selectedPackage.deliveryContactPhone}</span>
-                  </div>
-                )}
-                {selectedPackage.deliveryAddress && (
-                  <div className="detail-item full-width">
-                    <span className="label">Delivery Address</span>
-                    <span>{selectedPackage.deliveryAddress}</span>
-                  </div>
-                )}
-                <div className="detail-item">
-                  <span className="label">COD</span>
-                  <span>EGP {parseFloat(selectedPackage.codAmount || 0).toFixed(2)} {getCodBadge(selectedPackage.isPaid)}</span>
-                </div>
-                <div className="detail-item">
-                  <span className="label">Delivery Cost</span>
-                  <span>EGP {parseFloat(selectedPackage.deliveryCost || 0).toFixed(2)}</span>
-                </div>
-                {selectedPackage.rejectionShippingPaidAmount !== undefined && selectedPackage.rejectionShippingPaidAmount !== null && (
-                  <div className="detail-item">
-                    <span className="label">Rejection Shipping Fees Paid</span>
-                    <span>EGP {parseFloat(selectedPackage.rejectionShippingPaidAmount || 0).toFixed(2)}</span>
-                  </div>
-                )}
-                {selectedPackage.weight && (
-                  <div className="detail-item">
-                    <span className="label">Weight</span>
-                    <span>{selectedPackage.weight} kg</span>
-                  </div>
-                )}
-                {selectedPackage.dimensions && (
-                  <div className="detail-item">
-                    <span className="label">Dimensions</span>
-                    <span>{selectedPackage.dimensions}</span>
-                  </div>
-                )}
-                {selectedPackage.notes && (
-                  <div className="detail-item full-width">
-                    <span className="label">Notes</span>
-                    <span>{selectedPackage.notes}</span>
-                  </div>
-                )}
-                {selectedPackage.shopNotes && (
-                  <div className="detail-item full-width">
-                    <span className="label">Shop Notes</span>
-                    <span>{selectedPackage.shopNotes}</span>
-                  </div>
-                )}
+        <div className="modal d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.4)' }} onClick={() => setShowPackageDetailsModal(false)}>
+          <div className="modal-dialog modal-dialog-centered modal-lg" onClick={e => e.stopPropagation()}>
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">{t('shop.dashboard.modals.packageDetailsTitle')}</h5>
+                <button type="button" className="btn-close" onClick={() => setShowPackageDetailsModal(false)}></button>
               </div>
-              <div className="modal-actions">
-                <button className="btn close-btn" onClick={() => setShowPackageDetailsModal(false)}>Close</button>
+              <div className="modal-body">
+                <div className="row g-3">
+                  <div className="col-md-6"><small className="text-muted d-block">{t('shop.dashboard.details.trackingNumber')}</small><span>{selectedPackage.trackingNumber}</span></div>
+                  <div className="col-md-6"><small className="text-muted d-block">{t('shop.dashboard.details.status')}</small><span>{getStatusBadge(selectedPackage.status)}</span></div>
+                  <div className="col-md-6"><small className="text-muted d-block">{t('shop.dashboard.details.created')}</small><span>{new Date(selectedPackage.createdAt).toLocaleString()}</span></div>
+                  <div className="col-12"><small className="text-muted d-block">{t('shop.dashboard.details.description')}</small><span>{selectedPackage.packageDescription || t('shop.dashboard.details.noDescription')}</span></div>
+                  <div className="col-md-6"><small className="text-muted d-block">{t('shop.dashboard.details.recipient')}</small><span>{selectedPackage.deliveryContactName || t('shop.dashboard.recent.na')}</span></div>
+                  {selectedPackage.deliveryContactPhone && (
+                    <div className="col-md-6"><small className="text-muted d-block">{t('shop.dashboard.details.recipientPhone')}</small><span>{selectedPackage.deliveryContactPhone}</span></div>
+                  )}
+                  {selectedPackage.deliveryAddress && (
+                    <div className="col-12"><small className="text-muted d-block">{t('shop.dashboard.details.deliveryAddress')}</small><span>{selectedPackage.deliveryAddress}</span></div>
+                  )}
+                  <div className="col-md-6"><small className="text-muted d-block">{t('shop.dashboard.details.cod')}</small><span>EGP {parseFloat(selectedPackage.codAmount || 0).toFixed(2)} {getCodBadge(selectedPackage.isPaid)}</span></div>
+                  <div className="col-md-6"><small className="text-muted d-block">{t('shop.dashboard.details.deliveryCost')}</small><span>EGP {parseFloat(selectedPackage.deliveryCost || 0).toFixed(2)}</span></div>
+                  {selectedPackage.rejectionShippingPaidAmount !== undefined && selectedPackage.rejectionShippingPaidAmount !== null && (
+                    <div className="col-md-6"><small className="text-muted d-block">{t('shop.dashboard.details.rejectionShippingFeesPaid')}</small><span>EGP {parseFloat(selectedPackage.rejectionShippingPaidAmount || 0).toFixed(2)}</span></div>
+                  )}
+                  {selectedPackage.weight && (
+                    <div className="col-md-6"><small className="text-muted d-block">{t('shop.dashboard.details.weight')}</small><span>{selectedPackage.weight} kg</span></div>
+                  )}
+                  {selectedPackage.dimensions && (
+                    <div className="col-md-6"><small className="text-muted d-block">{t('shop.dashboard.details.dimensions')}</small><span>{selectedPackage.dimensions}</span></div>
+                  )}
+                  {selectedPackage.notes && (
+                    <div className="col-12"><small className="text-muted d-block">{t('shop.dashboard.details.notes')}</small><span>{selectedPackage.notes}</span></div>
+                  )}
+                  {selectedPackage.shopNotes && (
+                    <div className="col-12"><small className="text-muted d-block">{t('shop.dashboard.details.shopNotes')}</small><span>{selectedPackage.shopNotes}</span></div>
+                  )}
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button className="btn btn-outline-secondary" onClick={() => setShowPackageDetailsModal(false)}>{t('shop.dashboard.actions.close')}</button>
               </div>
             </div>
           </div>

@@ -1,0 +1,22 @@
+{
+  "navigation": {
+    "home": "Home",
+    "trackPackage": "Track Package",
+    "login": "Login",
+    "register": "Register",
+    "logout": "Logout",
+    "dashboardByRole": "{{role}} Dashboard",
+    "roles": {
+      "shop": "Shop",
+      "driver": "Driver",
+      "admin": "Admin",
+      "user": "User"
+    },
+    "notifications": {
+      "title": "Notifications",
+      "delete": "Delete",
+      "deleteAll": "Delete all",
+      "empty": "No notifications"
+    }
+  }
+}

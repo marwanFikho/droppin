@@ -1,0 +1,466 @@
+{
+  "shop": {
+    "createPackage": {
+      "title": "Create New Package",
+      "subtitle": "Add package details and recipient information in one clean flow.",
+      "sections": {
+        "packageInfo": "Package Information",
+        "deliveryInfo": "Delivery Information",
+        "additionalInfo": "Additional Information"
+      },
+      "fields": {
+        "description": "Description*",
+        "category": "Category*",
+        "weight": "Weight (kg)*",
+        "length": "Length (cm)",
+        "width": "Width (cm)",
+        "height": "Height (cm)",
+        "itemsNo": "Number of Items in Package*",
+        "quantity": "Quantity*",
+        "codPerUnit": "COD Per Unit",
+        "totalCod": "Total COD",
+        "shownShippingFees": "Shown Shipping Fees",
+        "contactName": "Contact Name*",
+        "contactPhone": "Contact Phone*",
+        "streetAddress": "Street Address*",
+        "city": "City*",
+        "state": "State",
+        "zipCode": "Zip Code",
+        "country": "Country*",
+        "shopNotes": "Shop Notes"
+      },
+      "placeholders": {
+        "description": "Describe contents",
+        "selectCategory": "Select category",
+        "weight": "Weight",
+        "length": "Length",
+        "width": "Width",
+        "height": "Height",
+        "itemsNo": "Enter number of items",
+        "itemDescription": "Item description",
+        "shownShippingFees": "Leave blank for default fees",
+        "contactName": "Recipient's name",
+        "streetAddress": "Street address",
+        "city": "City",
+        "state": "State",
+        "zipCode": "Zip code",
+        "country": "Country",
+        "shopNotes": "Additional notes from the shop"
+      },
+      "categories": {
+        "shoes": "Shoes",
+        "perfumes": "Perfumes",
+        "clothes": "Clothes",
+        "electronics": "Electronics",
+        "accessories": "Accessories",
+        "books": "Books",
+        "other": "Other"
+      },
+      "items": {
+        "title": "Items Details ({{count}} items)",
+        "itemNumber": "Item {{number}}",
+        "totalCodAmount": "Total COD Amount"
+      },
+      "actions": {
+        "creating": "Creating...",
+        "createPackage": "Create Package"
+      },
+      "success": {
+        "title": "Package Created Successfully!",
+        "subtitle": "Your package has been created and is ready for pickup.",
+        "redirecting": "Redirecting to packages list..."
+      },
+      "errors": {
+        "loadShopAddress": "Failed to load shop address.",
+        "requiredFields": "Please fill in all required fields",
+        "deliveryAddressRequired": "Please complete all delivery address fields",
+        "phoneFormat": "Phone number must be in format: 01xxxxxxxxx (11 digits starting with 01)",
+        "itemsCountRequired": "Please specify the number of items",
+        "itemsDetailsRequired": "Please fill in all item details",
+        "itemDescriptionRequired": "Please enter description for item {{number}}",
+        "itemQuantityInvalid": "Please enter a valid quantity for item {{number}}",
+        "itemCodNegative": "COD per unit for item {{number}} cannot be negative",
+        "createFailed": "Failed to create package. Please try again."
+      }
+    },
+    "bulkImport": {
+      "title": "Bulk Import Packages",
+      "subtitle": "Upload the Excel template, review the parsed packages, then confirm to create them.",
+      "actions": {
+        "downloadTemplate": "Download Bulk Import Template",
+        "chooseFile": "Choose File",
+        "uploadPreview": "Upload & Preview",
+        "parsing": "Parsing...",
+        "cancel": "Cancel",
+        "confirmImport": "Confirm & Import",
+        "importing": "Importing..."
+      },
+      "rowErrors": {
+        "title": "Some rows were skipped due to errors:",
+        "rowPrefix": "Row {{row}}"
+      },
+      "preview": {
+        "title": "Preview ({{count}} packages)",
+        "subtitle": "You can review the parsed data below. To change anything, edit your Excel file and re-upload.",
+        "newPackage": "New Package",
+        "ref": "Ref",
+        "codTotal": "COD Total",
+        "customer": "Customer",
+        "phone": "Phone",
+        "address": "Address",
+        "weight": "Weight",
+        "notes": "Notes",
+        "item": "Item",
+        "qty": "Qty",
+        "codPerUnit": "COD / Unit",
+        "total": "Total",
+        "noItems": "No items",
+        "itemsCodTotal": "Items COD Total"
+      },
+      "success": {
+        "imported": "Imported {{count}} packages successfully."
+      },
+      "errors": {
+        "selectFileFirst": "Please select an Excel file first.",
+        "parseFailed": "Failed to parse file. Please check the template and try again.",
+        "noValidPackages": "No valid packages to import.",
+        "importFailed": "Failed to import packages. Please try again."
+      }
+    },
+    "newPickup": {
+      "title": "Schedule New Pickup",
+      "loading": "Loading packages...",
+      "sections": {
+        "selectPackages": "Select Packages",
+        "pickupDetails": "Pickup Details"
+      },
+      "fields": {
+        "pickupAddress": "Pickup Address",
+        "pickupDate": "Pickup Date",
+        "pickupTime": "Pickup Time"
+      },
+      "actions": {
+        "selectAll": "Select All",
+        "deselectAll": "Deselect All",
+        "cancel": "Cancel",
+        "schedulePickup": "Schedule Pickup",
+        "scheduling": "Scheduling..."
+      },
+      "empty": "No pending packages available for pickup",
+      "cod": "COD",
+      "na": "N/A",
+      "errors": {
+        "loadData": "Failed to load data. Please try again later.",
+        "selectPackage": "Please select at least one package for pickup",
+        "selectDateTime": "Please select both date and time for pickup",
+        "scheduleFailed": "Failed to schedule pickup. Please try again."
+      }
+    },
+    "wallet": {
+      "title": "Wallet",
+      "loading": "Loading wallet data...",
+      "toCollect": "To Collect",
+      "collectedWaitingWithdraw": "Collected (Waiting Withdraw)",
+      "settled": "Settled",
+      "transactionHistory": "Transaction History",
+      "startDate": "Start Date",
+      "endDate": "End Date",
+      "allAttributes": "All Attributes",
+      "attributeToCollect": "To Collect",
+      "attributeTotalCollected": "Total Collected",
+      "allTypes": "All Types",
+      "typeIncrease": "Increase",
+      "typeDecrease": "Decrease",
+      "searchPlaceholder": "Search transactions...",
+      "noTransactions": "No transactions found.",
+      "date": "Date",
+      "attribute": "Attribute",
+      "type": "Type",
+      "amountEgp": "Amount (EGP)",
+      "currentAmount": "Current Amount",
+      "description": "Description",
+      "errors": {
+        "loadData": "Failed to load data. Please try again later."
+      }
+    },
+    "profile": {
+      "title": "Shop Profile",
+      "api": {
+        "title": "Shopify Integration API Key",
+        "subtitle": "Use this API key to connect your Shopify app to your Droppin shop account."
+      },
+      "fields": {
+        "shopName": "Shop Name",
+        "defaultContactName": "Default Contact Name",
+        "defaultContactPhone": "Default Contact Phone",
+        "defaultPickupLocation": "Default Pickup Location",
+        "shippingFees": "Shipping Fees (EGP)",
+        "shownShippingFees": "Shown Shipping Fees (EGP)"
+      },
+      "placeholders": {
+        "street": "Street",
+        "city": "City",
+        "state": "State",
+        "zipCode": "Zip Code",
+        "country": "Country"
+      },
+      "password": {
+        "title": "Change Password",
+        "current": "Current Password",
+        "new": "New Password",
+        "confirm": "Confirm New Password"
+      },
+      "actions": {
+        "copy": "Copy",
+        "generating": "Generating...",
+        "generateApiKey": "Generate API Key",
+        "save": "Save",
+        "cancel": "Cancel",
+        "edit": "Edit",
+        "changePassword": "Change Password",
+        "saving": "Saving...",
+        "saveChanges": "Save Changes"
+      },
+      "success": {
+        "updated": "Profile updated successfully!",
+        "passwordChanged": "Password changed successfully!",
+        "apiGenerated": "API key generated!",
+        "apiCopied": "API key copied to clipboard!"
+      },
+      "errors": {
+        "loadProfile": "Failed to load profile.",
+        "saveProfile": "Failed to save profile.",
+        "passwordFieldsRequired": "All password fields are required.",
+        "passwordMismatch": "New passwords do not match.",
+        "changePassword": "Failed to change password.",
+        "generateApiKey": "Failed to generate API key.",
+        "copyApiKey": "Failed to copy API key.",
+        "shownShippingFeesExceeded": "Shown Shipping Fees cannot be greater than Shipping Fees."
+      }
+    },
+    "packages": {
+      "title": "Packages",
+      "searchPlaceholder": "Search packages...",
+      "loadingPackages": "Loading packages...",
+      "loadingPickups": "Loading pickups...",
+      "emptyPackages": "No packages found.",
+      "emptyPickups": "No pickups found.",
+      "na": "N/A",
+      "noDescription": "No description provided",
+      "noAddress": "No address available",
+      "tabs": {
+        "all": "All",
+        "awaiting_schedule": "Awaiting Schedule",
+        "scheduled_for_pickup": "Scheduled for Pickup",
+        "pending": "Pending",
+        "in-transit": "In Transit",
+        "delivered": "Delivered",
+        "return-to-shop": "Return to Shop",
+        "return-requests": "Return Requests",
+        "exchange-requests": "Exchange Requests",
+        "pickups": "Pickups"
+      },
+      "actions": {
+        "importExcel": "Import Packages (Excel)",
+        "printAwbSelected": "Print AWB for Selected ({{count}})",
+        "printAwb": "Print AWB",
+        "viewPackages": "View Packages",
+        "cancel": "Cancel",
+        "yesCancel": "Yes, Cancel",
+        "no": "No",
+        "selectAll": "Select All",
+        "deselectAll": "Deselect All",
+        "close": "Close",
+        "edit": "Edit",
+        "requestReturn": "Request Return",
+        "requestExchange": "Request Exchange",
+        "submit": "Submit",
+        "submitting": "Submitting...",
+        "addItem": "Add Item",
+        "remove": "Remove"
+      },
+      "table": {
+        "trackingNumber": "Tracking #",
+        "description": "Description",
+        "recipient": "Recipient",
+        "status": "Status",
+        "cod": "COD",
+        "date": "Date",
+        "actions": "Actions"
+      },
+      "pickups": {
+        "pickupDate": "Pickup Date",
+        "address": "Address",
+        "status": "Status",
+        "action": "Action"
+      },
+      "badges": {
+        "return": "Return",
+        "exchange": "Exchange",
+        "returnRequest": "Return Request",
+        "exchangeRequest": "Exchange Request"
+      },
+      "modals": {
+        "cancelPackage": {
+          "title": "Cancel Package",
+          "confirm": "Are you sure you want to cancel this package?"
+        },
+        "pickupPackages": {
+          "title": "Pickup Packages",
+          "empty": "No packages found for this pickup."
+        },
+        "cancelPickup": {
+          "title": "Cancel Pickup",
+          "confirm": "Are you sure you want to cancel this pickup? All packages will be reset to pending."
+        },
+        "packageDetails": {
+          "title": "Package Details"
+        },
+        "requestReturn": {
+          "title": "Request Return",
+          "subtitle": "Select items to return and enter the refund to give to the customer (can be 0).",
+          "returnQty": "Return qty",
+          "refundLabel": "Returned items COD to customer (EGP)"
+        },
+        "requestExchange": {
+          "title": "Request Exchange",
+          "itemsTake": "Items to take from customer",
+          "itemsGive": "Items to give to customer",
+          "moneyGive": "Money to give to customer",
+          "moneyTake": "Money to take from customer",
+          "amountPlaceholder": "Amount (EGP)",
+          "moneyHint": "This will adjust your Total Collected accordingly when the exchange is completed."
+        }
+      },
+      "labels": {
+        "qty": "Qty",
+        "money": "Money"
+      },
+      "placeholders": {
+        "itemDescription": "Item description"
+      },
+      "errors": {
+        "exchangeFailed": "Failed to submit exchange request.",
+        "returnFailed": "Failed to submit return request."
+      },
+      "notifications": {
+        "exchangeFailedTitle": "Exchange request failed",
+        "returnRequestedTitle": "Return requested",
+        "returnRequestedDescription": "Return request submitted successfully!",
+        "returnFailedTitle": "Return request failed"
+      }
+    },
+    "dashboard": {
+      "nav": {
+        "dashboard": "Dashboard",
+        "packages": "Packages",
+        "newPackage": "New Package",
+        "newPickup": "New Pickup",
+        "wallet": "Wallet",
+        "profile": "Profile",
+        "menuTitle": "Shop Menu",
+        "menuSubtitle": "Switch between your pages"
+      },
+      "menu": {
+        "open": "Open menu",
+        "close": "Close menu"
+      },
+      "hero": {
+        "welcome": "Welcome, {{name}}",
+        "defaultOwner": "Shop Owner",
+        "subtitle": "Manage your deliveries with ease",
+        "defaultBusiness": "Business",
+        "accountType": "Shop Account"
+      },
+      "stats": {
+        "pending": "Pending",
+        "inTransit": "In Transit",
+        "delivered": "Delivered",
+        "total": "Total",
+        "distribution": "Package Distribution"
+      },
+      "finance": {
+        "toCollect": "To Collect",
+        "collectedWaitingWithdraw": "Collected (Waiting Withdraw)",
+        "settled": "Settled"
+      },
+      "recent": {
+        "title": "Recent Packages",
+        "rows": "Rows",
+        "page": "Page",
+        "viewAll": "View All",
+        "loading": "Loading recent packages...",
+        "emptyTitle": "No packages found. Create your first delivery package now!",
+        "createPackage": "Create Package",
+        "noDescription": "No description provided",
+        "noAddress": "No address available",
+        "na": "N/A"
+      },
+      "table": {
+        "trackingNumber": "Tracking #",
+        "description": "Description",
+        "recipient": "Recipient",
+        "status": "Status",
+        "codAmount": "COD Amount",
+        "actions": "Actions"
+      },
+      "actions": {
+        "view": "View",
+        "cancel": "Cancel",
+        "markReturned": "Mark Returned",
+        "close": "Close",
+        "no": "No",
+        "yesCancel": "Yes, Cancel"
+      },
+      "modals": {
+        "cancelPackageTitle": "Cancel Package",
+        "cancelPackageConfirm": "Are you sure you want to cancel this package?",
+        "packageDetailsTitle": "Package Details"
+      },
+      "details": {
+        "trackingNumber": "Tracking #",
+        "status": "Status",
+        "created": "Created",
+        "description": "Description",
+        "recipient": "Recipient",
+        "recipientPhone": "Recipient Phone",
+        "deliveryAddress": "Delivery Address",
+        "cod": "COD",
+        "deliveryCost": "Delivery Cost",
+        "rejectionShippingFeesPaid": "Rejection Shipping Fees Paid",
+        "weight": "Weight",
+        "dimensions": "Dimensions",
+        "notes": "Notes",
+        "shopNotes": "Shop Notes",
+        "noDescription": "No description"
+      },
+      "money": {
+        "empty": "No transactions found.",
+        "startDate": "Start Date",
+        "endDate": "End Date",
+        "allAttributes": "All Attributes",
+        "attributeToCollect": "To Collect",
+        "attributeTotalCollected": "Total Collected",
+        "attributeRevenue": "Revenue",
+        "allTypes": "All Types",
+        "typeIncrease": "Increase",
+        "typeDecrease": "Decrease",
+        "searchPlaceholder": "Search transactions...",
+        "date": "Date",
+        "attribute": "Attribute",
+        "type": "Type",
+        "amount": "Amount",
+        "amountEgp": "Amount (EGP)",
+        "description": "Description"
+      },
+      "errors": {
+        "loadData": "Failed to load data. Please try again later.",
+        "cancelPackage": "Failed to cancel package.",
+        "markReturned": "Failed to mark package as returned. Please try again."
+      },
+      "labels": {
+        "droppin": "Droppin"
+      }
+    }
+  }
+}
