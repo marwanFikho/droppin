@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /driver/
+Disallow: /shop/
+Disallow: /unauthorized
+
+Sitemap: https://droppin-eg.com/sitemap.xml
