@@ -167,7 +167,7 @@ export const createAdminDataLoaders = ({
       for (let i = 6; i >= 0; i -= 1) {
         const date = new Date(now);
         date.setDate(date.getDate() - i);
-        last7DaysLabels.push(date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+        last7DaysLabels.push(date.toLocaleDateString('en-GB'));
       }
 
       const createdPerDay = new Array(7).fill(0);

@@ -4,14 +4,14 @@ import moment from 'moment-timezone';
 const CAIRO_TIMEZONE = 'Africa/Cairo';
 
 /**
- * Format date to dd-mm-yyyy format in Cairo timezone
+ * Format date to dd/mm/yyyy format in Cairo timezone
  * @param {Date|string} date - Date to format
  * @returns {string} Formatted date string
  */
 export const formatDateToDDMMYYYY = (date) => {
   if (!date) return 'Not set';
   try {
-    return moment(date).tz(CAIRO_TIMEZONE).format('DD-MM-YYYY');
+    return moment(date).tz(CAIRO_TIMEZONE).format('DD/MM/YYYY');
   } catch (error) {
     console.error('Error formatting date:', error);
     return 'Invalid date';
@@ -19,14 +19,14 @@ export const formatDateToDDMMYYYY = (date) => {
 };
 
 /**
- * Format datetime to dd-mm-yyyy HH:mm:ss format in Cairo timezone
+ * Format datetime to dd/mm/yyyy HH:mm:ss format in Cairo timezone
  * @param {Date|string} date - Date to format
  * @returns {string} Formatted datetime string
  */
 export const formatDateTimeToDDMMYYYY = (date) => {
   if (!date) return 'Not set';
   try {
-    return moment(date).tz(CAIRO_TIMEZONE).format('DD-MM-YYYY HH:mm:ss');
+    return moment(date).tz(CAIRO_TIMEZONE).format('DD/MM/YYYY HH:mm:ss');
   } catch (error) {
     console.error('Error formatting datetime:', error);
     return 'Invalid date';
@@ -41,7 +41,7 @@ export const formatDateTimeToDDMMYYYY = (date) => {
 export const formatDate = (date) => {
   if (!date) return 'Not set';
   try {
-    return moment(date).tz(CAIRO_TIMEZONE).format('DD-MM-YYYY HH:mm:ss');
+    return moment(date).tz(CAIRO_TIMEZONE).format('DD/MM/YYYY HH:mm:ss');
   } catch (error) {
     console.error('Error formatting date:', error);
     return 'Invalid date';

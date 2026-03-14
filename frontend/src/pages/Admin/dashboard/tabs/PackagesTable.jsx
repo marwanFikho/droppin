@@ -39,8 +39,39 @@ const PackagesTable = ({
 
   const isAllSelected = filteredPackages.length > 0 && selectedPackages.length === filteredPackages.length;
   const selectionEnabled = (packagesSubTab === 'all' && ['ready-to-assign', 'in-transit', 'all'].includes(packagesTab)) || packagesTab === 'delivered';
-  const baseColCount = 8 + (packagesTab === 'delivered' ? 1 : 0);
+  const baseColCount = 8 + (packagesTab === 'delivered' ? 1 : 0) + (packagesTab === 'in-transit' ? 1 : 0);
   const totalColSpan = baseColCount + (selectionEnabled ? 1 : 0);
+
+  const getAssignedDate = (pkg) => {
+    let history = pkg?.statusHistory;
+    if (typeof history === 'string') {
+      try {
+        history = JSON.parse(history);
+      } catch {
+        history = [];
+      }
+    }
+    if (!Array.isArray(history) || history.length === 0) return 'N/A';
+
+    const assignmentEntry = history.find((entry) => {
+      const note = String(entry?.note || '').toLowerCase();
+      const status = String(entry?.status || '').toLowerCase();
+      return (
+        note.includes('assigned to driver') ||
+        note.includes('driver changed') ||
+        status === 'assigned' ||
+        status === 'return-in-transit' ||
+        status === 'exchange-in-transit'
+      );
+    });
+
+    const timestamp = assignmentEntry?.timestamp || assignmentEntry?.createdAt || assignmentEntry?.date;
+    if (!timestamp) return 'N/A';
+
+    const parsed = new Date(timestamp);
+    if (Number.isNaN(parsed.getTime())) return 'N/A';
+    return parsed.toLocaleDateString();
+  };
 
   const renderActions = (pkg, compact = false) => (
     <div className={compact ? 'd-flex flex-wrap gap-2 mt-2' : undefined}>
@@ -165,6 +196,11 @@ const PackagesTable = ({
                             Delivered: {pkg.actualDeliveryTime ? new Date(pkg.actualDeliveryTime).toLocaleDateString() : 'N/A'}
                           </div>
                         )}
+                        {packagesTab === 'in-transit' && (
+                          <div className="small text-muted mt-1">
+                            Assigned: {getAssignedDate(pkg)}
+                          </div>
+                        )}
 
                         <div
                           className="mt-2"
@@ -205,6 +241,7 @@ const PackagesTable = ({
           <th>Description</th>
           <th>Status</th>
           {packagesTab === 'delivered' && <th>Delivery Date</th>}
+          {packagesTab === 'in-transit' && <th>Assigned Date</th>}
           <th>
             From
             <select
@@ -258,6 +295,9 @@ const PackagesTable = ({
                 <td data-label="Delivery Date">
                   {pkg.actualDeliveryTime ? new Date(pkg.actualDeliveryTime).toLocaleDateString() : 'N/A'}
                 </td>
+              )}
+              {packagesTab === 'in-transit' && (
+                <td data-label="Assigned Date">{getAssignedDate(pkg)}</td>
               )}
               <td data-label="From">{pkg.shop?.businessName || 'N/A'}</td>
               <td data-label="To">
