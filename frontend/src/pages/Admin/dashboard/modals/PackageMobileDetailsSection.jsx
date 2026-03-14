@@ -34,6 +34,37 @@ const PackageMobileDetailsSection = ({
 }) => {
   if (!isPackage || !isMobile) return null;
 
+  const getAssignedDateLabel = () => {
+    let history = selectedEntity.statusHistory;
+    if (typeof history === 'string') {
+      try {
+        history = JSON.parse(history);
+      } catch {
+        history = [];
+      }
+    }
+    if (!Array.isArray(history) || history.length === 0) return 'Not assigned yet';
+
+    const assignmentEntry = history.find((entry) => {
+      const note = String(entry?.note || '').toLowerCase();
+      const status = String(entry?.status || '').toLowerCase();
+      return (
+        note.includes('assigned to driver') ||
+        note.includes('driver changed') ||
+        status === 'assigned' ||
+        status === 'return-in-transit' ||
+        status === 'exchange-in-transit'
+      );
+    });
+
+    const timestamp = assignmentEntry?.timestamp || assignmentEntry?.createdAt || assignmentEntry?.date;
+    if (!timestamp) return 'Not assigned yet';
+
+    const parsed = new Date(timestamp);
+    if (Number.isNaN(parsed.getTime())) return 'Not assigned yet';
+    return parsed.toLocaleString();
+  };
+
   return (
     <div className="package-details-mobile">
       <div className="summary-card">
@@ -46,6 +77,8 @@ const PackageMobileDetailsSection = ({
           <div className="pair"><span className="k">COD</span><span className="v">EGP {parseFloat(selectedEntity.codAmount || 0).toFixed(2)}</span></div>
           <div className="pair"><span className="k">Payment</span><span className={`v chip payment ${selectedEntity.isPaid ? 'paid' : 'unpaid'}`}>{selectedEntity.isPaid ? 'Paid' : 'Unpaid'}</span></div>
           <div className="pair"><span className="k">Driver</span><span className="v">{(() => { const d = drivers.find((dr) => dr.driverId === selectedEntity.driverId || dr.id === selectedEntity.driverId); return d ? d.name : 'Unassigned'; })()}</span></div>
+          <div className="pair"><span className="k">Assigned Date</span><span className="v">{getAssignedDateLabel()}</span></div>
+          <div className="pair"><span className="k">Picked Up Date</span><span className="v">{selectedEntity.actualPickupTime ? new Date(selectedEntity.actualPickupTime).toLocaleString() : 'Not picked up yet'}</span></div>
           <div className="pair"><span className="k">Type</span><span className="v">{selectedEntity.type || 'new'}</span></div>
           <div className="pair"><span className="k">Created</span><span className="v">{selectedEntity.createdAt ? new Date(selectedEntity.createdAt).toLocaleDateString() : 'N/A'}</span></div>
         </div>

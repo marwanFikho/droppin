@@ -21,6 +21,8 @@ const PackageActionBar = ({
 }) => {
   if (!isPackage) return null;
 
+  const canForwardStatus = ['assigned', 'pickedup', 'in-transit'].includes(selectedEntity.status);
+
   return (
     <div className="position-sticky bottom-0 start-0 w-100 bg-white border-top shadow-sm d-flex justify-content-end align-items-center flex-wrap gap-2 px-3 px-md-4 py-3 mt-4">
       {selectedEntity.driverId && ['assigned', 'pickedup', 'in-transit'].includes(selectedEntity.status) && (
@@ -33,7 +35,7 @@ const PackageActionBar = ({
         </button>
       )}
 
-      {!['cancelled', 'cancelled-awaiting-return', 'cancelled-returned', 'rejected', 'rejected-returned', 'delivered', 'awaiting_schedule', 'awaiting_pickup', 'scheduled_for_pickup'].includes(selectedEntity.status) && (
+      {canForwardStatus && (
         <button
           className="btn btn-warning text-dark fw-semibold btn-sm"
           disabled={forwardingPackageId === selectedEntity.id}

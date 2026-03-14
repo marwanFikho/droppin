@@ -1257,6 +1257,7 @@ exports.getPackages = async (req, res) => {
       attributes: [
         'id', 'trackingNumber', 'packageDescription', 'weight', 'dimensions',
         'type', 'status', 'shopId', 'userId', 'driverId',
+        'statusHistory',
         'pickupContactName', 'pickupContactPhone', 'pickupAddress',
         'deliveryContactName', 'deliveryContactPhone', 'deliveryAddress',
         'schedulePickupTime', 'estimatedDeliveryTime',

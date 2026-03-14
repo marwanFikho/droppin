@@ -203,14 +203,19 @@ export const createPackageTabActions = ({
       }
 
       if (activeTab === 'packages') {
-        const packagesResponse = await adminService.getPackages({ page: 1, limit: 25 });
+        const packagesResponse = await adminService.getPackages({ page: 1, limit: 25, sortBy: 'createdAt', sortOrder: 'DESC' });
+        const sortedPackages = [...(packagesResponse.data?.packages || packagesResponse.data || [])].sort((a, b) => {
+          const aTime = a?.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const bTime = b?.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return bTime - aTime;
+        });
         if (packagesTab === 'ready-to-assign') {
-          const readyToAssignPackages = (packagesResponse.data?.packages || packagesResponse.data || []).filter(
+          const readyToAssignPackages = sortedPackages.filter(
             (pkg) => pkg.status === 'pending' || pkg.status === 'return-requested' || pkg.status === 'exchange-in-process'
           );
           setPackages(readyToAssignPackages);
         } else {
-          const filteredPackages = packagesResponse.data?.packages || packagesResponse.data || [];
+          const filteredPackages = sortedPackages;
           setPackages(filteredPackages);
         }
       }

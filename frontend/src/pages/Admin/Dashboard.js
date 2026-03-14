@@ -246,12 +246,19 @@ const AdminDashboard = () => {
   // Function to fetch packages for a driver
   const fetchDriverPackages = async (driverId, opts = {}) => {
     try {
-      const params = { driverId };
+      const params = { driverId, sortBy: 'createdAt', sortOrder: 'DESC' };
       if (opts.createdAfter) params.createdAfter = opts.createdAfter;
       if (opts.createdBefore) params.createdBefore = opts.createdBefore;
       const res = await adminService.getPackages({ ...params, page: 1, limit: 25 });
       const list = res.data?.packages || res.data || [];
-      setDriverPackages(list.filter(pkg => pkg.driverId === driverId));
+      const sorted = list
+        .filter(pkg => pkg.driverId === driverId)
+        .sort((a, b) => {
+          const aTime = a?.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const bTime = b?.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return bTime - aTime;
+        });
+      setDriverPackages(sorted);
     } catch (err) {
       setDriverPackages([]);
     }
@@ -725,7 +732,9 @@ const AdminDashboard = () => {
     exchangeCompletePkg,
     exchangeDeductShipping,
     setStatusMessage,
-    forwardPackageStatus
+    forwardPackageStatus,
+    setSelectedEntity,
+    setPackages
   });
 
   const {

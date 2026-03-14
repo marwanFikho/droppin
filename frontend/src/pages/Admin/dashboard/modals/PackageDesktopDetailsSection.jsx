@@ -37,6 +37,37 @@ const PackageDesktopDetailsSection = ({
     return null;
   }
 
+  const getAssignedDateLabel = () => {
+    let history = selectedEntity.statusHistory;
+    if (typeof history === 'string') {
+      try {
+        history = JSON.parse(history);
+      } catch {
+        history = [];
+      }
+    }
+    if (!Array.isArray(history) || history.length === 0) return 'Not assigned yet';
+
+    const assignmentEntry = history.find((entry) => {
+      const note = String(entry?.note || '').toLowerCase();
+      const status = String(entry?.status || '').toLowerCase();
+      return (
+        note.includes('assigned to driver') ||
+        note.includes('driver changed') ||
+        status === 'assigned' ||
+        status === 'return-in-transit' ||
+        status === 'exchange-in-transit'
+      );
+    });
+
+    const timestamp = assignmentEntry?.timestamp || assignmentEntry?.createdAt || assignmentEntry?.date;
+    if (!timestamp) return 'Not assigned yet';
+
+    const parsed = new Date(timestamp);
+    if (Number.isNaN(parsed.getTime())) return 'Not assigned yet';
+    return parsed.toLocaleString();
+  };
+
   return (
     <div className="details-grid package-popup-grid px-3 px-md-4 py-3">
       <div className="detail-item full-width border rounded-4 bg-light-subtle p-3 mb-3">
@@ -103,6 +134,16 @@ const PackageDesktopDetailsSection = ({
       <div className="detail-item">
         <span className="label">Created:</span>
         <span>{selectedEntity.createdAt ? new Date(selectedEntity.createdAt).toLocaleDateString() : 'N/A'}</span>
+      </div>
+
+      <div className="detail-item">
+        <span className="label">Assigned Date:</span>
+        <span>{getAssignedDateLabel()}</span>
+      </div>
+
+      <div className="detail-item">
+        <span className="label">Picked Up Date:</span>
+        <span>{selectedEntity.actualPickupTime ? new Date(selectedEntity.actualPickupTime).toLocaleString() : 'Not picked up yet'}</span>
       </div>
 
       <div className="detail-item">

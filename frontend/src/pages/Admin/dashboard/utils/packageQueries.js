@@ -78,34 +78,29 @@ export const createPackageQueryActions = ({
         else params.status = effectiveStatusFilter;
       }
 
-      if (packagesTab === 'delivered') {
-        params.sortBy = 'actualDeliveryTime';
-        params.sortOrder = 'DESC';
-      } else if (packagesTab === 'in-transit') {
-        params.sortBy = 'actualPickupTime';
-        params.sortOrder = 'DESC';
-      } else if (packagesTab === 'cancelled') {
-        params.sortBy = 'updatedAt';
-        params.sortOrder = 'DESC';
-      } else if (packagesTab === 'ready-to-assign' || packagesTab === 'return-to-shop') {
-        params.sortBy = 'updatedAt';
-        params.sortOrder = 'DESC';
-      }
+      // Keep one consistent order across all package tabs/sub-tabs: newest created first.
+      params.sortBy = 'createdAt';
+      params.sortOrder = 'DESC';
 
       const response = await adminService.getPackages(params);
       const list = response.data?.packages || response.data || [];
+      const sortedList = [...list].sort((a, b) => {
+        const aTime = a?.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const bTime = b?.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return bTime - aTime;
+      });
       const totalPages = response.data?.totalPages || 1;
       const total = response.data?.total || list.length;
       const current = response.data?.currentPage || page;
 
-      setPackages(list);
+      setPackages(sortedList);
       setPackagePage(current);
       setPackageTotalPages(totalPages);
       setPackageTotal(total);
 
       const reopenEntityId = localStorage.getItem('reopenAdminModal');
       if (reopenEntityId) {
-        const entityToReopen = list.find((pkg) => String(pkg.id) === String(reopenEntityId));
+        const entityToReopen = sortedList.find((pkg) => String(pkg.id) === String(reopenEntityId));
         if (entityToReopen) {
           setSelectedEntity(entityToReopen);
           setShowDetailsModal(true);

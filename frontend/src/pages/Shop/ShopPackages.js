@@ -32,6 +32,16 @@ const returnToShopStatuses = [
 	'return-completed'
 ];
 
+const exchangeRequestStatuses = [
+  'exchange-awaiting-schedule',
+  'exchange-awaiting-pickup',
+  'exchange-in-process',
+  'exchange-in-transit',
+  'exchange-awaiting-return',
+  'exchange-returned',
+  'exchange-cancelled'
+];
+
 export function getStatusBadge(status) {
   let className = 'badge rounded-pill';
   if (['awaiting_schedule', 'scheduled_for_pickup', 'awaiting_pickup'].includes(status)) className += ' bg-primary-subtle text-primary-emphasis';
@@ -418,11 +428,9 @@ const ShopPackages = () => {
         pkg.returnDetails.length > 0
       );
     } else if (activeTab === 'exchange-requests') {
-      // Show delivered packages that have exchange requests
+      // Show only exchange-request workflow packages (exclude delivered tab packages)
       return filtered.filter(pkg => 
-        pkg.status === 'delivered' && 
-        pkg.exchangeDetails !== null && 
-        typeof pkg.exchangeDetails === 'object'
+        exchangeRequestStatuses.includes(pkg.status)
       );
     } else {
       return filtered.filter(pkg => pkg.status === activeTab);

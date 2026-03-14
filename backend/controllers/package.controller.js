@@ -514,6 +514,26 @@ exports.createPackage = async (req, res) => {
       return res.status(404).json({ message: 'Shop profile not found' });
     }
 
+    const parsedShopShippingFees = parseFloat(shop.shippingFees);
+    const actualShippingFees = Number.isFinite(parsedShopShippingFees) && parsedShopShippingFees >= 0
+      ? parsedShopShippingFees
+      : 0;
+
+    if (shownDeliveryCost !== undefined && shownDeliveryCost !== null && shownDeliveryCost !== '') {
+      const parsedShownDeliveryCost = parseFloat(shownDeliveryCost);
+      if (!Number.isFinite(parsedShownDeliveryCost) || parsedShownDeliveryCost < 0) {
+        return res.status(400).json({
+          message: 'shownDeliveryCost must be a valid non-negative number'
+        });
+      }
+
+      if (parsedShownDeliveryCost > actualShippingFees) {
+        return res.status(400).json({
+          message: `shownDeliveryCost cannot exceed shop shipping fees (${actualShippingFees})`
+        });
+      }
+    }
+
     // Generate tracking number
     const prefix = 'DP'; // Droppin prefix
     const timestamp = Math.floor(Date.now() / 1000).toString(16); // Unix timestamp in hex
@@ -543,13 +563,13 @@ exports.createPackage = async (req, res) => {
 
     // Resolve shown delivery cost using precedence: provided -> shop.shownShippingFees -> shop.shippingFees -> 0
     // For Shopify packages, prioritize the explicitly provided shownDeliveryCost
+    const parsedShownShippingFees = parseFloat(shop.shownShippingFees);
+    const defaultShownFromShop = Number.isFinite(parsedShownShippingFees) && parsedShownShippingFees >= 0
+      ? Math.min(parsedShownShippingFees, actualShippingFees)
+      : actualShippingFees;
     const resolvedShownDeliveryCost = (shownDeliveryCost !== undefined && shownDeliveryCost !== null && shownDeliveryCost !== '')
       ? (parseFloat(shownDeliveryCost) || 0)
-      : (
-          (shop.shownShippingFees !== undefined && shop.shownShippingFees !== null && shop.shownShippingFees !== '')
-            ? (parseFloat(shop.shownShippingFees) || 0)
-            : ((shop.shippingFees !== undefined && shop.shippingFees !== null && shop.shippingFees !== '') ? (parseFloat(shop.shippingFees) || 0) : 0)
-        );
+      : defaultShownFromShop;
 
     // For non-Shopify: COD should include items total + shown delivery cost
     const codToSave = isShopify ? calculatedCodAmount : (calculatedCodAmount + resolvedShownDeliveryCost);
@@ -576,7 +596,7 @@ exports.createPackage = async (req, res) => {
       // Financial information - COD amount calculated from items (+ shownDeliveryCost for non-Shopify)
       type: (req.body.type === 'return' || req.body.type === 'exchange') ? req.body.type : 'new',
       codAmount: codToSave,
-      deliveryCost: shop.shippingFees != null ? parseFloat(shop.shippingFees) : (parseFloat(deliveryCost) || 0),
+      deliveryCost: actualShippingFees,
       shownDeliveryCost: resolvedShownDeliveryCost,
       paymentMethod: paymentMethod || null,
       paymentNotes: paymentNotes || null,
@@ -1059,6 +1079,7 @@ exports.getPackageById = async (req, res) => {
         'id', 'trackingNumber', 'packageDescription', 'weight', 'dimensions',
         'type',
         'status', 'shopId', 'userId', 'driverId', 'shopifyOrderId', 'shopifyOrderName',
+        'statusHistory',
         'pickupContactName', 'pickupContactPhone', 'pickupAddress',
         'deliveryContactName', 'deliveryContactPhone', 'deliveryAddress',
         'schedulePickupTime', 'estimatedDeliveryTime',

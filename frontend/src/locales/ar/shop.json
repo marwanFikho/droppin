@@ -70,6 +70,9 @@
         "subtitle": "تم إنشاء الشحنة وهي جاهزة للاستلام.",
         "redirecting": "جارٍ التحويل إلى قائمة الشحنات..."
       },
+      "hints": {
+        "maxShownShippingFees": "الحد الأقصى المسموح لرسوم الشحن الظاهرة: {{max}} جنيه"
+      },
       "errors": {
         "loadShopAddress": "تعذر تحميل عنوان المتجر.",
         "requiredFields": "يرجى تعبئة جميع الحقول المطلوبة",
@@ -80,6 +83,8 @@
         "itemDescriptionRequired": "يرجى إدخال وصف للعنصر رقم {{number}}",
         "itemQuantityInvalid": "يرجى إدخال كمية صحيحة للعنصر رقم {{number}}",
         "itemCodNegative": "قيمة الدفع عند الاستلام للعنصر رقم {{number}} لا يمكن أن تكون سالبة",
+        "shownShippingFeesInvalid": "رسوم الشحن الظاهرة يجب أن تكون رقمًا صحيحًا غير سالب.",
+        "shownShippingFeesExceeded": "لا يمكن أن تتجاوز رسوم الشحن الظاهرة رسوم الشحن الخاصة بمتجرك ({{max}} جنيه).",
         "createFailed": "تعذر إنشاء الشحنة. يرجى المحاولة مرة أخرى."
       }
     },

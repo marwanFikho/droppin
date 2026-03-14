@@ -27,6 +27,7 @@ const CreatePackage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [shopShippingFees, setShopShippingFees] = useState(0);
   
   // Get access to the dashboard refresh function
   const { refreshDashboard } = useContext(ShopDashboardContext);
@@ -77,6 +78,8 @@ const CreatePackage = () => {
         const res = await packageService.getShopProfile();
         const shop = res.data;
         const pickupAddress = parseAddress(shop.address);
+        const parsedShippingFees = parseFloat(shop.shippingFees);
+        setShopShippingFees(Number.isFinite(parsedShippingFees) && parsedShippingFees >= 0 ? parsedShippingFees : 0);
         setFormData(prev => ({
           ...prev,
           pickupAddress: { ...pickupAddress, instructions: '' }
@@ -222,6 +225,16 @@ const CreatePackage = () => {
         }
         if (item.codPerUnit < 0) {
           throw new Error(t('shop.createPackage.errors.itemCodNegative', { number: i + 1 }));
+        }
+      }
+
+      if (formData.shownDeliveryCost !== '' && formData.shownDeliveryCost !== null && formData.shownDeliveryCost !== undefined) {
+        const shownDeliveryCostValue = parseFloat(formData.shownDeliveryCost);
+        if (!Number.isFinite(shownDeliveryCostValue) || shownDeliveryCostValue < 0) {
+          throw new Error(t('shop.createPackage.errors.shownShippingFeesInvalid'));
+        }
+        if (shownDeliveryCostValue > shopShippingFees) {
+          throw new Error(t('shop.createPackage.errors.shownShippingFeesExceeded', { max: shopShippingFees.toFixed(2) }));
         }
       }
       
@@ -517,9 +530,13 @@ const CreatePackage = () => {
                   onChange={handleChange}
                   placeholder={t('shop.createPackage.placeholders.shownShippingFees')}
                   min="0"
+                  max={shopShippingFees}
                   step="0.01"
                   className="form-control"
                 />
+                <small className="text-muted">
+                  {t('shop.createPackage.hints.maxShownShippingFees', { max: shopShippingFees.toFixed(2) })}
+                </small>
               </div>
             </div>
           </section>

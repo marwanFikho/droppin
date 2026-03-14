@@ -70,6 +70,9 @@
         "subtitle": "Your package has been created and is ready for pickup.",
         "redirecting": "Redirecting to packages list..."
       },
+      "hints": {
+        "maxShownShippingFees": "Maximum allowed shown shipping fees: {{max}} EGP"
+      },
       "errors": {
         "loadShopAddress": "Failed to load shop address.",
         "requiredFields": "Please fill in all required fields",
@@ -80,6 +83,8 @@
         "itemDescriptionRequired": "Please enter description for item {{number}}",
         "itemQuantityInvalid": "Please enter a valid quantity for item {{number}}",
         "itemCodNegative": "COD per unit for item {{number}} cannot be negative",
+        "shownShippingFeesInvalid": "Shown Shipping Fees must be a valid non-negative number.",
+        "shownShippingFeesExceeded": "Shown Shipping Fees cannot exceed your shipping fees ({{max}} EGP).",
         "createFailed": "Failed to create package. Please try again."
       }
     },

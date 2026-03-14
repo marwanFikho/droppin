@@ -39,7 +39,9 @@ export const createPackageDialogActions = ({
   exchangeCompletePkg,
   exchangeDeductShipping,
   setStatusMessage,
-  forwardPackageStatus
+  forwardPackageStatus,
+  setSelectedEntity,
+  setPackages
 }) => {
   const handleConfirmDeliveredReturned = (pkg) => {
     setConfirmationDialogTitle('Mark as Delivered Returned');
@@ -97,9 +99,11 @@ export const createPackageDialogActions = ({
   const handleConfirmAdminDelivery = async () => {
     try {
       if (!adminDeliveryModalPackage) return;
+      const nextStatus = adminIsPartialDelivery ? 'delivered-awaiting-return' : 'delivered';
+
       if (!adminIsPartialDelivery) {
         await packageService.updatePackageStatus(adminDeliveryModalPackage.id, {
-          status: 'delivered',
+          status: nextStatus,
           paymentMethod: adminPaymentMethodChoice
         });
       } else {
@@ -114,11 +118,26 @@ export const createPackageDialogActions = ({
           .filter(Boolean);
 
         await packageService.updatePackageStatus(adminDeliveryModalPackage.id, {
-          status: 'delivered-awaiting-return',
+          status: nextStatus,
           deliveredItems,
           paymentMethod: adminPaymentMethodChoice
         });
       }
+
+      // Update details popup and table row immediately to prevent duplicate "Forward Status" actions.
+      setSelectedEntity((prev) => {
+        if (!prev || prev.id !== adminDeliveryModalPackage.id) return prev;
+        return {
+          ...prev,
+          status: nextStatus,
+          paymentMethod: adminPaymentMethodChoice || prev.paymentMethod
+        };
+      });
+      setPackages((prev) => prev.map((p) => (
+        p.id === adminDeliveryModalPackage.id
+          ? { ...p, status: nextStatus, paymentMethod: adminPaymentMethodChoice || p.paymentMethod }
+          : p
+      )));
 
       setShowAdminDeliveryModal(false);
       setAdminDeliveryModalPackage(null);
