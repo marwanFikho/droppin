@@ -167,6 +167,7 @@ const MoneyTransactionsTab = ({
 
       <div className="d-flex align-items-center justify-content-center flex-wrap gap-2 mt-3">
         <button
+          type="button"
           className="btn btn-outline-secondary btn-sm"
           onClick={() => {
             if (moneyPage > 1) fetchMoneyTransactions(moneyPage - 1);
@@ -178,6 +179,7 @@ const MoneyTransactionsTab = ({
         </button>
         <span style={{ whiteSpace: 'nowrap' }}>Page {moneyPage} of {moneyTotalPages}</span>
         <button
+          type="button"
           className="btn btn-outline-secondary btn-sm"
           onClick={() => {
             if (moneyPage < moneyTotalPages) fetchMoneyTransactions(moneyPage + 1);

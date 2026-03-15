@@ -60,7 +60,15 @@ const DashboardHomeTab = ({
   const totalCreated = Number(stats?.packages?.total || 0);
   const totalDelivered = Number(stats?.packages?.delivered || 0);
   const totalInTransit = Number(stats?.packages?.inTransit || 0);
-  const undeliveredCount = Math.max(totalCreated - totalDelivered, 0);
+  const statusRaw = Array.isArray(analytics.statusDistribution) ? analytics.statusDistribution : [];
+  const rejectedCount = statusRaw
+    .filter((row) => String(row?.status || '').toLowerCase().includes('rejected'))
+    .reduce((sum, row) => sum + (Number(row?.count) || 0), 0);
+  const cancelledCount = statusRaw
+    .filter((row) => String(row?.status || '').toLowerCase().includes('cancelled'))
+    .reduce((sum, row) => sum + (Number(row?.count) || 0), 0);
+  // Business rule: KPI backlog mirrors the rejected total.
+  const undeliveredCount = rejectedCount;
   const createdToDeliveredPct = totalCreated > 0 ? (totalDelivered / totalCreated) * 100 : 0;
   const undeliveredPct = totalCreated > 0 ? (undeliveredCount / totalCreated) * 100 : 0;
   const inTransitPct = totalCreated > 0 ? (totalInTransit / totalCreated) * 100 : 0;
@@ -89,47 +97,29 @@ const DashboardHomeTab = ({
   const months = analytics.packagesPerMonth.map((row) => row.month);
   const createdData = analytics.packagesPerMonth.map((row) => row.created);
   const deliveredData = analytics.packagesPerMonth.map((row) => row.delivered);
+  const rejectedData = analytics.packagesPerMonth.map((row) => row.rejected);
   const codMonths = analytics.codPerMonth.map((row) => row.month);
   const codData = analytics.codPerMonth.map((row) => row.codCollected);
 
-  const statusRaw = analytics.statusDistribution;
-  const statusMap = {};
-  statusRaw.forEach((row) => {
-    const status = row.status.toLowerCase();
-    const count = Number(row.count) || 0;
+  // Build a non-overlapping pie breakdown and include rejected/cancelled explicitly.
+  const pendingOtherNet = Math.max(totalCreated - totalDelivered - totalInTransit - rejectedCount - cancelledCount, 0);
 
-    if (status === 'delivered' || status === 'delivered-returned') {
-      statusMap.Delivered = (statusMap.Delivered || 0) + count;
-    } else if (status.includes('pickedup') || status.includes('in-transit') || status === 'assigned') {
-      statusMap['In-Transit'] = (statusMap['In-Transit'] || 0) + count;
-    } else if (status === 'awaiting_schedule' || status === 'scheduled_for_pickup' || status === 'awaiting_pickup') {
-      statusMap['Awaiting Pickup'] = (statusMap['Awaiting Pickup'] || 0) + count;
-    } else if (status === 'pending') {
-      statusMap.Pending = (statusMap.Pending || 0) + count;
-    } else if (status.includes('return')) {
-      statusMap['Return Flow'] = (statusMap['Return Flow'] || 0) + count;
-    } else if (status.includes('exchange')) {
-      statusMap['Exchange Flow'] = (statusMap['Exchange Flow'] || 0) + count;
-    } else if (status.includes('rejected')) {
-      statusMap.Rejected = (statusMap.Rejected || 0) + count;
-    } else if (status.includes('cancelled')) {
-      statusMap.Cancelled = (statusMap.Cancelled || 0) + count;
-    } else {
-      statusMap.Other = (statusMap.Other || 0) + count;
-    }
-  });
+  const pieStatusMap = {
+    Delivered: totalDelivered,
+    'In-Transit': totalInTransit,
+    Rejected: rejectedCount,
+    Cancelled: cancelledCount,
+    'Pending/Other': pendingOtherNet
+  };
 
-  const statusLabels = Object.keys(statusMap);
-  const statusCounts = Object.values(statusMap);
+  const statusLabels = Object.keys(pieStatusMap);
+  const statusCounts = Object.values(pieStatusMap);
   const statusColorMap = {
     Delivered: '#2E7D32',
     'In-Transit': '#EF6C00',
-    'Awaiting Pickup': '#1E88E5',
-    Pending: '#F9A825',
-    'Return Flow': '#8E24AA',
-    'Exchange Flow': '#00838F',
     Rejected: '#AD1457',
     Cancelled: '#C62828',
+    'Pending/Other': '#1E88E5',
     Other: '#546E7A'
   };
   const statusColors = statusLabels.map((label) => statusColorMap[label] || '#546E7A');
@@ -368,7 +358,8 @@ const DashboardHomeTab = ({
                       labels: months,
                       datasets: [
                         { label: 'Created', data: createdData, backgroundColor: 'rgba(54, 162, 235, 0.6)' },
-                        { label: 'Delivered', data: deliveredData, backgroundColor: 'rgba(75, 192, 192, 0.6)' }
+                        { label: 'Delivered', data: deliveredData, backgroundColor: 'rgba(75, 192, 192, 0.6)' },
+                        { label: 'Rejected', data: rejectedData, backgroundColor: 'rgba(239, 83, 80, 0.65)' }
                       ]
                     }}
                     options={{ responsive: true, plugins: { legend: { position: 'top' } }, maintainAspectRatio: false }}

@@ -95,10 +95,12 @@ export const useAdminDashboardEffects = ({
   }, [activeTab, packagesTab, setPackagesTab, setPackagesSubTab]);
 
   useEffect(() => {
-    if (activeTab === 'packages' && packagesSubTab && packages.length > 0) {
+    // Re-query when package tab/sub-tab changes, but do not key off list length;
+    // that can force-reset pagination after a successful page change.
+    if (activeTab === 'packages' && packagesSubTab) {
       fetchPackagesWithMainTabRef.current(packagesTab, packagesSubTab, 1);
     }
-  }, [activeTab, packagesSubTab, packages.length, packagesTab]);
+  }, [activeTab, packagesSubTab, packagesTab]);
 
   useEffect(() => {
     if (activeTab === 'dashboard') {

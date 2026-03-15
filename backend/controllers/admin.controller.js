@@ -1794,14 +1794,15 @@ exports.getRecentActivities = async (req, res) => {
   }
 };
 
-// 1. Monthly package trends (created/delivered per month for last 12 months)
+// 1. Monthly package trends (created/delivered/rejected per month for last 12 months)
 exports.getPackagesPerMonth = async (req, res) => {
   try {
     const results = await sequelize.query(`
       SELECT
         DATE_FORMAT(createdAt, '%Y-%m') as month,
         COUNT(*) as created,
-        SUM(CASE WHEN status = 'delivered' THEN 1 ELSE 0 END) as delivered
+        SUM(CASE WHEN status = 'delivered' THEN 1 ELSE 0 END) as delivered,
+        SUM(CASE WHEN status LIKE 'rejected%' THEN 1 ELSE 0 END) as rejected
       FROM Packages
       WHERE createdAt >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
       GROUP BY month

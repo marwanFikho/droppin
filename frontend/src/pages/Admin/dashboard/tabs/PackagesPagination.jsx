@@ -38,6 +38,7 @@ const PackagesPagination = ({
       className="packages-pagination d-flex align-items-center justify-content-center flex-wrap gap-2 mt-3"
     >
       <button
+        type="button"
         className="btn btn-outline-secondary btn-sm"
         onClick={goToPrev}
         disabled={packagePage <= 1 || loading}
@@ -47,6 +48,7 @@ const PackagesPagination = ({
       </button>
       <span style={{ whiteSpace: 'nowrap' }}>Page {packagePage} of {packageTotalPages}</span>
       <button
+        type="button"
         className="btn btn-outline-secondary btn-sm"
         onClick={goToNext}
         disabled={packagePage >= packageTotalPages || loading}

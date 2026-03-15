@@ -131,6 +131,10 @@ Pattern used by current codebase:
 - Keep factory invocation after dependent state declarations.
 - Pass state setters into factories for centralized side effects.
 - Most package filtering in admin is server-side; frontend receives paged data and renders.
+- Monthly admin analytics chart "Monthly Package Trends (Last 12 Months)" now includes `created`, `delivered`, and `rejected` (status values matching `rejected%`; cancelled is excluded).
+- Admin pie chart "Current Package Status Distribution" now shows `Delivered`, `In-Transit`, `Rejected`, `Cancelled`, and `Pending/Other`.
+- Pie chart buckets should remain non-overlapping: `Pending/Other = total - delivered - inTransit - rejected - cancelled`.
+- Operational KPI `Undelivered Backlog` is intentionally aligned to rejected totals: `undelivered = rejected`.
 
 ## 7. API and Security Conventions
 
@@ -230,6 +234,7 @@ After changing date formatting:
 - Some legacy code paths still duplicate fetch/update logic across multiple factories.
 - Status strings are used in many places; typo safety is low (stringly-typed system).
 - Several UI actions are optimistic then refetched; state drift can happen if one side is updated without the other.
+- Admin package pagination can regress if effects depend on `packages.length`; this may reset page navigation back to page 1 after fetches. Keep pagination fetch effects keyed to tab/sub-tab changes, not result length.
 
 ---
 If you are a future agent, start by reading:
