@@ -336,6 +336,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: 1rem;
 }
 
 /* Ensure Admin Delivered modal appears above Details modal */
@@ -348,8 +352,13 @@
   padding: 2rem;
   min-width: 320px;
   max-width: 90vw;
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   box-shadow: 0 2px 16px rgba(0,0,0,0.15);
   z-index: 10000;
+  margin: auto;
 }
 
 /* Keep the large details modal usable on all viewport heights */
@@ -392,6 +401,19 @@ body.no-scroll {
   overflow: hidden !important;
   height: 100vh;
   touch-action: none;
+}
+
+html.admin-modal-open,
+body.admin-modal-open {
+  overflow: hidden !important;
+  height: 100%;
+}
+
+body.admin-modal-open {
+  position: fixed;
+  left: 0;
+  right: 0;
+  width: 100%;
 }
 
 .modal-header h2 {

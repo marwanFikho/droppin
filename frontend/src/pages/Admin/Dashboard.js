@@ -686,6 +686,61 @@ const AdminDashboard = () => {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [showReturnCompleteDialog, showExchangeCompleteDialog, showConfirmationDialog, showAdminDeliveryModal, showRejectPackageModal, showForwardPackageModal, showAssignPickupDriverModal, showAssignDriverModal, showBulkAssignModal, showSchedulePickupModal, showSettleAmountModal, showPickupModal, showWorkingAreaModal, showShippingFeesModal, showDetailsModal]);
 
+  // Prevent background page from scrolling while any admin popup is open.
+  useEffect(() => {
+    const anyModalOpen = (
+      showReturnCompleteDialog ||
+      showExchangeCompleteDialog ||
+      showConfirmationDialog ||
+      showAdminDeliveryModal ||
+      showRejectPackageModal ||
+      showForwardPackageModal ||
+      showAssignPickupDriverModal ||
+      showAssignDriverModal ||
+      showBulkAssignModal ||
+      showSchedulePickupModal ||
+      showSettleAmountModal ||
+      showPickupModal ||
+      showWorkingAreaModal ||
+      showShippingFeesModal ||
+      showDetailsModal ||
+      showDriverPackages
+    );
+
+    if (!anyModalOpen) return undefined;
+
+    const scrollY = window.scrollY || window.pageYOffset || 0;
+    document.documentElement.classList.add('admin-modal-open');
+    document.body.classList.add('admin-modal-open');
+    document.body.style.top = `-${scrollY}px`;
+
+    return () => {
+      document.documentElement.classList.remove('admin-modal-open');
+      document.body.classList.remove('admin-modal-open');
+      const top = document.body.style.top;
+      document.body.style.top = '';
+      const restoreY = top ? Math.abs(parseInt(top, 10)) : scrollY;
+      window.scrollTo(0, Number.isFinite(restoreY) ? restoreY : 0);
+    };
+  }, [
+    showReturnCompleteDialog,
+    showExchangeCompleteDialog,
+    showConfirmationDialog,
+    showAdminDeliveryModal,
+    showRejectPackageModal,
+    showForwardPackageModal,
+    showAssignPickupDriverModal,
+    showAssignDriverModal,
+    showBulkAssignModal,
+    showSchedulePickupModal,
+    showSettleAmountModal,
+    showPickupModal,
+    showWorkingAreaModal,
+    showShippingFeesModal,
+    showDetailsModal,
+    showDriverPackages
+  ]);
+
   const {
     handleConfirmDeliveredReturned,
     handleOpenReturnCompleteDialog,
