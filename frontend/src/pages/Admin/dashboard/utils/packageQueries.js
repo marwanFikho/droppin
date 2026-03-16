@@ -10,6 +10,9 @@ export const createPackageQueryActions = ({
   packagePage,
   packageStatusFilter,
   packageShopFilter,
+  packageDateField,
+  packageDateFrom,
+  packageDateTo,
   searchTerm,
   packagesTab,
   packagesSubTab,
@@ -78,16 +81,42 @@ export const createPackageQueryActions = ({
         else params.status = effectiveStatusFilter;
       }
 
-      // Keep one consistent order across all package tabs/sub-tabs: newest created first.
-      params.sortBy = 'createdAt';
+      const hasDateRange = Boolean(packageDateFrom || packageDateTo);
+      if (hasDateRange) {
+        const fromKeyByField = {
+          created: 'createdAfter',
+          assigned: 'assignedAfter',
+          pickup: 'pickupAfter',
+          delivery: 'deliveredAfter'
+        };
+        const toKeyByField = {
+          created: 'createdBefore',
+          assigned: 'assignedBefore',
+          pickup: 'pickupBefore',
+          delivery: 'deliveredBefore'
+        };
+
+        const selectedField = fromKeyByField[packageDateField] ? packageDateField : 'created';
+        if (packageDateFrom) params[fromKeyByField[selectedField]] = packageDateFrom;
+        if (packageDateTo) params[toKeyByField[selectedField]] = packageDateTo;
+      }
+
+      // Delivered tab should be ordered by latest delivery event, not creation time.
+      const sortByField = packagesTab === 'delivered' ? 'actualDeliveryTime' : 'createdAt';
+      params.sortBy = sortByField;
       params.sortOrder = 'DESC';
 
       const response = await adminService.getPackages(params);
       const list = response.data?.packages || response.data || [];
       const sortedList = [...list].sort((a, b) => {
-        const aTime = a?.createdAt ? new Date(a.createdAt).getTime() : 0;
-        const bTime = b?.createdAt ? new Date(b.createdAt).getTime() : 0;
-        return bTime - aTime;
+        const aPrimaryTime = a?.[sortByField] ? new Date(a[sortByField]).getTime() : 0;
+        const bPrimaryTime = b?.[sortByField] ? new Date(b[sortByField]).getTime() : 0;
+        if (bPrimaryTime !== aPrimaryTime) return bPrimaryTime - aPrimaryTime;
+
+        const aCreatedTime = a?.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const bCreatedTime = b?.createdAt ? new Date(b.createdAt).getTime() : 0;
+        // Deterministic fallback for rows with same/missing primary sort field.
+        return bCreatedTime - aCreatedTime;
       });
       const totalPages = response.data?.totalPages || 1;
       const total = response.data?.total || list.length;

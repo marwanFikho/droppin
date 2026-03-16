@@ -18,6 +18,13 @@ const PackagesSubTabs = ({
   printingBulkAwb,
   handleMainTabChange,
   handleSubTabChange,
+  packageDateField,
+  packageDateFrom,
+  packageDateTo,
+  handlePackageDateFieldChange,
+  handlePackageDateFromChange,
+  handlePackageDateToChange,
+  handleClearPackageDateFilter,
   openBulkAssignModal,
   openSchedulePickupModal,
   handleExportSelectedPackages,
@@ -121,6 +128,51 @@ const PackagesSubTabs = ({
           ))}
         </div>
       )}
+
+      <div className="d-flex flex-wrap align-items-end gap-2 mt-3">
+        <div>
+          <label className="form-label small mb-1">Date Type</label>
+          <select
+            className="form-select form-select-sm"
+            value={packageDateField}
+            onChange={(e) => handlePackageDateFieldChange(e.target.value)}
+          >
+            <option value="created">Creation Date</option>
+            <option value="assigned">Assignment Date</option>
+            <option value="pickup">Pickup Date</option>
+            <option value="delivery">Delivery Date</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="form-label small mb-1">From</label>
+          <input
+            type="date"
+            className="form-control form-control-sm"
+            value={packageDateFrom}
+            onChange={(e) => handlePackageDateFromChange(e.target.value)}
+          />
+        </div>
+
+        <div>
+          <label className="form-label small mb-1">To</label>
+          <input
+            type="date"
+            className="form-control form-control-sm"
+            value={packageDateTo}
+            onChange={(e) => handlePackageDateToChange(e.target.value)}
+          />
+        </div>
+
+        <button
+          className="btn btn-sm btn-outline-secondary"
+          onClick={handleClearPackageDateFilter}
+          disabled={!packageDateFrom && !packageDateTo}
+          title="Clear package date filter"
+        >
+          Clear Dates
+        </button>
+      </div>
     </div>
   );
 };

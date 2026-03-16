@@ -12,6 +12,9 @@ export const useAdminDashboardEffects = ({
   activeTab,
   packagesTab,
   packagesSubTab,
+  packageDateField,
+  packageDateFrom,
+  packageDateTo,
   packages,
   sortConfig,
   moneyFilters,
@@ -100,7 +103,7 @@ export const useAdminDashboardEffects = ({
     if (activeTab === 'packages' && packagesSubTab) {
       fetchPackagesWithMainTabRef.current(packagesTab, packagesSubTab, 1);
     }
-  }, [activeTab, packagesSubTab, packagesTab]);
+  }, [activeTab, packagesSubTab, packagesTab, packageDateField, packageDateFrom, packageDateTo]);
 
   useEffect(() => {
     if (activeTab === 'dashboard') {

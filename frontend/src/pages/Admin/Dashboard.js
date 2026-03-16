@@ -366,6 +366,9 @@ const AdminDashboard = () => {
   // Add state for server-side package filters
   const [packageStatusFilter, setPackageStatusFilter] = useState('');
   const [packageShopFilter, setPackageShopFilter] = useState('');
+  const [packageDateField, setPackageDateField] = useState('created');
+  const [packageDateFrom, setPackageDateFrom] = useState('');
+  const [packageDateTo, setPackageDateTo] = useState('');
   const [availableShops, setAvailableShops] = useState([]);
   const [packagePage, setPackagePage] = useState(1);
   const [packageTotalPages, setPackageTotalPages] = useState(1);
@@ -413,6 +416,9 @@ const AdminDashboard = () => {
     packagePage,
     packageStatusFilter,
     packageShopFilter,
+    packageDateField,
+    packageDateFrom,
+    packageDateTo,
     searchTerm,
     packagesTab,
     packagesSubTab,
@@ -429,6 +435,27 @@ const AdminDashboard = () => {
     PACKAGE_SUB_TABS,
     setAvailableShops
   });
+
+  const handlePackageDateFieldChange = (value) => {
+    setPackageDateField(value);
+    setPackagePage(1);
+  };
+
+  const handlePackageDateFromChange = (value) => {
+    setPackageDateFrom(value);
+    setPackagePage(1);
+  };
+
+  const handlePackageDateToChange = (value) => {
+    setPackageDateTo(value);
+    setPackagePage(1);
+  };
+
+  const handleClearPackageDateFilter = () => {
+    setPackageDateFrom('');
+    setPackageDateTo('');
+    setPackagePage(1);
+  };
 
   const {
     openAssignDriverModal,
@@ -577,6 +604,9 @@ const AdminDashboard = () => {
     activeTab,
     packagesTab,
     packagesSubTab,
+    packageDateField,
+    packageDateFrom,
+    packageDateTo,
     packages,
     sortConfig,
     moneyFilters,
@@ -921,6 +951,13 @@ const AdminDashboard = () => {
     filteredPackages: getFilteredPackages(),
     packageShopFilter,
     handleShopFilterChange,
+    packageDateField,
+    packageDateFrom,
+    packageDateTo,
+    handlePackageDateFieldChange,
+    handlePackageDateFromChange,
+    handlePackageDateToChange,
+    handleClearPackageDateFilter,
     availableShops,
     handleSelectAll,
     handleSelectPackage,

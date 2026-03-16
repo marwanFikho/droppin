@@ -135,6 +135,8 @@ Pattern used by current codebase:
 - Admin pie chart "Current Package Status Distribution" now shows `Delivered`, `In-Transit`, `Rejected`, `Cancelled`, and `Pending/Other`.
 - Pie chart buckets should remain non-overlapping: `Pending/Other = total - delivered - inTransit - rejected - cancelled`.
 - Operational KPI `Undelivered Backlog` is intentionally aligned to rejected totals: `undelivered = rejected`.
+- Delivered packages list ordering is `actualDeliveryTime DESC` (newly delivered first); non-delivered tabs remain `createdAt DESC`.
+- Admin package tabs now support date filtering by a selectable date type (`created`, `assigned`, `pickup`, `delivery`) plus `from/to` range controls in the package header.
 
 ## 7. API and Security Conventions
 

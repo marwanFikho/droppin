@@ -1174,6 +1174,10 @@ exports.getPackages = async (req, res) => {
       search,
       createdAfter,
       createdBefore,
+      assignedAfter,
+      assignedBefore,
+      pickupAfter,
+      pickupBefore,
       deliveredAfter,
       deliveredBefore,
       page = 1,
@@ -1243,61 +1247,136 @@ exports.getPackages = async (req, res) => {
       if (createdBefore) whereClause.createdAt[Op.lte] = new Date(createdBefore);
     }
 
+    if (pickupAfter || pickupBefore) {
+      whereClause.actualPickupTime = {};
+      if (pickupAfter) whereClause.actualPickupTime[Op.gte] = new Date(pickupAfter);
+      if (pickupBefore) whereClause.actualPickupTime[Op.lte] = new Date(pickupBefore);
+    }
+
     if (deliveredAfter || deliveredBefore) {
       whereClause.actualDeliveryTime = {};
       if (deliveredAfter) whereClause.actualDeliveryTime[Op.gte] = new Date(deliveredAfter);
       if (deliveredBefore) whereClause.actualDeliveryTime[Op.lte] = new Date(deliveredBefore);
     }
 
-  const validSortFields = ['createdAt', 'actualDeliveryTime', 'actualPickupTime', 'status', 'updatedAt'];
+    const validSortFields = ['createdAt', 'actualDeliveryTime', 'actualPickupTime', 'status', 'updatedAt'];
     const orderField = validSortFields.includes(sortBy) ? sortBy : 'createdAt';
     const orderDirection = ['ASC', 'DESC'].includes(String(sortOrder).toUpperCase()) ? String(sortOrder).toUpperCase() : 'DESC';
 
-    const { count, rows } = await Package.findAndCountAll({
-      attributes: [
-        'id', 'trackingNumber', 'packageDescription', 'weight', 'dimensions',
-        'type', 'status', 'shopId', 'userId', 'driverId',
-        'statusHistory',
-        'pickupContactName', 'pickupContactPhone', 'pickupAddress',
-        'deliveryContactName', 'deliveryContactPhone', 'deliveryAddress',
-        'schedulePickupTime', 'estimatedDeliveryTime',
-        'actualPickupTime', 'actualDeliveryTime',
-        'priority', 'paymentStatus', 'createdAt', 'updatedAt',
-        'codAmount', 'deliveryCost', 'shownDeliveryCost', 'isPaid', 'paymentDate', 'shopNotes',
-        'notes', 'exchangeDetails', 'itemsNo', 'paidAmount'
-      ],
-      where: whereClause,
-      include: [
-        {
-          model: Shop,
-          attributes: ['id', 'businessName', 'userId'],
-          include: [
-            {
-              model: User,
-              attributes: ['name', 'email', 'phone']
-            }
-          ]
-        },
-        {
-          model: Driver,
-          attributes: ['id', 'vehicleType', 'licensePlate', 'userId'],
-          include: [
-            {
-              model: User,
-              attributes: ['name', 'email', 'phone']
-            }
-          ]
-        },
-        {
-          model: User,
-          attributes: ['name', 'email', 'phone']
+    const include = [
+      {
+        model: Shop,
+        attributes: ['id', 'businessName', 'userId'],
+        include: [
+          {
+            model: User,
+            attributes: ['name', 'email', 'phone']
+          }
+        ]
+      },
+      {
+        model: Driver,
+        attributes: ['id', 'vehicleType', 'licensePlate', 'userId'],
+        include: [
+          {
+            model: User,
+            attributes: ['name', 'email', 'phone']
+          }
+        ]
+      },
+      {
+        model: User,
+        attributes: ['name', 'email', 'phone']
+      }
+    ];
+
+    const attributes = [
+      'id', 'trackingNumber', 'packageDescription', 'weight', 'dimensions',
+      'type', 'status', 'shopId', 'userId', 'driverId',
+      'statusHistory',
+      'pickupContactName', 'pickupContactPhone', 'pickupAddress',
+      'deliveryContactName', 'deliveryContactPhone', 'deliveryAddress',
+      'schedulePickupTime', 'estimatedDeliveryTime',
+      'actualPickupTime', 'actualDeliveryTime',
+      'priority', 'paymentStatus', 'createdAt', 'updatedAt',
+      'codAmount', 'deliveryCost', 'shownDeliveryCost', 'isPaid', 'paymentDate', 'shopNotes',
+      'notes', 'exchangeDetails', 'itemsNo', 'paidAmount'
+    ];
+
+    const getAssignmentTimestampMs = (pkg) => {
+      let history = pkg?.statusHistory;
+      if (typeof history === 'string') {
+        try {
+          history = JSON.parse(history);
+        } catch {
+          history = [];
         }
-      ],
-      order: [[orderField, orderDirection]],
-      limit,
-      offset,
-      subQuery: false
-    });
+      }
+
+      if (!Array.isArray(history) || history.length === 0) return null;
+
+      let latestMs = null;
+      for (const entry of history) {
+        const statusValue = String(entry?.status || '').toLowerCase();
+        const noteValue = String(entry?.note || '').toLowerCase();
+        const isAssignmentEvent = (
+          statusValue === 'assigned' ||
+          statusValue === 'return-in-transit' ||
+          statusValue === 'exchange-in-transit' ||
+          noteValue.includes('assigned to driver') ||
+          noteValue.includes('driver changed')
+        );
+
+        if (!isAssignmentEvent) continue;
+
+        const rawTimestamp = entry?.timestamp || entry?.createdAt || entry?.date;
+        const ms = rawTimestamp ? new Date(rawTimestamp).getTime() : NaN;
+        if (!Number.isNaN(ms) && (latestMs === null || ms > latestMs)) {
+          latestMs = ms;
+        }
+      }
+
+      return latestMs;
+    };
+    let rows = [];
+    let count = 0;
+
+    if (assignedAfter || assignedBefore) {
+      const assignedAfterMs = assignedAfter ? new Date(assignedAfter).getTime() : null;
+      const assignedBeforeMs = assignedBefore ? new Date(assignedBefore).getTime() : null;
+
+      const allRows = await Package.findAll({
+        attributes,
+        where: whereClause,
+        include,
+        order: [[orderField, orderDirection]],
+        subQuery: false
+      });
+
+      const assignmentFiltered = allRows.filter((row) => {
+        const assignmentMs = getAssignmentTimestampMs(row);
+        if (assignmentMs === null) return false;
+        if (assignedAfterMs !== null && assignmentMs < assignedAfterMs) return false;
+        if (assignedBeforeMs !== null && assignmentMs > assignedBeforeMs) return false;
+        return true;
+      });
+
+      count = assignmentFiltered.length;
+      rows = assignmentFiltered.slice(offset, offset + limit);
+    } else {
+      const result = await Package.findAndCountAll({
+        attributes,
+        where: whereClause,
+        include,
+        order: [[orderField, orderDirection]],
+        limit,
+        offset,
+        subQuery: false
+      });
+
+      count = result.count;
+      rows = result.rows;
+    }
 
     const packages = rows.map(row => {
       const pkg = row.toJSON();
